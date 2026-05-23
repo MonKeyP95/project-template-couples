@@ -1,23 +1,23 @@
 # VISION.md
 
 ## Project Name
-LifeTogether
+Together
 
 ## Tagline
-Organize life together — calmly and beautifully.
+Organize together — simple and efficient.
 
 ## Purpose
-Create a single place where couples can manage their shared responsibilities (tasks, calendar, budget, notes) without stress or arguments.
+Create a single place where couples can manage and organize their shared responsibilities, projects, and dreams (tasks, calendar, budget, and expense tracking, notes, shopping lists, traveling plans).
 
 ## Target Users
-**Primary**: Couples (married, living together, or long-distance)  
+**Primary**: Couples (married, living together)  
 **Secondary**: Families and small teams (future version)
 
 ## Core Values
-- Warm and human, not corporate
-- Collaborative (feels like "ours", not "mine")
+- simple, clear
+- Collaborative
 - Calm and not overwhelming
 - Mobile friendly
 
 ## Success Vision
-People say: "This app made our life noticeably easier and more connected."
+time saving, stress reducing, making projects and dreams more visual."
