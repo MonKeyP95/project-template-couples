@@ -7,7 +7,7 @@ Together
 Organize together — simple and efficient.
 
 ## Purpose
-Create a single place where couples can manage and organize their shared responsibilities, projects, and dreams (tasks, calendar, budget, and expense tracking, notes, shopping lists, traveling plans).
+Create a single place where couples can manage and organize their shared responsibilities, projects, and dreams (tasks, calendar, booking, budget, expense tracking, notes, shopping lists, traveling plans).
 
 ## Target Users
 **Primary**: Couples (married, living together)  
@@ -16,7 +16,7 @@ Create a single place where couples can manage and organize their shared respons
 ## Core Values
 - simple, clear
 - Collaborative
-- Calm and not overwhelming
+- Efficient
 - Mobile friendly
 
 ## Success Vision
