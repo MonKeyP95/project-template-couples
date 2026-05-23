@@ -9,6 +9,9 @@
 - Quick Notes & Lists
 - Collection of data for analysis
 - Agenda creation
+- API integrations (Google Calendar, etc.)
+- API integrations (Searching the web / Booking restaurants, ets.)
+- AI chatbot
 
 ## Nice to Have
 - Habit tracker for couples
@@ -21,4 +24,3 @@
 - User roles & permissions
 - Team task management
 - Analytics & insights
-- API integrations (Google Calendar, etc.)
