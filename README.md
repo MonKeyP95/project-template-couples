@@ -1,36 +1,39 @@
 # LifeTogether
 
-**Organize life together — calmly, intelligently, and beautifully.**
+**Simple and efficient organization for couples.**
 
-A smart collaborative app designed to help couples manage their shared life effortlessly. Combining classic organization tools with modern AI assistance to reduce stress, improve coordination, and bring couples closer.
+A clean, practical app that helps couples manage shared tasks, calendar, budget, notes, and daily responsibilities in one place.
 
 ---
 
 ## Vision
-Create a warm, intelligent platform that feels like a caring teammate for couples. Start with couples, expand naturally to families and small teams later.
+Build a straightforward, fast, and reliable tool that makes organizing life together easier and less stressful. Start simple with couples, then expand to teams later.
 
 ## Key Features
 
 ### MVP (Core)
-- Smooth user signup & login
+- User signup & login
 - Couple pairing / invitation system
-- Shared Tasks, Calendar, Budget & Notes
-- Data collection & insights
-- AI Chatbot (smart suggestions and assistance)
-- Agenda creation (manual + AI-powered)
-- External API integrations (Google Calendar, web search, restaurant booking, etc.)
+- Shared Tasks (create, assign, complete, due dates)
+- Shared Calendar
+- Shared Budget / Expense tracker
+- Quick Notes & Lists
+- Data collection for basic analysis
+- Agenda creation
+- AI Chatbot (optional smart assistance)
+- Basic external integrations (Google Calendar, etc.)
 
 ### Nice to Have
 - Habit tracker
-- In-app reminders
+- Reminders & notifications
 - Dark mode
 - Anniversary & birthday reminders
 
-### Future (Teams Version)
+### Future - Teams Version
 - Multiple workspaces
 - User roles & permissions
-- Advanced team management
-- Richer AI capabilities
+- Team task management
+- Advanced analytics
 
 ---
 
@@ -46,19 +49,21 @@ Create a warm, intelligent platform that feels like a caring teammate for couple
 ---
 
 ## Documentation
-
 - [VISION](docs/VISION.md)
 - [FEATURES](docs/FEATURES.md)
 - [PLAN](docs/PLAN.md)
 - [DESIGN](docs/DESIGN.md)
 - [TECH](docs/TECH.md)
-- [DECISIONS](docs/DECISIONS.md)
 - [TODO](docs/TODO.md)
 
 ---
 
-## Quick Start (Coming Soon)
+## Development Approach
+- Prioritize **simplicity and efficiency**
+- Build clean, maintainable code
+- Add features only when they bring clear value
+- Keep the interface minimal and fast
 
-```bash
-npm install
-npm run dev
+---
+
+**Focus: Simple. Efficient. Useful.**
