@@ -1,29 +1,27 @@
 # DESIGN.md
 
 ## Overall Style
-Warm, soft, modern, intelligent, and collaborative. The app should feel like a caring, smart teammate rather than a cold tool.
+Warm, soft, modern. Should feel like a calm travel companion — not a productivity tool, not a booking site.
 
 ## Color Palette
-- **Primary**: Soft warm pink (#f8c1d4) or gentle peach
-- **Accent**: Calming teal (#67e8f9) or sage green
-- **Background**: Warm off-white (#faf7f5) or light beige
+- **Primary**: Soft warm pink (#f8c1d4) — used for shared/"ours" affordances
+- **Accent**: Calming teal (#67e8f9) — used for actions, links
+- **Background**: Warm off-white (#faf7f5)
 - **Text**: Deep warm gray (#374151)
-- **AI Accent**: Soft purple / indigo for intelligent features
+- **AI accent**: Soft indigo — only on AI-generated content, used sparingly
 
 ## Design Principles
-- Mobile-first design
-- Plenty of whitespace to feel calm and not overwhelming
-- Warm, human, and inviting atmosphere
-- Clear visual distinction for AI-powered features (without being distracting)
-- Both partners should feel equal ownership ("This is ours")
-- Soft shadows, rounded corners, and smooth interactions
-- Intelligent but approachable — not overly techy
+- **Mobile-first.** Most trip planning happens on phones. Test on a phone, not a desktop.
+- **Plenty of whitespace.** Calm beats dense.
+- **Both partners feel equal ownership.** No "owner" badges. Shared things look shared.
+- **AI is visible but quiet.** A subtle indigo border on AI-generated content; never a flashy gradient or sparkle.
+- Soft shadows, rounded corners, smooth transitions. Avoid generic "AI app" aesthetics (sharp gradients, dark hero, etc.).
 
 ## Typography
-- Clean, modern sans-serif fonts (Inter or system default)
-- Good hierarchy and readable contrast
+- Inter (or system sans-serif fallback)
+- Clear hierarchy: trip name big, day labels mid, items small.
 
-## Tone & Feel
-- Supportive and encouraging
-- Calm and organized
-- Slightly delightful when using AI features
+## Tone & Copy
+- Supportive, not chirpy. "Add a stop" beats "Let's plan something fun!"
+- Calm and concrete. Use specifics — destinations, dates, names — not generic encouragement.
+- Slightly delightful only when AI does something genuinely useful (e.g., drafts a day).

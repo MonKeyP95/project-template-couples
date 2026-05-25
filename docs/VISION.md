@@ -4,27 +4,36 @@
 Together
 
 ## Tagline
-Organize together — simple and efficient.
+Plan trips and life together — for couples and families.
 
 ## Purpose
-Create a single place where couples can manage and organize their shared responsibilities, projects, and dreams (tasks, calendar, booking, budget, expense tracking, notes, shopping lists, traveling plans).
+A single shared space for couples and families to plan trips together: itineraries, shared budget, packing lists, restaurant ideas, and dream destinations — calm, collaborative, mobile-friendly.
 
 ## Target Users
-**Primary**: Couples (married, living together)  
-**Secondary**: Families and small teams (future version)
+- **Primary**: Couples and small families who travel together a few times a year.
+- **First real users**: Me and my partner — this is a learning project we will actually use.
+
+## Why Us, Not Cozi / Wanderlog / TripIt
+- **Cozi** is a family logistics calendar — not built around trips.
+- **Wanderlog** is solo-friendly trip planning — collaboration is bolted on.
+- **TripIt** aggregates reservations — it doesn't help you *plan*.
+
+This app's center of gravity is **the shared trip** — both partners adding ideas, splitting expenses inside the trip, drafting itineraries together, with an AI assistant that knows both people's preferences.
 
 ## Core Values
-- simple, clear
-- Collaborative
-- Efficient
-- Mobile friendly
-- 
+- Simple and clear
+- Collaborative — both partners feel equal ownership
+- Calm — trip planning should reduce stress, not add to it
+- Mobile-first — most planning happens on phones
+
 ## Key Features Vision
-- Shared Tasks, Calendar, Budget, Notes & Lists
-- Intelligent AI assistant (chatbot) for agenda creation, suggestions, and help
-- Smart integrations (Google Calendar, web search, restaurant booking, etc.)
-- Data collection & insights to help couples understand their patterns
-- Foundation that can naturally expand from couples → small teams
+- Shared trips: dates, destination, members
+- Trip itineraries (days, events, places)
+- Shared trip budget and expense splitting
+- Packing lists and pre-trip todos
+- Dream destinations board (future trips)
+- AI assistant for itinerary drafting and recommendations
+- Integrations: Google Calendar, Google Maps, restaurant booking
 
 ## Success Vision
-time saving, stress reducing, making projects and dreams more visual."
+We use it end-to-end for our next 2–3 trips and prefer it over a Google Doc plus a shared spreadsheet.

@@ -1,0 +1,167 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-sans);
+  --font-serif: var(--font-serif);
+  --font-mono: var(--font-mono);
+  --font-heading: var(--font-serif);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
+}
+
+/* Warm palette per docs/DESIGN.md
+   Background: warm off-white (#faf7f5)
+   Foreground: deep warm gray (#374151)
+   Primary:    soft warm pink (#f8c1d4)
+   Accent:     calming teal (#67e8f9), used very softly
+*/
+:root {
+  --background: oklch(0.972 0.008 60);
+  --foreground: oklch(0.32 0.022 252);
+  --card: oklch(0.985 0.005 60);
+  --card-foreground: oklch(0.32 0.022 252);
+  --popover: oklch(0.99 0.003 60);
+  --popover-foreground: oklch(0.32 0.022 252);
+  --primary: oklch(0.836 0.082 11);
+  --primary-foreground: oklch(0.30 0.022 252);
+  --secondary: oklch(0.94 0.014 60);
+  --secondary-foreground: oklch(0.34 0.022 252);
+  --muted: oklch(0.95 0.012 60);
+  --muted-foreground: oklch(0.52 0.018 252);
+  --accent: oklch(0.92 0.04 215);
+  --accent-foreground: oklch(0.32 0.022 252);
+  --destructive: oklch(0.60 0.21 25);
+  --border: oklch(0.90 0.013 60);
+  --input: oklch(0.92 0.012 60);
+  --ring: oklch(0.836 0.082 11);
+
+  /* Atmospheric glows used by the landing page background.
+     Soft peach top-left, soft teal bottom-right. */
+  --glow-peach: oklch(0.88 0.06 25 / 0.55);
+  --glow-teal: oklch(0.90 0.05 210 / 0.45);
+
+  --chart-1: oklch(0.836 0.082 11);
+  --chart-2: oklch(0.85 0.07 215);
+  --chart-3: oklch(0.75 0.10 70);
+  --chart-4: oklch(0.65 0.12 280);
+  --chart-5: oklch(0.55 0.04 252);
+
+  --radius: 0.75rem;
+
+  --sidebar: oklch(0.985 0.006 60);
+  --sidebar-foreground: oklch(0.32 0.022 252);
+  --sidebar-primary: oklch(0.836 0.082 11);
+  --sidebar-primary-foreground: oklch(0.30 0.022 252);
+  --sidebar-accent: oklch(0.94 0.014 60);
+  --sidebar-accent-foreground: oklch(0.32 0.022 252);
+  --sidebar-border: oklch(0.90 0.013 60);
+  --sidebar-ring: oklch(0.836 0.082 11);
+}
+
+.dark {
+  --background: oklch(0.20 0.012 30);
+  --foreground: oklch(0.95 0.008 60);
+  --card: oklch(0.24 0.012 30);
+  --card-foreground: oklch(0.95 0.008 60);
+  --popover: oklch(0.24 0.012 30);
+  --popover-foreground: oklch(0.95 0.008 60);
+  --primary: oklch(0.78 0.10 11);
+  --primary-foreground: oklch(0.20 0.014 30);
+  --secondary: oklch(0.30 0.018 30);
+  --secondary-foreground: oklch(0.92 0.008 60);
+  --muted: oklch(0.28 0.014 30);
+  --muted-foreground: oklch(0.72 0.013 60);
+  --accent: oklch(0.35 0.03 215);
+  --accent-foreground: oklch(0.92 0.008 60);
+  --destructive: oklch(0.65 0.20 25);
+  --border: oklch(1 0 0 / 8%);
+  --input: oklch(1 0 0 / 12%);
+  --ring: oklch(0.78 0.10 11);
+
+  --glow-peach: oklch(0.55 0.10 25 / 0.18);
+  --glow-teal: oklch(0.55 0.08 210 / 0.14);
+
+  --chart-1: oklch(0.78 0.10 11);
+  --chart-2: oklch(0.75 0.09 215);
+  --chart-3: oklch(0.70 0.10 70);
+  --chart-4: oklch(0.65 0.13 280);
+  --chart-5: oklch(0.70 0.04 252);
+
+  --sidebar: oklch(0.24 0.012 30);
+  --sidebar-foreground: oklch(0.95 0.008 60);
+  --sidebar-primary: oklch(0.78 0.10 11);
+  --sidebar-primary-foreground: oklch(0.20 0.014 30);
+  --sidebar-accent: oklch(0.30 0.018 30);
+  --sidebar-accent-foreground: oklch(0.92 0.008 60);
+  --sidebar-border: oklch(1 0 0 / 8%);
+  --sidebar-ring: oklch(0.78 0.10 11);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+  html {
+    @apply font-sans;
+  }
+}
+
+/* Landing-page reveal — staggered fade-in on load. Apply with
+   .reveal and an inline animation-delay. One-time, no scroll trigger. */
+@keyframes reveal-up {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.reveal {
+  animation: reveal-up 0.9s cubic-bezier(0.2, 0.6, 0.2, 1) both;
+}

@@ -1,69 +1,42 @@
-# LifeTogether
+# Together
 
-**Simple and efficient organization for couples.**
+**Plan trips and life together — for couples and families.**
 
-A clean, practical app that helps couples manage shared tasks, calendar, budget, notes, and daily responsibilities in one place.
-
----
-
-## Vision
-Build a straightforward, fast, and reliable tool that makes organizing life together easier and less stressful. Start simple with couples, then expand to teams later.
-
-## Key Features
-
-### MVP (Core)
-- User signup & login
-- Couple pairing / invitation system
-- Shared Tasks (create, assign, complete, due dates)
-- Shared Calendar
-- Shared Budget / Expense tracker
-- Quick Notes & Lists
-- Data collection for basic analysis
-- Agenda creation
-- AI Chatbot (optional smart assistance)
-- Basic external integrations (Google Calendar, etc.)
-
-### Nice to Have
-- Habit tracker
-- Reminders & notifications
-- Dark mode
-- Anniversary & birthday reminders
-
-### Future - Teams Version
-- Multiple workspaces
-- User roles & permissions
-- Team task management
-- Advanced analytics
+A shared space for couples and families to plan trips: itineraries, budget, packing lists, restaurant ideas, and dream destinations. Calm, collaborative, mobile-first.
 
 ---
 
-## Tech Stack
+## Why this exists
+Cozi is a family calendar. Wanderlog is solo-friendly trip planning. TripIt aggregates reservations. None of them are built around **the shared trip** — both partners contributing, splitting expenses inside the trip, and drafting itineraries together with an AI assistant that knows both people's preferences.
 
-- **Frontend**: Next.js 15 (App Router) + TypeScript
-- **Styling**: Tailwind CSS
-- **Database**: Supabase
-- **Auth**: Supabase Auth
-- **AI**: OpenAI / Claude (flexible)
-- **Deployment**: Vercel
+This is also a personal learning project that will be used in real life by me and my partner.
 
----
+## MVP scope (deliberately tiny)
+
+1. Auth + couple/family pairing
+2. Create a trip (name, dates, destination, members)
+3. Shared trip todo / packing list
+
+Everything else (budget, itinerary days, AI assistant, integrations, dream board) is post-MVP. See `docs/FEATURES.md`.
+
+## Tech stack
+
+- **Next.js 16** (App Router, Turbopack) + **TypeScript**
+- **Tailwind CSS** + **Shadcn/ui**
+- **Supabase** (Postgres + Auth + RLS) — using `supabase-js` directly for MVP
+- **Anthropic Claude** for AI features
+- **Vercel** for deployment
 
 ## Documentation
-- [VISION](docs/VISION.md)
-- [FEATURES](docs/FEATURES.md)
-- [PLAN](docs/PLAN.md)
-- [DESIGN](docs/DESIGN.md)
-- [TECH](docs/TECH.md)
-- [TODO](docs/TODO.md)
+- [VISION](docs/VISION.md) — purpose, target users, "why us"
+- [FEATURES](docs/FEATURES.md) — MVP vs. later
+- [PLAN](docs/PLAN.md) — phased roadmap
+- [DESIGN](docs/DESIGN.md) — visual language
+- [TECH](docs/TECH.md) — stack and rationale
+- [DECISIONS](docs/DECISIONS.md) — non-obvious choices and why
+- [TODO](docs/TODO.md) — current task list
 
----
-
-## Development Approach
-- Prioritize **simplicity and efficiency**
-- Build clean, maintainable code
-- Add features only when they bring clear value
-- Keep the interface minimal and fast
-
----
-
-**Focus: Simple. Efficient. Useful.**
+## Development approach
+- One small task at a time. Validate each increment.
+- Root cause before fix. No speculative patches.
+- Don't over-engineer — this is a learning project, not a product to scale.
