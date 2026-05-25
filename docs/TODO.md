@@ -9,7 +9,10 @@
 3. ~~Create Supabase project, add `.env.local` with URL + anon key~~ **Done 2026-05-25** — project ref `zctbypyfvebhildcdkto`, URL + publishable/anon key in `.env.local` (gitignored). `.env.example` committed as template. Connectivity verified via `GET /auth/v1/settings` → HTTP 200.
 4. ~~Wire `@supabase/ssr` client (browser + server)~~ **Done 2026-05-25** — `@supabase/ssr` 0.10 + `@supabase/supabase-js` 2.106 installed. Clients at `src/lib/supabase/{client,server}.ts`. Session refresh in `src/proxy.ts` (Next 16's renamed middleware convention; Node runtime). Verified: `proxy.ts` runs on `GET /` in dev (proxy timing visible in Next log), build clean, no deprecation warnings.
 5. ~~Build minimal landing page in the project's warm style. Swap globals.css palette from neutral to warm pink/teal/off-white per DESIGN.md.~~ **Done 2026-05-25** — editorial-style landing at `/` with Instrument Serif + Hanken Grotesk + JetBrains Mono via `next/font/google`. Full warm palette in `globals.css` (OKLCH tokens, light + dark). Soft peach/teal radial-gradient atmosphere. Staggered fade-in on load. Mobile-first, tested at 390px and 1440px. Prod build clean.
-6. Push to GitHub, connect Vercel, confirm deploy works
+6. ~~Push to GitHub, connect Vercel, confirm deploy works~~ **Done 2026-05-25** — pushed to `MonKeyP95/project-template-couples`, Vercel project connected with `NEXT_PUBLIC_SUPABASE_URL` + `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` env vars. Production live at https://project-template-couples.vercel.app — HTTP 200, full visual match, proxy + Supabase env vars confirmed working in prod.
+
+## Phase 1 — Foundation: COMPLETE
+All 6 tasks done. Next is **Phase 2 — Auth + Pairing**.
 
 ## Phase 2 — Auth + Pairing (next up)
 - Email/password sign-up + log in (Supabase Auth)

@@ -51,6 +51,7 @@ export default function Home() {
         >
           <Link
             href="/signin"
+            prefetch={false}
             className={cn(buttonVariants({ size: "lg" }), "px-10")}
           >
             Sign in
