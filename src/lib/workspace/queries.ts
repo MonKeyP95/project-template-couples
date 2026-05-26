@@ -23,25 +23,41 @@ export async function getCurrentWorkspace(): Promise<CurrentWorkspace | null> {
     .select("workspace_id, role, workspaces(name)")
     .eq("user_id", userData.user.id)
     .limit(1)
-    .single()
+    .maybeSingle()
 
   if (!membership) return null
 
-  const { data: members } = await supabase
+  const { data: rawMembers } = await supabase
     .from("workspace_members")
-    .select("user_id, role, profiles(display_name)")
+    .select("user_id, role")
     .eq("workspace_id", membership.workspace_id)
+
+  if (!rawMembers || rawMembers.length === 0) return null
+
+  // Fetch display names separately. We can't embed profiles(display_name) on
+  // workspace_members because both tables reference auth.users.id independently
+  // and PostgREST can't infer the join. Two flat queries + JS lookup is safer.
+  const { data: profilesData } = await supabase
+    .from("profiles")
+    .select("id, display_name")
+    .in(
+      "id",
+      rawMembers.map((m) => m.user_id),
+    )
+
+  const nameById = new Map(
+    profilesData?.map((p) => [p.id, p.display_name as string]) ?? [],
+  )
 
   return {
     id: membership.workspace_id,
     // Supabase typed result for nested table is unknown without codegen; cast carefully.
     name: (membership.workspaces as unknown as { name: string }).name,
     role: membership.role as "owner" | "member",
-    members:
-      members?.map((m) => ({
-        user_id: m.user_id,
-        role: m.role as "owner" | "member",
-        display_name: (m.profiles as unknown as { display_name: string }).display_name,
-      })) ?? [],
+    members: rawMembers.map((m) => ({
+      user_id: m.user_id,
+      role: m.role as "owner" | "member",
+      display_name: nameById.get(m.user_id) ?? "Unknown",
+    })),
   }
 }
