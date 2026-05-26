@@ -1,6 +1,14 @@
 import { createServerClient } from "@supabase/ssr"
 import { NextResponse, type NextRequest } from "next/server"
 
+const PUBLIC_ROUTES: ReadonlyArray<string> = ["/", "/signin", "/signup"]
+const PUBLIC_ROUTE_PREFIXES: ReadonlyArray<string> = ["/join/", "/api/"]
+
+function isPublic(pathname: string): boolean {
+  if (PUBLIC_ROUTES.includes(pathname)) return true
+  return PUBLIC_ROUTE_PREFIXES.some((prefix) => pathname.startsWith(prefix))
+}
+
 export async function proxy(request: NextRequest) {
   let response = NextResponse.next({ request })
 
@@ -25,8 +33,23 @@ export async function proxy(request: NextRequest) {
     },
   )
 
-  // Touch the session so @supabase/ssr can refresh the auth cookie if expired.
-  await supabase.auth.getUser()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  const { pathname } = request.nextUrl
+
+  // Authed user visiting auth pages → bounce to /home.
+  if (user && (pathname === "/signin" || pathname === "/signup")) {
+    return NextResponse.redirect(new URL("/home", request.url))
+  }
+
+  // Unauthed user visiting a protected page → bounce to /signin with ?next=.
+  if (!user && !isPublic(pathname)) {
+    const url = new URL("/signin", request.url)
+    url.searchParams.set("next", pathname)
+    return NextResponse.redirect(url)
+  }
 
   return response
 }
