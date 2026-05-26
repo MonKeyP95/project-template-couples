@@ -4,7 +4,6 @@ import { redirect } from "next/navigation"
 import { createClient } from "@/lib/supabase/server"
 import { acceptInvite } from "@/lib/workspace/actions"
 import { getInvitePreview } from "@/lib/invites/preview"
-import { Button } from "@/components/ui/button"
 import { buttonVariants } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 
