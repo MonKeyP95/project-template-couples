@@ -1,7 +1,7 @@
 # TODO.md
 
 ## Current Phase
-**Phase 1 — Foundation**
+**Phase 2 — Auth + Pairing: COMPLETE.** Phase 3 (First Trip) is next.
 
 ## Next small tasks (do one at a time)
 1. ~~Initialize Next.js project here with TypeScript + Tailwind~~ **Done 2026-05-25** — Next 16.2.6, React 19.2, Tailwind v4, pnpm, App Router, `src/`, Turbopack. `pnpm dev` → http://localhost:3000 returns 200.
@@ -14,11 +14,13 @@
 ## Phase 1 — Foundation: COMPLETE
 All 6 tasks done. Next is **Phase 2 — Auth + Pairing**.
 
-## Phase 2 — Auth + Pairing (next up)
-- Email/password sign-up + log in (Supabase Auth)
-- `workspaces` table with members + roles (RLS on)
-- Invite flow: one member sends a link, the other joins the workspace
-- Basic profile (name, avatar)
+## Phase 2 — Auth + Pairing: COMPLETE 2026-05-26
+- ~~Email/password sign-up + log in (Supabase Auth)~~ Done.
+- ~~`workspaces` table with members + roles (RLS on)~~ Done.
+- ~~Invite flow: one member sends a link, the other joins the workspace~~ Done — single-use 14-day shareable link.
+- ~~Basic profile (name, avatar)~~ Done — name editable; avatar is initials only (image upload deferred).
+
+Implementation followed `docs/superpowers/specs/2026-05-25-phase-2-auth-pairing-design.md` and `docs/superpowers/plans/2026-05-25-phase-2-auth-pairing.md`. Local E2E verified: signup → invite → partner signup via invite → both see each other on `/home` → profile edit → sign-out → proxy redirect → inline error on wrong password.
 
 ## Phase 3 — First Trip (after Phase 2 works)
 - `trips` table (workspace_id, name, dates, destination)
