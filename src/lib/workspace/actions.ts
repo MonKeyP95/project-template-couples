@@ -51,3 +51,10 @@ export async function generateInvite(): Promise<InviteResult> {
   const origin = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000"
   return { url: `${origin}/join/${token}` }
 }
+
+export async function acceptInvite(token: string): Promise<{ error?: string }> {
+  const supabase = await createClient()
+  const { error } = await supabase.rpc("accept_invite", { p_token: token })
+  if (error) return { error: error.message }
+  return {}
+}
