@@ -45,5 +45,7 @@ export async function signIn(formData: FormData) {
 
   if (error) return { error: error.message }
 
-  redirect(next)
+  // Constrain redirect to relative paths to prevent open-redirect via ?next=.
+  const safeNext = next.startsWith("/") ? next : "/home"
+  redirect(safeNext)
 }

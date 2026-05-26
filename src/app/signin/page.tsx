@@ -10,7 +10,7 @@ export default async function SignInPage({
   searchParams: Promise<{ next?: string; invite?: string }>
 }) {
   const { next, invite } = await searchParams
-  const nextPath = next ?? (invite ? `/join/${invite}` : "/home")
+  const nextPath = next || (invite ? `/join/${invite}` : "/home")
 
   return (
     <main className="flex min-h-screen items-center justify-center px-6">
