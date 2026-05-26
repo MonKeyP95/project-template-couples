@@ -3,6 +3,7 @@ import { redirect } from "next/navigation"
 import { createClient } from "@/lib/supabase/server"
 import { getCurrentWorkspace } from "@/lib/workspace/queries"
 import { InitialsAvatar } from "@/components/initials-avatar"
+import { InviteCard } from "@/components/invite-card"
 
 export default async function HomePage() {
   const supabase = await createClient()
@@ -55,12 +56,9 @@ export default async function HomePage() {
           </div>
         ) : null}
 
-        {/* Invite card lands in Task 8. */}
         {youOnly ? (
-          <div className="mt-10 rounded-lg border border-border bg-card p-6">
-            <p className="text-sm text-muted-foreground">
-              You're alone in this workspace. Invite-link UI lands in the next task.
-            </p>
+          <div className="mt-10">
+            <InviteCard />
           </div>
         ) : null}
 
