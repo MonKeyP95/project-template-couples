@@ -30,3 +30,20 @@ export async function signUp(formData: FormData) {
 
   redirect("/home")
 }
+
+export async function signIn(formData: FormData) {
+  const email = String(formData.get("email") ?? "").trim()
+  const password = String(formData.get("password") ?? "")
+  const next = String(formData.get("next") ?? "/home")
+
+  if (!email || !password) {
+    return { error: "Email and password are required." }
+  }
+
+  const supabase = await createClient()
+  const { error } = await supabase.auth.signInWithPassword({ email, password })
+
+  if (error) return { error: error.message }
+
+  redirect(next)
+}
