@@ -12,6 +12,7 @@ export function InviteCard() {
   const [isPending, startTransition] = useTransition()
 
   function onGenerate() {
+    setError(null)
     startTransition(async () => {
       const result = await generateInvite()
       if (result.error) {
@@ -19,7 +20,6 @@ export function InviteCard() {
         setUrl(null)
         return
       }
-      setError(null)
       setUrl(result.url ?? null)
       setCopied(false)
     })

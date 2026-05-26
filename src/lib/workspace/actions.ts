@@ -20,7 +20,7 @@ export async function generateInvite(): Promise<InviteResult> {
     .select("workspace_id, role")
     .eq("user_id", userData.user.id)
     .limit(1)
-    .single()
+    .maybeSingle()
 
   if (!membership) return { error: "No workspace" }
   if (membership.role !== "owner") return { error: "Only the workspace owner can invite" }
