@@ -50,3 +50,20 @@ export async function signIn(formData: FormData) {
   const safeNext = next.startsWith("/") && !next.startsWith("//") ? next : "/home"
   redirect(safeNext)
 }
+
+export async function updateProfile(formData: FormData) {
+  const displayName = String(formData.get("display_name") ?? "").trim()
+  if (!displayName) return { error: "Display name is required." }
+
+  const supabase = await createClient()
+  const { data: userData } = await supabase.auth.getUser()
+  if (!userData.user) return { error: "Not signed in" }
+
+  const { error } = await supabase
+    .from("profiles")
+    .update({ display_name: displayName })
+    .eq("id", userData.user.id)
+
+  if (error) return { error: error.message }
+  redirect("/home")
+}
