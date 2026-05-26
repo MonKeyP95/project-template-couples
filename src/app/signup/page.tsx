@@ -1,8 +1,6 @@
 import Link from "next/link"
 
-import { signUp } from "@/lib/auth/actions"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
+import { SignUpForm } from "./signup-form"
 
 export default async function SignUpPage({
   searchParams,
@@ -24,24 +22,7 @@ export default async function SignUpPage({
           </p>
         ) : null}
 
-        {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-        <form action={signUp as any} className="mt-8 flex flex-col gap-3">
-          {invite ? (
-            <input type="hidden" name="invite_token" value={invite} />
-          ) : null}
-          <Input name="display_name" placeholder="Your name" required />
-          <Input name="email" type="email" placeholder="Email" required />
-          <Input
-            name="password"
-            type="password"
-            placeholder="Password (min 8)"
-            minLength={8}
-            required
-          />
-          <Button type="submit" size="lg" className="mt-2">
-            Sign up
-          </Button>
-        </form>
+        <SignUpForm invite={invite} />
 
         <p className="mt-6 text-center text-sm text-muted-foreground">
           Already have an account?{" "}

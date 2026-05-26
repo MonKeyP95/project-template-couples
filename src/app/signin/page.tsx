@@ -1,8 +1,6 @@
 import Link from "next/link"
 
-import { signIn } from "@/lib/auth/actions"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
+import { SignInForm } from "./signin-form"
 
 export default async function SignInPage({
   searchParams,
@@ -19,15 +17,7 @@ export default async function SignInPage({
           Welcome <span className="italic text-primary">back</span>.
         </h1>
 
-        {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-        <form action={signIn as any} className="mt-8 flex flex-col gap-3">
-          <input type="hidden" name="next" value={nextPath} />
-          <Input name="email" type="email" placeholder="Email" required />
-          <Input name="password" type="password" placeholder="Password" required />
-          <Button type="submit" size="lg" className="mt-2">
-            Sign in
-          </Button>
-        </form>
+        <SignInForm nextPath={nextPath} />
 
         <p className="mt-6 text-center text-sm text-muted-foreground">
           New here?{" "}

@@ -4,7 +4,10 @@ import { redirect } from "next/navigation"
 
 import { createClient } from "@/lib/supabase/server"
 
-export async function signUp(formData: FormData) {
+export async function signUp(
+  _prevState: { error?: string } | null,
+  formData: FormData,
+): Promise<{ error?: string }> {
   const displayName = String(formData.get("display_name") ?? "").trim()
   const email = String(formData.get("email") ?? "").trim()
   const password = String(formData.get("password") ?? "")
@@ -31,7 +34,10 @@ export async function signUp(formData: FormData) {
   redirect("/home")
 }
 
-export async function signIn(formData: FormData) {
+export async function signIn(
+  _prevState: { error?: string } | null,
+  formData: FormData,
+): Promise<{ error?: string }> {
   const email = String(formData.get("email") ?? "").trim()
   const password = String(formData.get("password") ?? "")
   const next = String(formData.get("next") ?? "/home")
