@@ -1,7 +1,12 @@
 # TODO.md
 
 ## Current Phase
-**Phase 3 — First Trip: COMPLETE 2026-05-27.** All ten steps done. Phases 1 (Foundation) and 2 (Auth + Pairing) also complete. Next is Phase 4 (Itinerary deepening / Notes / Map per `docs/PLAN.md`) — but per PLAN.md sequencing rule #1, wait for the real Lombok trip (Jun 12) before starting it.
+**Phase 3.5 — Basic CRUD: in progress.** Phase 3 design + Realtime work complete 2026-05-27. First-phone test surfaced the obvious gap: no in-app way to add packing items, expenses, or trips — so Phase 3 isn't actually field-testable as shipped. Carving out the three add-flows from Phase 4 into Phase 3.5, ahead of the Lombok trip (Jun 12). See `docs/PLAN.md`.
+
+## Phase 3.5 — Basic CRUD (do one at a time)
+- [x] **1. `+ add packing item`** — Done 2026-05-27. New Server Action `addPackingItem(tripId, category, label)` in `src/lib/trips/actions.ts` — trims label, reads `auth.uid()` for `added_by`, lets RLS gate the insert. Inline `AddItemRow` in `packing-tab.tsx` swaps the stub button for: text input + `add` submit + `×` cancel. Submit clears the input but keeps the form expanded so the user can rattle off several items in a row; Esc collapses; disabled state on empty / pending. Both clients pick up the INSERT via the existing Realtime handler (with id-dedupe on echo). Build clean.
+- [ ] **2. `+ log expense` (form).** Fields: title, amount, category, paid_by, day_date. Server Action inserts into `expenses`; budget tab refreshes via `RefreshOnVisible` or revalidate.
+- [ ] **3. `+ new trip` (form).** Fields: name, slug, dates, country, optional lat/lng. Creates `trips` + adds all workspace members to `trip_members`. Empty-state path covered (no seed items / no itinerary).
 
 ### Post-Phase-3 polish (shipped between phases)
 - **2026-05-27 — Realtime focus-refetch.** Mobile browsers suspend backgrounded WebSocket connections, so partner's Realtime events were being missed on real-phone testing. New `src/components/refresh-on-visible.tsx` (client) calls `router.refresh()` on `visibilitychange` + `focus`; mounted on `src/app/trips/[slug]/page.tsx`. `packing-tab.tsx` adds a `useEffect` to sync the refreshed `initialItems` prop into its local state. Build clean. See DECISIONS row for the belt-and-suspenders rationale.

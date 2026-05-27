@@ -11,8 +11,15 @@ Sign up, log in, invite partner, shared workspace exists in the database with RL
 **Phase 3 — First Trip**
 Create a trip. Trip has members, dates, destination. Shared trip todo / packing list works for two users in real time.
 
+**Phase 3.5 — Basic CRUD (carve-out 2026-05-27)**
+The minimum input surface needed to actually field-test the app on a real trip. Phase 3 shipped read + toggle but no create flows — meaning the only way to add data was the Supabase Table Editor, which isn't a real test. Three add-flows belong here, before the trip, not in Phase 4:
+1. `+ add packing item` (per-category inline form).
+2. `+ log expense` (modal or inline form with title / amount / category / paid_by / day).
+3. `+ new trip` (name / slug / dates / country / optional lat-lng).
+Once these ship, the "use it on a real trip" precondition for Phase 4 is satisfiable.
+
 **Phase 4 — Trip Depth + Polish**
-The "make it actually usable on a real trip" phase. Budget + itinerary days landed early in Phase 3 (per the design handoff), so Phase 4 is what's still stubbed or missing: real `+ log expense` / `+ add packing item` / `+ new trip` flows, per-trip notes, multi-trip support beyond the seeded Lombok, profile avatar uploads. First end-to-end personal use happens after this phase.
+What real use surfaces as actually painful. Likely candidates from the design handoff: per-trip notes, multi-trip support beyond the seeded Lombok, profile avatar uploads, richer itinerary editing. Don't pre-commit to the list — write it after the trip, based on signal.
 
 **Phase 5 — AI assistant**
 Itinerary drafting, restaurant suggestions, packing-list hints. One provider (Claude), one model, kept modular behind a thin interface.
@@ -21,7 +28,7 @@ Itinerary drafting, restaurant suggestions, packing-list hints. One provider (Cl
 Google Calendar, Google Maps, restaurant booking — only the ones we actually want on our own trips.
 
 ## Current Phase
-**Phase 3 — First Trip** (steps 1–7 done; 8 itinerary_days, 9 desktop pass, 10 AI-card stub remaining). Phases 1 and 2 complete.
+**Phase 3.5 — Basic CRUD.** Phase 3 design + Realtime work complete (2026-05-27). Now shipping the three add-flows ahead of the Lombok trip (Jun 12).
 
 ## Sequencing rules
 - Do not start Phase N+1 until Phase N has been used on a real trip (or, for Phase 1–2, until it actually works end-to-end).

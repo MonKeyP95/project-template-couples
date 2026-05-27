@@ -8,6 +8,10 @@ export interface ToggleResult {
   error?: string
 }
 
+export interface AddPackingItemResult {
+  error?: string
+}
+
 /**
  * Flips a packing item's `done` flag. RLS enforces that the caller is a
  * workspace member of the trip; on success, Supabase Realtime broadcasts the
@@ -22,6 +26,35 @@ export async function togglePackingItem(
     .from("packing_items")
     .update({ done })
     .eq("id", itemId)
+
+  if (error) return { error: error.message }
+  return {}
+}
+
+/**
+ * Inserts a new packing item under the given category. RLS requires that
+ * `added_by = auth.uid()` and that the caller is a member of the trip's
+ * workspace. The Realtime channel on packing-tab will pick up the INSERT
+ * and update both clients.
+ */
+export async function addPackingItem(
+  tripId: string,
+  category: string,
+  label: string,
+): Promise<AddPackingItemResult> {
+  const trimmed = label.trim()
+  if (!trimmed) return { error: "Label required." }
+
+  const supabase = await createClient()
+  const { data: userData, error: userError } = await supabase.auth.getUser()
+  if (userError || !userData.user) return { error: "Not signed in." }
+
+  const { error } = await supabase.from("packing_items").insert({
+    trip_id: tripId,
+    category,
+    label: trimmed,
+    added_by: userData.user.id,
+  })
 
   if (error) return { error: error.message }
   return {}

@@ -11,7 +11,7 @@ import {
   TopoBg,
 } from "@/components/together"
 import { createClient } from "@/lib/supabase/client"
-import { togglePackingItem } from "@/lib/trips/actions"
+import { addPackingItem, togglePackingItem } from "@/lib/trips/actions"
 import {
   groupPackingItems,
   type PackingItem,
@@ -158,6 +158,7 @@ export function PackingTab({
         {groups.map((g) => (
           <CategoryGroup
             key={g.category}
+            tripId={tripId}
             category={g.category}
             items={g.items}
             members={members}
@@ -179,11 +180,13 @@ export function PackingTab({
 }
 
 function CategoryGroup({
+  tripId,
   category,
   items,
   members,
   onToggle,
 }: {
+  tripId: string
   category: string
   items: PackingItem[]
   members: Record<string, MemberToneEntry>
@@ -212,12 +215,97 @@ function CategoryGroup({
           />
         )
       })}
+      <AddItemRow tripId={tripId} category={category} />
+    </div>
+  )
+}
+
+function AddItemRow({
+  tripId,
+  category,
+}: {
+  tripId: string
+  category: string
+}) {
+  const [expanded, setExpanded] = React.useState(false)
+  const [value, setValue] = React.useState("")
+  const [pending, setPending] = React.useState(false)
+  const [error, setError] = React.useState<string | null>(null)
+  const inputRef = React.useRef<HTMLInputElement>(null)
+
+  React.useEffect(() => {
+    if (expanded) inputRef.current?.focus()
+  }, [expanded])
+
+  function reset() {
+    setExpanded(false)
+    setValue("")
+    setError(null)
+  }
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault()
+    const label = value.trim()
+    if (!label || pending) return
+    setPending(true)
+    setError(null)
+    const result = await addPackingItem(tripId, category, label)
+    setPending(false)
+    if (result.error) {
+      setError(result.error)
+      return
+    }
+    setValue("")
+    inputRef.current?.focus()
+  }
+
+  if (!expanded) {
+    return (
       <button
         type="button"
+        onClick={() => setExpanded(true)}
         className="border-0 bg-transparent py-2 font-mono text-[11px] uppercase tracking-[0.15em] text-muted-foreground hover:text-foreground"
       >
         + add item
       </button>
-    </div>
+    )
+  }
+
+  return (
+    <form onSubmit={submit} className="py-2">
+      <div className="flex items-center gap-2">
+        <input
+          ref={inputRef}
+          type="text"
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Escape") reset()
+          }}
+          placeholder={`Add to ${category.toLowerCase()}…`}
+          disabled={pending}
+          className="flex-1 border-0 border-b border-rule bg-transparent py-1 text-[14px] text-foreground placeholder:text-muted-foreground focus:border-clay focus:outline-none disabled:opacity-50"
+        />
+        <button
+          type="submit"
+          disabled={pending || !value.trim()}
+          className="rounded-md border-0 bg-clay px-2.5 py-1 font-mono text-[10px] uppercase tracking-[0.18em] text-background disabled:opacity-40"
+        >
+          add
+        </button>
+        <button
+          type="button"
+          onClick={reset}
+          disabled={pending}
+          className="border-0 bg-transparent px-1 font-mono text-[12px] text-muted-foreground hover:text-foreground"
+          aria-label="Cancel"
+        >
+          ×
+        </button>
+      </div>
+      {error ? (
+        <div className="mt-1 font-mono text-[10px] text-clay">{error}</div>
+      ) : null}
+    </form>
   )
 }
