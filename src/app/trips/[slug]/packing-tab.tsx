@@ -59,12 +59,14 @@ export function PackingTab({
   daysOut,
 }: PackingTabProps) {
   const [items, setItems] = React.useState<PackingItem[]>(initialItems)
+  const [lastInitial, setLastInitial] = React.useState(initialItems)
 
   // Sync local state when the server re-fetches (e.g. RefreshOnVisible after
   // the tab returns from background, where Realtime may have missed events).
-  React.useEffect(() => {
+  if (initialItems !== lastInitial) {
+    setLastInitial(initialItems)
     setItems(initialItems)
-  }, [initialItems])
+  }
 
   React.useEffect(() => {
     const supabase = createClient()

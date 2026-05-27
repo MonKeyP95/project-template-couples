@@ -18,7 +18,7 @@ export default async function SignUpPage({
 
         {invite ? (
           <p className="mt-4 text-sm text-muted-foreground">
-            You're joining a workspace you were invited to.
+            You&apos;re joining a workspace you were invited to.
           </p>
         ) : null}
 

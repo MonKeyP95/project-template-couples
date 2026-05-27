@@ -18,7 +18,7 @@ export default async function JoinPage({
   if (!preview) {
     return (
       <Shell>
-        <h1 className="font-serif text-4xl tracking-tight">This invite doesn't exist.</h1>
+        <h1 className="font-serif text-4xl tracking-tight">This invite doesn&apos;t exist.</h1>
         <Home />
       </Shell>
     )
@@ -44,7 +44,7 @@ export default async function JoinPage({
     if (result.error) {
       return (
         <Shell>
-          <h1 className="font-serif text-4xl tracking-tight">Can't join this workspace.</h1>
+          <h1 className="font-serif text-4xl tracking-tight">Can&apos;t join this workspace.</h1>
           <p className="mt-3 text-sm text-muted-foreground">{result.error}</p>
           <Home />
         </Shell>
@@ -57,7 +57,7 @@ export default async function JoinPage({
   return (
     <Shell>
       <h1 className="font-serif text-4xl tracking-tight">
-        You've been invited to join{" "}
+        You&apos;ve been invited to join{" "}
         <span className="italic text-primary">{preview.workspaceName}</span>.
       </h1>
       <div className="mt-8 flex flex-col gap-3 sm:flex-row">

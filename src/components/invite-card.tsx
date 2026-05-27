@@ -36,7 +36,7 @@ export function InviteCard() {
     <div className="rounded-lg border border-border bg-card p-6">
       <h2 className="font-serif text-2xl tracking-tight">Invite your partner</h2>
       <p className="mt-2 text-sm text-muted-foreground">
-        Generate a one-time link. Send it however you want — they'll land directly in your workspace.
+        Generate a one-time link. Send it however you want — they&apos;ll land directly in your workspace.
       </p>
 
       {url ? (
