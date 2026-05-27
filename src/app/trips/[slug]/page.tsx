@@ -10,9 +10,11 @@ import {
   Label,
   MonoBadge,
   PairAvatar,
+  SuggestionCard,
   TopoBg,
   WaveGlyph,
 } from "@/components/together"
+import { RefreshOnVisible } from "@/components/refresh-on-visible"
 import { createClient } from "@/lib/supabase/server"
 import { getTripExpenses } from "@/lib/trips/expense-queries"
 import { summarizeBudget } from "@/lib/trips/expense-types"
@@ -146,6 +148,7 @@ export default async function TripPage({
 
   return (
     <main className="relative mx-auto min-h-screen w-full max-w-[440px] bg-background pb-32 lg:flex lg:max-w-none lg:items-stretch lg:pb-0">
+      <RefreshOnVisible />
       <DesktopLeftRail workspace={workspace} />
 
       <div className="lg:min-w-0 lg:flex-1">
@@ -303,6 +306,19 @@ function ItineraryView({
             isLast={i === itinerary.length - 1}
           />
         ))}
+      </div>
+      <div className="px-5 pt-4 pb-6">
+        <SuggestionCard
+          label="/ assistant"
+          applyLabel="apply"
+          dismissLabel="dismiss"
+        >
+          Day 05 has a 4-hour drive after the ferry. Want me to{" "}
+          <span className="font-serif italic text-foreground">
+            split it across two days
+          </span>{" "}
+          so you&apos;re not arriving in Senaru tired?
+        </SuggestionCard>
       </div>
     </section>
   )

@@ -5,9 +5,9 @@ import * as React from "react"
 import {
   Bar,
   CheckRow,
-  Chevron,
   Coord,
   Label,
+  SuggestionCard,
   TopoBg,
 } from "@/components/together"
 import { createClient } from "@/lib/supabase/client"
@@ -59,6 +59,12 @@ export function PackingTab({
   daysOut,
 }: PackingTabProps) {
   const [items, setItems] = React.useState<PackingItem[]>(initialItems)
+
+  // Sync local state when the server re-fetches (e.g. RefreshOnVisible after
+  // the tab returns from background, where Realtime may have missed events).
+  React.useEffect(() => {
+    setItems(initialItems)
+  }, [initialItems])
 
   React.useEffect(() => {
     const supabase = createClient()
@@ -160,18 +166,12 @@ export function PackingTab({
         ))}
 
         <div className="px-5 pt-4 pb-6">
-          <div className="rounded-lg border border-border bg-card border-l-[3px] border-l-moss px-3.5 py-3">
-            <div className="flex items-center justify-between">
-              <Label className="text-moss">/ suggested for Rinjani</Label>
-              <Chevron dir="down" />
-            </div>
-            <div className="mt-1.5 text-[12.5px] leading-snug text-muted-foreground">
-              Nights drop to 4°C at the crater.{" "}
-              <span className="font-serif italic text-foreground">
-                Consider a packable down layer + thermal liner.
-              </span>
-            </div>
-          </div>
+          <SuggestionCard label="/ suggested for Rinjani" expandable>
+            Nights drop to 4°C at the crater.{" "}
+            <span className="font-serif italic text-foreground">
+              Consider a packable down layer + thermal liner.
+            </span>
+          </SuggestionCard>
         </div>
       </div>
     </section>
