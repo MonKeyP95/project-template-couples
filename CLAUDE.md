@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Status
 
-**Phase 3 — First Trip: in progress.** Phases 1 (Foundation) and 2 (Auth + Pairing) complete. Phase 3 steps 1–8 done: sand-and-sea tokens + primitives, redesigned `/home`, `/trips/[slug]` route with trips/packing/expenses/itinerary_days schemas + RLS, packing tab with Realtime, budget tab with settle-up, live itinerary timeline. Steps 9–10 remaining (desktop breakpoint pass, AI suggestion-card stub). Live punch list in `docs/TODO.md`.
+**Phase 3 — First Trip: in progress.** Phases 1 (Foundation) and 2 (Auth + Pairing) complete. Phase 3 steps 1–9 done: sand-and-sea tokens + primitives, redesigned `/home`, `/trips/[slug]` route with trips/packing/expenses/itinerary_days schemas + RLS, packing tab with Realtime, budget tab with settle-up, live itinerary timeline, desktop breakpoint pass (3-col layout at lg with left/right rails). Step 10 remaining (AI suggestion-card stub). Live punch list in `docs/TODO.md`.
 
 ### Commands
 - `pnpm dev` — start dev server (Turbopack) on http://localhost:3000
