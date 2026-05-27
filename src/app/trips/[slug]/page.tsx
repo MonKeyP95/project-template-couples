@@ -14,7 +14,11 @@ import {
 import { createClient } from "@/lib/supabase/server"
 import { getTripExpenses } from "@/lib/trips/expense-queries"
 import { summarizeBudget } from "@/lib/trips/expense-types"
-import { getTripDetailBySlug, type ItineraryDay } from "@/lib/trips/fixtures"
+import { getTripDetailBySlug } from "@/lib/trips/fixtures"
+import {
+  getItineraryDays,
+  type ItineraryDay,
+} from "@/lib/trips/itinerary-queries"
 import { getPackingItems } from "@/lib/trips/packing-queries"
 import { getTripBySlug, type TripHeader } from "@/lib/trips/queries"
 import {
@@ -125,6 +129,11 @@ export default async function TripPage({
 
   const memberTones = memberToneMap(workspace)
 
+  let itinerary: ItineraryDay[] | null = null
+  if (activeTab === "itinerary") {
+    itinerary = await getItineraryDays(header.id)
+  }
+
   let packingItems = null
   if (activeTab === "packing") {
     packingItems = await getPackingItems(header.id)
@@ -140,8 +149,8 @@ export default async function TripPage({
       <TripHeaderView header={header} workspace={workspace} />
       {activeTab === "itinerary" && detail ? <WeatherStrip detail={detail} /> : null}
       {activeTab === "itinerary" ? (
-        detail ? (
-          <ItineraryView detail={detail} />
+        itinerary && itinerary.length > 0 ? (
+          <ItineraryView itinerary={itinerary} />
         ) : (
           <TabStub label="Itinerary" />
         )
@@ -248,9 +257,9 @@ function WeatherStrip({ detail }: { detail: { weather: { d: string; t: number; g
 }
 
 function ItineraryView({
-  detail,
+  itinerary,
 }: {
-  detail: { itinerary: ItineraryDay[] }
+  itinerary: ItineraryDay[]
 }) {
   return (
     <section>
@@ -261,11 +270,11 @@ function ItineraryView({
         </span>
       </div>
       <div className="px-5 pt-2.5">
-        {detail.itinerary.map((day, i) => (
+        {itinerary.map((day, i) => (
           <ItineraryRow
             key={day.d}
             day={day}
-            isLast={i === detail.itinerary.length - 1}
+            isLast={i === itinerary.length - 1}
           />
         ))}
       </div>
