@@ -1,7 +1,7 @@
 # TODO.md
 
 ## Current Phase
-**Phase 2 — Auth + Pairing: COMPLETE.** Phase 3 (First Trip) is next.
+**Phase 3 — First Trip: in progress.** Steps 1–7 done; 8 (itinerary_days table + timeline), 9 (desktop breakpoint pass), 10 (AI-card stub) remaining. Phases 1 (Foundation) and 2 (Auth + Pairing) complete.
 
 ## Next small tasks (do one at a time)
 1. ~~Initialize Next.js project here with TypeScript + Tailwind~~ **Done 2026-05-25** — Next 16.2.6, React 19.2, Tailwind v4, pnpm, App Router, `src/`, Turbopack. `pnpm dev` → http://localhost:3000 returns 200.

@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Status
 
-**Phase 1 — Foundation scaffolded.** The repo now contains a Next.js 16 (App Router) + TypeScript + Tailwind v4 project using pnpm. No Supabase yet, no auth, no features. Continue with `docs/TODO.md` Phase 1 tasks 2–6.
+**Phase 3 — First Trip: in progress.** Phases 1 (Foundation) and 2 (Auth + Pairing) complete. Phase 3 steps 1–7 done: sand-and-sea tokens + primitives, redesigned `/home`, `/trips/[slug]` route with trips/packing/expenses schemas + RLS, packing tab with Realtime, budget tab with settle-up. Steps 8–10 remaining (itinerary_days table, desktop breakpoint pass, AI suggestion-card stub). Live punch list in `docs/TODO.md`.
 
 ### Commands
 - `pnpm dev` — start dev server (Turbopack) on http://localhost:3000

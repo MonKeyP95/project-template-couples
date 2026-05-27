@@ -11,8 +11,8 @@ Sign up, log in, invite partner, shared workspace exists in the database with RL
 **Phase 3 — First Trip**
 Create a trip. Trip has members, dates, destination. Shared trip todo / packing list works for two users in real time.
 
-**Phase 4 — Trip Depth**
-Budget + expense splitting. Itinerary days. Notes. This is the first "real" version we'd use end-to-end on a trip.
+**Phase 4 — Trip Depth + Polish**
+The "make it actually usable on a real trip" phase. Budget + itinerary days landed early in Phase 3 (per the design handoff), so Phase 4 is what's still stubbed or missing: real `+ log expense` / `+ add packing item` / `+ new trip` flows, per-trip notes, multi-trip support beyond the seeded Lombok, profile avatar uploads. First end-to-end personal use happens after this phase.
 
 **Phase 5 — AI assistant**
 Itinerary drafting, restaurant suggestions, packing-list hints. One provider (Claude), one model, kept modular behind a thin interface.
