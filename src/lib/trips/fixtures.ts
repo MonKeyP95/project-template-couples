@@ -28,9 +28,12 @@ export interface TripDetail {
   weather: WeatherDay[]
   /** Index into `weather` for the day the user is currently on. */
   weatherActive: number
+  /** Trip-level planned budget in cents. Moves to trips table later. */
+  plannedBudgetCents: number
 }
 
 const LOMBOK_DETAIL: TripDetail = {
+  plannedBudgetCents: 280000,
   weatherActive: 2,
   weather: [
     { d: "THU", t: 28, glyph: "sun" },

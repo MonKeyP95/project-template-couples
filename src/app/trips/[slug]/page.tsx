@@ -12,6 +12,8 @@ import {
   WaveGlyph,
 } from "@/components/together"
 import { createClient } from "@/lib/supabase/server"
+import { getTripExpenses } from "@/lib/trips/expense-queries"
+import { summarizeBudget } from "@/lib/trips/expense-types"
 import { getTripDetailBySlug, type ItineraryDay } from "@/lib/trips/fixtures"
 import { getPackingItems } from "@/lib/trips/packing-queries"
 import { getTripBySlug, type TripHeader } from "@/lib/trips/queries"
@@ -20,6 +22,7 @@ import {
   type CurrentWorkspace,
 } from "@/lib/workspace/queries"
 
+import { BudgetTab } from "./budget-tab"
 import {
   PackingTab,
   type MemberToneEntry,
@@ -120,9 +123,16 @@ export default async function TripPage({
   const detail = getTripDetailBySlug(slug)
   const activeTab: TabId = isTab(tab) ? tab : "itinerary"
 
+  const memberTones = memberToneMap(workspace)
+
   let packingItems = null
   if (activeTab === "packing") {
     packingItems = await getPackingItems(header.id)
+  }
+
+  let budgetData: Awaited<ReturnType<typeof loadBudget>> | null = null
+  if (activeTab === "budget") {
+    budgetData = await loadBudget(header.id, workspace.members.map((m) => m.user_id))
   }
 
   return (
@@ -139,15 +149,30 @@ export default async function TripPage({
         <PackingTab
           tripId={header.id}
           initialItems={packingItems}
-          members={memberToneMap(workspace)}
+          members={memberTones}
           daysOut={computeDaysOut(header.startDate)}
         />
+      ) : activeTab === "budget" && budgetData ? (
+        <BudgetTab
+          tripId={header.id}
+          tripSlug={header.slug}
+          tripName={header.name}
+          expenses={budgetData.expenses}
+          summary={budgetData.summary}
+          members={memberTones}
+          plannedBudgetCents={detail?.plannedBudgetCents ?? 0}
+        />
       ) : (
-        <TabStub label="Budget" />
+        <TabStub label={activeTab === "budget" ? "Budget" : "Packing"} />
       )}
       <BottomNav slug={header.slug} active={activeTab} />
     </main>
   )
+}
+
+async function loadBudget(tripId: string, memberIds: string[]) {
+  const expenses = await getTripExpenses(tripId)
+  return { expenses, summary: summarizeBudget(expenses, memberIds) }
 }
 
 function TripHeaderView({
