@@ -40,6 +40,25 @@
   --color-popover: var(--popover);
   --color-card-foreground: var(--card-foreground);
   --color-card: var(--card);
+
+  /* Extended sand-and-sea palette — surface tints per page */
+  --color-sea: var(--sea);
+  --color-sea-2: var(--sea-2);
+  --color-sea-tint: var(--sea-tint);
+  --color-sand: var(--sand);
+  --color-sand-tint: var(--sand-tint);
+  --color-clay: var(--clay);
+  --color-clay-tint: var(--clay-tint);
+  --color-moss: var(--moss);
+  --color-moss-tint: var(--moss-tint);
+  --color-dusk: var(--dusk);
+  --color-dusk-tint: var(--dusk-tint);
+  --color-rule: var(--rule);
+
+  --shadow-sm: var(--shadow-sm);
+  --shadow-md: var(--shadow-md);
+  --shadow-lg: var(--shadow-lg);
+
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);
   --radius-lg: var(--radius);
@@ -49,92 +68,135 @@
   --radius-4xl: calc(var(--radius) * 2.6);
 }
 
-/* Warm palette per docs/DESIGN.md
-   Background: warm off-white (#faf7f5)
-   Foreground: deep warm gray (#374151)
-   Primary:    soft warm pink (#f8c1d4)
-   Accent:     calming teal (#67e8f9), used very softly
-*/
+/* Sand-and-sea palette per design_handoff_together_app/README.md
+   Background: warm sand. Primary rebased from pink to deep sea.
+   Extended palette adds sea/sand/clay/moss/dusk + tints used per page. */
 :root {
-  --background: oklch(0.972 0.008 60);
-  --foreground: oklch(0.32 0.022 252);
-  --card: oklch(0.985 0.005 60);
-  --card-foreground: oklch(0.32 0.022 252);
-  --popover: oklch(0.99 0.003 60);
-  --popover-foreground: oklch(0.32 0.022 252);
-  --primary: oklch(0.836 0.082 11);
-  --primary-foreground: oklch(0.30 0.022 252);
-  --secondary: oklch(0.94 0.014 60);
-  --secondary-foreground: oklch(0.34 0.022 252);
-  --muted: oklch(0.95 0.012 60);
-  --muted-foreground: oklch(0.52 0.018 252);
-  --accent: oklch(0.92 0.04 215);
-  --accent-foreground: oklch(0.32 0.022 252);
-  --destructive: oklch(0.60 0.21 25);
-  --border: oklch(0.90 0.013 60);
-  --input: oklch(0.92 0.012 60);
-  --ring: oklch(0.836 0.082 11);
+  --background: oklch(0.955 0.012 78);
+  --foreground: oklch(0.24 0.02 232);
+  --card: oklch(0.985 0.006 78);
+  --card-foreground: oklch(0.24 0.02 232);
+  --popover: oklch(0.985 0.006 78);
+  --popover-foreground: oklch(0.24 0.02 232);
 
-  /* Atmospheric glows used by the landing page background.
-     Soft peach top-left, soft teal bottom-right. */
+  --primary: oklch(0.42 0.08 218);
+  --primary-foreground: oklch(0.985 0.006 78);
+
+  --secondary: oklch(0.93 0.025 210);
+  --secondary-foreground: oklch(0.24 0.02 232);
+
+  --muted: oklch(0.93 0.014 78);
+  --muted-foreground: oklch(0.42 0.02 232);
+
+  --accent: oklch(0.93 0.025 210);
+  --accent-foreground: oklch(0.24 0.02 232);
+
+  --destructive: oklch(0.60 0.21 25);
+  --border: oklch(0.86 0.014 78);
+  --input: oklch(0.86 0.014 78);
+  --ring: oklch(0.42 0.08 218);
+
+  --sea: oklch(0.42 0.08 218);
+  --sea-2: oklch(0.55 0.06 205);
+  --sea-tint: oklch(0.93 0.025 210);
+  --sand: oklch(0.74 0.06 70);
+  --sand-tint: oklch(0.93 0.03 75);
+  --clay: oklch(0.58 0.10 48);
+  --clay-tint: oklch(0.93 0.04 60);
+  --moss: oklch(0.50 0.07 152);
+  --moss-tint: oklch(0.93 0.04 150);
+  --dusk: oklch(0.40 0.05 250);
+  --dusk-tint: oklch(0.92 0.022 245);
+
+  --rule: oklch(0.74 0.018 78);
+
+  --shadow-sm: 0 1px 1px rgba(40, 40, 60, 0.04), 0 1px 2px rgba(40, 40, 60, 0.04);
+  --shadow-md: 0 2px 4px rgba(40, 40, 60, 0.05), 0 8px 24px rgba(40, 40, 60, 0.06);
+  --shadow-lg: 0 4px 8px rgba(40, 40, 60, 0.06), 0 24px 48px rgba(40, 40, 60, 0.08);
+
+  /* Atmospheric glows for the landing-page background — additive, not in the shadcn token contract. */
   --glow-peach: oklch(0.88 0.06 25 / 0.55);
   --glow-teal: oklch(0.90 0.05 210 / 0.45);
 
-  --chart-1: oklch(0.836 0.082 11);
-  --chart-2: oklch(0.85 0.07 215);
-  --chart-3: oklch(0.75 0.10 70);
-  --chart-4: oklch(0.65 0.12 280);
-  --chart-5: oklch(0.55 0.04 252);
+  --chart-1: oklch(0.42 0.08 218);
+  --chart-2: oklch(0.74 0.06 70);
+  --chart-3: oklch(0.58 0.10 48);
+  --chart-4: oklch(0.50 0.07 152);
+  --chart-5: oklch(0.40 0.05 250);
 
-  --radius: 0.75rem;
+  --radius: 0.625rem;
 
-  --sidebar: oklch(0.985 0.006 60);
-  --sidebar-foreground: oklch(0.32 0.022 252);
-  --sidebar-primary: oklch(0.836 0.082 11);
-  --sidebar-primary-foreground: oklch(0.30 0.022 252);
-  --sidebar-accent: oklch(0.94 0.014 60);
-  --sidebar-accent-foreground: oklch(0.32 0.022 252);
-  --sidebar-border: oklch(0.90 0.013 60);
-  --sidebar-ring: oklch(0.836 0.082 11);
+  --sidebar: oklch(0.985 0.006 78);
+  --sidebar-foreground: oklch(0.24 0.02 232);
+  --sidebar-primary: oklch(0.42 0.08 218);
+  --sidebar-primary-foreground: oklch(0.985 0.006 78);
+  --sidebar-accent: oklch(0.93 0.025 210);
+  --sidebar-accent-foreground: oklch(0.24 0.02 232);
+  --sidebar-border: oklch(0.86 0.014 78);
+  --sidebar-ring: oklch(0.42 0.08 218);
 }
 
 .dark {
-  --background: oklch(0.20 0.012 30);
-  --foreground: oklch(0.95 0.008 60);
-  --card: oklch(0.24 0.012 30);
-  --card-foreground: oklch(0.95 0.008 60);
-  --popover: oklch(0.24 0.012 30);
-  --popover-foreground: oklch(0.95 0.008 60);
-  --primary: oklch(0.78 0.10 11);
-  --primary-foreground: oklch(0.20 0.014 30);
-  --secondary: oklch(0.30 0.018 30);
-  --secondary-foreground: oklch(0.92 0.008 60);
-  --muted: oklch(0.28 0.014 30);
-  --muted-foreground: oklch(0.72 0.013 60);
-  --accent: oklch(0.35 0.03 215);
-  --accent-foreground: oklch(0.92 0.008 60);
+  --background: oklch(0.18 0.022 230);
+  --foreground: oklch(0.95 0.012 78);
+  --card: oklch(0.225 0.022 232);
+  --card-foreground: oklch(0.95 0.012 78);
+  --popover: oklch(0.225 0.022 232);
+  --popover-foreground: oklch(0.95 0.012 78);
+
+  --primary: oklch(0.72 0.08 200);
+  --primary-foreground: oklch(0.18 0.022 230);
+
+  --secondary: oklch(0.28 0.03 218);
+  --secondary-foreground: oklch(0.95 0.012 78);
+
+  --muted: oklch(0.28 0.022 230);
+  --muted-foreground: oklch(0.78 0.018 78);
+
+  --accent: oklch(0.28 0.03 218);
+  --accent-foreground: oklch(0.95 0.012 78);
+
   --destructive: oklch(0.65 0.20 25);
-  --border: oklch(1 0 0 / 8%);
-  --input: oklch(1 0 0 / 12%);
-  --ring: oklch(0.78 0.10 11);
+  --border: oklch(0.32 0.022 230);
+  --input: oklch(0.32 0.022 230);
+  --ring: oklch(0.72 0.08 200);
+
+  --sea: oklch(0.72 0.08 200);
+  --sea-2: oklch(0.62 0.06 210);
+  --sea-tint: oklch(0.28 0.03 218);
+  --sand: oklch(0.74 0.07 70);
+  --sand-tint: oklch(0.28 0.022 60);
+  --clay: oklch(0.70 0.09 50);
+  --clay-tint: oklch(0.28 0.025 50);
+  --moss: oklch(0.72 0.08 155);
+  --moss-tint: oklch(0.26 0.025 155);
+  --dusk: oklch(0.68 0.06 250);
+  --dusk-tint: oklch(0.27 0.022 245);
+
+  --rule: oklch(0.42 0.022 230);
+
+  /* Dark-mode shadows are ~8x stronger per the design bundle. */
+  --shadow-sm: 0 1px 1px rgba(0, 0, 0, 0.32), 0 1px 2px rgba(0, 0, 0, 0.32);
+  --shadow-md: 0 2px 4px rgba(0, 0, 0, 0.4), 0 8px 24px rgba(0, 0, 0, 0.48);
+  --shadow-lg: 0 4px 8px rgba(0, 0, 0, 0.48), 0 24px 48px rgba(0, 0, 0, 0.64);
 
   --glow-peach: oklch(0.55 0.10 25 / 0.18);
   --glow-teal: oklch(0.55 0.08 210 / 0.14);
 
-  --chart-1: oklch(0.78 0.10 11);
-  --chart-2: oklch(0.75 0.09 215);
-  --chart-3: oklch(0.70 0.10 70);
-  --chart-4: oklch(0.65 0.13 280);
-  --chart-5: oklch(0.70 0.04 252);
+  --chart-1: oklch(0.72 0.08 200);
+  --chart-2: oklch(0.74 0.07 70);
+  --chart-3: oklch(0.70 0.09 50);
+  --chart-4: oklch(0.72 0.08 155);
+  --chart-5: oklch(0.68 0.06 250);
 
-  --sidebar: oklch(0.24 0.012 30);
-  --sidebar-foreground: oklch(0.95 0.008 60);
-  --sidebar-primary: oklch(0.78 0.10 11);
-  --sidebar-primary-foreground: oklch(0.20 0.014 30);
-  --sidebar-accent: oklch(0.30 0.018 30);
-  --sidebar-accent-foreground: oklch(0.92 0.008 60);
-  --sidebar-border: oklch(1 0 0 / 8%);
-  --sidebar-ring: oklch(0.78 0.10 11);
+  --sidebar: oklch(0.225 0.022 232);
+  --sidebar-foreground: oklch(0.95 0.012 78);
+  --sidebar-primary: oklch(0.72 0.08 200);
+  --sidebar-primary-foreground: oklch(0.18 0.022 230);
+  --sidebar-accent: oklch(0.28 0.03 218);
+  --sidebar-accent-foreground: oklch(0.95 0.012 78);
+  --sidebar-border: oklch(0.32 0.022 230);
+  --sidebar-ring: oklch(0.72 0.08 200);
 }
 
 @layer base {
@@ -146,6 +208,36 @@
   }
   html {
     @apply font-sans;
+  }
+}
+
+/* Type recipes from design_handoff_together_app/README.md */
+@layer components {
+  .t-display {
+    font-family: var(--font-serif);
+    font-weight: 400;
+    letter-spacing: -0.02em;
+    line-height: 0.95;
+  }
+  .t-display em,
+  .t-display .em {
+    font-style: italic;
+  }
+  .t-label {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--muted-foreground);
+  }
+  .t-mono {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+  }
+  .t-num {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.01em;
   }
 }
 
@@ -164,4 +256,33 @@
 
 .reveal {
   animation: reveal-up 0.9s cubic-bezier(0.2, 0.6, 0.2, 1) both;
+}
+
+/* Check / strike motions used by the packing list (see CheckRow). */
+@keyframes pop {
+  from { transform: scale(0.6); opacity: 0; }
+  to   { transform: scale(1);   opacity: 1; }
+}
+.pop {
+  animation: pop 0.18s ease-out both;
+}
+
+@keyframes line-in {
+  from { transform: scaleX(0); }
+  to   { transform: scaleX(1); }
+}
+.checked-line {
+  position: relative;
+}
+.checked-line::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 1px;
+  background: currentColor;
+  opacity: 0.35;
+  transform-origin: left center;
+  animation: line-in 0.22s cubic-bezier(0.2, 0.7, 0.3, 1) both;
 }

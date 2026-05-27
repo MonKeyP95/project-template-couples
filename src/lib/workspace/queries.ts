@@ -9,6 +9,7 @@ export interface WorkspaceMember {
 export interface CurrentWorkspace {
   id: string
   name: string
+  createdAt: string
   role: "owner" | "member"
   members: WorkspaceMember[]
 }
@@ -20,7 +21,7 @@ export async function getCurrentWorkspace(): Promise<CurrentWorkspace | null> {
 
   const { data: membership } = await supabase
     .from("workspace_members")
-    .select("workspace_id, role, workspaces(name)")
+    .select("workspace_id, role, workspaces(name, created_at)")
     .eq("user_id", userData.user.id)
     .limit(1)
     .maybeSingle()
@@ -49,10 +50,15 @@ export async function getCurrentWorkspace(): Promise<CurrentWorkspace | null> {
     profilesData?.map((p) => [p.id, p.display_name as string]) ?? [],
   )
 
+  const workspaceRow = membership.workspaces as unknown as {
+    name: string
+    created_at: string
+  }
+
   return {
     id: membership.workspace_id,
-    // Supabase typed result for nested table is unknown without codegen; cast carefully.
-    name: (membership.workspaces as unknown as { name: string }).name,
+    name: workspaceRow.name,
+    createdAt: workspaceRow.created_at,
     role: membership.role as "owner" | "member",
     members: rawMembers.map((m) => ({
       user_id: m.user_id,

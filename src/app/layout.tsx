@@ -1,14 +1,15 @@
 import type { Metadata } from "next"
 import {
-  Hanken_Grotesk,
+  IBM_Plex_Mono,
+  IBM_Plex_Sans,
   Instrument_Serif,
-  JetBrains_Mono,
 } from "next/font/google"
 import "./globals.css"
 
-const sans = Hanken_Grotesk({
+const sans = IBM_Plex_Sans({
   variable: "--font-sans",
   subsets: ["latin"],
+  weight: ["300", "400", "500", "600"],
   display: "swap",
 })
 
@@ -20,9 +21,10 @@ const serif = Instrument_Serif({
   display: "swap",
 })
 
-const mono = JetBrains_Mono({
+const mono = IBM_Plex_Mono({
   variable: "--font-mono",
   subsets: ["latin"],
+  weight: ["400", "500", "600"],
   display: "swap",
 })
 
