@@ -1,7 +1,6 @@
 import {
   Avatar,
   Bar,
-  Chevron,
   Label,
   MonoBadge,
   type MonoBadgeTone,
@@ -10,6 +9,7 @@ import {
 import { settleUp } from "@/lib/trips/actions"
 import type { BudgetSummary, Expense } from "@/lib/trips/expense-types"
 
+import { LogExpenseRow } from "./log-expense-row"
 import type { MemberToneEntry } from "./packing-tab"
 
 const CATEGORY_TONE: Record<string, MonoBadgeTone> = {
@@ -18,7 +18,9 @@ const CATEGORY_TONE: Record<string, MonoBadgeTone> = {
   Trek: "moss",
   Food: "clay",
   Transit: "ink",
+  Lodging: "sand",
   Settlement: "ink",
+  Other: "ink",
 }
 
 const MONTH_SHORT = new Intl.DateTimeFormat("en-US", {
@@ -49,6 +51,9 @@ export interface BudgetTabProps {
   summary: BudgetSummary
   members: Record<string, MemberToneEntry>
   plannedBudgetCents: number
+  startDate: string | null
+  endDate: string | null
+  currentUserId: string
 }
 
 export function BudgetTab({
@@ -59,6 +64,9 @@ export function BudgetTab({
   summary,
   members,
   plannedBudgetCents,
+  startDate,
+  endDate,
+  currentUserId,
 }: BudgetTabProps) {
   const totalCents = summary.expenseTotalCents
   const leftCents = Math.max(0, plannedBudgetCents - totalCents)
@@ -89,7 +97,14 @@ export function BudgetTab({
       />
       <SplitBreakdown members={members} paidByUser={summary.expensePaidByUser} />
       <Ledger expenses={expenses} members={members} />
-      <LogExpenseCta />
+      <LogExpenseRow
+        tripId={tripId}
+        tripSlug={tripSlug}
+        startDate={startDate}
+        endDate={endDate}
+        currentUserId={currentUserId}
+        members={members}
+      />
     </section>
   )
 }
@@ -291,16 +306,3 @@ function LedgerRow({
   )
 }
 
-function LogExpenseCta() {
-  return (
-    <button
-      type="button"
-      className="flex w-full items-center justify-between border-0 border-t border-border bg-card px-5 py-4 text-left"
-    >
-      <span className="font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
-        + log expense
-      </span>
-      <Chevron dir="right" />
-    </button>
-  )
-}

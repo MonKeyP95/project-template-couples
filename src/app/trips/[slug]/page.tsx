@@ -189,6 +189,9 @@ export default async function TripPage({
             summary={budgetSummary}
             members={memberTones}
             plannedBudgetCents={detail?.plannedBudgetCents ?? 0}
+            startDate={header.startDate}
+            endDate={header.endDate}
+            currentUserId={userData.user.id}
           />
         )}
       </div>

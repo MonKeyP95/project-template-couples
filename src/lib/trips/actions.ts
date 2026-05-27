@@ -3,6 +3,10 @@
 import { revalidatePath } from "next/cache"
 
 import { createClient } from "@/lib/supabase/server"
+import {
+  EXPENSE_CATEGORIES,
+  type ExpenseCategory,
+} from "@/lib/trips/expense-types"
 
 export interface ToggleResult {
   error?: string
@@ -57,6 +61,73 @@ export async function addPackingItem(
   })
 
   if (error) return { error: error.message }
+  return {}
+}
+
+export interface LogExpenseInput {
+  tripId: string
+  tripSlug: string
+  title: string
+  amount: string
+  category: string
+  paidBy: string
+  dayDate: string | null
+}
+
+export interface LogExpenseResult {
+  error?: string
+}
+
+// int4 ceiling — matches the type of expenses.amount_cents.
+const MAX_AMOUNT_CENTS = 2_147_483_647
+
+/**
+ * Inserts a non-settlement expense row. Returns `{ error }` rather than
+ * throwing so the client form can stay expanded and surface the error inline.
+ */
+export async function logExpense(
+  input: LogExpenseInput,
+): Promise<LogExpenseResult> {
+  const title = input.title.trim()
+  if (!title) return { error: "Title required." }
+
+  const amountNum = Number(input.amount)
+  if (!Number.isFinite(amountNum) || amountNum <= 0) {
+    return { error: "Amount must be greater than zero." }
+  }
+  const cents = Math.round(amountNum * 100)
+  if (cents <= 0 || cents >= MAX_AMOUNT_CENTS) {
+    return { error: "Amount out of range." }
+  }
+
+  if (!EXPENSE_CATEGORIES.includes(input.category as ExpenseCategory)) {
+    return { error: "Invalid category." }
+  }
+
+  if (!input.paidBy) return { error: "Payer required." }
+
+  if (input.dayDate !== null && !/^\d{4}-\d{2}-\d{2}$/.test(input.dayDate)) {
+    return { error: "Invalid day." }
+  }
+
+  const supabase = await createClient()
+  const { data: userData, error: userError } = await supabase.auth.getUser()
+  if (userError || !userData.user) return { error: "Not signed in." }
+
+  const { error } = await supabase.from("expenses").insert({
+    trip_id: input.tripId,
+    title,
+    amount_cents: cents,
+    currency: "EUR",
+    paid_by: input.paidBy,
+    category: input.category,
+    day_date: input.dayDate,
+    is_settlement: false,
+  })
+
+  if (error) return { error: error.message }
+
+  revalidatePath(`/trips/${input.tripSlug}`)
   return {}
 }
 

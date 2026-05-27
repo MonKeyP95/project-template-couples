@@ -83,3 +83,17 @@ export function summarizeBudget(
     debtorUserId: net > 0 ? b : net < 0 ? a : null,
   }
 }
+
+export const EXPENSE_CATEGORIES = [
+  "Surf",
+  "Dive",
+  "Trek",
+  "Food",
+  "Transit",
+  "Lodging",
+  "Other",
+] as const
+
+export type ExpenseCategory = (typeof EXPENSE_CATEGORIES)[number]
+
+export const EXPENSE_CATEGORY_DEFAULT: ExpenseCategory = "Food"
