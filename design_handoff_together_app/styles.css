@@ -1,0 +1,147 @@
+/* =========================================================
+   Together — design tokens & base type
+   Aesthetic: editorial-explorer. Sand & sea. No pink.
+   ========================================================= */
+
+:root {
+  --font-display: "Instrument Serif", "Cormorant Garamond", Georgia, serif;
+  --font-body: "IBM Plex Sans", -apple-system, system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", "JetBrains Mono", ui-monospace, monospace;
+
+  /* light — warm sand + deep sea */
+  --bg: oklch(0.955 0.012 78);
+  --bg-veil: oklch(0.93 0.014 78);
+  --paper: oklch(0.985 0.006 78);
+  --ink: oklch(0.24 0.02 232);
+  --ink-2: oklch(0.42 0.02 232);
+  --ink-3: oklch(0.58 0.018 78);
+  --hair: oklch(0.86 0.014 78);
+  --rule: oklch(0.74 0.018 78);
+
+  --sea: oklch(0.42 0.08 218);          /* deep dive sea */
+  --sea-2: oklch(0.55 0.06 205);        /* shallow */
+  --sea-tint: oklch(0.93 0.025 210);    /* sea wash */
+  --sand: oklch(0.74 0.06 70);          /* clay sand */
+  --sand-tint: oklch(0.93 0.03 75);     /* sand wash */
+  --clay: oklch(0.58 0.10 48);          /* trail terra */
+  --clay-tint: oklch(0.93 0.04 60);
+  --moss: oklch(0.50 0.07 152);         /* forest */
+  --moss-tint: oklch(0.93 0.04 150);
+  --dusk: oklch(0.40 0.05 250);         /* budget dusk */
+  --dusk-tint: oklch(0.92 0.022 245);
+
+  --shadow-sm: 0 1px 1px rgba(40,40,60,0.04), 0 1px 2px rgba(40,40,60,0.04);
+  --shadow-md: 0 2px 4px rgba(40,40,60,0.05), 0 8px 24px rgba(40,40,60,0.06);
+  --shadow-lg: 0 4px 8px rgba(40,40,60,0.06), 0 24px 48px rgba(40,40,60,0.08);
+}
+
+[data-theme="dark"] {
+  --bg: oklch(0.18 0.022 230);
+  --bg-veil: oklch(0.22 0.022 230);
+  --paper: oklch(0.225 0.022 232);
+  --ink: oklch(0.95 0.012 78);
+  --ink-2: oklch(0.78 0.018 78);
+  --ink-3: oklch(0.62 0.02 78);
+  --hair: oklch(0.32 0.022 230);
+  --rule: oklch(0.42 0.022 230);
+
+  --sea: oklch(0.72 0.08 200);
+  --sea-2: oklch(0.62 0.06 210);
+  --sea-tint: oklch(0.28 0.03 218);
+  --sand: oklch(0.74 0.07 70);
+  --sand-tint: oklch(0.28 0.022 60);
+  --clay: oklch(0.70 0.09 50);
+  --clay-tint: oklch(0.28 0.025 50);
+  --moss: oklch(0.72 0.08 155);
+  --moss-tint: oklch(0.26 0.025 155);
+  --dusk: oklch(0.68 0.06 250);
+  --dusk-tint: oklch(0.27 0.022 245);
+
+  --shadow-sm: 0 1px 1px rgba(0,0,0,0.3), 0 1px 2px rgba(0,0,0,0.4);
+  --shadow-md: 0 2px 4px rgba(0,0,0,0.4), 0 8px 24px rgba(0,0,0,0.45);
+  --shadow-lg: 0 4px 8px rgba(0,0,0,0.5), 0 24px 48px rgba(0,0,0,0.55);
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: var(--font-body);
+  color: var(--ink);
+  background: var(--bg);
+  font-feature-settings: "ss01", "cv11";
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ---------- editorial type ---------- */
+.t-display {
+  font-family: var(--font-display);
+  font-weight: 400;
+  letter-spacing: -0.02em;
+  line-height: 0.95;
+}
+.t-display em, .t-italic {
+  font-style: italic;
+  font-family: var(--font-display);
+}
+.t-label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  font-weight: 500;
+}
+.t-mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+.t-num { font-family: var(--font-mono); font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
+
+/* ---------- hairlines ---------- */
+.hair { background: var(--hair); }
+.rule { height: 1px; background: var(--hair); }
+.rule-d { height: 1px; background-image: linear-gradient(to right, var(--rule) 50%, transparent 50%); background-size: 6px 1px; }
+
+/* ---------- pretty scrolls hidden in frames ---------- */
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { scrollbar-width: none; }
+
+/* ---------- striped placeholder ---------- */
+.placeholder {
+  background:
+    repeating-linear-gradient(
+      135deg,
+      var(--sand-tint) 0 6px,
+      transparent 6px 12px
+    ),
+    var(--paper);
+  border: 1px solid var(--hair);
+  color: var(--ink-3);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+/* ---------- check / dot motions ---------- */
+@keyframes pop { from { transform: scale(0.6); opacity: 0;} to { transform: scale(1); opacity: 1;} }
+.pop { animation: pop .18s ease-out both; }
+
+.checked-line { position: relative; }
+.checked-line::after {
+  content: "";
+  position: absolute; left: 0; right: 0; top: 50%;
+  height: 1px; background: currentColor; opacity: .35;
+  transform-origin: left center;
+  animation: line-in .22s cubic-bezier(.2,.7,.3,1) both;
+}
+@keyframes line-in { from { transform: scaleX(0);} to { transform: scaleX(1);} }
+
+/* ---------- focus ring ---------- */
+button { font: inherit; color: inherit; }
+button:focus-visible { outline: 2px solid var(--sea); outline-offset: 2px; border-radius: 4px; }
+
+/* ---------- canvas dark bg overlay ---------- */
+[data-theme="dark"] .dc-card { box-shadow: 0 1px 2px rgba(0,0,0,.5), 0 12px 32px rgba(0,0,0,.5) !important; }

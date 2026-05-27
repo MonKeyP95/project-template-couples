@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Design reference bundle — read-only handoff, not production code.
+    "design_handoff_together_app/**",
   ]),
 ]);
 

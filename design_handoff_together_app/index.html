@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Together — Hi-fi Design</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=IBM+Plex+Sans:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="styles.css" />
+
+  <style>
+    /* hide the design-canvas grid bg on dark — let our token bg show */
+    [data-theme="dark"] body { background: oklch(0.16 0.020 230) !important; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <!-- React + Babel -->
+  <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+  <!-- Starters / utilities -->
+  <script type="text/babel" src="design-canvas.jsx"></script>
+  <script type="text/babel" src="ios-frame.jsx"></script>
+  <script type="text/babel" src="browser-window.jsx"></script>
+  <script type="text/babel" src="tweaks-panel.jsx"></script>
+
+  <!-- App pieces -->
+  <script type="text/babel" src="shared.jsx"></script>
+  <script type="text/babel" src="mobile-app.jsx"></script>
+  <script type="text/babel" src="desktop-screens.jsx"></script>
+
+  <script type="text/babel">
+    const { useEffect } = React;
+
+    const TWEAK_DEFAULS = /*EDITMODE-BEGIN*/{
+      "dark": true
+    }/*EDITMODE-END*/;
+
+    function App() {
+      const [t, setTweak] = useTweaks(TWEAK_DEFAULS);
+
+      useEffect(() => {
+        document.documentElement.setAttribute("data-theme", t.dark ? "dark" : "light");
+      }, [t.dark]);
+
+      return (
+        <>
+          <DesignCanvas>
+            <DCSection
+              id="mobile"
+              title="Mobile · Interactive prototype"
+              subtitle="Home → Trip → (Itinerary / Packing / Budget). Tap the trip card, switch tabs, check items, settle expenses."
+            >
+              <DCArtboard id="mob" label="iPhone 16 · Live" width={420} height={900}>
+                <div style={{ width: 420, height: 900, display: "flex", alignItems: "center", justifyContent: "center", background: "transparent" }}>
+                  <div style={{ transform: "translateZ(0)" }}>
+                    <IOSDevice width={402} height={874} dark={t.dark}>
+                      <div style={{ background: "var(--bg)", minHeight: "100%" }} className="no-scrollbar">
+                        <MobileApp />
+                      </div>
+                    </IOSDevice>
+                  </div>
+                </div>
+              </DCArtboard>
+            </DCSection>
+
+            <DCSection
+              id="desktop"
+              title="Desktop · Contrast surfaces"
+              subtitle="The same workspace at desktop width — editorial layout, sidebar, live presence."
+            >
+              <DCArtboard id="dash" label="Trip Dashboard · /trips/lombok" width={1280} height={820}>
+                <DesktopTripDashboard />
+              </DCArtboard>
+
+              <DCArtboard id="ws" label="Workspace Home · /home" width={1280} height={820}>
+                <DesktopWorkspaceHome />
+              </DCArtboard>
+            </DCSection>
+
+            <DCSection
+              id="system"
+              title="System notes"
+              subtitle="Aesthetic principles + token palette."
+            >
+              <DCArtboard id="sys" label="Design system · v0.1" width={720} height={520}>
+                <div style={{ padding: 36, background: "var(--paper)", color: "var(--ink)", fontFamily: "var(--font-body)", height: "100%", display: "flex", flexDirection: "column", gap: 22 }}>
+                  <div>
+                    <div className="t-label">Together · system v0.1</div>
+                    <div className="t-display" style={{ fontSize: 44, marginTop: 6 }}>
+                      <em>Editorial</em>-explorer.
+                    </div>
+                    <div style={{ fontSize: 13.5, color: "var(--ink-2)", marginTop: 8, maxWidth: 540, lineHeight: 1.55 }}>
+                      Field-journal &times; travel publication. Sand &amp; sea base; each surface borrows a different
+                      element — <span className="t-italic">shore</span> on Home, <span className="t-italic">deep sea</span> on Trip,
+                      <span className="t-italic"> trek</span> on Packing, <span className="t-italic">dusk</span> on Budget.
+                    </div>
+                  </div>
+
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10 }}>
+                    {[
+                      { name: "sea",  hex: "deep dive" },
+                      { name: "sand", hex: "warm shore" },
+                      { name: "clay", hex: "trail terra" },
+                      { name: "moss", hex: "summit moss" },
+                    ].map(c => (
+                      <div key={c.name}>
+                        <div style={{ height: 56, borderRadius: 6, background: `var(--${c.name})`, border: "1px solid var(--hair)" }} />
+                        <div className="t-mono" style={{ marginTop: 6, fontSize: 10, letterSpacing: ".18em", textTransform: "uppercase", color: "var(--ink-2)" }}>{c.name}</div>
+                        <div className="t-mono" style={{ fontSize: 9.5, color: "var(--ink-3)", letterSpacing: ".06em" }}>{c.hex}</div>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="rule" />
+
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 24 }}>
+                    <div>
+                      <Label>Display</Label>
+                      <div className="t-display" style={{ fontSize: 38, marginTop: 4, lineHeight: 1 }}><em>Aa</em></div>
+                      <div className="t-mono" style={{ fontSize: 10, color: "var(--ink-3)", marginTop: 4 }}>Instrument Serif · italic for names</div>
+                    </div>
+                    <div>
+                      <Label>Body</Label>
+                      <div style={{ fontFamily: "var(--font-body)", fontSize: 32, marginTop: 4, lineHeight: 1 }}>Aa</div>
+                      <div className="t-mono" style={{ fontSize: 10, color: "var(--ink-3)", marginTop: 4 }}>IBM Plex Sans · 13–15px</div>
+                    </div>
+                    <div>
+                      <Label>Mono</Label>
+                      <div className="t-mono" style={{ fontSize: 22, marginTop: 8, color: "var(--ink)" }}>0123</div>
+                      <div className="t-mono" style={{ fontSize: 10, color: "var(--ink-3)", marginTop: 4 }}>IBM Plex Mono · labels &amp; numbers</div>
+                    </div>
+                  </div>
+                </div>
+              </DCArtboard>
+            </DCSection>
+          </DesignCanvas>
+
+          <TweaksPanel title="Tweaks">
+            <TweakSection title="Theme">
+              <TweakToggle label="Dark mode" value={t.dark} onChange={(v) => setTweak("dark", v)} />
+            </TweakSection>
+          </TweaksPanel>
+        </>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+  </script>
+</body>
+</html>
