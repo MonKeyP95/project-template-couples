@@ -21,7 +21,7 @@ Itinerary drafting, restaurant suggestions, packing-list hints. One provider (Cl
 Google Calendar, Google Maps, restaurant booking — only the ones we actually want on our own trips.
 
 ## Current Phase
-**Phase 1 — Foundation**
+**Phase 3 — First Trip** (steps 1–7 done; 8 itinerary_days, 9 desktop pass, 10 AI-card stub remaining). Phases 1 and 2 complete.
 
 ## Sequencing rules
 - Do not start Phase N+1 until Phase N has been used on a real trip (or, for Phase 1–2, until it actually works end-to-end).
