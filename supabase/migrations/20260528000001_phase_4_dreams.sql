@@ -7,11 +7,14 @@
 -- clean invariant.
 --
 -- We also add fuzzy_when text for free-form dream timing ("summer 2030").
+--
+-- Idempotent: safe to paste-and-run multiple times.
 
 alter table public.trips
-  add column fuzzy_when text;
+  add column if not exists fuzzy_when text;
 
 alter table public.trips drop constraint if exists trips_check;
+alter table public.trips drop constraint if exists trips_dates_check;
 alter table public.trips add constraint trips_dates_check
   check (
     (start_date is null and end_date is null)
