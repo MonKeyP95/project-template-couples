@@ -236,10 +236,24 @@ function TripHeaderView({
         >
           <Chevron dir="left" /> back
         </Link>
-        <Label>{isDream ? "Dream" : `Trip · ${tripCount}`}</Label>
+        <div className="flex items-center gap-3">
+          <Label>{isDream ? "Dream" : `Trip · ${tripCount}`}</Label>
+          <Link
+            href={`/trips/${header.slug}/edit`}
+            className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground hover:text-foreground"
+          >
+            {"// edit trip"}
+          </Link>
+        </div>
       </div>
-      <div className="relative hidden lg:block lg:mb-2">
+      <div className="relative hidden lg:mb-2 lg:flex lg:items-center lg:justify-between">
         <Label>{isDream ? "Dream" : `Trip · ${tripCount}`}</Label>
+        <Link
+          href={`/trips/${header.slug}/edit`}
+          className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground hover:text-foreground"
+        >
+          {"// edit trip"}
+        </Link>
       </div>
       <div className="relative flex items-end justify-between">
         <div>
