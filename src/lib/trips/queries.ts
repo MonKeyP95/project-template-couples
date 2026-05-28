@@ -8,6 +8,7 @@ export interface TripHeader {
   country: string | null
   startDate: string | null
   endDate: string | null
+  fuzzyWhen: string | null
   lat: number | null
   lng: number | null
   /** 1-based position within the workspace's trip list, ordered by start_date. */
@@ -24,6 +25,7 @@ interface TripRow {
   country: string | null
   start_date: string | null
   end_date: string | null
+  fuzzy_when: string | null
   lat: string | number | null
   lng: string | number | null
 }
@@ -40,7 +42,9 @@ export async function getTripBySlug(
 
   const tripQuery = supabase
     .from("trips")
-    .select("id, workspace_id, slug, name, country, start_date, end_date, lat, lng")
+    .select(
+      "id, workspace_id, slug, name, country, start_date, end_date, fuzzy_when, lat, lng",
+    )
     .eq("workspace_id", workspaceId)
     .eq("slug", slug)
     .maybeSingle<TripRow>()
@@ -70,6 +74,7 @@ export async function getTripBySlug(
     country: trip.country,
     startDate: trip.start_date,
     endDate: trip.end_date,
+    fuzzyWhen: trip.fuzzy_when,
     lat: asNumber(trip.lat),
     lng: asNumber(trip.lng),
     index,
