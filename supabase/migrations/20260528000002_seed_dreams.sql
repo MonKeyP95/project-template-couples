@@ -18,7 +18,7 @@ begin
     select user_id into owner_id
     from public.workspace_members
     where workspace_id = ws_id
-    order by case when role = 'owner' then 0 else 1 end, added_at asc
+    order by case when role = 'owner' then 0 else 1 end, joined_at asc
     limit 1;
 
     if owner_id is null then
