@@ -23,6 +23,7 @@ import {
   getItineraryDays,
   type ItineraryDay,
 } from "@/lib/trips/itinerary-queries"
+import { getTripNotes } from "@/lib/trips/note-queries"
 import { getPackingItems } from "@/lib/trips/packing-queries"
 import { getTripBySlug, type TripHeader } from "@/lib/trips/queries"
 import {
@@ -31,17 +32,19 @@ import {
 } from "@/lib/workspace/queries"
 
 import { BudgetTab } from "./budget-tab"
+import { NotesTab } from "./notes-tab"
 import {
   PackingTab,
   type MemberToneEntry,
 } from "./packing-tab"
 
-type TabId = "itinerary" | "packing" | "budget"
+type TabId = "itinerary" | "packing" | "budget" | "notes"
 
 const TABS: { id: TabId; label: string }[] = [
   { id: "itinerary", label: "Itinerary" },
   { id: "packing", label: "Packing" },
   { id: "budget", label: "Budget" },
+  { id: "notes", label: "Notes" },
 ]
 
 const itineraryBorder: Record<ItineraryDay["tone"], string> = {
@@ -52,7 +55,12 @@ const itineraryBorder: Record<ItineraryDay["tone"], string> = {
 }
 
 function isTab(value: string | undefined): value is TabId {
-  return value === "itinerary" || value === "packing" || value === "budget"
+  return (
+    value === "itinerary" ||
+    value === "packing" ||
+    value === "budget" ||
+    value === "notes"
+  )
 }
 
 function formatCoord(lat: number | null, lng: number | null): string | null {
@@ -136,8 +144,9 @@ export default async function TripPage({
 
   // Right rail needs packing + budget counts always, so load both at the page
   // level and share the result with the active tab below.
-  const [itinerary, packingItems, expenses] = await Promise.all([
+  const [itinerary, notes, packingItems, expenses] = await Promise.all([
     activeTab === "itinerary" ? getItineraryDays(header.id) : Promise.resolve(null),
+    activeTab === "notes" ? getTripNotes(header.id) : Promise.resolve(null),
     getPackingItems(header.id),
     getTripExpenses(header.id),
   ])
@@ -160,6 +169,7 @@ export default async function TripPage({
             itinerary: itinerary?.length ?? null,
             packing: packingTotal,
             budget: budgetSummary.expenseTotalCents,
+            notes: notes?.length ?? null,
           }}
         />
         {activeTab === "itinerary" && detail && header.startDate ? (
@@ -182,7 +192,7 @@ export default async function TripPage({
             members={memberTones}
             daysOut={computeDaysOut(header.startDate)}
           />
-        ) : (
+        ) : activeTab === "budget" ? (
           <BudgetTab
             tripId={header.id}
             tripSlug={header.slug}
@@ -194,6 +204,13 @@ export default async function TripPage({
             startDate={header.startDate}
             endDate={header.endDate}
             currentUserId={userData.user.id}
+          />
+        ) : (
+          <NotesTab
+            tripId={header.id}
+            tripSlug={header.slug}
+            initialNotes={notes ?? []}
+            members={memberTones}
           />
         )}
       </div>
@@ -453,13 +470,21 @@ function DesktopTabs({
 }: {
   slug: string
   active: TabId
-  counts: { itinerary: number | null; packing: number; budget: number }
+  counts: {
+    itinerary: number | null
+    packing: number
+    budget: number
+    notes: number | null
+  }
 }) {
   const labelFor = (t: TabId) => {
     if (t === "itinerary") {
       return counts.itinerary != null ? `${counts.itinerary} days` : null
     }
     if (t === "packing") return `${counts.packing}`
+    if (t === "notes") {
+      return counts.notes != null ? `${counts.notes}` : null
+    }
     return `€${(counts.budget / 100).toFixed(0)}`
   }
   return (
