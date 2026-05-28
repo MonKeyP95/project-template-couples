@@ -8,9 +8,7 @@ import {
   Coord,
   DayChip,
   Label,
-  MonoBadge,
   PairAvatar,
-  SuggestionCard,
   TopoBg,
   WaveGlyph,
 } from "@/components/together"
@@ -19,10 +17,7 @@ import { createClient } from "@/lib/supabase/server"
 import { getTripExpenses } from "@/lib/trips/expense-queries"
 import { summarizeBudget } from "@/lib/trips/expense-types"
 import { getTripDetailBySlug, type TripDetail } from "@/lib/trips/fixtures"
-import {
-  getItineraryDays,
-  type ItineraryDay,
-} from "@/lib/trips/itinerary-queries"
+import { getItineraryDays } from "@/lib/trips/itinerary-queries"
 import { getTripNotes } from "@/lib/trips/note-queries"
 import { getPackingItems } from "@/lib/trips/packing-queries"
 import { getTripBySlug, type TripHeader } from "@/lib/trips/queries"
@@ -32,6 +27,7 @@ import {
 } from "@/lib/workspace/queries"
 
 import { BudgetTab } from "./budget-tab"
+import { ItineraryTab } from "./itinerary-tab"
 import { NotesTab } from "./notes-tab"
 import {
   PackingTab,
@@ -46,13 +42,6 @@ const TABS: { id: TabId; label: string }[] = [
   { id: "budget", label: "Budget" },
   { id: "notes", label: "Notes" },
 ]
-
-const itineraryBorder: Record<ItineraryDay["tone"], string> = {
-  sea: "border-l-sea",
-  clay: "border-l-clay",
-  moss: "border-l-moss",
-  sand: "border-l-sand",
-}
 
 function isTab(value: string | undefined): value is TabId {
   return (
@@ -178,12 +167,15 @@ export default async function TripPage({
           </div>
         ) : null}
         {activeTab === "itinerary" ? (
-          itinerary && itinerary.length > 0 ? (
-            <ItineraryView itinerary={itinerary} />
-          ) : header.startDate === null ? (
+          header.startDate === null ? (
             <DreamItineraryStub />
           ) : (
-            <TabStub label="Itinerary" />
+            <ItineraryTab
+              tripId={header.id}
+              tripSlug={header.slug}
+              tripStartDate={header.startDate}
+              initialItems={itinerary ?? []}
+            />
           )
         ) : activeTab === "packing" ? (
           <PackingTab
@@ -324,99 +316,6 @@ function WeatherStrip({ detail }: { detail: { weather: { d: string; t: number; g
         />
       ))}
     </div>
-  )
-}
-
-function ItineraryView({
-  itinerary,
-}: {
-  itinerary: ItineraryDay[]
-}) {
-  return (
-    <section>
-      <div className="flex items-baseline justify-between px-5 pt-5">
-        <Label>Itinerary</Label>
-        <span className="font-mono text-[10px] tracking-[0.06em] text-muted-foreground">
-          drafted by <span className="text-sea">● M+G</span>
-        </span>
-      </div>
-      <div className="px-5 pt-2.5">
-        {itinerary.map((day, i) => (
-          <ItineraryRow
-            key={day.d}
-            day={day}
-            isLast={i === itinerary.length - 1}
-          />
-        ))}
-      </div>
-      <div className="px-5 pt-4 pb-6">
-        <SuggestionCard
-          label="/ assistant"
-          applyLabel="apply"
-          dismissLabel="dismiss"
-        >
-          Day 05 has a 4-hour drive after the ferry. Want me to{" "}
-          <span className="font-serif italic text-foreground">
-            split it across two days
-          </span>{" "}
-          so you&apos;re not arriving in Senaru tired?
-        </SuggestionCard>
-      </div>
-    </section>
-  )
-}
-
-function ItineraryRow({
-  day,
-  isLast,
-}: {
-  day: ItineraryDay
-  isLast: boolean
-}) {
-  return (
-    <div className="relative flex gap-3.5 py-3.5">
-      <div className="relative w-9 flex-shrink-0">
-        <div className="font-mono text-[9px] uppercase leading-none tracking-[0.14em] text-muted-foreground">
-          DAY
-        </div>
-        <div className="mt-0.5 font-mono text-[22px] leading-none tracking-[-0.02em] text-foreground">
-          {day.d}
-        </div>
-        <div className="mt-1 font-mono text-[9px] uppercase tracking-[0.14em] text-muted-foreground">
-          {day.dow.toUpperCase()}
-        </div>
-        {!isLast ? (
-          <div className="absolute -bottom-3.5 left-[11px] top-14 w-px bg-border" />
-        ) : null}
-      </div>
-      <div
-        className={`flex-1 rounded-lg border border-border bg-card px-3.5 py-3 border-l-[3px] ${itineraryBorder[day.tone]}`}
-      >
-        <div className="mb-1.5 flex items-center justify-between">
-          <MonoBadge tone={day.tone}>{day.tag}</MonoBadge>
-          <span className="font-mono text-[10px] tracking-[0.06em] text-muted-foreground">
-            {day.date}
-          </span>
-        </div>
-        <div className="t-display mb-1 text-[22px] leading-tight text-foreground">
-          {day.title}
-        </div>
-        <div className="text-[12.5px] leading-snug text-muted-foreground">
-          {day.sub}
-        </div>
-      </div>
-    </div>
-  )
-}
-
-function TabStub({ label }: { label: string }) {
-  return (
-    <section className="px-5 pt-6">
-      <Label>{label}</Label>
-      <p className="mt-3 font-serif text-[15px] italic text-muted-foreground">
-        Arriving soon.
-      </p>
-    </section>
   )
 }
 

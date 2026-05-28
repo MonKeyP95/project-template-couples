@@ -15,7 +15,7 @@ import {
   rowToItineraryDay,
   type ItineraryDay,
   type ItineraryTone,
-} from "@/lib/trips/itinerary-queries"
+} from "@/lib/trips/itinerary-types"
 
 export interface ToggleResult {
   error?: string
