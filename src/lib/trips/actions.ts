@@ -10,6 +10,12 @@ import {
 } from "@/lib/trips/expense-types"
 import { getCurrentWorkspace } from "@/lib/workspace/queries"
 import { rowToNote, type TripNote } from "@/lib/trips/note-queries"
+import {
+  ITINERARY_TONES,
+  rowToItineraryDay,
+  type ItineraryDay,
+  type ItineraryTone,
+} from "@/lib/trips/itinerary-queries"
 
 export interface ToggleResult {
   error?: string
@@ -559,6 +565,142 @@ export async function deleteNote(
     .from("trip_notes")
     .delete()
     .eq("id", noteId)
+  if (error) throw new Error(error.message)
+
+  revalidatePath(`/trips/${tripSlug}`)
+}
+
+export interface AddItineraryDayInput {
+  tripId: string
+  tripSlug: string
+  dayDate: string
+  title: string
+  sub: string
+  tag: string
+  tone: ItineraryTone
+}
+
+export interface AddItineraryDayResult {
+  error?: string
+  /** Populated on success — full ItineraryDay (d ordinal is placeholder; client re-runs withOrdinals). */
+  day?: ItineraryDay
+}
+
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/
+
+/**
+ * Inserts a new itinerary day. RLS gates membership. On unique-violation
+ * (another day already uses this date), returns a friendly error. Returns
+ * the inserted row as an ItineraryDay so the client can apply it via
+ * withOrdinals optimistically.
+ */
+export async function addItineraryDay(
+  input: AddItineraryDayInput,
+): Promise<AddItineraryDayResult> {
+  const title = input.title.trim()
+  if (!title) return { error: "Title required." }
+  const tag = input.tag.trim()
+  if (!tag) return { error: "Tag required." }
+  if (!DATE_RE.test(input.dayDate)) return { error: "Invalid date." }
+  if (!ITINERARY_TONES.includes(input.tone)) return { error: "Invalid tone." }
+
+  const supabase = await createClient()
+  const { data: userData, error: userError } = await supabase.auth.getUser()
+  if (userError || !userData.user) return { error: "Not signed in." }
+
+  const sub = input.sub.trim()
+
+  const { data, error } = await supabase
+    .from("itinerary_days")
+    .insert({
+      trip_id: input.tripId,
+      day_date: input.dayDate,
+      title,
+      sub,
+      tag,
+      tone: input.tone,
+      created_by: userData.user.id,
+    })
+    .select("id, day_date, title, sub, tag, tone")
+    .single()
+
+  if (error) {
+    if (error.code === "23505") {
+      return { error: "Another day already uses that date." }
+    }
+    return { error: error.message }
+  }
+
+  revalidatePath(`/trips/${input.tripSlug}`)
+  return { day: rowToItineraryDay(data) }
+}
+
+export interface UpdateItineraryDayInput {
+  dayId: string
+  tripSlug: string
+  dayDate: string
+  title: string
+  sub: string
+  tag: string
+  tone: ItineraryTone
+}
+
+export interface UpdateItineraryDayResult {
+  error?: string
+}
+
+/**
+ * Edits an existing itinerary day. Same validation + collision-translation
+ * shape as addItineraryDay. created_by and created_at never touched.
+ */
+export async function updateItineraryDay(
+  input: UpdateItineraryDayInput,
+): Promise<UpdateItineraryDayResult> {
+  const title = input.title.trim()
+  if (!title) return { error: "Title required." }
+  const tag = input.tag.trim()
+  if (!tag) return { error: "Tag required." }
+  if (!DATE_RE.test(input.dayDate)) return { error: "Invalid date." }
+  if (!ITINERARY_TONES.includes(input.tone)) return { error: "Invalid tone." }
+
+  const supabase = await createClient()
+  const sub = input.sub.trim()
+
+  const { error } = await supabase
+    .from("itinerary_days")
+    .update({
+      day_date: input.dayDate,
+      title,
+      sub,
+      tag,
+      tone: input.tone,
+    })
+    .eq("id", input.dayId)
+
+  if (error) {
+    if (error.code === "23505") {
+      return { error: "Another day already uses that date." }
+    }
+    return { error: error.message }
+  }
+
+  revalidatePath(`/trips/${input.tripSlug}`)
+  return {}
+}
+
+/**
+ * Permanently deletes an itinerary day. Throws on error (form-action shape).
+ * No cascade concerns — itinerary days have no children.
+ */
+export async function deleteItineraryDay(
+  dayId: string,
+  tripSlug: string,
+): Promise<void> {
+  const supabase = await createClient()
+  const { error } = await supabase
+    .from("itinerary_days")
+    .delete()
+    .eq("id", dayId)
   if (error) throw new Error(error.message)
 
   revalidatePath(`/trips/${tripSlug}`)
