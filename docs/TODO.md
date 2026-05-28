@@ -1,7 +1,9 @@
 # TODO.md
 
 ## Current Phase
-**Phase 4 — Dream-Trip Pipeline + Edit Trip: code shipped 2026-05-28 (pending Supabase migration paste for the dream-trip pipeline portion).** Dreams and trips now live in one `trips` table distinguished by whether dates are set. `/home` is a real query (Hero / Trips / Dreams / Past bands). `+ new trip` form has a "this is a dream" toggle with a free-text `When?` field. `/trips/[slug]` renders a dream variant when dates are NULL. `/trips/[slug]/edit` lets a workspace member rename, edit, promote/demote, or delete a trip. Six slices, eight commits (`0139052..` + edit-trip slice). **User action required**: paste `supabase/migrations/20260528000001_phase_4_dreams.sql` then `20260528000002_seed_dreams.sql` into the Supabase SQL Editor.
+**Phase 4.5 — Trip Notes: code shipped 2026-05-28 (pending Supabase migration paste for the trip_notes table).** New Notes tab on `/trips/[slug]` lets any workspace member jot, edit, and delete free-text notes for a trip. Backed by a new `trip_notes` table (FK to `trips` with cascade, RLS via `is_trip_workspace_member`). Three Server Actions (`addNote` / `updateNote` / `deleteNote`) mirror the existing patterns. Per-trip-only scope; workspace-level `/notes` deferred per the spec. **User action required**: paste `supabase/migrations/20260528000003_phase_4_5_trip_notes.sql` into the Supabase SQL Editor.
+
+**Phase 4 — Dream-Trip Pipeline + Edit Trip: shipped 2026-05-28.** Dreams and trips live in one `trips` table distinguished by whether dates are set. `/home` is a real query (Hero / Trips / Dreams / Past bands). `+ new trip` form has a "this is a dream" toggle with a free-text `When?` field. `/trips/[slug]` renders a dream variant when dates are NULL. `/trips/[slug]/edit` lets a workspace member rename, edit, promote/demote, or delete a trip. Six slices, eight commits.
 
 ## Phase 4 — Dream-Trip Pipeline
 - [x] **1. Schema + dream seeds** — Done 2026-05-28. `20260528000001_phase_4_dreams.sql` adds `trips.fuzzy_when text` and tightens the date-order CHECK from `(end_date is null or start_date is null or end_date >= start_date)` to `(both null) or (both set and end >= start)` — a row is now unambiguously either a dated trip or a dateless dream. `20260528000002_seed_dreams.sql` inserts Faroe Islands / Patagonia / Hokkaido / Aeolian Isles as dream rows (`fuzzy_when='someday'`) for every workspace that has Lombok seeded; idempotent via `on conflict (workspace_id, slug) do nothing`.
@@ -13,6 +15,15 @@
 
 ### Carried into the next Phase 4 slice (post-trip)
 - **Itinerary support for dreams.** The empty stub is honest but limiting. Decide whether to relax `itinerary_days.day_date NOT NULL` or add a parallel "ideas" sub-table when the empty-state actually starts annoying someone.
+
+## Phase 4.5 — Trip Notes
+- [x] **1. Trip notes** — Done 2026-05-28. New `/trips/[slug]?tab=notes` Notes tab backed by `trip_notes (id, trip_id, body, created_by, created_at, updated_at)` with FK cascade + RLS via `is_trip_workspace_member`. Three Server Actions: `addNote` (validates, inserts, returns the full `TripNote` for optional optimistic prepend), `updateNote` (body-only edit, bumps `updated_at` explicitly), `deleteNote` (form-action throws-on-error pattern, no cascade concerns). `NotesTab` client component: always-visible textarea + `+ save` at top, list of notes newest-first below. Each note shows body (whitespace-preserved), author avatar from the existing `memberToneMap`, ISO date in mono, and `✎` + `×` affordances. Edit-in-place uses a lifted `editingId` state with `NoteView`/`NoteEditor` split components so the editor's local state resets naturally on mount (sidesteps the React 19 `set-state-in-effect` lint). Native `confirm()` gates delete. Per-trip-only scope; workspace-level `/notes` route deferred. No categories, no day association, no Realtime. Spec: `docs/superpowers/specs/2026-05-28-phase-4-5-trip-notes-design.md`. Plan: `docs/superpowers/plans/2026-05-28-phase-4-5-trip-notes.md`.
+
+### Carried into the next Phase 4.5 slice (post-trip)
+- **Workspace-level `/notes` route.** The design handoff has `Notes` in the top-level desktop nav. Revisit if "general restaurant ideas not tied to any trip" becomes a felt gap during the Lombok trip.
+- **Categories / tags** (restaurant / lodging / tip / idea). Only if browsing notes by type becomes painful.
+- **Day association** (`day_date` nullable column + day picker on form). Only if "morning of day 3" notes feel essential.
+- **Realtime channel for notes.** Only if simultaneous co-typing becomes a real scenario.
 
 ## Phase 3.5 — Basic CRUD (do one at a time)
 - [x] **1. `+ add packing item`** — Done 2026-05-27. New Server Action `addPackingItem(tripId, category, label)` in `src/lib/trips/actions.ts` — trims label, reads `auth.uid()` for `added_by`, lets RLS gate the insert. Inline `AddItemRow` in `packing-tab.tsx` swaps the stub button for: text input + `add` submit + `×` cancel. Submit clears the input but keeps the form expanded so the user can rattle off several items in a row; Esc collapses; disabled state on empty / pending. Both clients pick up the INSERT via the existing Realtime handler (with id-dedupe on echo). Build clean.
