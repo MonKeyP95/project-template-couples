@@ -7,6 +7,7 @@ import {
   EXPENSE_CATEGORIES,
   type ExpenseCategory,
 } from "@/lib/trips/expense-types"
+import { getCurrentWorkspace } from "@/lib/workspace/queries"
 
 export interface ToggleResult {
   error?: string
@@ -201,4 +202,112 @@ export async function settleUp(
   if (insertError) throw new Error(insertError.message)
 
   revalidatePath(`/trips/${tripSlug}`)
+}
+
+export interface CreateTripInput {
+  name: string
+  slug: string
+  startDate: string | null
+  endDate: string | null
+  country: string | null
+  lat: number | null
+  lng: number | null
+}
+
+export interface CreateTripResult {
+  error?: string
+  /** Populated on success. Client navigates to /trips/<slug>. */
+  slug?: string
+}
+
+const SLUG_RE = /^[a-z0-9-]+$/
+
+/**
+ * Creates a trip in the current workspace plus a trip_members row for every
+ * workspace member. Returns `{ error }` on validation / DB failure so the form
+ * can surface the message inline; returns `{ slug }` on success and lets the
+ * client route to /trips/<slug>.
+ */
+export async function createTrip(
+  input: CreateTripInput,
+): Promise<CreateTripResult> {
+  const name = input.name.trim()
+  if (!name) return { error: "Name required." }
+
+  const slug = input.slug.trim()
+  if (!SLUG_RE.test(slug)) {
+    return { error: "Slug must be lowercase letters, numbers, hyphens." }
+  }
+
+  if (
+    input.startDate &&
+    input.endDate &&
+    input.endDate < input.startDate
+  ) {
+    return { error: "End date must be on or after start date." }
+  }
+
+  const hasLat = input.lat !== null
+  const hasLng = input.lng !== null
+  if (hasLat !== hasLng) {
+    return { error: "Coordinates invalid." }
+  }
+  if (hasLat) {
+    if (!Number.isFinite(input.lat) || input.lat! < -90 || input.lat! > 90) {
+      return { error: "Coordinates invalid." }
+    }
+    if (!Number.isFinite(input.lng) || input.lng! < -180 || input.lng! > 180) {
+      return { error: "Coordinates invalid." }
+    }
+  }
+
+  const workspace = await getCurrentWorkspace()
+  if (!workspace) return { error: "No workspace." }
+
+  const supabase = await createClient()
+  const { data: userData, error: userError } = await supabase.auth.getUser()
+  if (userError || !userData.user) return { error: "Not signed in." }
+
+  const country = input.country?.trim() || null
+
+  const { error: insertError } = await supabase.from("trips").insert({
+    workspace_id: workspace.id,
+    slug,
+    name,
+    country,
+    start_date: input.startDate,
+    end_date: input.endDate,
+    lat: input.lat,
+    lng: input.lng,
+    created_by: userData.user.id,
+  })
+
+  if (insertError) {
+    if (insertError.code === "23505") {
+      return { error: "A trip with that slug already exists." }
+    }
+    return { error: insertError.message }
+  }
+
+  const { data: tripRow, error: lookupError } = await supabase
+    .from("trips")
+    .select("id")
+    .eq("workspace_id", workspace.id)
+    .eq("slug", slug)
+    .maybeSingle()
+  if (lookupError || !tripRow) {
+    return { error: lookupError?.message ?? "Trip not found after insert." }
+  }
+
+  const memberRows = workspace.members.map((m) => ({
+    trip_id: tripRow.id,
+    user_id: m.user_id,
+    role: "member" as const,
+  }))
+  const { error: membersError } = await supabase
+    .from("trip_members")
+    .insert(memberRows)
+  if (membersError) return { error: membersError.message }
+
+  return { slug }
 }

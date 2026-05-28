@@ -122,6 +122,7 @@ function BudgetHeader({
   leftCents: number
   pct: number
 }) {
+  const hasPlanned = plannedBudgetCents > 0
   return (
     <div className="relative overflow-hidden bg-dusk-tint px-5 pt-6 pb-4">
       <TopoBg tone="sea" opacity={0.1} />
@@ -132,17 +133,23 @@ function BudgetHeader({
           <span className="t-display t-num text-[42px] leading-none text-foreground">
             {fmt(totalCents)}
           </span>
-          <span className="t-display text-[22px] text-muted-foreground">
-            {" "}/ €{fmt(plannedBudgetCents)}
-          </span>
+          {hasPlanned ? (
+            <span className="t-display text-[22px] text-muted-foreground">
+              {" "}/ €{fmt(plannedBudgetCents)}
+            </span>
+          ) : null}
         </div>
-        <div className="mt-3">
-          <Bar pct={pct} tone="sea" />
-        </div>
-        <div className="mt-1.5 flex justify-between font-mono text-[10px] tracking-[0.06em] text-muted-foreground">
-          <span>{pct}% of planned</span>
-          <span>€{fmt(leftCents)} left</span>
-        </div>
+        {hasPlanned ? (
+          <>
+            <div className="mt-3">
+              <Bar pct={pct} tone="sea" />
+            </div>
+            <div className="mt-1.5 flex justify-between font-mono text-[10px] tracking-[0.06em] text-muted-foreground">
+              <span>{pct}% of planned</span>
+              <span>€{fmt(leftCents)} left</span>
+            </div>
+          </>
+        ) : null}
       </div>
     </div>
   )

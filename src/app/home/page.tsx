@@ -230,13 +230,13 @@ export default async function HomePage() {
         </div>
       </section>
 
-      <button
-        type="button"
+      <Link
+        href="/trips/new"
         className="mt-7 flex w-full items-center justify-between rounded-[10px] border border-dashed border-rule bg-transparent px-4 py-3.5 font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground transition-colors hover:text-foreground md:mt-9 md:max-w-[280px] md:px-5 md:py-5"
       >
         <span>+ new trip</span>
         <Chevron />
-      </button>
+      </Link>
 
       <footer className="mt-12 flex justify-center md:mt-16">
         <form action="/api/signout" method="post">
