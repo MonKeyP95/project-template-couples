@@ -7,46 +7,18 @@ import {
   Chevron,
   Coord,
   Label,
-  MonoBadge,
   PairAvatar,
-  TopoBg,
-  type TopoTone,
 } from "@/components/together"
 import { createClient } from "@/lib/supabase/server"
+import { listTripsForWorkspace } from "@/lib/trips/list-queries"
 import {
   getCurrentWorkspace,
   type CurrentWorkspace,
   type WorkspaceMember,
 } from "@/lib/workspace/queries"
 
-type DreamTone = Extract<TopoTone, "sea" | "clay" | "moss" | "sand">
-
-interface DreamPin {
-  name: string
-  coord: string
-  tone: DreamTone
-}
-
-const DREAM_BOARD: DreamPin[] = [
-  { name: "Faroe Islands", coord: "62.0° N · 6.8° W", tone: "moss" },
-  { name: "Patagonia", coord: "50.0° S · 73.0° W", tone: "clay" },
-  { name: "Hokkaido", coord: "43.0° N · 142° E", tone: "sea" },
-  { name: "Aeolian Isles", coord: "38.5° N · 14.9° E", tone: "sand" },
-]
-
-const dreamSurface: Record<DreamTone, string> = {
-  sea: "bg-sea-tint",
-  clay: "bg-clay-tint",
-  moss: "bg-moss-tint",
-  sand: "bg-sand-tint",
-}
-
-const dreamLabel: Record<DreamTone, string> = {
-  sea: "text-sea",
-  clay: "text-clay",
-  moss: "text-moss",
-  sand: "text-sand",
-}
+import { daysUntil, dayWithinTrip } from "./format-helpers"
+import { CompactRow, DreamTile, HeroCard } from "./trip-cards"
 
 function formatDateLabel(date: Date) {
   const mm = String(date.getMonth() + 1).padStart(2, "0")
@@ -83,7 +55,29 @@ export default async function HomePage() {
   const memberCount = workspace?.members.length ?? 0
   const memberCountLabel = `${memberCount} member${memberCount === 1 ? "" : "s"}`
 
-  const upcomingTrips = youOnly ? 0 : 1
+  const buckets = workspace
+    ? await listTripsForWorkspace(workspace.id)
+    : { now: [], upcoming: [], past: [], dreams: [] }
+
+  // Hero claim: prefer the earliest "now" trip; otherwise the soonest "upcoming".
+  const hero = buckets.now[0] ?? buckets.upcoming[0] ?? null
+  const trips = [
+    ...buckets.now.slice(buckets.now[0] ? 1 : 0),
+    ...buckets.upcoming.slice(hero && !buckets.now[0] ? 1 : 0),
+  ]
+  const activeCount = buckets.now.length + buckets.upcoming.length
+
+  const heroCountdown = hero
+    ? hero.state === "now"
+      ? (() => {
+          const d = dayWithinTrip(hero.startDate, hero.endDate)
+          return d ? `day ${d.day} / ${d.total}` : null
+        })()
+      : (() => {
+          const d = daysUntil(hero.startDate)
+          return d != null ? `${d} days` : null
+        })()
+    : null
 
   return (
     <main className="mx-auto min-h-screen w-full max-w-[440px] bg-background px-5 pt-14 pb-10 md:max-w-[1200px] md:px-12 md:pt-12 md:pb-16">
@@ -146,9 +140,12 @@ export default async function HomePage() {
       </section>
 
       <section className="mb-3 hidden flex-wrap items-baseline gap-7 md:flex">
-        <StatItem n={upcomingTrips} label="Upcoming" />
-        <StatItem n={DREAM_BOARD.length} label="Dream places" />
-        <StatItem n={memberCount} label={memberCount === 1 ? "Member" : "Members"} />
+        <StatItem n={activeCount} label="Upcoming" />
+        <StatItem n={buckets.dreams.length} label="Dreams" />
+        <StatItem
+          n={memberCount}
+          label={memberCount === 1 ? "Member" : "Members"}
+        />
         {estYear ? (
           <span className="ml-auto font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
             est. {estYear}
@@ -161,80 +158,79 @@ export default async function HomePage() {
           <InviteCard />
         </section>
       ) : (
-        <section className="mt-10 md:mt-12">
-          <div className="mb-2.5 flex items-center justify-between md:mb-4">
-            <Label>Upcoming · 1</Label>
-            <span className="font-mono text-[10px] tracking-[0.06em] text-muted-foreground">
-              17 days
-            </span>
-          </div>
+        <>
+          {hero ? (
+            <section className="mt-10 md:mt-12">
+              <div className="mb-2.5 flex items-center justify-between md:mb-4">
+                <Label>
+                  {hero.state === "now"
+                    ? `Now · ${buckets.now.length}`
+                    : `Upcoming · ${activeCount}`}
+                </Label>
+                {heroCountdown ? (
+                  <span className="font-mono text-[10px] tracking-[0.06em] text-muted-foreground">
+                    {heroCountdown}
+                  </span>
+                ) : null}
+              </div>
+              <div className="md:grid md:grid-cols-2 md:gap-5 lg:grid-cols-3">
+                <HeroCard trip={hero} memberCount={memberCount} />
+              </div>
+            </section>
+          ) : null}
 
-          <div className="md:grid md:grid-cols-2 md:gap-5 lg:grid-cols-3">
-            <Link
-              href="/trips/lombok"
-              className="block overflow-hidden rounded-[14px] border border-border bg-card shadow-md transition-shadow md:hover:shadow-lg"
-            >
-              <div className="relative h-[132px] overflow-hidden bg-sea-tint md:aspect-[16/10] md:h-auto">
-                <TopoBg tone="sea" opacity={0.16} />
-                <div className="relative flex h-full flex-col justify-between p-4 md:p-5">
-                  <div className="flex items-start justify-between">
-                    <MonoBadge tone="sea">Surf · Dive · Trek</MonoBadge>
-                    <Coord>8.7° S · 116.3° E</Coord>
-                  </div>
-                  <div>
-                    <div className="t-display text-[38px] leading-none text-foreground md:text-[44px]">
-                      <em>Lombok</em>
-                    </div>
-                    <div className="mt-1 font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
-                      Indonesia
-                    </div>
-                  </div>
-                </div>
+          {trips.length > 0 ? (
+            <section className="mt-9 md:mt-12">
+              <div className="mb-2.5 flex items-center justify-between md:mb-4">
+                <Label>Trips · {trips.length}</Label>
               </div>
-              <div className="flex items-center justify-between px-4 py-3 md:px-5 md:py-3.5">
-                <div>
-                  <div className="font-mono text-[11px] tracking-[0.04em] text-foreground">
-                    JUN 12 — JUN 20
-                  </div>
-                  <div className="mt-0.5 font-mono text-[10px] tracking-[0.06em] text-muted-foreground">
-                    8 days · 2 travellers
-                  </div>
-                </div>
-                <div className="flex items-center gap-2.5 text-muted-foreground">
-                  {members.length >= 2 ? (
-                    <PairAvatar
-                      a={members[0].display_name}
-                      b={members[1].display_name}
-                      size={20}
-                    />
-                  ) : null}
-                  <Chevron />
-                </div>
+              <div className="flex flex-col gap-2.5 md:grid md:grid-cols-2 md:gap-5 lg:grid-cols-3">
+                {trips.map((t) => (
+                  <CompactRow key={t.id} trip={t} />
+                ))}
               </div>
-            </Link>
-          </div>
-        </section>
+            </section>
+          ) : null}
+
+          {buckets.dreams.length > 0 ? (
+            <section className="mt-9 md:mt-14">
+              <div className="mb-2.5 flex items-center justify-between md:mb-4">
+                <Label>Dreams · {buckets.dreams.length}</Label>
+                <span className="font-mono text-[10px] tracking-[0.06em] text-muted-foreground">
+                  someday, together
+                </span>
+              </div>
+              <div className="grid grid-cols-2 gap-2.5 md:grid-cols-4 md:gap-4">
+                {buckets.dreams.map((d) => (
+                  <DreamTile key={d.id} trip={d} />
+                ))}
+              </div>
+            </section>
+          ) : null}
+
+          {buckets.past.length > 0 ? (
+            <section className="mt-9 md:mt-12">
+              <div className="mb-2.5 flex items-center justify-between md:mb-4">
+                <Label>Past · {buckets.past.length}</Label>
+                <span className="font-mono text-[10px] tracking-[0.06em] text-muted-foreground">
+                  most recent first
+                </span>
+              </div>
+              <div className="flex flex-col gap-2.5 md:grid md:grid-cols-3 md:gap-4 lg:grid-cols-4">
+                {buckets.past.map((p) => (
+                  <CompactRow key={p.id} trip={p} dimmed />
+                ))}
+              </div>
+            </section>
+          ) : null}
+        </>
       )}
-
-      <section className="mt-9 md:mt-14">
-        <div className="mb-2.5 flex items-center justify-between md:mb-4">
-          <Label>Dream board · {DREAM_BOARD.length}</Label>
-          <span className="font-mono text-[10px] tracking-[0.06em] text-muted-foreground">
-            someday, together
-          </span>
-        </div>
-        <div className="grid grid-cols-2 gap-2.5 md:grid-cols-4 md:gap-4">
-          {DREAM_BOARD.map((d) => (
-            <DreamCard key={d.name} {...d} />
-          ))}
-        </div>
-      </section>
 
       <Link
         href="/trips/new"
         className="mt-7 flex w-full items-center justify-between rounded-[10px] border border-dashed border-rule bg-transparent px-4 py-3.5 font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground transition-colors hover:text-foreground md:mt-9 md:max-w-[280px] md:px-5 md:py-5"
       >
-        <span>+ new trip</span>
+        <span>+ new trip or dream</span>
         <Chevron />
       </Link>
 
@@ -261,23 +257,6 @@ function StatItem({ n, label }: { n: number; label: string }) {
       <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
         {label}
       </span>
-    </div>
-  )
-}
-
-function DreamCard({ name, coord, tone }: DreamPin) {
-  return (
-    <div
-      className={`relative flex aspect-square flex-col justify-between overflow-hidden rounded-[10px] border border-border p-3 md:aspect-[4/5] md:p-4 ${dreamSurface[tone]}`}
-    >
-      <TopoBg tone={tone} opacity={0.1} />
-      <Label className={`relative ${dreamLabel[tone]}`}>{`// dream`}</Label>
-      <div className="relative">
-        <div className="t-display text-[20px] text-foreground md:text-[26px]">
-          <em>{name}</em>
-        </div>
-        <Coord>{coord}</Coord>
-      </div>
     </div>
   )
 }
