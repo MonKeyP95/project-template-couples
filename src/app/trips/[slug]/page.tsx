@@ -162,7 +162,7 @@ export default async function TripPage({
             budget: budgetSummary.expenseTotalCents,
           }}
         />
-        {activeTab === "itinerary" && detail ? (
+        {activeTab === "itinerary" && detail && header.startDate ? (
           <div className="lg:hidden">
             <WeatherStrip detail={detail} />
           </div>
@@ -170,6 +170,8 @@ export default async function TripPage({
         {activeTab === "itinerary" ? (
           itinerary && itinerary.length > 0 ? (
             <ItineraryView itinerary={itinerary} />
+          ) : header.startDate === null ? (
+            <DreamItineraryStub />
           ) : (
             <TabStub label="Itinerary" />
           )
@@ -197,7 +199,7 @@ export default async function TripPage({
       </div>
 
       <DesktopRightRail
-        detail={detail}
+        detail={header.startDate ? detail : null}
         packing={{ done: packingDone, total: packingTotal }}
         budget={{
           spentCents: budgetSummary.expenseTotalCents,
@@ -221,6 +223,8 @@ function TripHeaderView({
   const dateRange = formatDateRange(header.startDate, header.endDate)
   const members = workspace.members
   const tripCount = `${String(header.index).padStart(2, "0")} of ${String(header.total).padStart(2, "0")}`
+  const isDream = header.startDate === null
+  const fuzzyLabel = (header.fuzzyWhen ?? "someday").toUpperCase()
 
   return (
     <header className="relative overflow-hidden bg-sea-tint px-5 pt-14 pb-5 lg:px-10 lg:pt-10 lg:pb-7">
@@ -232,10 +236,10 @@ function TripHeaderView({
         >
           <Chevron dir="left" /> back
         </Link>
-        <Label>Trip · {tripCount}</Label>
+        <Label>{isDream ? "Dream" : `Trip · ${tripCount}`}</Label>
       </div>
       <div className="relative hidden lg:block lg:mb-2">
-        <Label>Trip · {tripCount}</Label>
+        <Label>{isDream ? "Dream" : `Trip · ${tripCount}`}</Label>
       </div>
       <div className="relative flex items-end justify-between">
         <div>
@@ -255,7 +259,11 @@ function TripHeaderView({
         <WaveGlyph color="var(--sea)" w={56} h={14} className="lg:hidden" />
       </div>
       <div className="relative mt-4 flex items-center justify-between lg:mt-5">
-        {dateRange ? (
+        {isDream ? (
+          <div className="font-mono text-[12px] uppercase tracking-[0.18em] text-foreground">
+            {fuzzyLabel}
+          </div>
+        ) : dateRange ? (
           <div className="font-mono text-[12px] text-foreground">{dateRange}</div>
         ) : (
           <span />
@@ -376,6 +384,17 @@ function TabStub({ label }: { label: string }) {
       <Label>{label}</Label>
       <p className="mt-3 font-serif text-[15px] italic text-muted-foreground">
         Arriving soon.
+      </p>
+    </section>
+  )
+}
+
+function DreamItineraryStub() {
+  return (
+    <section className="px-5 pt-6">
+      <Label>Itinerary</Label>
+      <p className="mt-3 font-serif text-[15px] italic text-muted-foreground">
+        No days planned yet — add dates to plan day-by-day.
       </p>
     </section>
   )
