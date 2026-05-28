@@ -58,6 +58,24 @@ Working from `design_handoff_together_app/README.md` (hi-fi handoff for Phase 3 
 - [x] **9. Desktop breakpoint pass** — Done 2026-05-27. `/home` and `/trips/[slug]` lift the 440px cap at md/lg. `/home` at `md:` (768+): header on right, greeting on left, stat row (Upcoming / Dream places / Members + est. year), trip grid `md:grid-cols-2 lg:grid-cols-3`, dream board `md:grid-cols-4` (aspect-[4/5] at md). `/trips/[slug]` at `lg:` (1024+): 3-col flex — left rail (220px, workspace label + Home/Trip nav + members list), wide center (hero scaled to 88px serif, inline tabs with counts), right rail (280px, pre-trip Packing + Budget progress bars, 7-day weather grid). BottomNav hidden at `lg:`; mobile weather strip hidden at `lg:` and moved into right rail. Trip page now always loads packing + expenses at the page level so the right rail can show counts on every tab (previously loaded per-tab). New helpers in-file: `DesktopLeftRail`, `DesktopRightRail`, `DesktopTabs`, `ProgressRow`, `StatItem`. Verified visually at 390 / 768 / 1280 / 1440 against the production build (dev server in a broken Jest-worker state — pre-existing, unrelated). Mobile layouts untouched.
 - [x] **10. Pre-AI: moss-bordered suggestion card stub** — Done 2026-05-27. New primitive `SuggestionCard` at `src/components/together/suggestion-card.tsx` (Server Component): moss left border, moss `/ label`, body slot for mixed roman + italic copy, optional chevron-down (`expandable`), optional `applyLabel` / `dismissLabel` rendering inert mono uppercase buttons. Barrel export updated. Packing tab's previously-inlined card swapped for `<SuggestionCard label="/ suggested for Rinjani" expandable>`. Itinerary view gains a second instance below the timeline (`/ assistant` + apply/dismiss) matching the desktop dashboard pattern. Buttons are non-functional by design — Phase 5 will wire copy + actions through `lib/ai/claude.ts`. `pnpm build` clean.
 
+## Backlog (post-Lombok-trip, not yet phased)
+
+Items surfaced by the 2026-05-28 doc audit — referenced in `VISION.md` / `FEATURES.md` / `PLAN.md` / `design_handoff_together_app/README.md` but not in any phase. Pick up after the Lombok trip when real-use signal tells us which actually matter. Trip notes are intentionally **not** listed here — they're scheduled as Phase 4.5.
+
+### Profile + workspace
+- **Profile avatar uploads.** Phase 2 shipped with `avatar is initials only (image upload deferred)`; `PLAN.md:22` lists it as a Phase 4 candidate. Shape: Supabase Storage bucket (`avatars/<user_id>.jpg`), `<input type="file">` on `/profile`, server action uploads + writes `profiles.avatar_url`. The existing `Avatar` primitive in `src/components/together/` swaps from initials to an `<img>` when `avatar_url` is set; `PairAvatar` follows automatically.
+
+### Itinerary editing (real trips)
+- **Add / edit / delete itinerary days from the UI.** `PLAN.md:22` lists "richer itinerary editing" as a Phase 4 candidate. Currently `itinerary_days` rows exist only via the Phase 3 SQL seed — the timeline is read-only from the user's perspective. Shape: `+ add day` button at the bottom of the timeline, click-to-edit on each card (title/sub/tag/tone fields), `×` to delete with native confirm. Three new Server Actions following the trip-notes pattern. **Separate from** the carried "Itinerary support for dreams" item (which is about extending `itinerary_days` to dateless rows, not about adding an editing UI).
+
+### Per-item edit/delete (deferred-in-spec, never tracked)
+The edit-trip spec (`docs/superpowers/specs/2026-05-28-phase-4-edit-trip-design.md`) explicitly deferred these:
+- **Edit / delete packing items.** `togglePackingItem` exists; no way to rename a typo or remove an item once added. Shape: `✎` and `×` affordances per row in `PackingTab`, two new Server Actions (`updatePackingItem`, `deletePackingItem`), native `confirm()` on delete. Realtime channel already mounted picks up both events.
+- **Edit / delete expenses.** `logExpense` adds, `settleUp` reconciles; no edit or undo for an individual expense once entered. Shape: same `✎` / `×` pattern on each row in `BudgetTab`'s ledger, two new Server Actions. `revalidatePath` is enough — no Realtime needed (matches the existing expenses tab pattern).
+
+### Theming
+- **Dark mode toggle.** `FEATURES.md:25` lists this under "Later". `.dark` palette tokens already exist in `src/app/globals.css`. The missing piece is a UI affordance that flips `<html class="dark">` — e.g., a small toggle on `/profile` or in the desktop left-rail. **First check whether `prefers-color-scheme` already activates the dark palette in production**; if so, the toggle is purely a manual-override convenience.
+
 ## Working rules
 - One task per session. Finish, validate, then move on.
 - After completing a task, check it off here and add a row to `DECISIONS.md` if anything non-obvious was chosen.
