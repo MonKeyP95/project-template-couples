@@ -9,6 +9,7 @@ import {
   type ExpenseCategory,
 } from "@/lib/trips/expense-types"
 import { getCurrentWorkspace } from "@/lib/workspace/queries"
+import { rowToNote, type TripNote } from "@/lib/trips/note-queries"
 
 export interface ToggleResult {
   error?: string
@@ -467,4 +468,98 @@ export async function deleteTrip(
   revalidatePath(`/trips/${currentSlug}`)
   revalidatePath("/home")
   redirect("/home")
+}
+
+export interface AddNoteInput {
+  tripId: string
+  tripSlug: string
+  body: string
+}
+
+export interface AddNoteResult {
+  error?: string
+  /** Populated on success — full row, so the client can prepend optimistically if it wants. */
+  note?: TripNote
+}
+
+/**
+ * Inserts a free-text note on a trip. RLS requires the caller to be a
+ * workspace member of the trip and `created_by = auth.uid()`. Returns
+ * `{ error }` on validation/DB failure; `{ note }` on success.
+ */
+export async function addNote(
+  input: AddNoteInput,
+): Promise<AddNoteResult> {
+  const body = input.body.trim()
+  if (!body) return { error: "Note body required." }
+
+  const supabase = await createClient()
+  const { data: userData, error: userError } = await supabase.auth.getUser()
+  if (userError || !userData.user) return { error: "Not signed in." }
+
+  const { data, error } = await supabase
+    .from("trip_notes")
+    .insert({
+      trip_id: input.tripId,
+      body,
+      created_by: userData.user.id,
+    })
+    .select("id, trip_id, body, created_by, created_at, updated_at")
+    .single()
+
+  if (error) return { error: error.message }
+
+  revalidatePath(`/trips/${input.tripSlug}`)
+  return { note: rowToNote(data) }
+}
+
+export interface UpdateNoteInput {
+  noteId: string
+  tripSlug: string
+  body: string
+}
+
+export interface UpdateNoteResult {
+  error?: string
+}
+
+/**
+ * Edits the body of an existing note. RLS gates membership; `created_by`
+ * and `created_at` are never touched. `updated_at` is set explicitly because
+ * Postgres column defaults only fire on INSERT.
+ */
+export async function updateNote(
+  input: UpdateNoteInput,
+): Promise<UpdateNoteResult> {
+  const body = input.body.trim()
+  if (!body) return { error: "Note body required." }
+
+  const supabase = await createClient()
+  const { error } = await supabase
+    .from("trip_notes")
+    .update({ body, updated_at: new Date().toISOString() })
+    .eq("id", input.noteId)
+
+  if (error) return { error: error.message }
+
+  revalidatePath(`/trips/${input.tripSlug}`)
+  return {}
+}
+
+/**
+ * Permanently deletes a note. Throws on error (form-compatible like
+ * `deleteTrip` / `settleUp`). No cascade concerns — notes have no children.
+ */
+export async function deleteNote(
+  noteId: string,
+  tripSlug: string,
+): Promise<void> {
+  const supabase = await createClient()
+  const { error } = await supabase
+    .from("trip_notes")
+    .delete()
+    .eq("id", noteId)
+  if (error) throw new Error(error.message)
+
+  revalidatePath(`/trips/${tripSlug}`)
 }
