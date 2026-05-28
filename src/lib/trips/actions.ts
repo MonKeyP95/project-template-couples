@@ -1,6 +1,7 @@
 "use server"
 
 import { revalidatePath } from "next/cache"
+import { redirect } from "next/navigation"
 
 import { createClient } from "@/lib/supabase/server"
 import {
@@ -334,4 +335,136 @@ export async function createTrip(
   if (membersError) return { error: membersError.message }
 
   return { slug }
+}
+
+export interface UpdateTripInput {
+  tripId: string
+  currentSlug: string
+  name: string
+  slug: string
+  isDream: boolean
+  startDate: string | null
+  endDate: string | null
+  fuzzyWhen: string | null
+  country: string | null
+  lat: number | null
+  lng: number | null
+}
+
+export interface UpdateTripResult {
+  error?: string
+  /** New slug on success; client routes to /trips/<slug>. */
+  slug?: string
+}
+
+/**
+ * Updates an existing trip in-place. Validation mirrors `createTrip` so the
+ * schema invariant (dream rows have null dates + optional fuzzy_when; trip
+ * rows have both dates set + fuzzy_when null) is enforced on edit too.
+ * Returns `{ error }` on validation/DB failure; `{ slug }` on success so the
+ * client can route to the (possibly renamed) trip page.
+ */
+export async function updateTrip(
+  input: UpdateTripInput,
+): Promise<UpdateTripResult> {
+  const name = input.name.trim()
+  if (!name) return { error: "Name required." }
+
+  const slug = input.slug.trim()
+  if (!SLUG_RE.test(slug)) {
+    return { error: "Slug must be lowercase letters, numbers, hyphens." }
+  }
+
+  let startDate: string | null
+  let endDate: string | null
+  let fuzzyWhen: string | null
+
+  if (input.isDream) {
+    if (input.startDate || input.endDate) {
+      return { error: "Dreams have no dates." }
+    }
+    startDate = null
+    endDate = null
+    fuzzyWhen = input.fuzzyWhen?.trim() || null
+    if (fuzzyWhen && fuzzyWhen.length > 64) {
+      return { error: "When? must be 64 characters or fewer." }
+    }
+  } else {
+    if (!input.startDate || !input.endDate) {
+      return { error: "Start and end dates required." }
+    }
+    if (input.endDate < input.startDate) {
+      return { error: "End date must be on or after start date." }
+    }
+    if (input.fuzzyWhen) {
+      return { error: "Trips don't have a 'when?' label." }
+    }
+    startDate = input.startDate
+    endDate = input.endDate
+    fuzzyWhen = null
+  }
+
+  const hasLat = input.lat !== null
+  const hasLng = input.lng !== null
+  if (hasLat !== hasLng) {
+    return { error: "Coordinates invalid." }
+  }
+  if (hasLat) {
+    if (!Number.isFinite(input.lat) || input.lat! < -90 || input.lat! > 90) {
+      return { error: "Coordinates invalid." }
+    }
+    if (!Number.isFinite(input.lng) || input.lng! < -180 || input.lng! > 180) {
+      return { error: "Coordinates invalid." }
+    }
+  }
+
+  const supabase = await createClient()
+  const country = input.country?.trim() || null
+
+  const { error: updateError } = await supabase
+    .from("trips")
+    .update({
+      name,
+      slug,
+      country,
+      start_date: startDate,
+      end_date: endDate,
+      fuzzy_when: fuzzyWhen,
+      lat: input.lat,
+      lng: input.lng,
+    })
+    .eq("id", input.tripId)
+
+  if (updateError) {
+    if (updateError.code === "23505") {
+      return { error: "A trip with that slug already exists." }
+    }
+    return { error: updateError.message }
+  }
+
+  revalidatePath("/home")
+  revalidatePath(`/trips/${input.currentSlug}`)
+  return { slug }
+}
+
+/**
+ * Permanently deletes a trip. Child tables (trip_members, packing_items,
+ * expenses, itinerary_days) cascade automatically per the FKs declared in
+ * the Phase 3 / 3.5 migrations. RLS enforces that the caller is a workspace
+ * member of the trip.
+ *
+ * Throws on error (form-compatible like `settleUp`). On success, redirects
+ * server-side to /home — the form caller does not need to handle navigation.
+ */
+export async function deleteTrip(
+  tripId: string,
+  currentSlug: string,
+): Promise<void> {
+  const supabase = await createClient()
+  const { error } = await supabase.from("trips").delete().eq("id", tripId)
+  if (error) throw new Error(error.message)
+
+  revalidatePath(`/trips/${currentSlug}`)
+  revalidatePath("/home")
+  redirect("/home")
 }
