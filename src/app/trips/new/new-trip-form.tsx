@@ -20,8 +20,10 @@ export function NewTripForm() {
   const [name, setName] = React.useState("")
   const [slug, setSlug] = React.useState("")
   const [slugDirty, setSlugDirty] = React.useState(false)
+  const [isDream, setIsDream] = React.useState(false)
   const [startDate, setStartDate] = React.useState("")
   const [endDate, setEndDate] = React.useState("")
+  const [fuzzyWhen, setFuzzyWhen] = React.useState("")
   const [country, setCountry] = React.useState("")
   const [advancedOpen, setAdvancedOpen] = React.useState(false)
   const [lat, setLat] = React.useState("")
@@ -50,8 +52,10 @@ export function NewTripForm() {
       const result = await createTrip({
         name,
         slug: displayedSlug,
-        startDate: startDate || null,
-        endDate: endDate || null,
+        isDream,
+        startDate: isDream ? null : startDate || null,
+        endDate: isDream ? null : endDate || null,
+        fuzzyWhen: isDream ? fuzzyWhen.trim() || null : null,
         country: country.trim() || null,
         lat: parseFloatOrNull(lat),
         lng: parseFloatOrNull(lng),
@@ -66,7 +70,20 @@ export function NewTripForm() {
 
   return (
     <form onSubmit={submit} className="mt-6">
-      <label className="block">
+      <label className="flex items-center gap-2.5">
+        <input
+          type="checkbox"
+          checked={isDream}
+          onChange={(e) => setIsDream(e.target.checked)}
+          disabled={isPending}
+          className="h-4 w-4 accent-foreground disabled:opacity-50"
+        />
+        <span className="font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
+          This is a dream (no dates yet)
+        </span>
+      </label>
+
+      <label className="mt-5 block">
         <span className="block font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
           Name
         </span>
@@ -101,32 +118,49 @@ export function NewTripForm() {
         </span>
       </label>
 
-      <div className="mt-5 grid grid-cols-2 gap-4">
-        <label className="block">
+      {isDream ? (
+        <label className="mt-5 block">
           <span className="block font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
-            Start
+            When?
           </span>
           <input
-            type="date"
-            value={startDate}
-            onChange={(e) => setStartDate(e.target.value)}
+            type="text"
+            value={fuzzyWhen}
+            onChange={(e) => setFuzzyWhen(e.target.value)}
+            placeholder="summer 2030, someday, ..."
+            maxLength={64}
             disabled={isPending}
-            className="t-num mt-1 w-full border-0 border-b border-rule bg-transparent py-1.5 text-[14px] text-foreground focus:border-clay focus:outline-none disabled:opacity-50"
+            className="mt-1 w-full border-0 border-b border-rule bg-transparent py-1.5 text-[14px] text-foreground placeholder:text-muted-foreground focus:border-clay focus:outline-none disabled:opacity-50"
           />
         </label>
-        <label className="block">
-          <span className="block font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
-            End
-          </span>
-          <input
-            type="date"
-            value={endDate}
-            onChange={(e) => setEndDate(e.target.value)}
-            disabled={isPending}
-            className="t-num mt-1 w-full border-0 border-b border-rule bg-transparent py-1.5 text-[14px] text-foreground focus:border-clay focus:outline-none disabled:opacity-50"
-          />
-        </label>
-      </div>
+      ) : (
+        <div className="mt-5 grid grid-cols-2 gap-4">
+          <label className="block">
+            <span className="block font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
+              Start
+            </span>
+            <input
+              type="date"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              disabled={isPending}
+              className="t-num mt-1 w-full border-0 border-b border-rule bg-transparent py-1.5 text-[14px] text-foreground focus:border-clay focus:outline-none disabled:opacity-50"
+            />
+          </label>
+          <label className="block">
+            <span className="block font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
+              End
+            </span>
+            <input
+              type="date"
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+              disabled={isPending}
+              className="t-num mt-1 w-full border-0 border-b border-rule bg-transparent py-1.5 text-[14px] text-foreground focus:border-clay focus:outline-none disabled:opacity-50"
+            />
+          </label>
+        </div>
+      )}
 
       <label className="mt-5 block">
         <span className="block font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
@@ -204,7 +238,7 @@ export function NewTripForm() {
           disabled={!canSubmit}
           className="rounded-full border-0 bg-foreground px-3.5 py-1.5 font-mono text-[10px] uppercase tracking-[0.2em] text-background disabled:opacity-40"
         >
-          {isPending ? "…" : "create trip"}
+          {isPending ? "…" : isDream ? "save dream" : "create trip"}
         </button>
       </div>
     </form>

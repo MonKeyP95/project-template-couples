@@ -207,8 +207,10 @@ export async function settleUp(
 export interface CreateTripInput {
   name: string
   slug: string
+  isDream: boolean
   startDate: string | null
   endDate: string | null
+  fuzzyWhen: string | null
   country: string | null
   lat: number | null
   lng: number | null
@@ -239,12 +241,33 @@ export async function createTrip(
     return { error: "Slug must be lowercase letters, numbers, hyphens." }
   }
 
-  if (
-    input.startDate &&
-    input.endDate &&
-    input.endDate < input.startDate
-  ) {
-    return { error: "End date must be on or after start date." }
+  let startDate: string | null
+  let endDate: string | null
+  let fuzzyWhen: string | null
+
+  if (input.isDream) {
+    if (input.startDate || input.endDate) {
+      return { error: "Dreams have no dates." }
+    }
+    startDate = null
+    endDate = null
+    fuzzyWhen = input.fuzzyWhen?.trim() || null
+    if (fuzzyWhen && fuzzyWhen.length > 64) {
+      return { error: "When? must be 64 characters or fewer." }
+    }
+  } else {
+    if (!input.startDate || !input.endDate) {
+      return { error: "Start and end dates required." }
+    }
+    if (input.endDate < input.startDate) {
+      return { error: "End date must be on or after start date." }
+    }
+    if (input.fuzzyWhen) {
+      return { error: "Trips don't have a 'when?' label." }
+    }
+    startDate = input.startDate
+    endDate = input.endDate
+    fuzzyWhen = null
   }
 
   const hasLat = input.lat !== null
@@ -275,8 +298,9 @@ export async function createTrip(
     slug,
     name,
     country,
-    start_date: input.startDate,
-    end_date: input.endDate,
+    start_date: startDate,
+    end_date: endDate,
+    fuzzy_when: fuzzyWhen,
     lat: input.lat,
     lng: input.lng,
     created_by: userData.user.id,
