@@ -14,6 +14,7 @@ import { createClient } from "@/lib/supabase/client"
 import {
   addPackingCategory,
   addPackingItem,
+  deletePackingCategory,
   deletePackingItem,
   togglePackingItem,
   updatePackingItem,
@@ -182,6 +183,29 @@ export function PackingTab({
     return {}
   }
 
+  async function removeCategory(
+    categoryId: string,
+    name: string,
+    count: number,
+  ) {
+    const msg =
+      count > 0
+        ? `Delete '${name}' and its ${count} item${count === 1 ? "" : "s"}?`
+        : `Delete '${name}'?`
+    if (!window.confirm(msg)) return
+
+    const catSnapshot = categories
+    const itemSnapshot = items
+    setCategories((prev) => prev.filter((c) => c.id !== categoryId))
+    setItems((prev) => prev.filter((i) => i.category !== name))
+
+    const result = await deletePackingCategory(categoryId, tripSlug)
+    if (result.error) {
+      setCategories(catSnapshot)
+      setItems(itemSnapshot)
+    }
+  }
+
   const groups = groupPackingItems(categories, items)
   const total = items.length
   const done = items.filter((i) => i.done).length
@@ -217,6 +241,7 @@ export function PackingTab({
           <CategoryGroup
             key={g.categoryId ?? `orphan:${g.category}`}
             tripId={tripId}
+            categoryId={g.categoryId}
             category={g.category}
             items={g.items}
             members={members}
@@ -226,6 +251,7 @@ export function PackingTab({
             onStopEdit={() => setEditingId(null)}
             onUpdate={update}
             onDelete={remove}
+            onDeleteCategory={removeCategory}
           />
         ))}
 
@@ -248,6 +274,7 @@ export function PackingTab({
 
 function CategoryGroup({
   tripId,
+  categoryId,
   category,
   items,
   members,
@@ -257,8 +284,10 @@ function CategoryGroup({
   onStopEdit,
   onUpdate,
   onDelete,
+  onDeleteCategory,
 }: {
   tripId: string
+  categoryId: string | null
   category: string
   items: PackingItem[]
   members: Record<string, MemberToneEntry>
@@ -268,15 +297,28 @@ function CategoryGroup({
   onStopEdit: () => void
   onUpdate: (id: string, label: string) => Promise<{ error?: string }>
   onDelete: (id: string) => void
+  onDeleteCategory: (id: string, name: string, count: number) => void
 }) {
   const done = items.filter((i) => i.done).length
   return (
     <div className="border-b border-border px-5 pt-4 pb-1.5">
       <div className="mb-0.5 flex items-center justify-between">
         <Label>{category}</Label>
-        <span className="font-mono text-[10px] text-muted-foreground">
-          {done} / {items.length}
-        </span>
+        <div className="flex items-center gap-2">
+          <span className="font-mono text-[10px] text-muted-foreground">
+            {done} / {items.length}
+          </span>
+          {categoryId ? (
+            <button
+              type="button"
+              onClick={() => onDeleteCategory(categoryId, category, items.length)}
+              aria-label="Delete category"
+              className="border-0 bg-transparent px-1 font-mono text-[12px] text-muted-foreground hover:text-clay"
+            >
+              ×
+            </button>
+          ) : null}
+        </div>
       </div>
       {items.map((item) => (
         <ItemRow
