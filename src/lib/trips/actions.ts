@@ -879,3 +879,29 @@ export async function reorderPackingCategories(
   revalidatePath(`/trips/${tripSlug}`)
   return {}
 }
+
+export interface RescheduleItineraryResult {
+  error?: string
+}
+
+/**
+ * Insertion-shift reschedule: reassigns the trip's existing dates (sorted) to
+ * the days in the given id order, via the reschedule_itinerary_days RPC which
+ * permutes them atomically under a deferred unique constraint. The existing
+ * Realtime channel broadcasts the per-row UPDATEs to the partner.
+ */
+export async function rescheduleItineraryDays(
+  tripId: string,
+  tripSlug: string,
+  orderedDayIds: string[],
+): Promise<RescheduleItineraryResult> {
+  const supabase = await createClient()
+  const { error } = await supabase.rpc("reschedule_itinerary_days", {
+    p_trip_id: tripId,
+    p_day_ids: orderedDayIds,
+  })
+  if (error) return { error: error.message }
+
+  revalidatePath(`/trips/${tripSlug}`)
+  return {}
+}
