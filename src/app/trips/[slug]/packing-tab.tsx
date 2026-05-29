@@ -12,6 +12,7 @@ import {
 } from "@/components/together"
 import { createClient } from "@/lib/supabase/client"
 import {
+  addPackingCategory,
   addPackingItem,
   deletePackingItem,
   togglePackingItem,
@@ -62,6 +63,7 @@ function fromRow(row: RealtimeRow): PackingItem {
 
 export function PackingTab({
   tripId,
+  tripSlug,
   initialItems,
   initialCategories,
   members,
@@ -170,6 +172,16 @@ export function PackingTab({
     if (result.error) setItems(snapshot)
   }
 
+  async function addCategory(name: string): Promise<{ error?: string }> {
+    const result = await addPackingCategory(tripId, tripSlug, name)
+    if (result.error) return { error: result.error }
+    if (result.category) {
+      const created = result.category
+      setCategories((prev) => [...prev, created])
+    }
+    return {}
+  }
+
   const groups = groupPackingItems(categories, items)
   const total = items.length
   const done = items.filter((i) => i.done).length
@@ -216,6 +228,10 @@ export function PackingTab({
             onDelete={remove}
           />
         ))}
+
+        <div className="px-5 pt-4">
+          <AddCategoryRow onAdd={addCategory} />
+        </div>
 
         <div className="px-5 pt-4 pb-6">
           <SuggestionCard label="/ suggested for Rinjani" expandable>
@@ -468,6 +484,93 @@ function AddItemRow({
             if (e.key === "Escape") reset()
           }}
           placeholder={`Add to ${category.toLowerCase()}…`}
+          disabled={pending}
+          className="flex-1 border-0 border-b border-rule bg-transparent py-1 text-[14px] text-foreground placeholder:text-muted-foreground focus:border-clay focus:outline-none disabled:opacity-50"
+        />
+        <button
+          type="submit"
+          disabled={pending || !value.trim()}
+          className="rounded-md border-0 bg-clay px-2.5 py-1 font-mono text-[10px] uppercase tracking-[0.18em] text-background disabled:opacity-40"
+        >
+          add
+        </button>
+        <button
+          type="button"
+          onClick={reset}
+          disabled={pending}
+          className="border-0 bg-transparent px-1 font-mono text-[12px] text-muted-foreground hover:text-foreground"
+          aria-label="Cancel"
+        >
+          ×
+        </button>
+      </div>
+      {error ? (
+        <div className="mt-1 font-mono text-[10px] text-clay">{error}</div>
+      ) : null}
+    </form>
+  )
+}
+
+function AddCategoryRow({
+  onAdd,
+}: {
+  onAdd: (name: string) => Promise<{ error?: string }>
+}) {
+  const [expanded, setExpanded] = React.useState(false)
+  const [value, setValue] = React.useState("")
+  const [pending, setPending] = React.useState(false)
+  const [error, setError] = React.useState<string | null>(null)
+  const inputRef = React.useRef<HTMLInputElement>(null)
+
+  React.useEffect(() => {
+    if (expanded) inputRef.current?.focus()
+  }, [expanded])
+
+  function reset() {
+    setExpanded(false)
+    setValue("")
+    setError(null)
+  }
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault()
+    const name = value.trim()
+    if (!name || pending) return
+    setPending(true)
+    setError(null)
+    const result = await onAdd(name)
+    setPending(false)
+    if (result.error) {
+      setError(result.error)
+      return
+    }
+    reset()
+  }
+
+  if (!expanded) {
+    return (
+      <button
+        type="button"
+        onClick={() => setExpanded(true)}
+        className="block w-full rounded-lg border border-dashed border-rule py-3 font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground hover:border-foreground hover:text-foreground"
+      >
+        + add category
+      </button>
+    )
+  }
+
+  return (
+    <form onSubmit={submit} className="py-1">
+      <div className="flex items-center gap-2">
+        <input
+          ref={inputRef}
+          type="text"
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Escape") reset()
+          }}
+          placeholder="New category, e.g. Medicines"
           disabled={pending}
           className="flex-1 border-0 border-b border-rule bg-transparent py-1 text-[14px] text-foreground placeholder:text-muted-foreground focus:border-clay focus:outline-none disabled:opacity-50"
         />
