@@ -11,7 +11,12 @@ import {
   TopoBg,
 } from "@/components/together"
 import { createClient } from "@/lib/supabase/client"
-import { addPackingItem, togglePackingItem } from "@/lib/trips/actions"
+import {
+  addPackingItem,
+  deletePackingItem,
+  togglePackingItem,
+  updatePackingItem,
+} from "@/lib/trips/actions"
 import {
   groupPackingItems,
   type PackingItem,
@@ -60,6 +65,7 @@ export function PackingTab({
 }: PackingTabProps) {
   const [items, setItems] = React.useState<PackingItem[]>(initialItems)
   const [lastInitial, setLastInitial] = React.useState(initialItems)
+  const [editingId, setEditingId] = React.useState<string | null>(null)
 
   // Sync local state when the server re-fetches (e.g. RefreshOnVisible after
   // the tab returns from background, where Realtime may have missed events).
@@ -126,6 +132,33 @@ export function PackingTab({
     }
   }
 
+  async function update(id: string, label: string): Promise<{ error?: string }> {
+    const current = items.find((i) => i.id === id)
+    if (!current) return {}
+    const trimmed = label.trim()
+
+    setItems((prev) =>
+      prev.map((i) => (i.id === id ? { ...i, label: trimmed } : i)),
+    )
+
+    const result = await updatePackingItem(id, trimmed)
+    if (result.error) {
+      setItems((prev) =>
+        prev.map((i) => (i.id === id ? { ...i, label: current.label } : i)),
+      )
+    }
+    return result
+  }
+
+  async function remove(id: string) {
+    if (!window.confirm("Remove this item?")) return
+    const snapshot = items
+    setItems((prev) => prev.filter((i) => i.id !== id))
+
+    const result = await deletePackingItem(id)
+    if (result.error) setItems(snapshot)
+  }
+
   const groups = groupPackingItems(items)
   const total = items.length
   const done = items.filter((i) => i.done).length
@@ -164,7 +197,12 @@ export function PackingTab({
             category={g.category}
             items={g.items}
             members={members}
+            editingId={editingId}
             onToggle={toggle}
+            onStartEdit={setEditingId}
+            onStopEdit={() => setEditingId(null)}
+            onUpdate={update}
+            onDelete={remove}
           />
         ))}
 
@@ -186,13 +224,23 @@ function CategoryGroup({
   category,
   items,
   members,
+  editingId,
   onToggle,
+  onStartEdit,
+  onStopEdit,
+  onUpdate,
+  onDelete,
 }: {
   tripId: string
   category: string
   items: PackingItem[]
   members: Record<string, MemberToneEntry>
+  editingId: string | null
   onToggle: (id: string) => void
+  onStartEdit: (id: string) => void
+  onStopEdit: () => void
+  onUpdate: (id: string, label: string) => Promise<{ error?: string }>
+  onDelete: (id: string) => void
 }) {
   const done = items.filter((i) => i.done).length
   return (
@@ -203,22 +251,146 @@ function CategoryGroup({
           {done} / {items.length}
         </span>
       </div>
-      {items.map((item) => {
-        const member = members[item.addedBy]
-        return (
-          <CheckRow
-            key={item.id}
-            done={item.done}
-            label={item.label}
-            who={member?.initial}
-            whoTone={member?.tone ?? "sea"}
-            tone="clay"
-            onToggle={() => onToggle(item.id)}
-          />
-        )
-      })}
+      {items.map((item) => (
+        <ItemRow
+          key={item.id}
+          item={item}
+          member={members[item.addedBy]}
+          isEditing={editingId === item.id}
+          onToggle={() => onToggle(item.id)}
+          onStartEdit={() => onStartEdit(item.id)}
+          onStopEdit={onStopEdit}
+          onUpdate={onUpdate}
+          onDelete={() => onDelete(item.id)}
+        />
+      ))}
       <AddItemRow tripId={tripId} category={category} />
     </div>
+  )
+}
+
+function ItemRow({
+  item,
+  member,
+  isEditing,
+  onToggle,
+  onStartEdit,
+  onStopEdit,
+  onUpdate,
+  onDelete,
+}: {
+  item: PackingItem
+  member?: MemberToneEntry
+  isEditing: boolean
+  onToggle: () => void
+  onStartEdit: () => void
+  onStopEdit: () => void
+  onUpdate: (id: string, label: string) => Promise<{ error?: string }>
+  onDelete: () => void
+}) {
+  if (isEditing) {
+    return <ItemEditor item={item} onUpdate={onUpdate} onDone={onStopEdit} />
+  }
+  return (
+    <div className="flex items-center gap-1">
+      <CheckRow
+        className="flex-1"
+        done={item.done}
+        label={item.label}
+        who={member?.initial}
+        whoTone={member?.tone ?? "sea"}
+        tone="clay"
+        onToggle={onToggle}
+      />
+      <button
+        type="button"
+        onClick={onStartEdit}
+        aria-label="Edit item"
+        className="border-0 bg-transparent px-1.5 py-1 font-mono text-[11px] text-muted-foreground hover:text-foreground"
+      >
+        ✎
+      </button>
+      <button
+        type="button"
+        onClick={onDelete}
+        aria-label="Delete item"
+        className="border-0 bg-transparent px-1.5 py-1 font-mono text-[12px] text-muted-foreground hover:text-clay"
+      >
+        ×
+      </button>
+    </div>
+  )
+}
+
+function ItemEditor({
+  item,
+  onUpdate,
+  onDone,
+}: {
+  item: PackingItem
+  onUpdate: (id: string, label: string) => Promise<{ error?: string }>
+  onDone: () => void
+}) {
+  const [value, setValue] = React.useState(item.label)
+  const [pending, setPending] = React.useState(false)
+  const [error, setError] = React.useState<string | null>(null)
+  const inputRef = React.useRef<HTMLInputElement>(null)
+
+  React.useEffect(() => {
+    inputRef.current?.focus()
+    inputRef.current?.select()
+  }, [])
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault()
+    const label = value.trim()
+    if (!label || pending) return
+    setPending(true)
+    setError(null)
+    const result = await onUpdate(item.id, label)
+    setPending(false)
+    if (result.error) {
+      setError(result.error)
+      return
+    }
+    onDone()
+  }
+
+  return (
+    <form onSubmit={submit} className="py-2">
+      <div className="flex items-center gap-2">
+        <input
+          ref={inputRef}
+          type="text"
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Escape") onDone()
+          }}
+          disabled={pending}
+          className="flex-1 border-0 border-b border-rule bg-transparent py-1 text-[14px] text-foreground placeholder:text-muted-foreground focus:border-clay focus:outline-none disabled:opacity-50"
+        />
+        <button
+          type="submit"
+          disabled={pending || !value.trim()}
+          className="rounded-md border-0 bg-clay px-2.5 py-1 font-mono text-[10px] uppercase tracking-[0.18em] text-background disabled:opacity-40"
+        >
+          save
+        </button>
+        <button
+          type="button"
+          onClick={onDone}
+          disabled={pending}
+          className="border-0 bg-transparent px-1 font-mono text-[12px] text-muted-foreground hover:text-foreground"
+          aria-label="Cancel"
+        >
+          ×
+        </button>
+      </div>
+      {error ? (
+        <div className="mt-1 font-mono text-[10px] text-clay">{error}</div>
+      ) : null}
+    </form>
   )
 }
 

@@ -88,7 +88,7 @@ Items surfaced by the 2026-05-28 doc audit — referenced in `VISION.md` / `FEAT
 
 ### Per-item edit/delete (deferred-in-spec, never tracked)
 The edit-trip spec (`docs/superpowers/specs/2026-05-28-phase-4-edit-trip-design.md`) explicitly deferred these:
-- **Edit / delete packing items.** `togglePackingItem` exists; no way to rename a typo or remove an item once added. Shape: `✎` and `×` affordances per row in `PackingTab`, two new Server Actions (`updatePackingItem`, `deletePackingItem`), native `confirm()` on delete. Realtime channel already mounted picks up both events.
+- [x] **Edit / delete packing items.** Done 2026-05-29. Two new Server Actions in `actions.ts` (`updatePackingItem`, `deletePackingItem`), both return-`{error}` shaped like `togglePackingItem` — no `revalidatePath`, the already-mounted Realtime channel broadcasts the UPDATE/DELETE to both clients. `PackingTab` gained an `editingId` state plus optimistic `update`/`remove` handlers mirroring the existing `toggle`. Each row split into `ItemRow` (view: `CheckRow` + `✎`/`×`) and `ItemEditor` (inline text field, save/cancel, Esc-to-close) — a split component so its local input state seeds from props on mount, sidestepping the React 19 set-state-in-effect lint (per `memory/feedback-react19-lint-gotchas.md`). Native `confirm()` gates delete. Build + lint clean.
 - **Edit / delete expenses.** `logExpense` adds, `settleUp` reconciles; no edit or undo for an individual expense once entered. Shape: same `✎` / `×` pattern on each row in `BudgetTab`'s ledger, two new Server Actions. `revalidatePath` is enough — no Realtime needed (matches the existing expenses tab pattern).
 
 ### Theming

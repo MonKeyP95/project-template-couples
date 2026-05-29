@@ -73,6 +73,53 @@ export async function addPackingItem(
   return {}
 }
 
+export interface UpdatePackingItemResult {
+  error?: string
+}
+
+/**
+ * Renames a packing item. RLS gates trip membership. Realtime broadcasts the
+ * UPDATE to both clients, so no revalidate is needed (matches togglePackingItem).
+ */
+export async function updatePackingItem(
+  itemId: string,
+  label: string,
+): Promise<UpdatePackingItemResult> {
+  const trimmed = label.trim()
+  if (!trimmed) return { error: "Label required." }
+
+  const supabase = await createClient()
+  const { error } = await supabase
+    .from("packing_items")
+    .update({ label: trimmed })
+    .eq("id", itemId)
+
+  if (error) return { error: error.message }
+  return {}
+}
+
+export interface DeletePackingItemResult {
+  error?: string
+}
+
+/**
+ * Deletes a packing item. RLS gates trip membership. The Realtime DELETE event
+ * removes the row on both clients. Returns `{ error }` so the optimistic client
+ * handler can revert on failure (matches togglePackingItem's shape).
+ */
+export async function deletePackingItem(
+  itemId: string,
+): Promise<DeletePackingItemResult> {
+  const supabase = await createClient()
+  const { error } = await supabase
+    .from("packing_items")
+    .delete()
+    .eq("id", itemId)
+
+  if (error) return { error: error.message }
+  return {}
+}
+
 export interface LogExpenseInput {
   tripId: string
   tripSlug: string
