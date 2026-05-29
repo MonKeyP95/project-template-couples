@@ -2,11 +2,27 @@
 
 import * as React from "react"
 
+import {
+  DndContext,
+  PointerSensor,
+  closestCenter,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core"
+import {
+  SortableContext,
+  arrayMove,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable"
+import { CSS } from "@dnd-kit/utilities"
 import { Label, MonoBadge, SuggestionCard } from "@/components/together"
 import { createClient } from "@/lib/supabase/client"
 import {
   addItineraryDay,
   deleteItineraryDay,
+  rescheduleItineraryDays,
   updateItineraryDay,
 } from "@/lib/trips/actions"
 import {
@@ -111,6 +127,48 @@ export function ItineraryTab({
       ? nextDayAfter(days[days.length - 1].dayDate)
       : tripStartDate
 
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+  )
+  const [, startReschedule] = React.useTransition()
+
+  function onDragEnd(e: DragEndEvent) {
+    const { active, over } = e
+    if (!over || active.id === over.id) return
+    const oldIndex = days.findIndex((d) => d.id === active.id)
+    const newIndex = days.findIndex((d) => d.id === over.id)
+    if (oldIndex === -1 || newIndex === -1) return
+
+    const snapshot = days
+    const reordered = arrayMove(days, oldIndex, newIndex)
+    // The trip's existing dates, sorted, are the fixed slots. yyyy-mm-dd sorts
+    // lexically = chronologically. Rebuild via rowToItineraryDay so dow/date
+    // recompute from the reassigned day_date.
+    const slots = days.map((d) => d.dayDate).sort()
+    const reassigned = withOrdinals(
+      reordered.map((d, i) =>
+        rowToItineraryDay({
+          id: d.id,
+          day_date: slots[i],
+          title: d.title,
+          sub: d.sub,
+          tag: d.tag,
+          tone: d.tone,
+        }),
+      ),
+    )
+    setDays(reassigned)
+
+    startReschedule(async () => {
+      const result = await rescheduleItineraryDays(
+        tripId,
+        tripSlug,
+        reordered.map((d) => d.id),
+      )
+      if (result.error) setDays(snapshot)
+    })
+  }
+
   return (
     <section>
       <div className="flex items-baseline justify-between px-5 pt-5 lg:px-10 lg:pt-6">
@@ -126,17 +184,29 @@ export function ItineraryTab({
             No days planned yet — add the first one.
           </p>
         ) : (
-          days.map((day, i) => (
-            <DayCard
-              key={day.id}
-              day={day}
-              tripSlug={tripSlug}
-              isLast={i === days.length - 1}
-              isEditing={editingId === day.id}
-              onStartEdit={() => setEditingId(day.id)}
-              onStopEdit={() => setEditingId(null)}
-            />
-          ))
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragEnd={onDragEnd}
+          >
+            <SortableContext
+              items={days.map((d) => d.id)}
+              strategy={verticalListSortingStrategy}
+            >
+              {days.map((day, i) => (
+                <SortableDayCard
+                  key={day.id}
+                  id={day.id}
+                  day={day}
+                  tripSlug={tripSlug}
+                  isLast={i === days.length - 1}
+                  isEditing={editingId === day.id}
+                  onStartEdit={() => setEditingId(day.id)}
+                  onStopEdit={() => setEditingId(null)}
+                />
+              ))}
+            </SortableContext>
+          </DndContext>
         )}
       </div>
 
@@ -165,6 +235,16 @@ export function ItineraryTab({
   )
 }
 
+interface DayCardProps {
+  day: ItineraryDay
+  tripSlug: string
+  isLast: boolean
+  isEditing: boolean
+  onStartEdit: () => void
+  onStopEdit: () => void
+  dragHandle?: React.ReactNode
+}
+
 function DayCard({
   day,
   tripSlug,
@@ -172,14 +252,8 @@ function DayCard({
   isEditing,
   onStartEdit,
   onStopEdit,
-}: {
-  day: ItineraryDay
-  tripSlug: string
-  isLast: boolean
-  isEditing: boolean
-  onStartEdit: () => void
-  onStopEdit: () => void
-}) {
+  dragHandle,
+}: DayCardProps) {
   if (isEditing) {
     return <DayEditor day={day} tripSlug={tripSlug} onDone={onStopEdit} />
   }
@@ -189,7 +263,43 @@ function DayCard({
       tripSlug={tripSlug}
       isLast={isLast}
       onStartEdit={onStartEdit}
+      dragHandle={dragHandle}
     />
+  )
+}
+
+function SortableDayCard({ id, ...rest }: DayCardProps & { id: string }) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id })
+
+  const style: React.CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.6 : undefined,
+  }
+
+  const handle = (
+    <button
+      type="button"
+      aria-label="Drag to reschedule day"
+      className="cursor-grab touch-none border-0 bg-transparent px-0.5 font-mono text-[12px] leading-none text-muted-foreground hover:text-foreground active:cursor-grabbing"
+      {...attributes}
+      {...listeners}
+    >
+      ⠿
+    </button>
+  )
+
+  return (
+    <div ref={setNodeRef} style={style}>
+      <DayCard {...rest} dragHandle={handle} />
+    </div>
   )
 }
 
@@ -198,11 +308,13 @@ function DayView({
   tripSlug,
   isLast,
   onStartEdit,
+  dragHandle,
 }: {
   day: ItineraryDay
   tripSlug: string
   isLast: boolean
   onStartEdit: () => void
+  dragHandle?: React.ReactNode
 }) {
   return (
     <div className="relative flex gap-3.5 py-3.5">
@@ -224,7 +336,10 @@ function DayView({
         className={`flex-1 rounded-lg border border-border bg-card px-3.5 py-3 border-l-[3px] ${itineraryBorder[day.tone]}`}
       >
         <div className="mb-1.5 flex items-center justify-between">
-          <MonoBadge tone={day.tone}>{day.tag}</MonoBadge>
+          <div className="flex items-center gap-1.5">
+            {dragHandle}
+            <MonoBadge tone={day.tone}>{day.tag}</MonoBadge>
+          </div>
           <span className="font-mono text-[10px] tracking-[0.06em] text-muted-foreground">
             {day.date}
           </span>
