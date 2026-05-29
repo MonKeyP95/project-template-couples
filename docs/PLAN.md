@@ -31,7 +31,6 @@ Google Calendar, Google Maps, restaurant booking — only the ones we actually w
 **Phase 3.5 — Basic CRUD.** Phase 3 design + Realtime work complete (2026-05-27). Now shipping the three add-flows ahead of the Lombok trip (Jun 12).
 
 ## Sequencing rules
-- Do not start Phase N+1 until Phase N has been used on a real trip (or, for Phase 1–2, until it actually works end-to-end).
 - One small task at a time. Validate each increment.
 - If a task in `TODO.md` grows beyond a session, split it.
 - If a feature isn't being used after a trip, cut it before adding more.
