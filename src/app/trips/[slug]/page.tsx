@@ -19,7 +19,7 @@ import { summarizeBudget } from "@/lib/trips/expense-types"
 import { getTripDetailBySlug, type TripDetail } from "@/lib/trips/fixtures"
 import { getItineraryDays } from "@/lib/trips/itinerary-queries"
 import { getTripNotes } from "@/lib/trips/note-queries"
-import { getPackingItems } from "@/lib/trips/packing-queries"
+import { getPackingCategories, getPackingItems } from "@/lib/trips/packing-queries"
 import { getTripBySlug, type TripHeader } from "@/lib/trips/queries"
 import {
   getCurrentWorkspace,
@@ -133,12 +133,14 @@ export default async function TripPage({
 
   // Right rail needs packing + budget counts always, so load both at the page
   // level and share the result with the active tab below.
-  const [itinerary, notes, packingItems, expenses] = await Promise.all([
-    activeTab === "itinerary" ? getItineraryDays(header.id) : Promise.resolve(null),
-    activeTab === "notes" ? getTripNotes(header.id) : Promise.resolve(null),
-    getPackingItems(header.id),
-    getTripExpenses(header.id),
-  ])
+  const [itinerary, notes, packingItems, packingCategories, expenses] =
+    await Promise.all([
+      activeTab === "itinerary" ? getItineraryDays(header.id) : Promise.resolve(null),
+      activeTab === "notes" ? getTripNotes(header.id) : Promise.resolve(null),
+      getPackingItems(header.id),
+      getPackingCategories(header.id),
+      getTripExpenses(header.id),
+    ])
 
   const budgetSummary = summarizeBudget(expenses, memberIds)
   const packingTotal = packingItems.length
@@ -180,7 +182,9 @@ export default async function TripPage({
         ) : activeTab === "packing" ? (
           <PackingTab
             tripId={header.id}
+            tripSlug={header.slug}
             initialItems={packingItems}
+            initialCategories={packingCategories}
             members={memberTones}
             daysOut={computeDaysOut(header.startDate)}
           />

@@ -19,6 +19,7 @@ import {
 } from "@/lib/trips/actions"
 import {
   groupPackingItems,
+  type PackingCategory,
   type PackingItem,
 } from "@/lib/trips/packing-types"
 
@@ -30,7 +31,9 @@ export interface MemberToneEntry {
 
 export interface PackingTabProps {
   tripId: string
+  tripSlug: string
   initialItems: PackingItem[]
+  initialCategories: PackingCategory[]
   members: Record<string, MemberToneEntry>
   daysOut: number | null
 }
@@ -60,11 +63,15 @@ function fromRow(row: RealtimeRow): PackingItem {
 export function PackingTab({
   tripId,
   initialItems,
+  initialCategories,
   members,
   daysOut,
 }: PackingTabProps) {
   const [items, setItems] = React.useState<PackingItem[]>(initialItems)
   const [lastInitial, setLastInitial] = React.useState(initialItems)
+  const [categories, setCategories] =
+    React.useState<PackingCategory[]>(initialCategories)
+  const [lastCategories, setLastCategories] = React.useState(initialCategories)
   const [editingId, setEditingId] = React.useState<string | null>(null)
 
   // Sync local state when the server re-fetches (e.g. RefreshOnVisible after
@@ -72,6 +79,10 @@ export function PackingTab({
   if (initialItems !== lastInitial) {
     setLastInitial(initialItems)
     setItems(initialItems)
+  }
+  if (initialCategories !== lastCategories) {
+    setLastCategories(initialCategories)
+    setCategories(initialCategories)
   }
 
   React.useEffect(() => {
@@ -159,7 +170,7 @@ export function PackingTab({
     if (result.error) setItems(snapshot)
   }
 
-  const groups = groupPackingItems(items)
+  const groups = groupPackingItems(categories, items)
   const total = items.length
   const done = items.filter((i) => i.done).length
   const pct = total === 0 ? 0 : Math.round((done / total) * 100)
@@ -192,7 +203,7 @@ export function PackingTab({
       <div className="border-t border-border bg-background">
         {groups.map((g) => (
           <CategoryGroup
-            key={g.category}
+            key={g.categoryId ?? `orphan:${g.category}`}
             tripId={tripId}
             category={g.category}
             items={g.items}
