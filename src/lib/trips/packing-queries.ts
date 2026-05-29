@@ -1,5 +1,5 @@
 import { createClient } from "@/lib/supabase/server"
-import type { PackingItem } from "./packing-types"
+import type { PackingCategory, PackingItem } from "./packing-types"
 
 export async function getPackingItems(
   tripId: string,
@@ -19,5 +19,23 @@ export async function getPackingItems(
     done: row.done,
     addedBy: row.added_by,
     createdAt: row.created_at,
+  }))
+}
+
+export async function getPackingCategories(
+  tripId: string,
+): Promise<PackingCategory[]> {
+  const supabase = await createClient()
+  const { data } = await supabase
+    .from("packing_categories")
+    .select("id, trip_id, name, sort_order")
+    .eq("trip_id", tripId)
+    .order("sort_order", { ascending: true })
+
+  return (data ?? []).map((row) => ({
+    id: row.id,
+    tripId: row.trip_id,
+    name: row.name,
+    sortOrder: row.sort_order,
   }))
 }

@@ -8,6 +8,13 @@ export interface PackingItem {
   createdAt: string
 }
 
+export interface PackingCategory {
+  id: string
+  tripId: string
+  name: string
+  sortOrder: number
+}
+
 export interface PackingGroup {
   category: string
   items: PackingItem[]
