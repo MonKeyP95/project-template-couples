@@ -482,7 +482,6 @@ function DayForm({
             type="text"
             value={tag}
             onChange={(e) => setTag(e.target.value)}
-            placeholder="ARRIVE / SURF / …"
             disabled={isPending}
             className="mt-1 w-full border-0 border-b border-rule bg-transparent py-1.5 text-[14px] uppercase text-foreground placeholder:normal-case placeholder:text-muted-foreground focus:border-clay focus:outline-none disabled:opacity-50"
           />
@@ -497,9 +496,8 @@ function DayForm({
           type="text"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
-          placeholder="Crossing to Gili Trawangan"
           disabled={isPending}
-          className="mt-1 w-full border-0 border-b border-rule bg-transparent py-1.5 text-[16px] text-foreground placeholder:text-muted-foreground focus:border-clay focus:outline-none disabled:opacity-50"
+          className="mt-1 w-full border-0 border-b border-rule bg-transparent py-1.5 text-[16px] text-foreground focus:border-clay focus:outline-none disabled:opacity-50"
         />
       </label>
 
