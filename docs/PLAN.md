@@ -28,7 +28,7 @@ Itinerary drafting, restaurant suggestions, packing-list hints. One provider (Cl
 Google Calendar, Google Maps, restaurant booking — only the ones we actually want on our own trips.
 
 ## Current Phase
-**Phase 3.5 — Basic CRUD.** Phase 3 design + Realtime work complete (2026-05-27). Now shipping the three add-flows ahead of the Lombok trip (Jun 12).
+**Pre-Lombok build window — Phases 4 / 4.5 / 4.6 shipped, awaiting real-use signal.** Phase 4 (dream-trip pipeline + edit trip) shipped 2026-05-28. Phase 4.5 (trip notes) shipped 2026-05-28. Phase 4.6 (inline itinerary editing for dated trips) shipped 2026-05-28. All three landed ahead of Lombok (Jun 12) — the trip is the next milestone, not a code one. Slice B (itinerary for dreams) and Slice C (drag-to-reschedule) are tracked as carried in `TODO.md`, intentionally paused until real-use signal. Backlog (`TODO.md`) holds five gap-fill items from the 2026-05-28 doc audit — to be triaged against actual pain on the trip.
 
 ## Sequencing rules
 - One small task at a time. Validate each increment.
