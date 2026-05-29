@@ -10,12 +10,28 @@ import {
   SuggestionCard,
   TopoBg,
 } from "@/components/together"
+import {
+  DndContext,
+  PointerSensor,
+  closestCenter,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core"
+import {
+  SortableContext,
+  arrayMove,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable"
+import { CSS } from "@dnd-kit/utilities"
 import { createClient } from "@/lib/supabase/client"
 import {
   addPackingCategory,
   addPackingItem,
   deletePackingCategory,
   deletePackingItem,
+  reorderPackingCategories,
   togglePackingItem,
   updatePackingItem,
 } from "@/lib/trips/actions"
@@ -206,7 +222,33 @@ export function PackingTab({
     }
   }
 
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+  )
+  const [, startReorder] = React.useTransition()
+
+  function onDragEnd(e: DragEndEvent) {
+    const { active, over } = e
+    if (!over || active.id === over.id) return
+    const oldIndex = categories.findIndex((c) => c.id === active.id)
+    const newIndex = categories.findIndex((c) => c.id === over.id)
+    if (oldIndex === -1 || newIndex === -1) return
+
+    const snapshot = categories
+    const reordered = arrayMove(categories, oldIndex, newIndex)
+    setCategories(reordered)
+    startReorder(async () => {
+      const result = await reorderPackingCategories(
+        tripSlug,
+        reordered.map((c) => c.id),
+      )
+      if (result.error) setCategories(snapshot)
+    })
+  }
+
   const groups = groupPackingItems(categories, items)
+  const sortableGroups = groups.filter((g) => g.categoryId)
+  const orphanGroups = groups.filter((g) => !g.categoryId)
   const total = items.length
   const done = items.filter((i) => i.done).length
   const pct = total === 0 ? 0 : Math.round((done / total) * 100)
@@ -237,11 +279,41 @@ export function PackingTab({
       </div>
 
       <div className="border-t border-border bg-background">
-        {groups.map((g) => (
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragEnd={onDragEnd}
+        >
+          <SortableContext
+            items={sortableGroups.map((g) => g.categoryId as string)}
+            strategy={verticalListSortingStrategy}
+          >
+            {sortableGroups.map((g) => (
+              <SortableCategoryGroup
+                key={g.categoryId as string}
+                id={g.categoryId as string}
+                tripId={tripId}
+                categoryId={g.categoryId}
+                category={g.category}
+                items={g.items}
+                members={members}
+                editingId={editingId}
+                onToggle={toggle}
+                onStartEdit={setEditingId}
+                onStopEdit={() => setEditingId(null)}
+                onUpdate={update}
+                onDelete={remove}
+                onDeleteCategory={removeCategory}
+              />
+            ))}
+          </SortableContext>
+        </DndContext>
+
+        {orphanGroups.map((g) => (
           <CategoryGroup
-            key={g.categoryId ?? `orphan:${g.category}`}
+            key={`orphan:${g.category}`}
             tripId={tripId}
-            categoryId={g.categoryId}
+            categoryId={null}
             category={g.category}
             items={g.items}
             members={members}
@@ -272,6 +344,22 @@ export function PackingTab({
   )
 }
 
+interface CategoryGroupProps {
+  tripId: string
+  categoryId: string | null
+  category: string
+  items: PackingItem[]
+  members: Record<string, MemberToneEntry>
+  editingId: string | null
+  onToggle: (id: string) => void
+  onStartEdit: (id: string) => void
+  onStopEdit: () => void
+  onUpdate: (id: string, label: string) => Promise<{ error?: string }>
+  onDelete: (id: string) => void
+  onDeleteCategory: (id: string, name: string, count: number) => void
+  dragHandle?: React.ReactNode
+}
+
 function CategoryGroup({
   tripId,
   categoryId,
@@ -285,25 +373,16 @@ function CategoryGroup({
   onUpdate,
   onDelete,
   onDeleteCategory,
-}: {
-  tripId: string
-  categoryId: string | null
-  category: string
-  items: PackingItem[]
-  members: Record<string, MemberToneEntry>
-  editingId: string | null
-  onToggle: (id: string) => void
-  onStartEdit: (id: string) => void
-  onStopEdit: () => void
-  onUpdate: (id: string, label: string) => Promise<{ error?: string }>
-  onDelete: (id: string) => void
-  onDeleteCategory: (id: string, name: string, count: number) => void
-}) {
+  dragHandle,
+}: CategoryGroupProps) {
   const done = items.filter((i) => i.done).length
   return (
     <div className="border-b border-border px-5 pt-4 pb-1.5">
       <div className="mb-0.5 flex items-center justify-between">
-        <Label>{category}</Label>
+        <div className="flex items-center gap-1.5">
+          {dragHandle}
+          <Label>{category}</Label>
+        </div>
         <div className="flex items-center gap-2">
           <span className="font-mono text-[10px] text-muted-foreground">
             {done} / {items.length}
@@ -334,6 +413,44 @@ function CategoryGroup({
         />
       ))}
       <AddItemRow tripId={tripId} category={category} />
+    </div>
+  )
+}
+
+function SortableCategoryGroup({
+  id,
+  ...rest
+}: CategoryGroupProps & { id: string }) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id })
+
+  const style: React.CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.6 : undefined,
+  }
+
+  const handle = (
+    <button
+      type="button"
+      aria-label="Drag to reorder category"
+      className="cursor-grab touch-none border-0 bg-transparent px-0.5 font-mono text-[13px] leading-none text-muted-foreground hover:text-foreground active:cursor-grabbing"
+      {...attributes}
+      {...listeners}
+    >
+      ⠿
+    </button>
+  )
+
+  return (
+    <div ref={setNodeRef} style={style}>
+      <CategoryGroup {...rest} dragHandle={handle} />
     </div>
   )
 }
