@@ -9,6 +9,7 @@ import {
   type ExpenseCategory,
 } from "@/lib/trips/expense-types"
 import { getCurrentWorkspace } from "@/lib/workspace/queries"
+import type { PackingCategory } from "@/lib/trips/packing-types"
 import { rowToNote, type TripNote } from "@/lib/trips/note-queries"
 import {
   ITINERARY_TONES,
@@ -751,4 +752,130 @@ export async function deleteItineraryDay(
   if (error) throw new Error(error.message)
 
   revalidatePath(`/trips/${tripSlug}`)
+}
+
+export interface AddPackingCategoryResult {
+  error?: string
+  /** Populated on success so the client can append it with a stable id. */
+  category?: PackingCategory
+}
+
+/**
+ * Creates a new (possibly empty) packing category at the end of the trip's
+ * order. RLS gates trip membership. Duplicate name -> friendly error.
+ */
+export async function addPackingCategory(
+  tripId: string,
+  tripSlug: string,
+  name: string,
+): Promise<AddPackingCategoryResult> {
+  const trimmed = name.trim()
+  if (!trimmed) return { error: "Name required." }
+
+  const supabase = await createClient()
+  const { data: userData, error: userError } = await supabase.auth.getUser()
+  if (userError || !userData.user) return { error: "Not signed in." }
+
+  const { data: maxRow } = await supabase
+    .from("packing_categories")
+    .select("sort_order")
+    .eq("trip_id", tripId)
+    .order("sort_order", { ascending: false })
+    .limit(1)
+    .maybeSingle()
+  const nextOrder = (maxRow?.sort_order ?? -1) + 1
+
+  const { data, error } = await supabase
+    .from("packing_categories")
+    .insert({
+      trip_id: tripId,
+      name: trimmed,
+      sort_order: nextOrder,
+      created_by: userData.user.id,
+    })
+    .select("id, trip_id, name, sort_order")
+    .single()
+
+  if (error) {
+    if (error.code === "23505") {
+      return { error: "A category with that name already exists." }
+    }
+    return { error: error.message }
+  }
+
+  revalidatePath(`/trips/${tripSlug}`)
+  return {
+    category: {
+      id: data.id,
+      tripId: data.trip_id,
+      name: data.name,
+      sortOrder: data.sort_order,
+    },
+  }
+}
+
+export interface DeletePackingCategoryResult {
+  error?: string
+}
+
+/**
+ * Deletes a category and cascades to its items (matched by name within the
+ * trip). The empty-vs-non-empty distinction is a client-side confirm only;
+ * the server cascades unconditionally because the client already confirmed.
+ */
+export async function deletePackingCategory(
+  categoryId: string,
+  tripSlug: string,
+): Promise<DeletePackingCategoryResult> {
+  const supabase = await createClient()
+
+  const { data: cat, error: catError } = await supabase
+    .from("packing_categories")
+    .select("trip_id, name")
+    .eq("id", categoryId)
+    .maybeSingle()
+  if (catError) return { error: catError.message }
+  if (!cat) return {}
+
+  const { error: itemsError } = await supabase
+    .from("packing_items")
+    .delete()
+    .eq("trip_id", cat.trip_id)
+    .eq("category", cat.name)
+  if (itemsError) return { error: itemsError.message }
+
+  const { error } = await supabase
+    .from("packing_categories")
+    .delete()
+    .eq("id", categoryId)
+  if (error) return { error: error.message }
+
+  revalidatePath(`/trips/${tripSlug}`)
+  return {}
+}
+
+export interface ReorderPackingCategoriesResult {
+  error?: string
+}
+
+/**
+ * Rewrites sort_order to match the given id order (sort_order = index). N is
+ * tiny (categories per trip), so a short update loop is fine.
+ */
+export async function reorderPackingCategories(
+  tripSlug: string,
+  orderedIds: string[],
+): Promise<ReorderPackingCategoriesResult> {
+  const supabase = await createClient()
+
+  for (let i = 0; i < orderedIds.length; i++) {
+    const { error } = await supabase
+      .from("packing_categories")
+      .update({ sort_order: i })
+      .eq("id", orderedIds[i])
+    if (error) return { error: error.message }
+  }
+
+  revalidatePath(`/trips/${tripSlug}`)
+  return {}
 }
