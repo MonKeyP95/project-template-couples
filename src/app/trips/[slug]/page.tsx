@@ -332,7 +332,6 @@ function WeatherStrip({ detail }: { detail: { weather: { d: string; t: number; g
   )
 }
 
-
 function BottomNav({ slug, active }: { slug: string; active: TabId }) {
   return (
     <div className="fixed inset-x-0 bottom-7 z-40 lg:hidden">
