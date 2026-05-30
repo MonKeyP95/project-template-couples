@@ -99,6 +99,14 @@ The edit-trip spec (`docs/superpowers/specs/2026-05-28-phase-4-edit-trip-design.
   - **Won't do — OS `prefers-color-scheme` on first visit:** the server can't read the OS preference at request time, so honoring it needs either a blocking inline `<head>` script (rejected in `DECISIONS.md`) or a duplicated `.dark` token block inside an `@media` query (DRY hazard). Both are real complexity for a marginal first-visit nicety; the toggle already lets anyone set + persist their choice. Left deferred/declined intentionally.
   - **Follow-up 2026-05-30:** the toggle was only on `/profile`, which had no inbound link, so it was unreachable. Added `<ThemeToggle>` directly to the `/home` footer (alongside "Sign out") so the theme can be flipped without leaving home. Verified in-browser: flips light/dark and persists. (A brief detour wrapping the home-header avatar in a `/profile` link was reverted once the footer toggle landed.)
 
+## Between-phase polish — 2026-05-30 (UI session)
+Small UI changes + one bugfix, all verified in-browser (Playwright, light + dark, mobile + desktop):
+- **Home "Trips" band → mini-hero cards.** The non-hero upcoming trips rendered as small colorless `CompactRow`s; replaced with a new `TripCard` in `home/trip-cards.tsx` — a shorter hero (tone surface + `TopoBg`, larger italic name, `// now` badge + coord, day-count footer) that drops into the same `md:grid-cols-2 lg:grid-cols-3` grid. Past trips keep the dimmed `CompactRow`.
+- **Budget crash fix: `enumerateDays` server/client boundary.** `BudgetTab` (Server Component) called `enumerateDays`, which lived in `expense-fields.tsx` (`"use client"`) after the edit-expense work made the tab compute `dayOptions` server-side. Moved the pure helper + `DayOption` type into `@/lib/trips/expense-types.ts` (boundary-neutral) and repointed `budget-tab` / `log-expense-row` / `ledger-row` / `expense-fields`. Same class of fix as the `packing-types.ts` / `itinerary-types.ts` splits.
+- **"+ add expense" moved to the top of the ledger** (was a footer below the rows) — sibling reorder in `budget-tab.tsx`.
+- **Label "log expense" → "add expense"** (collapsed row + expanded form header) in `log-expense-row.tsx`, matching the existing submit button.
+- **World map behind `/signup`.** New `WorldMapBg` primitive (`src/components/together/world-map-bg.tsx`): 338 land outlines from the public-domain Wikimedia "World map - low resolution" SVG, rendered `fill:none` + `stroke="currentColor"` so it follows the theme. Faint (`text-foreground/[0.07]`) behind the form. See DECISIONS row.
+
 ## Working rules
 - One task per session. Finish, validate, then move on.
 - After completing a task, check it off here and add a row to `DECISIONS.md` if anything non-obvious was chosen.
