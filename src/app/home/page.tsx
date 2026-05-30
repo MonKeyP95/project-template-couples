@@ -20,7 +20,7 @@ import {
 } from "@/lib/workspace/queries"
 
 import { daysUntil, dayWithinTrip } from "./format-helpers"
-import { CompactRow, DreamTile, HeroCard } from "./trip-cards"
+import { CompactRow, DreamTile, HeroCard, TripCard } from "./trip-cards"
 
 function formatDateLabel(date: Date) {
   const mm = String(date.getMonth() + 1).padStart(2, "0")
@@ -189,7 +189,7 @@ export default async function HomePage() {
               </div>
               <div className="flex flex-col gap-2.5 md:grid md:grid-cols-2 md:gap-5 lg:grid-cols-3">
                 {trips.map((t) => (
-                  <CompactRow key={t.id} trip={t} />
+                  <TripCard key={t.id} trip={t} />
                 ))}
               </div>
             </section>

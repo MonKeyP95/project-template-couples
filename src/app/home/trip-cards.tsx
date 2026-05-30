@@ -114,7 +114,64 @@ export function HeroCard({
   )
 }
 
-/** Compact row used in the "Trips" band (non-hero upcoming) and in Past. */
+/** Mid-size card for the "Trips" band (non-hero upcoming). A shorter hero. */
+export function TripCard({ trip }: { trip: TripListItem }) {
+  const tone = slugToTone(trip.slug)
+  const coord = formatCoord(trip.lat, trip.lng)
+  const dateRange = formatDateRange(trip.startDate, trip.endDate)
+  const length = tripLengthDays(trip.startDate, trip.endDate)
+  return (
+    <Link
+      href={`/trips/${trip.slug}`}
+      className="block overflow-hidden rounded-[12px] border border-border bg-card shadow-sm transition-shadow md:hover:shadow-md"
+    >
+      <div
+        className={`relative h-[112px] overflow-hidden ${surface[tone]} md:aspect-[16/10] md:h-auto`}
+      >
+        <TopoBg tone={tone} opacity={0.14} />
+        <div className="relative flex h-full flex-col justify-between p-3.5 md:p-4">
+          <div className="flex items-start justify-between">
+            {trip.state === "now" ? (
+              <MonoBadge tone={monoBadgeTone[tone]}>{"// now"}</MonoBadge>
+            ) : (
+              <span />
+            )}
+            {coord ? <Coord>{coord}</Coord> : <span />}
+          </div>
+          <div>
+            <div className="t-display text-[28px] leading-none text-foreground md:text-[32px]">
+              <em>{trip.name}</em>
+            </div>
+            {trip.country ? (
+              <div className="mt-1 font-mono text-[9px] uppercase tracking-[0.18em] text-muted-foreground">
+                {trip.country}
+              </div>
+            ) : null}
+          </div>
+        </div>
+      </div>
+      <div className="flex items-center justify-between px-3.5 py-2.5 md:px-4 md:py-3">
+        {dateRange ? (
+          <span className="font-mono text-[10px] tracking-[0.06em] text-foreground">
+            {dateRange}
+          </span>
+        ) : (
+          <span />
+        )}
+        <div className="flex items-center gap-2.5">
+          {length ? (
+            <span className="font-mono text-[10px] tracking-[0.06em] text-muted-foreground">
+              {length} days
+            </span>
+          ) : null}
+          <Chevron />
+        </div>
+      </div>
+    </Link>
+  )
+}
+
+/** Compact row used in Past. */
 export function CompactRow({
   trip,
   dimmed = false,
