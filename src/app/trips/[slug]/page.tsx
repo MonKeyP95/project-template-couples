@@ -13,7 +13,9 @@ import {
   WaveGlyph,
 } from "@/components/together"
 import { RefreshOnVisible } from "@/components/refresh-on-visible"
+import { ThemeToggle } from "@/components/theme-toggle"
 import { createClient } from "@/lib/supabase/server"
+import { isDarkTheme } from "@/lib/theme"
 import { getTripExpenses } from "@/lib/trips/expense-queries"
 import { summarizeBudget } from "@/lib/trips/expense-types"
 import { getTripDetailBySlug, type TripDetail } from "@/lib/trips/fixtures"
@@ -150,11 +152,12 @@ export default async function TripPage({
   const budgetSummary = summarizeBudget(expenses, memberIds)
   const packingTotal = packingItems.length
   const packingDone = packingItems.filter((i) => i.done).length
+  const dark = await isDarkTheme()
 
   return (
     <main className="relative mx-auto min-h-screen w-full max-w-[440px] bg-background pb-32 lg:flex lg:max-w-none lg:items-stretch lg:pb-0">
       <RefreshOnVisible />
-      <DesktopLeftRail workspace={workspace} />
+      <DesktopLeftRail workspace={workspace} initialDark={dark} />
 
       <div className="lg:min-w-0 lg:flex-1">
         <TripHeaderView header={header} workspace={workspace} />
@@ -421,7 +424,13 @@ function DesktopTabs({
   )
 }
 
-function DesktopLeftRail({ workspace }: { workspace: CurrentWorkspace }) {
+function DesktopLeftRail({
+  workspace,
+  initialDark,
+}: {
+  workspace: CurrentWorkspace
+  initialDark: boolean
+}) {
   const estYear = new Date(workspace.createdAt).getFullYear()
   return (
     <aside className="hidden lg:flex lg:w-[220px] lg:flex-shrink-0 lg:flex-col lg:gap-9 lg:border-r lg:border-border lg:bg-card lg:px-6 lg:py-8">
@@ -473,6 +482,11 @@ function DesktopLeftRail({ workspace }: { workspace: CurrentWorkspace }) {
             </div>
           ))}
         </div>
+      </div>
+
+      <div className="flex items-center justify-between border-t border-border pt-5">
+        <Label>Appearance</Label>
+        <ThemeToggle initialDark={initialDark} />
       </div>
     </aside>
   )
