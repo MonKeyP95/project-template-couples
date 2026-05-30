@@ -72,6 +72,7 @@
    Background: warm sand. Primary rebased from pink to deep sea.
    Extended palette adds sea/sand/clay/moss/dusk + tints used per page. */
 :root {
+  color-scheme: light;
   --background: oklch(0.955 0.012 78);
   --foreground: oklch(0.24 0.02 232);
   --card: oklch(0.985 0.006 78);
@@ -137,6 +138,7 @@
 }
 
 .dark {
+  color-scheme: dark;
   --background: oklch(0.18 0.022 230);
   --foreground: oklch(0.95 0.012 78);
   --card: oklch(0.225 0.022 232);

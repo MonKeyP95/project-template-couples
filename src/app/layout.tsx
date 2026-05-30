@@ -6,6 +6,8 @@ import {
 } from "next/font/google"
 import "./globals.css"
 
+import { isDarkTheme } from "@/lib/theme"
+
 const sans = IBM_Plex_Sans({
   variable: "--font-sans",
   subsets: ["latin"],
@@ -34,15 +36,17 @@ export const metadata: Metadata = {
     "A calm shared space for couples and families to plan trips: itineraries, packing lists, ideas, dreams.",
 }
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode
 }>) {
+  const dark = await isDarkTheme()
   return (
     <html
       lang="en"
-      className={`${sans.variable} ${serif.variable} ${mono.variable} h-full antialiased`}
+      className={`${sans.variable} ${serif.variable} ${mono.variable} h-full antialiased${dark ? " dark" : ""}`}
+      suppressHydrationWarning
     >
       <body className="min-h-full flex flex-col font-sans">{children}</body>
     </html>

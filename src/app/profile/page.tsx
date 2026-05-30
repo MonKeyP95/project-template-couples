@@ -5,6 +5,8 @@ import { updateProfile } from "@/lib/auth/actions"
 import { createClient } from "@/lib/supabase/server"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { ThemeToggle } from "@/components/theme-toggle"
+import { isDarkTheme } from "@/lib/theme"
 
 export default async function ProfilePage() {
   const supabase = await createClient()
@@ -16,6 +18,8 @@ export default async function ProfilePage() {
     .select("display_name, created_at")
     .eq("id", userData.user.id)
     .single()
+
+  const dark = await isDarkTheme()
 
   return (
     <main className="flex min-h-screen items-center justify-center px-6">
@@ -49,6 +53,11 @@ export default async function ProfilePage() {
             </dd>
           </div>
         </dl>
+
+        <div className="mt-8 flex items-center justify-between border-t border-border pt-6">
+          <span className="text-sm text-muted-foreground">Appearance</span>
+          <ThemeToggle initialDark={dark} />
+        </div>
 
         <Link
           href="/home"
