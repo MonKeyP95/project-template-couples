@@ -133,14 +133,38 @@ clean follow-up if the duplication bites.
 - The `"N days"` tab count works unchanged (`.length` on either shape).
 - Dated-trip branch (`<ItineraryTab>`, weather strip) untouched.
 
-## Non-goals (deferred)
+## Non-goals for Slice B (this slice)
 
-- **No dream→dated conversion on promotion.** Promoting a dream (adding dates) still
-  starts its dated `itinerary_days` empty; the dream days remain on the
-  `dream_itinerary_days` table, orphaned-but-harmless. Revisit if "I planned 5 dream
-  days and lost them when I set dates" becomes a felt gap.
+- **Dream→dated conversion on promotion is Slice B.2, not this slice** — see below.
+  Until B.2 ships, promoting a dream that has dream days leaves those rows on the
+  `dream_itinerary_days` table (harmless; B.2 will move them). You can't convert
+  days that don't exist, so dream-day CRUD has to land first.
 - No date-range validation (N/A for dreams).
 - No AI suggestion wiring (Phase 5).
+
+## Slice B.2 — Promotion converts dream days to dated days (designed, built next)
+
+The vision: when a user adds a **start date** to a dream (promoting it to a real
+trip), the numbered dream days convert into consecutive dated days, so the planning
+isn't lost.
+
+- **Trigger:** the existing promotion path — `updateTrip` in `actions.ts` — when a
+  trip transitions from dream (null dates) to dated AND it has
+  `dream_itinerary_days` rows.
+- **Date assignment:** day_index 1 → `start_date`, 2 → `start_date + 1`, … i.e.
+  `day_date = start_date + (day_index - 1)`. Consecutive dates are always unique, so
+  no `(trip_id, day_date)` collisions.
+- **End date is auto-derived**, not user-entered: `end_date = start_date +
+  (dreamDayCount - 1)`. The trip is exactly as long as the planned dream days —
+  "until the end of the dream plan." The promotion UX collects only a start date
+  for dreams that have planned days; the edit-trip form hides/auto-fills the end
+  date in that case.
+- **Move, don't copy:** insert the converted rows into `itinerary_days`, delete the
+  `dream_itinerary_days` rows, in one transaction (RPC) so a dream is never both.
+- **Edge case — zero dream days:** a dream with no planned days promotes via the
+  normal both-dates flow (nothing to derive an end date from).
+- **No schema change** — B.2 is purely a server-action/RPC over the two tables this
+  slice creates. That's why the data model here already accounts for it.
 
 ## Files touched
 
