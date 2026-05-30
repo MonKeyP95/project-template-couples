@@ -18,6 +18,7 @@ import { getTripExpenses } from "@/lib/trips/expense-queries"
 import { summarizeBudget } from "@/lib/trips/expense-types"
 import { getTripDetailBySlug, type TripDetail } from "@/lib/trips/fixtures"
 import { getItineraryDays } from "@/lib/trips/itinerary-queries"
+import { getDreamItineraryDays } from "@/lib/trips/dream-itinerary-queries"
 import { getTripNotes } from "@/lib/trips/note-queries"
 import { getPackingCategories, getPackingItems } from "@/lib/trips/packing-queries"
 import { getTripBySlug, type TripHeader } from "@/lib/trips/queries"
@@ -28,6 +29,7 @@ import {
 
 import { BudgetTab } from "./budget-tab"
 import { ItineraryTab } from "./itinerary-tab"
+import { DreamItineraryTab } from "./dream-itinerary-tab"
 import { NotesTab } from "./notes-tab"
 import {
   PackingTab,
@@ -133,9 +135,12 @@ export default async function TripPage({
 
   // Right rail needs packing + budget counts always, so load both at the page
   // level and share the result with the active tab below.
-  const [itinerary, notes, packingItems, packingCategories, expenses] =
+  const showItinerary = activeTab === "itinerary"
+  const isDream = header.startDate === null
+  const [datedItinerary, dreamItinerary, notes, packingItems, packingCategories, expenses] =
     await Promise.all([
-      activeTab === "itinerary" ? getItineraryDays(header.id) : Promise.resolve(null),
+      showItinerary && !isDream ? getItineraryDays(header.id) : Promise.resolve(null),
+      showItinerary && isDream ? getDreamItineraryDays(header.id) : Promise.resolve(null),
       activeTab === "notes" ? getTripNotes(header.id) : Promise.resolve(null),
       getPackingItems(header.id),
       getPackingCategories(header.id),
@@ -157,7 +162,7 @@ export default async function TripPage({
           slug={header.slug}
           active={activeTab}
           counts={{
-            itinerary: itinerary?.length ?? null,
+            itinerary: (datedItinerary ?? dreamItinerary)?.length ?? null,
             packing: packingTotal,
             budget: budgetSummary.expenseTotalCents,
             notes: notes?.length ?? null,
@@ -170,13 +175,17 @@ export default async function TripPage({
         ) : null}
         {activeTab === "itinerary" ? (
           header.startDate === null ? (
-            <DreamItineraryStub />
+            <DreamItineraryTab
+              tripId={header.id}
+              tripSlug={header.slug}
+              initialItems={dreamItinerary ?? []}
+            />
           ) : (
             <ItineraryTab
               tripId={header.id}
               tripSlug={header.slug}
               tripStartDate={header.startDate}
-              initialItems={itinerary ?? []}
+              initialItems={datedItinerary ?? []}
             />
           )
         ) : activeTab === "packing" ? (
@@ -323,16 +332,6 @@ function WeatherStrip({ detail }: { detail: { weather: { d: string; t: number; g
   )
 }
 
-function DreamItineraryStub() {
-  return (
-    <section className="px-5 pt-6">
-      <Label>Itinerary</Label>
-      <p className="mt-3 font-serif text-[15px] italic text-muted-foreground">
-        No days planned yet — add dates to plan day-by-day.
-      </p>
-    </section>
-  )
-}
 
 function BottomNav({ slug, active }: { slug: string; active: TabId }) {
   return (
