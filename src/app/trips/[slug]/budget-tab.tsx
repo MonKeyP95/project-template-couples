@@ -1,8 +1,11 @@
 import { Avatar, Bar, Label, TopoBg } from "@/components/together"
 import { settleUp } from "@/lib/trips/actions"
-import type { BudgetSummary, Expense } from "@/lib/trips/expense-types"
+import {
+  enumerateDays,
+  type BudgetSummary,
+  type Expense,
+} from "@/lib/trips/expense-types"
 
-import { enumerateDays } from "./expense-fields"
 import { LedgerRow } from "./ledger-row"
 import { LogExpenseRow } from "./log-expense-row"
 import type { MemberToneEntry } from "./packing-tab"
@@ -65,12 +68,6 @@ export function BudgetTab({
         tripSlug={tripSlug}
       />
       <SplitBreakdown members={members} paidByUser={summary.expensePaidByUser} />
-      <Ledger
-        expenses={expenses}
-        members={members}
-        dayOptions={dayOptions}
-        tripSlug={tripSlug}
-      />
       <LogExpenseRow
         tripId={tripId}
         tripSlug={tripSlug}
@@ -78,6 +75,12 @@ export function BudgetTab({
         endDate={endDate}
         currentUserId={currentUserId}
         members={members}
+      />
+      <Ledger
+        expenses={expenses}
+        members={members}
+        dayOptions={dayOptions}
+        tripSlug={tripSlug}
       />
     </section>
   )

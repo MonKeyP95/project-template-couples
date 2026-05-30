@@ -7,11 +7,12 @@ import { deleteExpense, updateExpense } from "@/lib/trips/actions"
 import {
   EXPENSE_CATEGORIES,
   EXPENSE_CATEGORY_DEFAULT,
+  type DayOption,
   type Expense,
   type ExpenseCategory,
 } from "@/lib/trips/expense-types"
 
-import { type DayOption, ExpenseFields } from "./expense-fields"
+import { ExpenseFields } from "./expense-fields"
 import type { MemberToneEntry } from "./packing-tab"
 
 const CATEGORY_TONE: Record<string, MonoBadgeTone> = {

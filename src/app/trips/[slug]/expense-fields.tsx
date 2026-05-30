@@ -2,40 +2,13 @@
 
 import * as React from "react"
 
-import { EXPENSE_CATEGORIES, type ExpenseCategory } from "@/lib/trips/expense-types"
+import {
+  EXPENSE_CATEGORIES,
+  type DayOption,
+  type ExpenseCategory,
+} from "@/lib/trips/expense-types"
 
 import type { MemberToneEntry } from "./packing-tab"
-
-export interface DayOption {
-  value: string
-  label: string
-}
-
-const SHORT_MONTH_DAY = new Intl.DateTimeFormat("en-US", {
-  month: "short",
-  day: "numeric",
-  timeZone: "UTC",
-})
-
-/** Inclusive list of trip days as { value: yyyy-mm-dd, label: "Jun 12" }. */
-export function enumerateDays(
-  startDate: string | null,
-  endDate: string | null,
-): DayOption[] {
-  if (!startDate || !endDate) return []
-  const start = new Date(`${startDate}T00:00:00Z`)
-  const end = new Date(`${endDate}T00:00:00Z`)
-  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return []
-  if (end < start) return []
-  const days: DayOption[] = []
-  for (let d = new Date(start); d <= end; d.setUTCDate(d.getUTCDate() + 1)) {
-    const yyyy = d.getUTCFullYear()
-    const mm = String(d.getUTCMonth() + 1).padStart(2, "0")
-    const dd = String(d.getUTCDate()).padStart(2, "0")
-    days.push({ value: `${yyyy}-${mm}-${dd}`, label: SHORT_MONTH_DAY.format(d) })
-  }
-  return days
-}
 
 export interface ExpenseFieldsProps {
   title: string

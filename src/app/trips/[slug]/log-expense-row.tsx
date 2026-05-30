@@ -5,10 +5,11 @@ import * as React from "react"
 import { logExpense } from "@/lib/trips/actions"
 import {
   EXPENSE_CATEGORY_DEFAULT,
+  enumerateDays,
   type ExpenseCategory,
 } from "@/lib/trips/expense-types"
 
-import { enumerateDays, ExpenseFields } from "./expense-fields"
+import { ExpenseFields } from "./expense-fields"
 import type { MemberToneEntry } from "./packing-tab"
 
 export interface LogExpenseRowProps {
@@ -110,7 +111,7 @@ export function LogExpenseRow({
         className="flex w-full items-center justify-between border-0 border-t border-border bg-card px-5 py-4 text-left"
       >
         <span className="font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
-          + log expense
+          + add expense
         </span>
         <span aria-hidden className="font-mono text-[14px] text-muted-foreground">
           ›
@@ -134,7 +135,7 @@ export function LogExpenseRow({
     >
       <div className="mb-3 flex items-center justify-between">
         <span className="font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
-          log expense
+          add expense
         </span>
         <button
           type="button"
