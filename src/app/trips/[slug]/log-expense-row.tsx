@@ -4,11 +4,11 @@ import * as React from "react"
 
 import { logExpense } from "@/lib/trips/actions"
 import {
-  EXPENSE_CATEGORIES,
   EXPENSE_CATEGORY_DEFAULT,
   type ExpenseCategory,
 } from "@/lib/trips/expense-types"
 
+import { enumerateDays, ExpenseFields } from "./expense-fields"
 import type { MemberToneEntry } from "./packing-tab"
 
 export interface LogExpenseRowProps {
@@ -18,43 +18,6 @@ export interface LogExpenseRowProps {
   endDate: string | null
   currentUserId: string
   members: Record<string, MemberToneEntry>
-}
-
-interface DayOption {
-  value: string
-  label: string
-}
-
-const SHORT_MONTH_DAY = new Intl.DateTimeFormat("en-US", {
-  month: "short",
-  day: "numeric",
-  timeZone: "UTC",
-})
-
-function enumerateDays(
-  startDate: string | null,
-  endDate: string | null,
-): DayOption[] {
-  if (!startDate || !endDate) return []
-  const start = new Date(`${startDate}T00:00:00Z`)
-  const end = new Date(`${endDate}T00:00:00Z`)
-  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return []
-  if (end < start) return []
-  const days: DayOption[] = []
-  for (
-    let d = new Date(start);
-    d <= end;
-    d.setUTCDate(d.getUTCDate() + 1)
-  ) {
-    const yyyy = d.getUTCFullYear()
-    const mm = String(d.getUTCMonth() + 1).padStart(2, "0")
-    const dd = String(d.getUTCDate()).padStart(2, "0")
-    days.push({
-      value: `${yyyy}-${mm}-${dd}`,
-      label: SHORT_MONTH_DAY.format(d),
-    })
-  }
-  return days
 }
 
 function defaultDay(
@@ -156,8 +119,6 @@ export function LogExpenseRow({
     )
   }
 
-  const memberEntries = Object.entries(members)
-  const usePillToggle = memberEntries.length === 2
   const canSubmit =
     title.trim().length > 0 &&
     Number.isFinite(Number(amount)) &&
@@ -186,118 +147,22 @@ export function LogExpenseRow({
         </button>
       </div>
 
-      <input
-        ref={titleRef}
-        type="text"
-        value={title}
-        onChange={(e) => setTitle(e.target.value)}
-        placeholder="Add an expense…"
+      <ExpenseFields
+        title={title}
+        onTitleChange={setTitle}
+        titleRef={titleRef}
+        amount={amount}
+        onAmountChange={setAmount}
+        dayDate={dayDate}
+        onDayDateChange={setDayDate}
+        dayOptions={dayOptions}
+        category={category}
+        onCategoryChange={setCategory}
+        paidBy={paidBy}
+        onPaidByChange={setPaidBy}
+        members={members}
         disabled={isPending}
-        className="w-full border-0 border-b border-rule bg-transparent py-1.5 text-[14px] text-foreground placeholder:text-muted-foreground focus:border-clay focus:outline-none disabled:opacity-50"
       />
-
-      <div className="mt-3 grid grid-cols-2 gap-3">
-        <label className="block">
-          <span className="block font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
-            Amount
-          </span>
-          <div className="mt-1 flex items-baseline gap-1.5 border-b border-rule pb-1 focus-within:border-clay">
-            <span className="font-mono text-[14px] text-muted-foreground">€</span>
-            <input
-              type="text"
-              inputMode="decimal"
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-              placeholder="0.00"
-              disabled={isPending}
-              className="t-num w-full border-0 bg-transparent text-[14px] text-foreground placeholder:text-muted-foreground focus:outline-none disabled:opacity-50"
-            />
-          </div>
-        </label>
-
-        <label className="block">
-          <span className="block font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
-            Day
-          </span>
-          <select
-            value={dayDate ?? ""}
-            onChange={(e) =>
-              setDayDate(e.target.value === "" ? null : e.target.value)
-            }
-            disabled={isPending}
-            className="mt-1 w-full border-0 border-b border-rule bg-transparent py-1 text-[14px] text-foreground focus:border-clay focus:outline-none disabled:opacity-50"
-          >
-            <option value="">— no day</option>
-            {dayOptions.map((d) => (
-              <option key={d.value} value={d.value}>
-                {d.label}
-              </option>
-            ))}
-          </select>
-        </label>
-
-        <label className="block">
-          <span className="block font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
-            Category
-          </span>
-          <select
-            value={category}
-            onChange={(e) => setCategory(e.target.value as ExpenseCategory)}
-            disabled={isPending}
-            className="mt-1 w-full border-0 border-b border-rule bg-transparent py-1 text-[14px] text-foreground focus:border-clay focus:outline-none disabled:opacity-50"
-          >
-            {EXPENSE_CATEGORIES.map((c) => (
-              <option key={c} value={c}>
-                {c}
-              </option>
-            ))}
-          </select>
-        </label>
-
-        <div className="block">
-          <span className="block font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
-            Paid by
-          </span>
-          {usePillToggle ? (
-            <div className="mt-1 inline-flex rounded-full border border-border bg-background p-0.5">
-              {memberEntries.map(([userId, m]) => {
-                const active = userId === paidBy
-                return (
-                  <button
-                    key={userId}
-                    type="button"
-                    onClick={() => setPaidBy(userId)}
-                    disabled={isPending}
-                    aria-pressed={active}
-                    className={`rounded-full px-2.5 py-1 font-mono text-[11px] uppercase tracking-[0.16em] transition-colors ${
-                      active
-                        ? m.tone === "sea"
-                          ? "bg-sea text-background"
-                          : "bg-clay text-background"
-                        : "text-muted-foreground hover:text-foreground"
-                    }`}
-                  >
-                    {m.initial}
-                  </button>
-                )
-              })}
-            </div>
-          ) : (
-            <select
-              value={paidBy}
-              onChange={(e) => setPaidBy(e.target.value)}
-              disabled={isPending}
-              className="mt-1 w-full border-0 border-b border-rule bg-transparent py-1 text-[14px] text-foreground focus:border-clay focus:outline-none disabled:opacity-50"
-            >
-              {memberEntries.map(([userId, m]) => (
-                <option key={userId} value={userId}>
-                  {m.displayName}
-                </option>
-              ))}
-            </select>
-          )}
-        </div>
-      </div>
 
       {error ? (
         <div className="mt-3 font-mono text-[10px] text-clay">{error}</div>

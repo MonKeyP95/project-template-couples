@@ -264,6 +264,93 @@ export async function settleUp(
   revalidatePath(`/trips/${tripSlug}`)
 }
 
+export interface UpdateExpenseInput {
+  expenseId: string
+  tripSlug: string
+  title: string
+  amount: string
+  category: string
+  paidBy: string
+  dayDate: string | null
+}
+
+export interface UpdateExpenseResult {
+  error?: string
+}
+
+/**
+ * Edits a non-settlement expense in place. Validation mirrors `logExpense`.
+ * Returns `{ error }` so the inline form can surface it. `is_settlement` is
+ * never touched — settlement rows are delete-only from the UI.
+ */
+export async function updateExpense(
+  input: UpdateExpenseInput,
+): Promise<UpdateExpenseResult> {
+  const title = input.title.trim()
+  if (!title) return { error: "Title required." }
+
+  const amountNum = Number(input.amount)
+  if (!Number.isFinite(amountNum) || amountNum <= 0) {
+    return { error: "Amount must be greater than zero." }
+  }
+  const cents = Math.round(amountNum * 100)
+  if (cents <= 0 || cents >= MAX_AMOUNT_CENTS) {
+    return { error: "Amount out of range." }
+  }
+
+  if (!EXPENSE_CATEGORIES.includes(input.category as ExpenseCategory)) {
+    return { error: "Invalid category." }
+  }
+
+  if (!input.paidBy) return { error: "Payer required." }
+
+  if (input.dayDate !== null && !/^\d{4}-\d{2}-\d{2}$/.test(input.dayDate)) {
+    return { error: "Invalid day." }
+  }
+
+  const supabase = await createClient()
+  const { error } = await supabase
+    .from("expenses")
+    .update({
+      title,
+      amount_cents: cents,
+      paid_by: input.paidBy,
+      category: input.category,
+      day_date: input.dayDate,
+    })
+    .eq("id", input.expenseId)
+
+  if (error) return { error: error.message }
+
+  revalidatePath(`/trips/${input.tripSlug}`)
+  return {}
+}
+
+export interface DeleteExpenseResult {
+  error?: string
+}
+
+/**
+ * Permanently deletes an expense (regular or settlement). Returns `{ error }`
+ * so the inline row can revert its optimistic removal on failure. Deleting a
+ * settlement row is the supported "undo settle-up" path.
+ */
+export async function deleteExpense(
+  expenseId: string,
+  tripSlug: string,
+): Promise<DeleteExpenseResult> {
+  const supabase = await createClient()
+  const { error } = await supabase
+    .from("expenses")
+    .delete()
+    .eq("id", expenseId)
+
+  if (error) return { error: error.message }
+
+  revalidatePath(`/trips/${tripSlug}`)
+  return {}
+}
+
 export interface CreateTripInput {
   name: string
   slug: string

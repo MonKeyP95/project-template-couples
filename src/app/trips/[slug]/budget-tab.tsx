@@ -1,46 +1,14 @@
-import {
-  Avatar,
-  Bar,
-  Label,
-  MonoBadge,
-  type MonoBadgeTone,
-  TopoBg,
-} from "@/components/together"
+import { Avatar, Bar, Label, TopoBg } from "@/components/together"
 import { settleUp } from "@/lib/trips/actions"
 import type { BudgetSummary, Expense } from "@/lib/trips/expense-types"
 
+import { enumerateDays } from "./expense-fields"
+import { LedgerRow } from "./ledger-row"
 import { LogExpenseRow } from "./log-expense-row"
 import type { MemberToneEntry } from "./packing-tab"
 
-const CATEGORY_TONE: Record<string, MonoBadgeTone> = {
-  Surf: "sea",
-  Dive: "sea",
-  Trek: "moss",
-  Food: "clay",
-  Transit: "ink",
-  Lodging: "sand",
-  Settlement: "ink",
-  Other: "ink",
-}
-
-const MONTH_SHORT = new Intl.DateTimeFormat("en-US", {
-  month: "short",
-  timeZone: "UTC",
-})
-
 function fmt(cents: number): string {
   return (cents / 100).toFixed(2)
-}
-
-function ledgerDate(
-  date: string | null,
-): { mon: string; day: string } | null {
-  if (!date) return null
-  const d = new Date(`${date}T00:00:00Z`)
-  return {
-    mon: MONTH_SHORT.format(d).toUpperCase(),
-    day: String(d.getUTCDate()),
-  }
 }
 
 export interface BudgetTabProps {
@@ -77,6 +45,7 @@ export function BudgetTab({
   const isSettled = summary.netBalanceCents === 0
   const creditor = summary.creditorUserId ? members[summary.creditorUserId] : null
   const debtor = summary.debtorUserId ? members[summary.debtorUserId] : null
+  const dayOptions = enumerateDays(startDate, endDate)
 
   return (
     <section>
@@ -96,7 +65,12 @@ export function BudgetTab({
         tripSlug={tripSlug}
       />
       <SplitBreakdown members={members} paidByUser={summary.expensePaidByUser} />
-      <Ledger expenses={expenses} members={members} />
+      <Ledger
+        expenses={expenses}
+        members={members}
+        dayOptions={dayOptions}
+        tripSlug={tripSlug}
+      />
       <LogExpenseRow
         tripId={tripId}
         tripSlug={tripSlug}
@@ -245,9 +219,13 @@ function SplitBreakdown({
 function Ledger({
   expenses,
   members,
+  dayOptions,
+  tripSlug,
 }: {
   expenses: Expense[]
   members: Record<string, MemberToneEntry>
+  dayOptions: ReturnType<typeof enumerateDays>
+  tripSlug: string
 }) {
   return (
     <div className="border-t border-border bg-background">
@@ -259,55 +237,14 @@ function Ledger({
       </div>
       <div>
         {expenses.map((e) => (
-          <LedgerRow key={e.id} expense={e} members={members} />
+          <LedgerRow
+            key={e.id}
+            expense={e}
+            members={members}
+            dayOptions={dayOptions}
+            tripSlug={tripSlug}
+          />
         ))}
-      </div>
-    </div>
-  )
-}
-
-function LedgerRow({
-  expense,
-  members,
-}: {
-  expense: Expense
-  members: Record<string, MemberToneEntry>
-}) {
-  const payer = members[expense.paidBy]
-  const date = ledgerDate(expense.dayDate)
-  const tone = CATEGORY_TONE[expense.category] ?? "ink"
-  return (
-    <div className="grid grid-cols-[44px_1fr_auto] items-center gap-3 border-t border-border px-5 py-3">
-      <div className="text-center">
-        {date ? (
-          <>
-            <div className="font-mono text-[9px] uppercase tracking-[0.14em] text-muted-foreground">
-              {date.mon}
-            </div>
-            <div className="font-mono text-[18px] leading-none tracking-[-0.02em] text-foreground">
-              {date.day}
-            </div>
-          </>
-        ) : (
-          <div className="font-mono text-[11px] text-muted-foreground">—</div>
-        )}
-      </div>
-      <div>
-        <div className="text-[14px] tracking-[-0.005em] text-foreground">
-          {expense.title}
-        </div>
-        <div className="mt-1 flex items-center gap-2">
-          <MonoBadge tone={tone}>{expense.category}</MonoBadge>
-          <span className="font-mono text-[10px] text-muted-foreground">
-            paid by
-          </span>
-          {payer ? (
-            <Avatar name={payer.initial} size={16} tone={payer.tone} />
-          ) : null}
-        </div>
-      </div>
-      <div className="t-num text-[15px] text-foreground">
-        €{fmt(expense.amountCents)}
       </div>
     </div>
   )
