@@ -68,6 +68,7 @@
 | Build iteratively in small steps | Learning project — cleaner code, easier to debug, validates assumptions early. | 2026-05 |
 | Warm & calm visual design | Trip planning should reduce stress, not add to it. | 2026-05 |
 | **Expense add + edit share an `ExpenseFields` controlled component; settlement rows are delete-only** | Five duplicated fields (vs. the single field in packing/notes edit) earns a shared form rather than a duplicated form clone. Settlement rows have no user-meaningful fields, so `✎` is hidden on them and `×` doubles as undo-settle-up. Edit/delete are `revalidatePath`-driven (no Realtime), matching the rest of the budget tab. | 2026-05-30 |
+| **Dark mode is cookie-based SSR, not localStorage** | The root layout reads a `theme` cookie server-side and renders `<html class="dark">` directly — no flash-of-wrong-theme, no blocking inline `<head>` script, no hydration mismatch (the cookie is the single source of truth for both the layout and the `ThemeToggle`'s `initialDark`). localStorage would have forced an inline script to apply the class before paint. The client toggle still flips the class immediately for instant feedback, then writes the cookie for the next render. Binary light/dark, light default; OS `prefers-color-scheme` on first visit deliberately deferred. | 2026-05-30 |
 
 ## Notes
 Append a row whenever a non-obvious choice is made. The "Why" column is the load-bearing one — without it, future-you can't tell whether the decision is still valid.
