@@ -17,6 +17,10 @@ import {
   type ItineraryDay,
   type ItineraryTone,
 } from "@/lib/trips/itinerary-types"
+import {
+  rowToDreamDay,
+  type DreamDay,
+} from "@/lib/trips/dream-itinerary-types"
 
 export interface ToggleResult {
   error?: string
@@ -897,6 +901,160 @@ export async function rescheduleItineraryDays(
 ): Promise<RescheduleItineraryResult> {
   const supabase = await createClient()
   const { error } = await supabase.rpc("reschedule_itinerary_days", {
+    p_trip_id: tripId,
+    p_day_ids: orderedDayIds,
+  })
+  if (error) return { error: error.message }
+
+  revalidatePath(`/trips/${tripSlug}`)
+  return {}
+}
+
+export interface AddDreamDayInput {
+  tripId: string
+  tripSlug: string
+  title: string
+  sub: string
+  tag: string
+  tone: ItineraryTone
+}
+
+export interface AddDreamDayResult {
+  error?: string
+  /** Populated on success — full DreamDay (d ordinal is placeholder; client re-runs withDreamOrdinals). */
+  day?: DreamDay
+}
+
+/**
+ * Inserts a new dream itinerary day at the end (day_index = max + 1). RLS gates
+ * membership. Returns the inserted row as a DreamDay so the client can apply it
+ * via withDreamOrdinals optimistically.
+ */
+export async function addDreamItineraryDay(
+  input: AddDreamDayInput,
+): Promise<AddDreamDayResult> {
+  const title = input.title.trim()
+  if (!title) return { error: "Title required." }
+  const tag = input.tag.trim()
+  if (!tag) return { error: "Tag required." }
+  if (!ITINERARY_TONES.includes(input.tone)) return { error: "Invalid tone." }
+
+  const supabase = await createClient()
+  const { data: userData, error: userError } = await supabase.auth.getUser()
+  if (userError || !userData.user) return { error: "Not signed in." }
+
+  const { data: maxRow } = await supabase
+    .from("dream_itinerary_days")
+    .select("day_index")
+    .eq("trip_id", input.tripId)
+    .order("day_index", { ascending: false })
+    .limit(1)
+    .maybeSingle()
+  const nextIndex = (maxRow?.day_index ?? 0) + 1
+
+  const sub = input.sub.trim()
+
+  const { data, error } = await supabase
+    .from("dream_itinerary_days")
+    .insert({
+      trip_id: input.tripId,
+      day_index: nextIndex,
+      title,
+      sub,
+      tag,
+      tone: input.tone,
+      created_by: userData.user.id,
+    })
+    .select("id, day_index, title, sub, tag, tone")
+    .single()
+
+  if (error) return { error: error.message }
+
+  revalidatePath(`/trips/${input.tripSlug}`)
+  return { day: rowToDreamDay(data) }
+}
+
+export interface UpdateDreamDayInput {
+  dayId: string
+  tripSlug: string
+  title: string
+  sub: string
+  tag: string
+  tone: ItineraryTone
+}
+
+export interface UpdateDreamDayResult {
+  error?: string
+}
+
+/**
+ * Edits an existing dream itinerary day. day_index is never user-edited, so no
+ * collision concern. created_by and created_at never touched.
+ */
+export async function updateDreamItineraryDay(
+  input: UpdateDreamDayInput,
+): Promise<UpdateDreamDayResult> {
+  const title = input.title.trim()
+  if (!title) return { error: "Title required." }
+  const tag = input.tag.trim()
+  if (!tag) return { error: "Tag required." }
+  if (!ITINERARY_TONES.includes(input.tone)) return { error: "Invalid tone." }
+
+  const supabase = await createClient()
+  const sub = input.sub.trim()
+
+  const { error } = await supabase
+    .from("dream_itinerary_days")
+    .update({
+      title,
+      sub,
+      tag,
+      tone: input.tone,
+    })
+    .eq("id", input.dayId)
+
+  if (error) return { error: error.message }
+
+  revalidatePath(`/trips/${input.tripSlug}`)
+  return {}
+}
+
+/**
+ * Permanently deletes a dream itinerary day. Throws on error (form-action
+ * shape). Leaves a gap in day_index; withDreamOrdinals re-pads display ordinals
+ * on read, so the gap is invisible.
+ */
+export async function deleteDreamItineraryDay(
+  dayId: string,
+  tripSlug: string,
+): Promise<void> {
+  const supabase = await createClient()
+  const { error } = await supabase
+    .from("dream_itinerary_days")
+    .delete()
+    .eq("id", dayId)
+  if (error) throw new Error(error.message)
+
+  revalidatePath(`/trips/${tripSlug}`)
+}
+
+export interface RescheduleDreamResult {
+  error?: string
+}
+
+/**
+ * Insertion-shift reorder: reassigns the trip's existing day_index slots
+ * (sorted) to the days in the given id order, via the
+ * reschedule_dream_itinerary_days RPC which permutes them atomically under a
+ * deferred unique constraint. The Realtime channel broadcasts the UPDATEs.
+ */
+export async function rescheduleDreamItineraryDays(
+  tripId: string,
+  tripSlug: string,
+  orderedDayIds: string[],
+): Promise<RescheduleDreamResult> {
+  const supabase = await createClient()
+  const { error } = await supabase.rpc("reschedule_dream_itinerary_days", {
     p_trip_id: tripId,
     p_day_ids: orderedDayIds,
   })
