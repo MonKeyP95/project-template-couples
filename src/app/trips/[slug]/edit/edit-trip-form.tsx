@@ -7,6 +7,22 @@ import { deleteTrip, updateTrip } from "@/lib/trips/actions"
 
 const SLUG_RE = /^[a-z0-9-]+$/
 
+const PREVIEW_FMT = new Intl.DateTimeFormat("en-US", {
+  month: "short",
+  day: "numeric",
+  timeZone: "UTC",
+})
+
+function fmtPreview(yyyyMmDd: string): string {
+  return PREVIEW_FMT.format(new Date(`${yyyyMmDd}T00:00:00Z`))
+}
+
+function derivedEnd(start: string, days: number): string {
+  const d = new Date(`${start}T00:00:00Z`)
+  d.setUTCDate(d.getUTCDate() + days - 1)
+  return d.toISOString().slice(0, 10)
+}
+
 function parseFloatOrNull(s: string): number | null {
   const trimmed = s.trim()
   if (!trimmed) return null
@@ -28,9 +44,11 @@ export interface EditTripInitial {
 
 export function EditTripForm({
   tripId,
+  dreamDayCount,
   initial,
 }: {
   tripId: string
+  dreamDayCount: number
   initial: EditTripInitial
 }) {
   const router = useRouter()
@@ -55,6 +73,9 @@ export function EditTripForm({
 
   const canSubmit =
     name.trim().length > 0 && SLUG_RE.test(slug.trim()) && !isPending
+
+  const promotingDreamWithDays =
+    initial.isDream && !isDream && dreamDayCount > 0
 
   function submit(e: React.FormEvent) {
     e.preventDefault()
@@ -145,6 +166,29 @@ export function EditTripForm({
               className="mt-1 w-full border-0 border-b border-rule bg-transparent py-1.5 text-[14px] text-foreground placeholder:text-muted-foreground focus:border-clay focus:outline-none disabled:opacity-50"
             />
           </label>
+        ) : promotingDreamWithDays ? (
+          <div className="mt-5">
+            <label className="block">
+              <span className="block font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
+                Start
+              </span>
+              <input
+                type="date"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                disabled={isPending}
+                className="t-num mt-1 w-full border-0 border-b border-rule bg-transparent py-1.5 text-[14px] text-foreground focus:border-clay focus:outline-none disabled:opacity-50"
+              />
+            </label>
+            {startDate ? (
+              <p className="mt-2 font-mono text-[10px] leading-relaxed text-muted-foreground">
+                {dreamDayCount} planned days → {fmtPreview(startDate)}–
+                {fmtPreview(derivedEnd(startDate, dreamDayCount))}
+                <br />
+                (end date set by your itinerary)
+              </p>
+            ) : null}
+          </div>
         ) : (
           <div className="mt-5 grid grid-cols-2 gap-4">
             <label className="block">

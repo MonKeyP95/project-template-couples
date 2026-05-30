@@ -25,6 +25,12 @@ export default async function EditTripPage({
   const trip = await getTripBySlug(workspace.id, slug)
   if (!trip) notFound()
 
+  const { count } = await supabase
+    .from("dream_itinerary_days")
+    .select("id", { count: "exact", head: true })
+    .eq("trip_id", trip.id)
+  const dreamDayCount = count ?? 0
+
   return (
     <main className="mx-auto min-h-screen w-full max-w-[440px] bg-background px-5 pt-10 pb-20">
       <Link
@@ -38,6 +44,7 @@ export default async function EditTripPage({
       <hr className="mt-3 border-rule" />
       <EditTripForm
         tripId={trip.id}
+        dreamDayCount={dreamDayCount}
         initial={{
           name: trip.name,
           slug: trip.slug,
