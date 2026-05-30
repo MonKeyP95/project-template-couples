@@ -1,5 +1,7 @@
 import Link from "next/link"
 
+import { WorldMapBg } from "@/components/together"
+
 import { SignUpForm } from "./signup-form"
 
 export default async function SignUpPage({
@@ -10,8 +12,9 @@ export default async function SignUpPage({
   const { invite } = await searchParams
 
   return (
-    <main className="flex min-h-screen items-center justify-center px-6">
-      <div className="w-full max-w-sm">
+    <main className="relative flex min-h-screen items-center justify-center overflow-hidden px-6">
+      <WorldMapBg className="text-foreground/[0.07]" />
+      <div className="relative z-10 w-full max-w-sm">
         <h1 className="font-serif text-5xl leading-[1] tracking-tight">
           Make space <span className="italic text-primary">for two</span>.
         </h1>
