@@ -402,6 +402,7 @@ export interface UpdateTripInput {
   name: string
   slug: string
   isDream: boolean
+  wasDream: boolean
   startDate: string | null
   endDate: string | null
   fuzzyWhen: string | null
@@ -434,35 +435,6 @@ export async function updateTrip(
     return { error: "Slug must be lowercase letters, numbers, hyphens." }
   }
 
-  let startDate: string | null
-  let endDate: string | null
-  let fuzzyWhen: string | null
-
-  if (input.isDream) {
-    if (input.startDate || input.endDate) {
-      return { error: "Dreams have no dates." }
-    }
-    startDate = null
-    endDate = null
-    fuzzyWhen = input.fuzzyWhen?.trim() || null
-    if (fuzzyWhen && fuzzyWhen.length > 64) {
-      return { error: "When? must be 64 characters or fewer." }
-    }
-  } else {
-    if (!input.startDate || !input.endDate) {
-      return { error: "Start and end dates required." }
-    }
-    if (input.endDate < input.startDate) {
-      return { error: "End date must be on or after start date." }
-    }
-    if (input.fuzzyWhen) {
-      return { error: "Trips don't have a 'when?' label." }
-    }
-    startDate = input.startDate
-    endDate = input.endDate
-    fuzzyWhen = null
-  }
-
   const hasLat = input.lat !== null
   const hasLng = input.lng !== null
   if (hasLat !== hasLng) {
@@ -480,15 +452,95 @@ export async function updateTrip(
   const supabase = await createClient()
   const country = input.country?.trim() || null
 
+  // --- Dream branch: null dates, optional fuzzy_when. ---
+  if (input.isDream) {
+    if (input.startDate || input.endDate) {
+      return { error: "Dreams have no dates." }
+    }
+    const fuzzyWhen = input.fuzzyWhen?.trim() || null
+    if (fuzzyWhen && fuzzyWhen.length > 64) {
+      return { error: "When? must be 64 characters or fewer." }
+    }
+    const { error } = await supabase
+      .from("trips")
+      .update({
+        name,
+        slug,
+        country,
+        start_date: null,
+        end_date: null,
+        fuzzy_when: fuzzyWhen,
+        lat: input.lat,
+        lng: input.lng,
+      })
+      .eq("id", input.tripId)
+    if (error) {
+      if (error.code === "23505") {
+        return { error: "A trip with that slug already exists." }
+      }
+      return { error: error.message }
+    }
+    revalidatePath("/home")
+    revalidatePath(`/trips/${input.currentSlug}`)
+    return { slug }
+  }
+
+  // --- Dated branch (includes promotion of a dream). ---
+  if (!input.startDate) return { error: "Start date required." }
+  if (input.fuzzyWhen) {
+    return { error: "Trips don't have a 'when?' label." }
+  }
+
+  // Promotion of a dream that already has planned days: derive the end date
+  // from the day count and move the dream days onto consecutive dates.
+  if (input.wasDream) {
+    const { count } = await supabase
+      .from("dream_itinerary_days")
+      .select("id", { count: "exact", head: true })
+      .eq("trip_id", input.tripId)
+
+    if ((count ?? 0) > 0) {
+      // Update non-date fields first so a slug collision fails before we
+      // convert anything.
+      const { error: updateError } = await supabase
+        .from("trips")
+        .update({ name, slug, country, lat: input.lat, lng: input.lng })
+        .eq("id", input.tripId)
+      if (updateError) {
+        if (updateError.code === "23505") {
+          return { error: "A trip with that slug already exists." }
+        }
+        return { error: updateError.message }
+      }
+
+      // Atomic: set dates (start + count - 1), move dream days, delete originals.
+      const { error: rpcError } = await supabase.rpc("promote_dream_to_dated", {
+        p_trip_id: input.tripId,
+        p_start_date: input.startDate,
+      })
+      if (rpcError) return { error: rpcError.message }
+
+      revalidatePath("/home")
+      revalidatePath(`/trips/${input.currentSlug}`)
+      return { slug }
+    }
+  }
+
+  // Normal dated edit (or promotion of a dream with no planned days).
+  if (!input.endDate) return { error: "Start and end dates required." }
+  if (input.endDate < input.startDate) {
+    return { error: "End date must be on or after start date." }
+  }
+
   const { error: updateError } = await supabase
     .from("trips")
     .update({
       name,
       slug,
       country,
-      start_date: startDate,
-      end_date: endDate,
-      fuzzy_when: fuzzyWhen,
+      start_date: input.startDate,
+      end_date: input.endDate,
+      fuzzy_when: null,
       lat: input.lat,
       lng: input.lng,
     })

@@ -67,6 +67,7 @@ export function EditTripForm({
         name,
         slug: slug.trim(),
         isDream,
+        wasDream: initial.isDream,
         startDate: isDream ? null : startDate || null,
         endDate: isDream ? null : endDate || null,
         fuzzyWhen: isDream ? fuzzyWhen.trim() || null : null,
