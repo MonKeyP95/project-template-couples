@@ -2,6 +2,7 @@ import Link from "next/link"
 import { redirect } from "next/navigation"
 
 import { InviteCard } from "@/components/invite-card"
+import { ThemeToggle } from "@/components/theme-toggle"
 import {
   Avatar,
   Chevron,
@@ -10,6 +11,7 @@ import {
   PairAvatar,
 } from "@/components/together"
 import { createClient } from "@/lib/supabase/server"
+import { isDarkTheme } from "@/lib/theme"
 import { listTripsForWorkspace } from "@/lib/trips/list-queries"
 import {
   getCurrentWorkspace,
@@ -47,6 +49,7 @@ export default async function HomePage() {
     .eq("id", userData.user.id)
     .single()
 
+  const dark = await isDarkTheme()
   const workspace = await getCurrentWorkspace()
   const youOnly = workspace?.members.length === 1
   const dateLabel = formatDateLabel(new Date())
@@ -234,7 +237,9 @@ export default async function HomePage() {
         <Chevron />
       </Link>
 
-      <footer className="mt-12 flex justify-center md:mt-16">
+      <footer className="mt-12 flex items-center justify-center gap-5 md:mt-16">
+        <ThemeToggle initialDark={dark} />
+        <span className="text-rule">·</span>
         <form action="/api/signout" method="post">
           <button
             type="submit"
