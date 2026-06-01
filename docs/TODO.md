@@ -106,6 +106,7 @@ Small UI changes + one bugfix, all verified in-browser (Playwright, light + dark
 - **"+ add expense" moved to the top of the ledger** (was a footer below the rows) — sibling reorder in `budget-tab.tsx`.
 - **Label "log expense" → "add expense"** (collapsed row + expanded form header) in `log-expense-row.tsx`, matching the existing submit button.
 - **World map behind `/signup`.** New `WorldMapBg` primitive (`src/components/together/world-map-bg.tsx`): 338 land outlines from the public-domain Wikimedia "World map - low resolution" SVG, rendered `fill:none` + `stroke="currentColor"` so it follows the theme. Faint (`text-foreground/[0.07]`) behind the form. See DECISIONS row.
+- [x] **Trip/dream editable budget + shared saved-so-far tracker (budget tab inline edit)** — Done 2026-06-01. Added `planned_budget_cents` and `saved_cents` columns to the `trips` table; both editable and shared across the workspace via existing RLS. Budget now editable per trip/dream with inline form in budget tab. Saved amount is a shared running total tracked by the app.
 
 ## Working rules
 - One task per session. Finish, validate, then move on.
