@@ -1202,3 +1202,56 @@ export async function rescheduleDreamItineraryDays(
   revalidatePath(`/trips/${tripSlug}`)
   return {}
 }
+
+export interface UpdateTripBudgetInput {
+  tripId: string
+  tripSlug: string
+  plannedBudgetCents?: number
+  savedCents?: number
+}
+
+export interface UpdateTripBudgetResult {
+  error?: string
+}
+
+function validCents(value: number): boolean {
+  return Number.isInteger(value) && value >= 0 && value < MAX_AMOUNT_CENTS
+}
+
+/**
+ * Sets the trip's planned budget and/or saved-so-far total. Both are shared
+ * workspace values; RLS gates membership. Only the provided field(s) are
+ * written, so a one-figure edit never overwrites the other.
+ */
+export async function updateTripBudget(
+  input: UpdateTripBudgetInput,
+): Promise<UpdateTripBudgetResult> {
+  const patch: { planned_budget_cents?: number; saved_cents?: number } = {}
+
+  if (input.plannedBudgetCents !== undefined) {
+    if (!validCents(input.plannedBudgetCents)) {
+      return { error: "Budget out of range." }
+    }
+    patch.planned_budget_cents = input.plannedBudgetCents
+  }
+
+  if (input.savedCents !== undefined) {
+    if (!validCents(input.savedCents)) {
+      return { error: "Saved amount out of range." }
+    }
+    patch.saved_cents = input.savedCents
+  }
+
+  if (Object.keys(patch).length === 0) return { error: "Nothing to update." }
+
+  const supabase = await createClient()
+  const { error } = await supabase
+    .from("trips")
+    .update(patch)
+    .eq("id", input.tripId)
+
+  if (error) return { error: error.message }
+
+  revalidatePath(`/trips/${input.tripSlug}`)
+  return {}
+}
