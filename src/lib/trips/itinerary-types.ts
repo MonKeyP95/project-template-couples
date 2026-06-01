@@ -32,7 +32,7 @@ const DOW_FMT = new Intl.DateTimeFormat("en-US", {
   timeZone: "UTC",
 })
 
-const SHORT_DATE_FMT = new Intl.DateTimeFormat("en-US", {
+const SHORT_DATE_FMT = new Intl.DateTimeFormat("en-GB", {
   month: "short",
   day: "numeric",
   timeZone: "UTC",

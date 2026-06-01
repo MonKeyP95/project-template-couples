@@ -24,7 +24,7 @@ const monoBadgeTone: Record<CardTone, "sea" | "clay" | "moss" | "sand"> = {
   sand: "sand",
 }
 
-const SHORT_MONTH = new Intl.DateTimeFormat("en-US", {
+const SHORT_MONTH = new Intl.DateTimeFormat("en-GB", {
   month: "short",
   day: "numeric",
   timeZone: "UTC",

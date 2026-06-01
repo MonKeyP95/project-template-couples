@@ -63,7 +63,7 @@ function formatCoord(lat: number | null, lng: number | null): string | null {
   return `${latStr} · ${lngStr}`
 }
 
-const SHORT_MONTH = new Intl.DateTimeFormat("en-US", {
+const SHORT_MONTH = new Intl.DateTimeFormat("en-GB", {
   month: "short",
   day: "numeric",
   timeZone: "UTC",

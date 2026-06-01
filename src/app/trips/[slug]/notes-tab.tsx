@@ -8,7 +8,7 @@ import type { TripNote } from "@/lib/trips/note-queries"
 
 import type { MemberToneEntry } from "./packing-tab"
 
-const SHORT_DATE = new Intl.DateTimeFormat("en-US", {
+const SHORT_DATE = new Intl.DateTimeFormat("en-GB", {
   month: "short",
   day: "numeric",
   year: "numeric",

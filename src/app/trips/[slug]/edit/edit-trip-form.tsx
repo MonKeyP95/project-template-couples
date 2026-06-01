@@ -7,7 +7,7 @@ import { deleteTrip, updateTrip } from "@/lib/trips/actions"
 
 const SLUG_RE = /^[a-z0-9-]+$/
 
-const PREVIEW_FMT = new Intl.DateTimeFormat("en-US", {
+const PREVIEW_FMT = new Intl.DateTimeFormat("en-GB", {
   month: "short",
   day: "numeric",
   timeZone: "UTC",
