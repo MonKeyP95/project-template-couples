@@ -193,16 +193,14 @@ export async function logExpense(
 }
 
 /**
- * Records a settlement row that brings the trip's net balance to zero.
- * Inserts paid_by = current debtor, amount = absolute net balance, so a
- * subsequent budget summary computes 0. Two-member trips only.
- *
- * Throws on error so it can be wired directly to `<form action={...}>`.
+ * Computes a two-member trip's net balance. `net > 0` means the second member
+ * owes the first; `debtor` is whoever owes. Mirrors `summarizeBudget`. Returns
+ * `{ error }` for non-DB problems (missing trip, !=2 members) so each caller
+ * decides whether to throw or surface it inline.
  */
-export async function settleUp(
+async function loadTripBalance(
   tripId: string,
-  tripSlug: string,
-): Promise<void> {
+): Promise<{ net: number; debtor: string } | { error: string }> {
   const supabase = await createClient()
 
   const { data: trip, error: tripError } = await supabase
@@ -210,23 +208,23 @@ export async function settleUp(
     .select("workspace_id")
     .eq("id", tripId)
     .maybeSingle()
-  if (tripError) throw new Error(tripError.message)
-  if (!trip) throw new Error("Trip not found.")
+  if (tripError) return { error: tripError.message }
+  if (!trip) return { error: "Trip not found." }
 
   const { data: memberRows, error: membersError } = await supabase
     .from("workspace_members")
     .select("user_id")
     .eq("workspace_id", trip.workspace_id)
-  if (membersError) throw new Error(membersError.message)
+  if (membersError) return { error: membersError.message }
   if (!memberRows || memberRows.length !== 2) {
-    throw new Error("Settle-up requires exactly 2 workspace members.")
+    return { error: "Settle-up requires exactly 2 workspace members." }
   }
 
   const { data: expenseRows, error: expensesError } = await supabase
     .from("expenses")
     .select("amount_cents, paid_by, is_settlement")
     .eq("trip_id", tripId)
-  if (expensesError) throw new Error(expensesError.message)
+  if (expensesError) return { error: expensesError.message }
 
   const [a, b] = memberRows.map((m) => m.user_id)
   let aPaid = 0
@@ -244,12 +242,32 @@ export async function settleUp(
   }
 
   const net = Math.round((aPaid - bPaid) / 2 + aTransfers - bTransfers)
+  return { net, debtor: net > 0 ? b : a }
+}
+
+const TODAY = () => new Date().toISOString().slice(0, 10)
+
+/**
+ * Records a settlement row that brings the trip's net balance to zero.
+ * Inserts paid_by = current debtor, amount = absolute net balance, so a
+ * subsequent budget summary computes 0. Two-member trips only.
+ *
+ * Throws on error so it can be wired directly to `<form action={...}>`.
+ */
+export async function settleUp(
+  tripId: string,
+  tripSlug: string,
+): Promise<void> {
+  const balance = await loadTripBalance(tripId)
+  if ("error" in balance) throw new Error(balance.error)
+
+  const { net, debtor } = balance
   if (net === 0) {
     revalidatePath(`/trips/${tripSlug}`)
     return
   }
-  const debtor = net > 0 ? b : a
 
+  const supabase = await createClient()
   const { error: insertError } = await supabase.from("expenses").insert({
     trip_id: tripId,
     title: "Settlement",
@@ -257,11 +275,57 @@ export async function settleUp(
     currency: "EUR",
     paid_by: debtor,
     category: "Settlement",
+    day_date: TODAY(),
     is_settlement: true,
   })
   if (insertError) throw new Error(insertError.message)
 
   revalidatePath(`/trips/${tripSlug}`)
+}
+
+export interface PartialSettleResult {
+  error?: string
+}
+
+/**
+ * Records a partial settlement: the debtor pays `amount` toward what they owe.
+ * Paying less than owed leaves a remainder; paying more flips the balance so
+ * the other member now owes the difference. Returns `{ error }` so the inline
+ * input can surface validation failures.
+ */
+export async function partialSettleUp(
+  tripId: string,
+  tripSlug: string,
+  amount: string,
+): Promise<PartialSettleResult> {
+  const amountNum = Number(amount)
+  if (!Number.isFinite(amountNum) || amountNum <= 0) {
+    return { error: "Amount must be greater than zero." }
+  }
+  const cents = Math.round(amountNum * 100)
+  if (cents >= MAX_AMOUNT_CENTS) return { error: "Amount out of range." }
+
+  const balance = await loadTripBalance(tripId)
+  if ("error" in balance) return { error: balance.error }
+
+  const { net, debtor } = balance
+  if (net === 0) return { error: "Already settled." }
+
+  const supabase = await createClient()
+  const { error: insertError } = await supabase.from("expenses").insert({
+    trip_id: tripId,
+    title: "Settlement",
+    amount_cents: cents,
+    currency: "EUR",
+    paid_by: debtor,
+    category: "Settlement",
+    day_date: TODAY(),
+    is_settlement: true,
+  })
+  if (insertError) return { error: insertError.message }
+
+  revalidatePath(`/trips/${tripSlug}`)
+  return {}
 }
 
 export interface UpdateExpenseInput {

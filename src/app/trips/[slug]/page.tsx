@@ -210,8 +210,6 @@ export default async function TripPage({
             members={memberTones}
             plannedBudgetCents={header.plannedBudgetCents}
             savedCents={header.savedCents}
-            startDate={header.startDate}
-            endDate={header.endDate}
             currentUserId={userData.user.id}
           />
         ) : (

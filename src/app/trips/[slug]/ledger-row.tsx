@@ -7,7 +7,6 @@ import { deleteExpense, updateExpense } from "@/lib/trips/actions"
 import {
   EXPENSE_CATEGORIES,
   EXPENSE_CATEGORY_DEFAULT,
-  type DayOption,
   type Expense,
   type ExpenseCategory,
 } from "@/lib/trips/expense-types"
@@ -47,16 +46,10 @@ function ledgerDate(date: string | null): { mon: string; day: string } | null {
 export interface LedgerRowProps {
   expense: Expense
   members: Record<string, MemberToneEntry>
-  dayOptions: DayOption[]
   tripSlug: string
 }
 
-export function LedgerRow({
-  expense,
-  members,
-  dayOptions,
-  tripSlug,
-}: LedgerRowProps) {
+export function LedgerRow({ expense, members, tripSlug }: LedgerRowProps) {
   const [editing, setEditing] = React.useState(false)
 
   if (editing && !expense.isSettlement) {
@@ -64,7 +57,6 @@ export function LedgerRow({
       <LedgerRowEditor
         expense={expense}
         members={members}
-        dayOptions={dayOptions}
         tripSlug={tripSlug}
         onDone={() => setEditing(false)}
       />
@@ -178,13 +170,11 @@ function LedgerRowView({
 function LedgerRowEditor({
   expense,
   members,
-  dayOptions,
   tripSlug,
   onDone,
 }: {
   expense: Expense
   members: Record<string, MemberToneEntry>
-  dayOptions: DayOption[]
   tripSlug: string
   onDone: () => void
 }) {
@@ -257,7 +247,6 @@ function LedgerRowEditor({
         onAmountChange={setAmount}
         dayDate={dayDate}
         onDayDateChange={setDayDate}
-        dayOptions={dayOptions}
         category={category}
         onCategoryChange={setCategory}
         paidBy={paidBy}

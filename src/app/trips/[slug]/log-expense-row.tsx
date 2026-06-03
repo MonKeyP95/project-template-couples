@@ -5,7 +5,6 @@ import * as React from "react"
 import { logExpense } from "@/lib/trips/actions"
 import {
   EXPENSE_CATEGORY_DEFAULT,
-  enumerateDays,
   type ExpenseCategory,
 } from "@/lib/trips/expense-types"
 
@@ -15,38 +14,21 @@ import type { MemberToneEntry } from "./packing-tab"
 export interface LogExpenseRowProps {
   tripId: string
   tripSlug: string
-  startDate: string | null
-  endDate: string | null
   currentUserId: string
   members: Record<string, MemberToneEntry>
 }
 
-function defaultDay(
-  startDate: string | null,
-  endDate: string | null,
-): string | null {
-  if (!startDate || !endDate) return null
-  const todayIso = new Date().toISOString().slice(0, 10)
-  if (todayIso >= startDate && todayIso <= endDate) return todayIso
-  return startDate
+function todayIso(): string {
+  return new Date().toISOString().slice(0, 10)
 }
 
 export function LogExpenseRow({
   tripId,
   tripSlug,
-  startDate,
-  endDate,
   currentUserId,
   members,
 }: LogExpenseRowProps) {
-  const dayOptions = React.useMemo(
-    () => enumerateDays(startDate, endDate),
-    [startDate, endDate],
-  )
-  const initialDay = React.useMemo(
-    () => defaultDay(startDate, endDate),
-    [startDate, endDate],
-  )
+  const initialDay = React.useMemo(() => todayIso(), [])
 
   const [expanded, setExpanded] = React.useState(false)
   const [title, setTitle] = React.useState("")
@@ -156,7 +138,6 @@ export function LogExpenseRow({
         onAmountChange={setAmount}
         dayDate={dayDate}
         onDayDateChange={setDayDate}
-        dayOptions={dayOptions}
         category={category}
         onCategoryChange={setCategory}
         paidBy={paidBy}
