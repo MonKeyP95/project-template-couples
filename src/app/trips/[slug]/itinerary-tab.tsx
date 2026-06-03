@@ -48,8 +48,28 @@ interface RealtimeRow {
   sub: string | null
   tag: string
   tone: string
+  group_id: string | null
   created_by: string
   created_at: string
+}
+
+interface DaySegment {
+  groupId: string | null
+  days: ItineraryDay[]
+}
+
+/** Collapse sorted days into maximal runs of consecutive same-group_id days. */
+function toSegments(days: ItineraryDay[]): DaySegment[] {
+  const segments: DaySegment[] = []
+  for (const day of days) {
+    const last = segments[segments.length - 1]
+    if (day.groupId && last && last.groupId === day.groupId) {
+      last.days.push(day)
+    } else {
+      segments.push({ groupId: day.groupId, days: [day] })
+    }
+  }
+  return segments
 }
 
 function nextDayAfter(yyyyMmDd: string): string {
@@ -130,6 +150,8 @@ export function ItineraryTab({
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
   )
+  // Stable id keeps dnd-kit's aria-describedby deterministic across SSR/CSR.
+  const dndId = React.useId()
   const [, startReschedule] = React.useTransition()
 
   function onDragEnd(e: DragEndEvent) {
@@ -179,38 +201,6 @@ export function ItineraryTab({
       </div>
 
       <div className="px-5 pt-2.5 lg:px-10">
-        {days.length === 0 ? (
-          <p className="font-serif text-[15px] italic text-muted-foreground">
-            No days planned yet — add the first one.
-          </p>
-        ) : (
-          <DndContext
-            sensors={sensors}
-            collisionDetection={closestCenter}
-            onDragEnd={onDragEnd}
-          >
-            <SortableContext
-              items={days.map((d) => d.id)}
-              strategy={verticalListSortingStrategy}
-            >
-              {days.map((day, i) => (
-                <SortableDayCard
-                  key={day.id}
-                  id={day.id}
-                  day={day}
-                  tripSlug={tripSlug}
-                  isLast={i === days.length - 1}
-                  isEditing={editingId === day.id}
-                  onStartEdit={() => setEditingId(day.id)}
-                  onStopEdit={() => setEditingId(null)}
-                />
-              ))}
-            </SortableContext>
-          </DndContext>
-        )}
-      </div>
-
-      <div className="px-5 pt-4 lg:px-10">
         <AddDayRow
           tripId={tripId}
           tripSlug={tripSlug}
@@ -218,7 +208,7 @@ export function ItineraryTab({
         />
       </div>
 
-      <div className="px-5 pt-4 pb-6 lg:px-10">
+      <div className="px-5 pt-4 lg:px-10">
         <SuggestionCard
           label="/ assistant"
           applyLabel="apply"
@@ -230,6 +220,57 @@ export function ItineraryTab({
           </span>{" "}
           so you&apos;re not arriving in Senaru tired?
         </SuggestionCard>
+      </div>
+
+      <div className="px-5 pt-4 pb-6 lg:px-10">
+        {days.length === 0 ? (
+          <p className="font-serif text-[15px] italic text-muted-foreground">
+            No days planned yet — add the first one.
+          </p>
+        ) : (
+          <DndContext
+            id={dndId}
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragEnd={onDragEnd}
+          >
+            <SortableContext
+              items={days.map((d) => d.id)}
+              strategy={verticalListSortingStrategy}
+            >
+              {toSegments(days).map((seg) => {
+                const cards = seg.days.map((day) => (
+                  <SortableDayCard
+                    key={day.id}
+                    id={day.id}
+                    day={day}
+                    tripSlug={tripSlug}
+                    isLast={day.id === days[days.length - 1].id}
+                    isEditing={editingId === day.id}
+                    onStartEdit={() => setEditingId(day.id)}
+                    onStopEdit={() => setEditingId(null)}
+                  />
+                ))
+                if (seg.groupId && seg.days.length > 1) {
+                  return (
+                    <div
+                      key={seg.groupId}
+                      className="relative my-1.5 rounded-xl border border-rule px-2.5 pt-5 pb-1"
+                    >
+                      <span className="absolute left-3 top-1.5 font-mono text-[9px] uppercase tracking-[0.14em] text-muted-foreground">
+                        added together
+                      </span>
+                      {cards}
+                    </div>
+                  )
+                }
+                return (
+                  <React.Fragment key={seg.days[0].id}>{cards}</React.Fragment>
+                )
+              })}
+            </SortableContext>
+          </DndContext>
+        )}
       </div>
     </section>
   )
@@ -458,6 +499,7 @@ function AddDayRow({
 }) {
   const [expanded, setExpanded] = React.useState(false)
   const [dayDate, setDayDate] = React.useState(defaultDate)
+  const [endDate, setEndDate] = React.useState("")
   const [tag, setTag] = React.useState("")
   const [title, setTitle] = React.useState("")
   const [sub, setSub] = React.useState("")
@@ -468,6 +510,7 @@ function AddDayRow({
   function reset() {
     setExpanded(false)
     setDayDate(defaultDate)
+    setEndDate("")
     setTag("")
     setTitle("")
     setSub("")
@@ -484,6 +527,7 @@ function AddDayRow({
         tripId,
         tripSlug,
         dayDate,
+        endDate,
         title,
         sub,
         tag,
@@ -514,6 +558,8 @@ function AddDayRow({
       heading="Add day"
       dayDate={dayDate}
       setDayDate={setDayDate}
+      endDate={endDate}
+      setEndDate={setEndDate}
       tag={tag}
       setTag={setTag}
       title={title}
@@ -535,6 +581,8 @@ function DayForm({
   heading,
   dayDate,
   setDayDate,
+  endDate,
+  setEndDate,
   tag,
   setTag,
   title,
@@ -552,6 +600,9 @@ function DayForm({
   heading: string
   dayDate: string
   setDayDate: (s: string) => void
+  /** When provided (Add mode), a second "To" date enables multi-day creation. */
+  endDate?: string
+  setEndDate?: (s: string) => void
   tag: string
   setTag: (s: string) => void
   title: string
@@ -578,7 +629,7 @@ function DayForm({
       <div className="grid grid-cols-2 gap-3">
         <label className="block">
           <span className="block font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
-            Date
+            {setEndDate ? "From" : "Date"}
           </span>
           <input
             type="date"
@@ -589,7 +640,38 @@ function DayForm({
             className="t-num mt-1 w-full border-0 border-b border-rule bg-transparent py-1.5 text-[14px] text-foreground focus:border-clay focus:outline-none disabled:opacity-50"
           />
         </label>
-        <label className="block">
+        {setEndDate ? (
+          <label className="block">
+            <span className="block font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
+              To
+            </span>
+            <input
+              type="date"
+              value={endDate ?? ""}
+              min={dayDate}
+              onChange={(e) => setEndDate(e.target.value)}
+              disabled={isPending}
+              className="t-num mt-1 w-full border-0 border-b border-rule bg-transparent py-1.5 text-[14px] text-foreground placeholder:text-muted-foreground focus:border-clay focus:outline-none disabled:opacity-50"
+            />
+          </label>
+        ) : (
+          <label className="block">
+            <span className="block font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
+              Tag
+            </span>
+            <input
+              type="text"
+              value={tag}
+              onChange={(e) => setTag(e.target.value)}
+              disabled={isPending}
+              className="mt-1 w-full border-0 border-b border-rule bg-transparent py-1.5 text-[14px] uppercase text-foreground placeholder:normal-case placeholder:text-muted-foreground focus:border-clay focus:outline-none disabled:opacity-50"
+            />
+          </label>
+        )}
+      </div>
+
+      {setEndDate ? (
+        <label className="mt-3 block">
           <span className="block font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
             Tag
           </span>
@@ -601,7 +683,7 @@ function DayForm({
             className="mt-1 w-full border-0 border-b border-rule bg-transparent py-1.5 text-[14px] uppercase text-foreground placeholder:normal-case placeholder:text-muted-foreground focus:border-clay focus:outline-none disabled:opacity-50"
           />
         </label>
-      </div>
+      ) : null}
 
       <label className="mt-3 block">
         <span className="block font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
