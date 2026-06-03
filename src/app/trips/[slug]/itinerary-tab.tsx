@@ -36,12 +36,21 @@ import {
   type ItineraryTone,
 } from "@/lib/trips/itinerary-types"
 import type { ItineraryLocation } from "@/lib/trips/location-types"
+import { slugToTone } from "@/lib/trips/slug-tone"
 
 const itineraryBorder: Record<ItineraryTone, string> = {
   sea: "border-l-sea",
   clay: "border-l-clay",
   moss: "border-l-moss",
   sand: "border-l-sand",
+}
+
+// Tone outline + text for location tabs, matching the MonoBadge day-tag look.
+const tabTone: Record<ItineraryTone, string> = {
+  sea: "border-sea text-sea",
+  clay: "border-clay text-clay",
+  moss: "border-moss text-moss",
+  sand: "border-sand text-sand",
 }
 
 interface RealtimeRow {
@@ -360,27 +369,34 @@ export function ItineraryTab({
 
       <div className="flex items-center gap-1.5 px-5 pt-3 lg:px-10">
         <div className="flex gap-1.5 overflow-x-auto">
-        {orderedTabs.map((loc) => (
-          <button
-            key={loc.id}
-            type="button"
-            onClick={() => setActiveLocationId(loc.id)}
-            aria-pressed={effectiveActive === loc.id}
-            className={`whitespace-nowrap rounded-full border px-3 py-1 font-mono text-[11px] uppercase tracking-[0.12em] transition-colors ${
-              effectiveActive === loc.id
-                ? "border-foreground bg-foreground text-background"
-                : "border-rule bg-transparent text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            {loc.name}
-          </button>
-        ))}
+        {orderedTabs.map((loc, i) => {
+          const active = effectiveActive === loc.id
+          const tone = slugToTone(loc.id)
+          return (
+            <button
+              key={loc.id}
+              type="button"
+              onClick={() => setActiveLocationId(loc.id)}
+              aria-pressed={active}
+              className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-[3px] border px-2 py-1 font-mono text-[10px] uppercase leading-none tracking-[0.16em] transition-colors ${
+                active
+                  ? "border-foreground bg-foreground text-background"
+                  : `bg-transparent ${tabTone[tone]}`
+              }`}
+            >
+              <span className={active ? "text-background/60" : "opacity-50"}>
+                {String(i + 1).padStart(2, "0")}
+              </span>
+              {loc.name}
+            </button>
+          )
+        })}
         {hasTravel ? (
           <button
             type="button"
             onClick={() => setActiveLocationId(null)}
             aria-pressed={effectiveActive === null}
-            className={`whitespace-nowrap rounded-full border px-3 py-1 font-mono text-[11px] uppercase tracking-[0.12em] transition-colors ${
+            className={`inline-flex items-center whitespace-nowrap rounded-[3px] border px-2 py-1 font-mono text-[10px] uppercase leading-none tracking-[0.16em] transition-colors ${
               effectiveActive === null
                 ? "border-foreground bg-foreground text-background"
                 : "border-rule bg-transparent text-muted-foreground hover:text-foreground"
