@@ -4,7 +4,6 @@ import * as React from "react"
 
 import {
   EXPENSE_CATEGORIES,
-  type DayOption,
   type ExpenseCategory,
 } from "@/lib/trips/expense-types"
 
@@ -18,7 +17,6 @@ export interface ExpenseFieldsProps {
   onAmountChange: (value: string) => void
   dayDate: string | null
   onDayDateChange: (value: string | null) => void
-  dayOptions: DayOption[]
   category: ExpenseCategory
   onCategoryChange: (value: ExpenseCategory) => void
   paidBy: string
@@ -40,7 +38,6 @@ export function ExpenseFields({
   onAmountChange,
   dayDate,
   onDayDateChange,
-  dayOptions,
   category,
   onCategoryChange,
   paidBy,
@@ -84,23 +81,17 @@ export function ExpenseFields({
 
         <label className="block">
           <span className="block font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
-            Day
+            Date
           </span>
-          <select
+          <input
+            type="date"
             value={dayDate ?? ""}
             onChange={(e) =>
               onDayDateChange(e.target.value === "" ? null : e.target.value)
             }
             disabled={disabled}
             className="mt-1 w-full border-0 border-b border-rule bg-transparent py-1 text-[14px] text-foreground focus:border-clay focus:outline-none disabled:opacity-50"
-          >
-            <option value="">— no day</option>
-            {dayOptions.map((d) => (
-              <option key={d.value} value={d.value}>
-                {d.label}
-              </option>
-            ))}
-          </select>
+          />
         </label>
 
         <label className="block">

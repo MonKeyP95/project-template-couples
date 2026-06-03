@@ -1,15 +1,11 @@
 import { Avatar, Label, TopoBg } from "@/components/together"
-import { settleUp } from "@/lib/trips/actions"
-import {
-  enumerateDays,
-  type BudgetSummary,
-  type Expense,
-} from "@/lib/trips/expense-types"
+import { type BudgetSummary, type Expense } from "@/lib/trips/expense-types"
 
 import { BudgetFigures } from "./budget-figures"
 import { LedgerRow } from "./ledger-row"
 import { LogExpenseRow } from "./log-expense-row"
 import type { MemberToneEntry } from "./packing-tab"
+import { SettleUpCard } from "./settle-up-card"
 
 function fmt(cents: number): string {
   return (cents / 100).toFixed(2)
@@ -24,8 +20,6 @@ export interface BudgetTabProps {
   members: Record<string, MemberToneEntry>
   plannedBudgetCents: number
   savedCents: number
-  startDate: string | null
-  endDate: string | null
   currentUserId: string
 }
 
@@ -38,15 +32,12 @@ export function BudgetTab({
   members,
   plannedBudgetCents,
   savedCents,
-  startDate,
-  endDate,
   currentUserId,
 }: BudgetTabProps) {
   const totalCents = summary.expenseTotalCents
   const isSettled = summary.netBalanceCents === 0
   const creditor = summary.creditorUserId ? members[summary.creditorUserId] : null
   const debtor = summary.debtorUserId ? members[summary.debtorUserId] : null
-  const dayOptions = enumerateDays(startDate, endDate)
 
   return (
     <section>
@@ -70,17 +61,10 @@ export function BudgetTab({
       <LogExpenseRow
         tripId={tripId}
         tripSlug={tripSlug}
-        startDate={startDate}
-        endDate={endDate}
         currentUserId={currentUserId}
         members={members}
       />
-      <Ledger
-        expenses={expenses}
-        members={members}
-        dayOptions={dayOptions}
-        tripSlug={tripSlug}
-      />
+      <Ledger expenses={expenses} members={members} tripSlug={tripSlug} />
     </section>
   )
 }
@@ -112,57 +96,6 @@ function BudgetHeader({
           plannedBudgetCents={plannedBudgetCents}
           savedCents={savedCents}
         />
-      </div>
-    </div>
-  )
-}
-
-function SettleUpCard({
-  isSettled,
-  netBalanceCents,
-  creditor,
-  debtor,
-  tripId,
-  tripSlug,
-}: {
-  isSettled: boolean
-  netBalanceCents: number
-  creditor: MemberToneEntry | null
-  debtor: MemberToneEntry | null
-  tripId: string
-  tripSlug: string
-}) {
-  const canSettle = !isSettled && creditor && debtor
-  return (
-    <div className="px-5 py-3.5">
-      <div className="flex items-center justify-between rounded-lg border border-border bg-card px-4 py-3.5">
-        <div>
-          <Label className="mb-1">Settle-up</Label>
-          {canSettle ? (
-            <div className="text-[14px] leading-snug text-foreground">
-              <span className="font-serif italic">{debtor.displayName}</span>{" "}
-              owes{" "}
-              <span className="font-serif italic">{creditor.displayName}</span>
-              <span className="t-num ml-1.5 text-foreground">
-                €{fmt(Math.abs(netBalanceCents))}
-              </span>
-            </div>
-          ) : (
-            <div className="font-serif text-[14px] italic text-moss">
-              All square.
-            </div>
-          )}
-        </div>
-        {canSettle ? (
-          <form action={settleUp.bind(null, tripId, tripSlug)}>
-            <button
-              type="submit"
-              className="rounded-full border-0 bg-foreground px-3.5 py-2 font-mono text-[10px] uppercase tracking-[0.2em] text-background"
-            >
-              settle
-            </button>
-          </form>
-        ) : null}
       </div>
     </div>
   )
@@ -207,12 +140,10 @@ function SplitBreakdown({
 function Ledger({
   expenses,
   members,
-  dayOptions,
   tripSlug,
 }: {
   expenses: Expense[]
   members: Record<string, MemberToneEntry>
-  dayOptions: ReturnType<typeof enumerateDays>
   tripSlug: string
 }) {
   return (
@@ -229,7 +160,6 @@ function Ledger({
             key={e.id}
             expense={e}
             members={members}
-            dayOptions={dayOptions}
             tripSlug={tripSlug}
           />
         ))}
