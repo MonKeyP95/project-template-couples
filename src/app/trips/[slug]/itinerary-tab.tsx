@@ -21,7 +21,10 @@ import { Label, MonoBadge, SuggestionCard } from "@/components/together"
 import { createClient } from "@/lib/supabase/client"
 import {
   addItineraryDay,
+  createItineraryLocation,
   deleteItineraryDay,
+  deleteItineraryLocation,
+  renameItineraryLocation,
   rescheduleItineraryDays,
   updateItineraryDay,
 } from "@/lib/trips/actions"
@@ -32,6 +35,7 @@ import {
   type ItineraryDay,
   type ItineraryTone,
 } from "@/lib/trips/itinerary-types"
+import type { ItineraryLocation } from "@/lib/trips/location-types"
 
 const itineraryBorder: Record<ItineraryTone, string> = {
   sea: "border-l-sea",
@@ -49,6 +53,7 @@ interface RealtimeRow {
   tag: string
   tone: string
   group_id: string | null
+  location_id: string | null
   created_by: string
   created_at: string
 }
@@ -78,16 +83,39 @@ function nextDayAfter(yyyyMmDd: string): string {
   return d.toISOString().slice(0, 10)
 }
 
+/** Order locations by earliest day date, empties last by sortOrder. */
+function orderTabs(
+  locations: ItineraryLocation[],
+  days: ItineraryDay[],
+): ItineraryLocation[] {
+  const earliest = new Map<string, string>()
+  for (const d of days) {
+    if (!d.locationId) continue
+    const cur = earliest.get(d.locationId)
+    if (cur === undefined || d.dayDate < cur) earliest.set(d.locationId, d.dayDate)
+  }
+  return [...locations].sort((a, b) => {
+    const da = earliest.get(a.id)
+    const db = earliest.get(b.id)
+    if (da && db) return da < db ? -1 : da > db ? 1 : a.sortOrder - b.sortOrder
+    if (da) return -1
+    if (db) return 1
+    return a.sortOrder - b.sortOrder
+  })
+}
+
 export function ItineraryTab({
   tripId,
   tripSlug,
   tripStartDate,
   initialItems,
+  initialLocations,
 }: {
   tripId: string
   tripSlug: string
   tripStartDate: string
   initialItems: ItineraryDay[]
+  initialLocations: ItineraryLocation[]
 }) {
   const [days, setDays] = React.useState<ItineraryDay[]>(initialItems)
   const [lastInitial, setLastInitial] = React.useState(initialItems)
@@ -96,6 +124,20 @@ export function ItineraryTab({
   if (initialItems !== lastInitial) {
     setLastInitial(initialItems)
     setDays(initialItems)
+  }
+
+  const [locations, setLocations] = React.useState<ItineraryLocation[]>(
+    initialLocations,
+  )
+  const [lastInitialLocations, setLastInitialLocations] =
+    React.useState(initialLocations)
+  const [activeLocationId, setActiveLocationId] = React.useState<string | null>(
+    initialLocations[0]?.id ?? null,
+  )
+
+  if (initialLocations !== lastInitialLocations) {
+    setLastInitialLocations(initialLocations)
+    setLocations(initialLocations)
   }
 
   React.useEffect(() => {
@@ -131,6 +173,65 @@ export function ItineraryTab({
               setDays((prev) =>
                 withOrdinals(prev.filter((d) => d.id !== old.id)),
               )
+            }
+          }
+        },
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [tripId])
+
+  React.useEffect(() => {
+    const supabase = createClient()
+    const channel = supabase
+      .channel(`itinerary-locations-${tripId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "itinerary_locations",
+          filter: `trip_id=eq.${tripId}`,
+        },
+        (payload) => {
+          if (payload.eventType === "INSERT") {
+            const r = payload.new as {
+              id: string
+              name: string
+              sort_order: number
+            }
+            const incoming: ItineraryLocation = {
+              id: r.id,
+              name: r.name,
+              sortOrder: r.sort_order,
+            }
+            setLocations((prev) =>
+              prev.some((l) => l.id === incoming.id)
+                ? prev
+                : [...prev, incoming].sort((a, b) => a.sortOrder - b.sortOrder),
+            )
+          } else if (payload.eventType === "UPDATE") {
+            const r = payload.new as {
+              id: string
+              name: string
+              sort_order: number
+            }
+            setLocations((prev) =>
+              prev
+                .map((l) =>
+                  l.id === r.id
+                    ? { id: r.id, name: r.name, sortOrder: r.sort_order }
+                    : l,
+                )
+                .sort((a, b) => a.sortOrder - b.sortOrder),
+            )
+          } else if (payload.eventType === "DELETE") {
+            const old = payload.old as { id?: string }
+            if (old.id) {
+              setLocations((prev) => prev.filter((l) => l.id !== old.id))
             }
           }
         },
@@ -191,6 +292,63 @@ export function ItineraryTab({
     })
   }
 
+  const orderedTabs = orderTabs(locations, days)
+  const hasTravel = days.some((d) => !d.locationId)
+  const tabIds = orderedTabs.map((t) => t.id)
+  const effectiveActive =
+    activeLocationId !== null && tabIds.includes(activeLocationId)
+      ? activeLocationId
+      : activeLocationId === null && hasTravel
+        ? null
+        : (tabIds[0] ?? null)
+  const tabDays = days.filter((d) => (d.locationId ?? null) === effectiveActive)
+
+  const [addMenuOpen, setAddMenuOpen] = React.useState(false)
+  const [addDayOpen, setAddDayOpen] = React.useState(false)
+  const [addingLocation, setAddingLocation] = React.useState(false)
+  const [newLocName, setNewLocName] = React.useState("")
+  const [renaming, setRenaming] = React.useState(false)
+  const [renameVal, setRenameVal] = React.useState("")
+  const [, startLoc] = React.useTransition()
+
+  function submitNewLocation(e: React.FormEvent) {
+    e.preventDefault()
+    const name = newLocName.trim()
+    if (!name) return
+    startLoc(async () => {
+      const result = await createItineraryLocation(tripId, tripSlug, name)
+      if (!result.error && result.location) {
+        setActiveLocationId(result.location.id)
+      }
+      setNewLocName("")
+      setAddingLocation(false)
+    })
+  }
+
+  function submitRename(e: React.FormEvent) {
+    e.preventDefault()
+    const name = renameVal.trim()
+    if (!name || effectiveActive === null) return
+    startLoc(async () => {
+      await renameItineraryLocation(effectiveActive, tripSlug, name)
+      setRenaming(false)
+    })
+  }
+
+  function removeActiveLocation() {
+    if (effectiveActive === null) return
+    if (
+      !window.confirm("Delete this location? Its days become travel days.")
+    ) {
+      return
+    }
+    const id = effectiveActive
+    startLoc(async () => {
+      await deleteItineraryLocation(id, tripSlug)
+      setActiveLocationId(null)
+    })
+  }
+
   return (
     <section>
       <div className="flex items-baseline justify-between px-5 pt-5 lg:px-10 lg:pt-6">
@@ -200,11 +358,138 @@ export function ItineraryTab({
         </span>
       </div>
 
+      <div className="flex gap-1.5 overflow-x-auto px-5 pt-3 lg:px-10">
+        {orderedTabs.map((loc) => (
+          <button
+            key={loc.id}
+            type="button"
+            onClick={() => setActiveLocationId(loc.id)}
+            aria-pressed={effectiveActive === loc.id}
+            className={`whitespace-nowrap rounded-full border px-3 py-1 font-mono text-[11px] uppercase tracking-[0.12em] transition-colors ${
+              effectiveActive === loc.id
+                ? "border-foreground bg-foreground text-background"
+                : "border-rule bg-transparent text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            {loc.name}
+          </button>
+        ))}
+        {hasTravel ? (
+          <button
+            type="button"
+            onClick={() => setActiveLocationId(null)}
+            aria-pressed={effectiveActive === null}
+            className={`whitespace-nowrap rounded-full border px-3 py-1 font-mono text-[11px] uppercase tracking-[0.12em] transition-colors ${
+              effectiveActive === null
+                ? "border-foreground bg-foreground text-background"
+                : "border-rule bg-transparent text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            In transit
+          </button>
+        ) : null}
+        {addingLocation ? (
+          <form onSubmit={submitNewLocation} className="inline-flex">
+            <input
+              type="text"
+              autoFocus
+              value={newLocName}
+              onChange={(e) => setNewLocName(e.target.value)}
+              onBlur={() => {
+                if (!newLocName.trim()) setAddingLocation(false)
+              }}
+              placeholder="Location name"
+              className="rounded-full border border-clay bg-transparent px-3 py-1 font-mono text-[11px] text-foreground placeholder:text-muted-foreground focus:outline-none"
+            />
+          </form>
+        ) : (
+          <div className="relative shrink-0 group">
+            <button
+              type="button"
+              onClick={() => setAddMenuOpen((v) => !v)}
+              aria-expanded={addMenuOpen}
+              aria-label="Add to itinerary"
+              className="rounded-full border border-dashed border-rule px-3 py-1 font-mono text-[13px] leading-none text-muted-foreground hover:border-foreground hover:text-foreground"
+            >
+              +
+            </button>
+            <div
+              className={`absolute right-0 z-10 mt-1 w-32 flex-col overflow-hidden rounded-lg border border-border bg-card shadow-sm ${
+                addMenuOpen ? "flex" : "hidden group-hover:flex"
+              }`}
+            >
+              <button
+                type="button"
+                onClick={() => {
+                  setAddMenuOpen(false)
+                  setAddDayOpen(true)
+                }}
+                className="px-3 py-2 text-left font-mono text-[11px] uppercase tracking-[0.12em] text-muted-foreground hover:bg-foreground hover:text-background"
+              >
+                + day
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setAddMenuOpen(false)
+                  setAddingLocation(true)
+                }}
+                className="px-3 py-2 text-left font-mono text-[11px] uppercase tracking-[0.12em] text-muted-foreground hover:bg-foreground hover:text-background"
+              >
+                + location
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {effectiveActive !== null ? (
+        <div className="flex items-center gap-3 px-5 pt-2 lg:px-10">
+          {renaming ? (
+            <form onSubmit={submitRename} className="inline-flex">
+              <input
+                type="text"
+                autoFocus
+                value={renameVal}
+                onChange={(e) => setRenameVal(e.target.value)}
+                onBlur={() => setRenaming(false)}
+                className="border-0 border-b border-rule bg-transparent py-0.5 text-[13px] text-foreground focus:border-clay focus:outline-none"
+              />
+            </form>
+          ) : (
+            <>
+              <button
+                type="button"
+                onClick={() => {
+                  const name =
+                    orderedTabs.find((t) => t.id === effectiveActive)?.name ?? ""
+                  setRenameVal(name)
+                  setRenaming(true)
+                }}
+                className="font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground hover:text-foreground"
+              >
+                rename
+              </button>
+              <button
+                type="button"
+                onClick={removeActiveLocation}
+                className="font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground hover:text-clay"
+              >
+                delete
+              </button>
+            </>
+          )}
+        </div>
+      ) : null}
+
       <div className="px-5 pt-2.5 lg:px-10">
         <AddDayRow
           tripId={tripId}
           tripSlug={tripSlug}
           defaultDate={defaultDate}
+          locationId={effectiveActive}
+          open={addDayOpen}
+          onClose={() => setAddDayOpen(false)}
         />
       </div>
 
@@ -223,7 +508,7 @@ export function ItineraryTab({
       </div>
 
       <div className="px-5 pt-4 pb-6 lg:px-10">
-        {days.length === 0 ? (
+        {tabDays.length === 0 ? (
           <p className="font-serif text-[15px] italic text-muted-foreground">
             No days planned yet — add the first one.
           </p>
@@ -235,20 +520,21 @@ export function ItineraryTab({
             onDragEnd={onDragEnd}
           >
             <SortableContext
-              items={days.map((d) => d.id)}
+              items={tabDays.map((d) => d.id)}
               strategy={verticalListSortingStrategy}
             >
-              {toSegments(days).map((seg) => {
+              {toSegments(tabDays).map((seg) => {
                 const cards = seg.days.map((day) => (
                   <SortableDayCard
                     key={day.id}
                     id={day.id}
                     day={day}
                     tripSlug={tripSlug}
-                    isLast={day.id === days[days.length - 1].id}
+                    isLast={day.id === tabDays[tabDays.length - 1].id}
                     isEditing={editingId === day.id}
                     onStartEdit={() => setEditingId(day.id)}
                     onStopEdit={() => setEditingId(null)}
+                    locations={locations}
                   />
                 ))
                 if (seg.groupId && seg.days.length > 1) {
@@ -284,6 +570,7 @@ interface DayCardProps {
   onStartEdit: () => void
   onStopEdit: () => void
   dragHandle?: React.ReactNode
+  locations: ItineraryLocation[]
 }
 
 function DayCard({
@@ -294,9 +581,17 @@ function DayCard({
   onStartEdit,
   onStopEdit,
   dragHandle,
+  locations,
 }: DayCardProps) {
   if (isEditing) {
-    return <DayEditor day={day} tripSlug={tripSlug} onDone={onStopEdit} />
+    return (
+      <DayEditor
+        day={day}
+        tripSlug={tripSlug}
+        locations={locations}
+        onDone={onStopEdit}
+      />
+    )
   }
   return (
     <DayView
@@ -430,10 +725,12 @@ function DayView({
 function DayEditor({
   day,
   tripSlug,
+  locations,
   onDone,
 }: {
   day: ItineraryDay
   tripSlug: string
+  locations: ItineraryLocation[]
   onDone: () => void
 }) {
   const [dayDate, setDayDate] = React.useState(day.dayDate)
@@ -441,6 +738,9 @@ function DayEditor({
   const [title, setTitle] = React.useState(day.title)
   const [sub, setSub] = React.useState(day.sub)
   const [tone, setTone] = React.useState<ItineraryTone>(day.tone)
+  const [locationId, setLocationId] = React.useState<string | null>(
+    day.locationId,
+  )
   const [error, setError] = React.useState<string | null>(null)
   const [isPending, startTransition] = React.useTransition()
 
@@ -457,6 +757,7 @@ function DayEditor({
         sub,
         tag,
         tone,
+        locationId,
       })
       if (result.error) {
         setError(result.error)
@@ -479,6 +780,9 @@ function DayEditor({
       setSub={setSub}
       tone={tone}
       setTone={setTone}
+      locations={locations}
+      locationId={locationId}
+      setLocationId={setLocationId}
       error={error}
       isPending={isPending}
       submitLabel="save"
@@ -492,12 +796,17 @@ function AddDayRow({
   tripId,
   tripSlug,
   defaultDate,
+  locationId,
+  open,
+  onClose,
 }: {
   tripId: string
   tripSlug: string
   defaultDate: string
+  locationId: string | null
+  open: boolean
+  onClose: () => void
 }) {
-  const [expanded, setExpanded] = React.useState(false)
   const [dayDate, setDayDate] = React.useState(defaultDate)
   const [endDate, setEndDate] = React.useState("")
   const [tag, setTag] = React.useState("")
@@ -508,7 +817,7 @@ function AddDayRow({
   const [isPending, startTransition] = React.useTransition()
 
   function reset() {
-    setExpanded(false)
+    onClose()
     setDayDate(defaultDate)
     setEndDate("")
     setTag("")
@@ -532,6 +841,7 @@ function AddDayRow({
         sub,
         tag,
         tone,
+        locationId,
       })
       if (result.error) {
         setError(result.error)
@@ -541,17 +851,7 @@ function AddDayRow({
     })
   }
 
-  if (!expanded) {
-    return (
-      <button
-        type="button"
-        onClick={() => setExpanded(true)}
-        className="block w-full rounded-lg border border-dashed border-rule py-3 font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground hover:border-foreground hover:text-foreground"
-      >
-        + add day
-      </button>
-    )
-  }
+  if (!open) return null
 
   return (
     <DayForm
@@ -591,6 +891,9 @@ function DayForm({
   setSub,
   tone,
   setTone,
+  locations,
+  locationId,
+  setLocationId,
   error,
   isPending,
   submitLabel,
@@ -611,6 +914,10 @@ function DayForm({
   setSub: (s: string) => void
   tone: ItineraryTone
   setTone: (t: ItineraryTone) => void
+  /** When provided (Edit mode), a Location select moves the day. */
+  locations?: ItineraryLocation[]
+  locationId?: string | null
+  setLocationId?: (v: string | null) => void
   error: string | null
   isPending: boolean
   submitLabel: string
@@ -736,6 +1043,29 @@ function DayForm({
           ))}
         </div>
       </div>
+
+      {locations && setLocationId ? (
+        <label className="mt-3 block">
+          <span className="block font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
+            Location
+          </span>
+          <select
+            value={locationId ?? ""}
+            onChange={(e) =>
+              setLocationId(e.target.value === "" ? null : e.target.value)
+            }
+            disabled={isPending}
+            className="mt-1 w-full border-0 border-b border-rule bg-transparent py-1.5 text-[14px] text-foreground focus:border-clay focus:outline-none disabled:opacity-50"
+          >
+            <option value="">In transit (no location)</option>
+            {locations.map((l) => (
+              <option key={l.id} value={l.id}>
+                {l.name}
+              </option>
+            ))}
+          </select>
+        </label>
+      ) : null}
 
       {error ? (
         <div className="mt-3 font-mono text-[10px] text-clay">{error}</div>
