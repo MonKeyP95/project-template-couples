@@ -48,7 +48,12 @@ export default async function RootLayout({
       className={`${sans.variable} ${serif.variable} ${mono.variable} h-full antialiased${dark ? " dark" : ""}`}
       suppressHydrationWarning
     >
-      <body className="min-h-full flex flex-col font-sans">{children}</body>
+      <body
+        className="min-h-full flex flex-col font-sans"
+        suppressHydrationWarning
+      >
+        {children}
+      </body>
     </html>
   )
 }

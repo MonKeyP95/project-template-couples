@@ -12,6 +12,8 @@ export interface TripListItem {
   fuzzyWhen: string | null
   lat: number | null
   lng: number | null
+  plannedBudgetCents: number
+  savedCents: number
   state: TripState
 }
 
@@ -36,6 +38,8 @@ interface TripRow {
   fuzzy_when: string | null
   lat: string | number | null
   lng: string | number | null
+  planned_budget_cents: number
+  saved_cents: number
   created_at: string
 }
 
@@ -70,7 +74,7 @@ export async function listTripsForWorkspace(
   const { data } = await supabase
     .from("trips")
     .select(
-      "id, slug, name, country, start_date, end_date, fuzzy_when, lat, lng, created_at",
+      "id, slug, name, country, start_date, end_date, fuzzy_when, lat, lng, planned_budget_cents, saved_cents, created_at",
     )
     .eq("workspace_id", workspaceId)
     .order("created_at", { ascending: true })
@@ -89,6 +93,8 @@ export async function listTripsForWorkspace(
     fuzzyWhen: row.fuzzy_when,
     lat: asNumber(row.lat),
     lng: asNumber(row.lng),
+    plannedBudgetCents: row.planned_budget_cents,
+    savedCents: row.saved_cents,
     state: deriveState(today, row.start_date, row.end_date),
   }))
 

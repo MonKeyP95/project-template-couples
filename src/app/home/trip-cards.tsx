@@ -1,6 +1,7 @@
 import Link from "next/link"
 
 import {
+  Bar,
   Chevron,
   Coord,
   Label,
@@ -54,6 +55,23 @@ function formatCoord(lat: number | null, lng: number | null): string | null {
   return `${latStr} · ${lngStr}`
 }
 
+/**
+ * Thin moss progress bar showing saved-so-far against the planned budget.
+ * Renders nothing until a budget is set, matching the budget tab's rule.
+ */
+function SavedBar({ saved, planned }: { saved: number; planned: number }) {
+  if (planned <= 0) return null
+  const pct = Math.min(100, Math.round((saved / planned) * 100))
+  return (
+    <div className="mt-2.5 flex items-center gap-2">
+      <Bar pct={pct} tone="moss" className="h-0.5 flex-1" />
+      <span className="shrink-0 font-mono text-[9px] tracking-[0.06em] text-muted-foreground">
+        {pct}% saved
+      </span>
+    </div>
+  )
+}
+
 /** Top-of-page hero card. Used for at most one trip per render. */
 export function HeroCard({
   trip,
@@ -96,19 +114,22 @@ export function HeroCard({
           </div>
         </div>
       </div>
-      <div className="flex items-center justify-between px-4 py-3 md:px-5 md:py-3.5">
-        <div>
-          {dateRange ? (
-            <div className="font-mono text-[11px] tracking-[0.04em] text-foreground">
-              {dateRange}
+      <div className="px-4 py-3 md:px-5 md:py-3.5">
+        <div className="flex items-center justify-between">
+          <div>
+            {dateRange ? (
+              <div className="font-mono text-[11px] tracking-[0.04em] text-foreground">
+                {dateRange}
+              </div>
+            ) : null}
+            <div className="mt-0.5 font-mono text-[10px] tracking-[0.06em] text-muted-foreground">
+              {length ? `${length} days · ` : ""}
+              {memberCount} {memberCount === 1 ? "traveller" : "travellers"}
             </div>
-          ) : null}
-          <div className="mt-0.5 font-mono text-[10px] tracking-[0.06em] text-muted-foreground">
-            {length ? `${length} days · ` : ""}
-            {memberCount} {memberCount === 1 ? "traveller" : "travellers"}
           </div>
+          <Chevron />
         </div>
-        <Chevron />
+        <SavedBar saved={trip.savedCents} planned={trip.plannedBudgetCents} />
       </div>
     </Link>
   )
@@ -150,22 +171,25 @@ export function TripCard({ trip }: { trip: TripListItem }) {
           </div>
         </div>
       </div>
-      <div className="flex items-center justify-between px-3.5 py-2.5 md:px-4 md:py-3">
-        {dateRange ? (
-          <span className="font-mono text-[10px] tracking-[0.06em] text-foreground">
-            {dateRange}
-          </span>
-        ) : (
-          <span />
-        )}
-        <div className="flex items-center gap-2.5">
-          {length ? (
-            <span className="font-mono text-[10px] tracking-[0.06em] text-muted-foreground">
-              {length} days
+      <div className="px-3.5 py-2.5 md:px-4 md:py-3">
+        <div className="flex items-center justify-between">
+          {dateRange ? (
+            <span className="font-mono text-[10px] tracking-[0.06em] text-foreground">
+              {dateRange}
             </span>
-          ) : null}
-          <Chevron />
+          ) : (
+            <span />
+          )}
+          <div className="flex items-center gap-2.5">
+            {length ? (
+              <span className="font-mono text-[10px] tracking-[0.06em] text-muted-foreground">
+                {length} days
+              </span>
+            ) : null}
+            <Chevron />
+          </div>
         </div>
+        <SavedBar saved={trip.savedCents} planned={trip.plannedBudgetCents} />
       </div>
     </Link>
   )
@@ -223,6 +247,7 @@ export function DreamTile({ trip }: { trip: TripListItem }) {
           <em>{trip.name}</em>
         </div>
         <Coord>{labelText}</Coord>
+        <SavedBar saved={trip.savedCents} planned={trip.plannedBudgetCents} />
       </div>
     </Link>
   )
