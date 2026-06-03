@@ -358,7 +358,8 @@ export function ItineraryTab({
         </span>
       </div>
 
-      <div className="flex gap-1.5 overflow-x-auto px-5 pt-3 lg:px-10">
+      <div className="flex items-center gap-1.5 px-5 pt-3 lg:px-10">
+        <div className="flex gap-1.5 overflow-x-auto">
         {orderedTabs.map((loc) => (
           <button
             key={loc.id}
@@ -388,6 +389,7 @@ export function ItineraryTab({
             In transit
           </button>
         ) : null}
+        </div>
         {addingLocation ? (
           <form onSubmit={submitNewLocation} className="inline-flex">
             <input
@@ -414,7 +416,7 @@ export function ItineraryTab({
               +
             </button>
             <div
-              className={`absolute right-0 z-10 mt-1 w-32 flex-col overflow-hidden rounded-lg border border-border bg-card shadow-sm ${
+              className={`absolute right-0 z-20 mt-1 w-32 flex-col overflow-hidden rounded-lg border border-border bg-card shadow-sm ${
                 addMenuOpen ? "flex" : "hidden group-hover:flex"
               }`}
             >
