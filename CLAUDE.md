@@ -50,7 +50,7 @@ Anything beyond this — budget, itinerary days, AI assistant, integrations — 
 - **Shadcn/ui** (style `base-nova`, primitives on `@base-ui/react`) — *installed and themed*; `button`, `input`, `dialog` under `@/components/ui`. `cn()` at `@/lib/utils`. Palette is the warm `DESIGN.md` set (OKLCH, light + warm-mocha dark) in `src/app/globals.css`. **Note**: this Button has no `asChild` prop — to style a `Link` as a button, use `buttonVariants(...)` directly.
 - **Supabase** — Postgres + Auth + RLS + Realtime — *project provisioned, clients wired* (no tables yet)
 - **`@supabase/ssr` 0.10** + **`@supabase/supabase-js` 2.106** — clients at `src/lib/supabase/{client,server}.ts`, session refresh in `src/proxy.ts`. No ORM. Cookie pattern: `getAll`/`setAll`.
-- **Vercel** for deployment — *not yet connected* (Phase 1 task 6)
+- **Vercel** for deployment — *connected* (GitHub integration; push to `main` deploys prod, PRs get previews). Live at https://project-template-couples.vercel.app
 - **Anthropic Claude** is added in Phase 5; do not wire it up early
 
 Use the latest stable APIs (App Router patterns, Server Actions, `@supabase/ssr` client pattern).
