@@ -9,10 +9,10 @@ function fmt(cents: number): string {
   return (cents / 100).toFixed(2)
 }
 
-function EditCue() {
+function Cue({ label }: { label: string }) {
   return (
     <span className="ml-1.5 font-mono text-[9px] uppercase tracking-[0.18em] text-muted-foreground">
-      edit
+      {label}
     </span>
   )
 }
@@ -21,10 +21,13 @@ function AmountField({
   valueCents,
   onSave,
   trigger,
+  additive = false,
 }: {
   valueCents: number
   onSave: (cents: number) => Promise<{ error?: string }>
   trigger: React.ReactNode
+  /** When true, the entered amount is added to the current value instead of replacing it. */
+  additive?: boolean
 }) {
   const [editing, setEditing] = React.useState(false)
   const [value, setValue] = React.useState("")
@@ -37,7 +40,9 @@ function AmountField({
   }, [editing])
 
   function open() {
-    setValue(valueCents > 0 ? (valueCents / 100).toFixed(0) : "")
+    // Additive fields start blank (you type the amount to add); replace fields
+    // pre-fill the current value so an edit is a tweak, not a retype.
+    setValue(!additive && valueCents > 0 ? (valueCents / 100).toFixed(0) : "")
     setError(null)
     setEditing(true)
   }
@@ -51,8 +56,9 @@ function AmountField({
       return
     }
     const cents = Math.round(num * 100)
+    const next = additive ? valueCents + cents : cents
     startTransition(async () => {
-      const result = await onSave(cents)
+      const result = await onSave(next)
       if (result.error) {
         setError(result.error)
         return
@@ -62,6 +68,9 @@ function AmountField({
   }
 
   if (!editing) {
+    // For an additive field with nothing saved yet, the trigger placeholder
+    // ("+ set savings") already carries the affordance, so skip the cue.
+    const showCue = !additive || valueCents > 0
     return (
       <button
         type="button"
@@ -69,7 +78,7 @@ function AmountField({
         className="inline-flex items-baseline border-0 bg-transparent p-0 text-left"
       >
         {trigger}
-        <EditCue />
+        {showCue ? <Cue label={additive ? "+" : "edit"} /> : null}
       </button>
     )
   }
@@ -82,7 +91,9 @@ function AmountField({
       }}
       className="inline-flex items-center gap-1.5"
     >
-      <span className="t-display text-[20px] text-muted-foreground">€</span>
+      <span className="t-display text-[20px] text-muted-foreground">
+        {additive ? "+€" : "€"}
+      </span>
       <input
         ref={inputRef}
         type="number"
@@ -98,7 +109,7 @@ function AmountField({
         disabled={isPending}
         className="rounded-full border-0 bg-foreground px-2.5 py-1 font-mono text-[9px] uppercase tracking-[0.2em] text-background disabled:opacity-40"
       >
-        {isPending ? "…" : "save"}
+        {isPending ? "…" : additive ? "add" : "save"}
       </button>
       {error ? (
         <span className="font-mono text-[9px] text-clay">{error}</span>
@@ -181,6 +192,7 @@ export function BudgetFigures({
             {fmt(savedCents)}
           </span>
           <AmountField
+            additive
             valueCents={savedCents}
             onSave={saveSaved}
             trigger={
