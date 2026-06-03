@@ -116,6 +116,8 @@ export function DreamItineraryTab({
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
   )
+  // Stable id keeps dnd-kit's aria-describedby deterministic across SSR/CSR.
+  const dndId = React.useId()
   const [, startReschedule] = React.useTransition()
 
   function onDragEnd(e: DragEndEvent) {
@@ -161,6 +163,7 @@ export function DreamItineraryTab({
           </p>
         ) : (
           <DndContext
+            id={dndId}
             sensors={sensors}
             collisionDetection={closestCenter}
             onDragEnd={onDragEnd}
@@ -406,6 +409,7 @@ function AddDreamDayRow({
   const [title, setTitle] = React.useState("")
   const [sub, setSub] = React.useState("")
   const [tone, setTone] = React.useState<ItineraryTone>("sea")
+  const [count, setCount] = React.useState("1")
   const [error, setError] = React.useState<string | null>(null)
   const [isPending, startTransition] = React.useTransition()
 
@@ -415,6 +419,7 @@ function AddDreamDayRow({
     setTitle("")
     setSub("")
     setTone("sea")
+    setCount("1")
     setError(null)
   }
 
@@ -430,6 +435,7 @@ function AddDreamDayRow({
         sub,
         tag,
         tone,
+        count: Number(count),
       })
       if (result.error) {
         setError(result.error)
@@ -462,6 +468,8 @@ function AddDreamDayRow({
       setSub={setSub}
       tone={tone}
       setTone={setTone}
+      count={count}
+      setCount={setCount}
       error={error}
       isPending={isPending}
       submitLabel="add"
@@ -481,6 +489,8 @@ function DreamDayForm({
   setSub,
   tone,
   setTone,
+  count,
+  setCount,
   error,
   isPending,
   submitLabel,
@@ -496,6 +506,9 @@ function DreamDayForm({
   setSub: (s: string) => void
   tone: ItineraryTone
   setTone: (t: ItineraryTone) => void
+  /** When provided (Add mode), a "days" count enables multi-day creation. */
+  count?: string
+  setCount?: (s: string) => void
   error: string | null
   isPending: boolean
   submitLabel: string
@@ -575,6 +588,23 @@ function DreamDayForm({
           ))}
         </div>
       </div>
+
+      {setCount ? (
+        <label className="mt-4 block">
+          <span className="block font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
+            Days
+          </span>
+          <input
+            type="number"
+            min={1}
+            max={31}
+            value={count ?? "1"}
+            onChange={(e) => setCount(e.target.value)}
+            disabled={isPending}
+            className="t-num mt-1 w-20 border-0 border-b border-rule bg-transparent py-1.5 text-[14px] text-foreground focus:border-clay focus:outline-none disabled:opacity-50"
+          />
+        </label>
+      ) : null}
 
       {error ? (
         <div className="mt-3 font-mono text-[10px] text-clay">{error}</div>

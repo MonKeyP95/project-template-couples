@@ -16,6 +16,10 @@ export interface ItineraryDay {
   sub: string
   tag: string
   tone: ItineraryTone
+  /** Shared id for days added as one multi-day span; null when ungrouped. */
+  groupId: string | null
+  /** Location this day is filed under; null = a travel/transit day. */
+  locationId: string | null
 }
 
 export interface ItineraryRow {
@@ -25,6 +29,8 @@ export interface ItineraryRow {
   sub: string | null
   tag: string
   tone: string
+  group_id?: string | null
+  location_id?: string | null
 }
 
 const DOW_FMT = new Intl.DateTimeFormat("en-US", {
@@ -55,6 +61,8 @@ export function rowToItineraryDay(row: ItineraryRow): ItineraryDay {
     sub: row.sub ?? "",
     tag: row.tag,
     tone: row.tone as ItineraryTone,
+    groupId: row.group_id ?? null,
+    locationId: row.location_id ?? null,
   }
 }
 

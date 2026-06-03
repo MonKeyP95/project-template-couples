@@ -2,27 +2,14 @@
 
 import * as React from "react"
 
-import {
-  DndContext,
-  PointerSensor,
-  closestCenter,
-  useSensor,
-  useSensors,
-  type DragEndEvent,
-} from "@dnd-kit/core"
-import {
-  SortableContext,
-  arrayMove,
-  useSortable,
-  verticalListSortingStrategy,
-} from "@dnd-kit/sortable"
-import { CSS } from "@dnd-kit/utilities"
 import { Label, MonoBadge, SuggestionCard } from "@/components/together"
 import { createClient } from "@/lib/supabase/client"
 import {
   addItineraryDay,
+  createItineraryLocation,
   deleteItineraryDay,
-  rescheduleItineraryDays,
+  deleteItineraryLocation,
+  renameItineraryLocation,
   updateItineraryDay,
 } from "@/lib/trips/actions"
 import {
@@ -32,12 +19,22 @@ import {
   type ItineraryDay,
   type ItineraryTone,
 } from "@/lib/trips/itinerary-types"
+import type { ItineraryLocation } from "@/lib/trips/location-types"
+import { slugToTone } from "@/lib/trips/slug-tone"
 
 const itineraryBorder: Record<ItineraryTone, string> = {
   sea: "border-l-sea",
   clay: "border-l-clay",
   moss: "border-l-moss",
   sand: "border-l-sand",
+}
+
+// Tone text color for the location header name (matches MonoBadge tones).
+const toneText: Record<ItineraryTone, string> = {
+  sea: "text-sea",
+  clay: "text-clay",
+  moss: "text-moss",
+  sand: "text-sand",
 }
 
 interface RealtimeRow {
@@ -48,8 +45,29 @@ interface RealtimeRow {
   sub: string | null
   tag: string
   tone: string
+  group_id: string | null
+  location_id: string | null
   created_by: string
   created_at: string
+}
+
+interface DaySegment {
+  groupId: string | null
+  days: ItineraryDay[]
+}
+
+/** Collapse sorted days into maximal runs of consecutive same-group_id days. */
+function toSegments(days: ItineraryDay[]): DaySegment[] {
+  const segments: DaySegment[] = []
+  for (const day of days) {
+    const last = segments[segments.length - 1]
+    if (day.groupId && last && last.groupId === day.groupId) {
+      last.days.push(day)
+    } else {
+      segments.push({ groupId: day.groupId, days: [day] })
+    }
+  }
+  return segments
 }
 
 function nextDayAfter(yyyyMmDd: string): string {
@@ -58,16 +76,107 @@ function nextDayAfter(yyyyMmDd: string): string {
   return d.toISOString().slice(0, 10)
 }
 
+/** Order locations by earliest day date, empties last by sortOrder. */
+function orderTabs(
+  locations: ItineraryLocation[],
+  days: ItineraryDay[],
+): ItineraryLocation[] {
+  const earliest = new Map<string, string>()
+  for (const d of days) {
+    if (!d.locationId) continue
+    const cur = earliest.get(d.locationId)
+    if (cur === undefined || d.dayDate < cur) earliest.set(d.locationId, d.dayDate)
+  }
+  return [...locations].sort((a, b) => {
+    const da = earliest.get(a.id)
+    const db = earliest.get(b.id)
+    if (da && db) return da < db ? -1 : da > db ? 1 : a.sortOrder - b.sortOrder
+    if (da) return -1
+    if (db) return 1
+    return a.sortOrder - b.sortOrder
+  })
+}
+
+const TRANSIT_KEY = "__transit__"
+
+interface DayGroup {
+  /** Location id, or TRANSIT_KEY for unfiled travel days. */
+  key: string
+  name: string
+  /** null for the transit group. */
+  tone: ItineraryTone | null
+  /** 1-based location number, or null for transit. */
+  ord: number | null
+  days: ItineraryDay[]
+}
+
+function byDate(a: ItineraryDay, b: ItineraryDay): number {
+  return a.dayDate < b.dayDate ? -1 : a.dayDate > b.dayDate ? 1 : 0
+}
+
+/**
+ * Split days into location groups (+ a trailing transit group for unfiled
+ * days), ordered top-to-bottom by each group's earliest day. Empty locations
+ * sort last. Location ordinals follow the location order (earliest day first).
+ */
+function buildGroups(
+  locations: ItineraryLocation[],
+  days: ItineraryDay[],
+): DayGroup[] {
+  const byLoc = new Map<string, ItineraryDay[]>()
+  const travel: ItineraryDay[] = []
+  for (const d of days) {
+    if (d.locationId) {
+      const arr = byLoc.get(d.locationId)
+      if (arr) arr.push(d)
+      else byLoc.set(d.locationId, [d])
+    } else {
+      travel.push(d)
+    }
+  }
+
+  const groups: DayGroup[] = orderTabs(locations, days).map((loc, i) => ({
+    key: loc.id,
+    name: loc.name,
+    tone: slugToTone(loc.id),
+    ord: i + 1,
+    days: (byLoc.get(loc.id) ?? []).slice().sort(byDate),
+  }))
+
+  if (travel.length) {
+    groups.push({
+      key: TRANSIT_KEY,
+      name: "In transit",
+      tone: null,
+      ord: null,
+      days: travel.slice().sort(byDate),
+    })
+  }
+
+  // Chronological top-to-bottom; empty groups (no days) keep their order, last.
+  return groups
+    .map((g, idx) => ({ g, e: g.days[0]?.dayDate ?? null, idx }))
+    .sort((a, b) => {
+      if (a.e && b.e) return a.e < b.e ? -1 : a.e > b.e ? 1 : a.idx - b.idx
+      if (a.e) return -1
+      if (b.e) return 1
+      return a.idx - b.idx
+    })
+    .map((x) => x.g)
+}
+
 export function ItineraryTab({
   tripId,
   tripSlug,
   tripStartDate,
   initialItems,
+  initialLocations,
 }: {
   tripId: string
   tripSlug: string
   tripStartDate: string
   initialItems: ItineraryDay[]
+  initialLocations: ItineraryLocation[]
 }) {
   const [days, setDays] = React.useState<ItineraryDay[]>(initialItems)
   const [lastInitial, setLastInitial] = React.useState(initialItems)
@@ -76,6 +185,18 @@ export function ItineraryTab({
   if (initialItems !== lastInitial) {
     setLastInitial(initialItems)
     setDays(initialItems)
+  }
+
+  const [locations, setLocations] = React.useState<ItineraryLocation[]>(
+    initialLocations,
+  )
+  const [lastInitialLocations, setLastInitialLocations] =
+    React.useState(initialLocations)
+  const [collapsed, setCollapsed] = React.useState<Set<string>>(new Set())
+
+  if (initialLocations !== lastInitialLocations) {
+    setLastInitialLocations(initialLocations)
+    setLocations(initialLocations)
   }
 
   React.useEffect(() => {
@@ -122,50 +243,115 @@ export function ItineraryTab({
     }
   }, [tripId])
 
+  React.useEffect(() => {
+    const supabase = createClient()
+    const channel = supabase
+      .channel(`itinerary-locations-${tripId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "itinerary_locations",
+          filter: `trip_id=eq.${tripId}`,
+        },
+        (payload) => {
+          if (payload.eventType === "INSERT") {
+            const r = payload.new as {
+              id: string
+              name: string
+              sort_order: number
+            }
+            const incoming: ItineraryLocation = {
+              id: r.id,
+              name: r.name,
+              sortOrder: r.sort_order,
+            }
+            setLocations((prev) =>
+              prev.some((l) => l.id === incoming.id)
+                ? prev
+                : [...prev, incoming].sort((a, b) => a.sortOrder - b.sortOrder),
+            )
+          } else if (payload.eventType === "UPDATE") {
+            const r = payload.new as {
+              id: string
+              name: string
+              sort_order: number
+            }
+            setLocations((prev) =>
+              prev
+                .map((l) =>
+                  l.id === r.id
+                    ? { id: r.id, name: r.name, sortOrder: r.sort_order }
+                    : l,
+                )
+                .sort((a, b) => a.sortOrder - b.sortOrder),
+            )
+          } else if (payload.eventType === "DELETE") {
+            const old = payload.old as { id?: string }
+            if (old.id) {
+              setLocations((prev) => prev.filter((l) => l.id !== old.id))
+            }
+          }
+        },
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [tripId])
+
   const defaultDate =
     days.length > 0
       ? nextDayAfter(days[days.length - 1].dayDate)
       : tripStartDate
 
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
-  )
-  const [, startReschedule] = React.useTransition()
+  const groups = buildGroups(locations, days)
 
-  function onDragEnd(e: DragEndEvent) {
-    const { active, over } = e
-    if (!over || active.id === over.id) return
-    const oldIndex = days.findIndex((d) => d.id === active.id)
-    const newIndex = days.findIndex((d) => d.id === over.id)
-    if (oldIndex === -1 || newIndex === -1) return
+  const [addDayFor, setAddDayFor] = React.useState<string | null>(null)
+  const [addingLocation, setAddingLocation] = React.useState(false)
+  const [newLocName, setNewLocName] = React.useState("")
+  const [renamingId, setRenamingId] = React.useState<string | null>(null)
+  const [renameVal, setRenameVal] = React.useState("")
+  const [, startLoc] = React.useTransition()
 
-    const snapshot = days
-    const reordered = arrayMove(days, oldIndex, newIndex)
-    // The trip's existing dates, sorted, are the fixed slots. yyyy-mm-dd sorts
-    // lexically = chronologically. Rebuild via rowToItineraryDay so dow/date
-    // recompute from the reassigned day_date.
-    const slots = days.map((d) => d.dayDate).sort()
-    const reassigned = withOrdinals(
-      reordered.map((d, i) =>
-        rowToItineraryDay({
-          id: d.id,
-          day_date: slots[i],
-          title: d.title,
-          sub: d.sub,
-          tag: d.tag,
-          tone: d.tone,
-        }),
-      ),
-    )
-    setDays(reassigned)
+  function toggleCollapse(key: string) {
+    setCollapsed((prev) => {
+      const next = new Set(prev)
+      if (next.has(key)) next.delete(key)
+      else next.add(key)
+      return next
+    })
+  }
 
-    startReschedule(async () => {
-      const result = await rescheduleItineraryDays(
-        tripId,
-        tripSlug,
-        reordered.map((d) => d.id),
-      )
-      if (result.error) setDays(snapshot)
+  function submitNewLocation(e: React.FormEvent) {
+    e.preventDefault()
+    const name = newLocName.trim()
+    if (!name) return
+    startLoc(async () => {
+      await createItineraryLocation(tripId, tripSlug, name)
+      setNewLocName("")
+      setAddingLocation(false)
+    })
+  }
+
+  function submitRename(e: React.FormEvent, locationId: string) {
+    e.preventDefault()
+    const name = renameVal.trim()
+    if (!name) return
+    startLoc(async () => {
+      await renameItineraryLocation(locationId, tripSlug, name)
+      setRenamingId(null)
+    })
+  }
+
+  function removeLocation(locationId: string) {
+    if (!window.confirm("Delete this location? Its days become travel days.")) {
+      return
+    }
+    startLoc(async () => {
+      await deleteItineraryLocation(locationId, tripSlug)
     })
   }
 
@@ -178,47 +364,7 @@ export function ItineraryTab({
         </span>
       </div>
 
-      <div className="px-5 pt-2.5 lg:px-10">
-        {days.length === 0 ? (
-          <p className="font-serif text-[15px] italic text-muted-foreground">
-            No days planned yet — add the first one.
-          </p>
-        ) : (
-          <DndContext
-            sensors={sensors}
-            collisionDetection={closestCenter}
-            onDragEnd={onDragEnd}
-          >
-            <SortableContext
-              items={days.map((d) => d.id)}
-              strategy={verticalListSortingStrategy}
-            >
-              {days.map((day, i) => (
-                <SortableDayCard
-                  key={day.id}
-                  id={day.id}
-                  day={day}
-                  tripSlug={tripSlug}
-                  isLast={i === days.length - 1}
-                  isEditing={editingId === day.id}
-                  onStartEdit={() => setEditingId(day.id)}
-                  onStopEdit={() => setEditingId(null)}
-                />
-              ))}
-            </SortableContext>
-          </DndContext>
-        )}
-      </div>
-
       <div className="px-5 pt-4 lg:px-10">
-        <AddDayRow
-          tripId={tripId}
-          tripSlug={tripSlug}
-          defaultDate={defaultDate}
-        />
-      </div>
-
-      <div className="px-5 pt-4 pb-6 lg:px-10">
         <SuggestionCard
           label="/ assistant"
           applyLabel="apply"
@@ -230,6 +376,187 @@ export function ItineraryTab({
           </span>{" "}
           so you&apos;re not arriving in Senaru tired?
         </SuggestionCard>
+      </div>
+
+      <div className="px-5 pt-4 pb-6 lg:px-10">
+        {groups.length === 0 ? (
+          <p className="font-serif text-[15px] italic text-muted-foreground">
+            No days planned yet — add a location to start.
+          </p>
+        ) : (
+          groups.map((group) => {
+            const open = !collapsed.has(group.key)
+            const isLoc = group.key !== TRANSIT_KEY
+            const count = group.days.length
+            const last = group.days[count - 1]
+            const range =
+              count === 0
+                ? ""
+                : count === 1
+                  ? group.days[0].date
+                  : `${group.days[0].date} – ${last.date}`
+            return (
+              <div
+                key={group.key}
+                className="border-t border-rule first:border-t-0"
+              >
+                <div className="flex items-center gap-3 py-3">
+                  <span className="w-7 flex-shrink-0 font-mono text-[18px] leading-none text-muted-foreground">
+                    {group.ord !== null
+                      ? String(group.ord).padStart(2, "0")
+                      : "··"}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    {isLoc && renamingId === group.key ? (
+                      <form onSubmit={(e) => submitRename(e, group.key)}>
+                        <input
+                          type="text"
+                          autoFocus
+                          value={renameVal}
+                          onChange={(e) => setRenameVal(e.target.value)}
+                          onBlur={() => setRenamingId(null)}
+                          className="t-display w-full border-0 border-b border-rule bg-transparent text-[20px] leading-none text-foreground focus:border-clay focus:outline-none"
+                        />
+                      </form>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => toggleCollapse(group.key)}
+                        aria-expanded={open}
+                        className={`t-display text-left text-[20px] leading-none ${
+                          group.tone ? toneText[group.tone] : "text-foreground"
+                        }`}
+                      >
+                        {group.name}
+                      </button>
+                    )}
+                    <div className="mt-1 font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
+                      {count === 0
+                        ? "no days"
+                        : `${count} ${count === 1 ? "day" : "days"}${
+                            range ? ` · ${range}` : ""
+                          }`}
+                    </div>
+                  </div>
+                  {isLoc ? (
+                    <div className="flex items-center gap-1">
+                      <button
+                        type="button"
+                        aria-label="Rename location"
+                        onClick={() => {
+                          setRenameVal(group.name)
+                          setRenamingId(group.key)
+                        }}
+                        className="border-0 bg-transparent px-1 font-mono text-[11px] text-muted-foreground hover:text-foreground"
+                      >
+                        ✎
+                      </button>
+                      <button
+                        type="button"
+                        aria-label="Delete location"
+                        onClick={() => removeLocation(group.key)}
+                        className="border-0 bg-transparent px-1 font-mono text-[11px] text-muted-foreground hover:text-clay"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ) : null}
+                  <button
+                    type="button"
+                    aria-label={open ? "Collapse" : "Expand"}
+                    onClick={() => toggleCollapse(group.key)}
+                    className="border-0 bg-transparent px-1 font-mono text-[13px] leading-none text-muted-foreground hover:text-foreground"
+                  >
+                    {open ? "⌄" : "›"}
+                  </button>
+                </div>
+
+                {open ? (
+                  <div className="pb-3 pl-10">
+                    {toSegments(group.days).map((seg) => {
+                      const cards = seg.days.map((day) => (
+                        <DayCard
+                          key={day.id}
+                          day={day}
+                          tripSlug={tripSlug}
+                          isLast={day.id === last.id}
+                          isEditing={editingId === day.id}
+                          onStartEdit={() => setEditingId(day.id)}
+                          onStopEdit={() => setEditingId(null)}
+                          locations={locations}
+                        />
+                      ))
+                      if (seg.groupId && seg.days.length > 1) {
+                        return (
+                          <div
+                            key={seg.groupId}
+                            className="relative my-1.5 rounded-xl border border-rule px-2.5 pt-5 pb-1"
+                          >
+                            <span className="absolute left-3 top-1.5 font-mono text-[9px] uppercase tracking-[0.14em] text-muted-foreground">
+                              added together
+                            </span>
+                            {cards}
+                          </div>
+                        )
+                      }
+                      return (
+                        <React.Fragment key={seg.days[0].id}>
+                          {cards}
+                        </React.Fragment>
+                      )
+                    })}
+
+                    <div className="pt-2">
+                      <AddDayRow
+                        tripId={tripId}
+                        tripSlug={tripSlug}
+                        defaultDate={defaultDate}
+                        locationId={isLoc ? group.key : null}
+                        open={addDayFor === group.key}
+                        onClose={() => setAddDayFor(null)}
+                      />
+                      {addDayFor === group.key ? null : (
+                        <button
+                          type="button"
+                          onClick={() => setAddDayFor(group.key)}
+                          className="block w-full rounded-lg border border-dashed border-rule py-2 font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground hover:border-foreground hover:text-foreground"
+                        >
+                          + day
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ) : null}
+              </div>
+            )
+          })
+        )}
+
+        <div className="pt-4">
+          {addingLocation ? (
+            <form onSubmit={submitNewLocation}>
+              <input
+                type="text"
+                autoFocus
+                value={newLocName}
+                onChange={(e) => setNewLocName(e.target.value)}
+                onBlur={() => {
+                  if (!newLocName.trim()) setAddingLocation(false)
+                }}
+                placeholder="Location name"
+                className="block w-full rounded-lg border border-clay bg-transparent px-3 py-2.5 font-mono text-[12px] text-foreground placeholder:text-muted-foreground focus:outline-none"
+              />
+            </form>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setAddingLocation(true)}
+              className="block w-full rounded-lg border border-dashed border-rule py-3 font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground hover:border-foreground hover:text-foreground"
+            >
+              + location
+            </button>
+          )}
+        </div>
       </div>
     </section>
   )
@@ -243,6 +570,7 @@ interface DayCardProps {
   onStartEdit: () => void
   onStopEdit: () => void
   dragHandle?: React.ReactNode
+  locations: ItineraryLocation[]
 }
 
 function DayCard({
@@ -253,9 +581,17 @@ function DayCard({
   onStartEdit,
   onStopEdit,
   dragHandle,
+  locations,
 }: DayCardProps) {
   if (isEditing) {
-    return <DayEditor day={day} tripSlug={tripSlug} onDone={onStopEdit} />
+    return (
+      <DayEditor
+        day={day}
+        tripSlug={tripSlug}
+        locations={locations}
+        onDone={onStopEdit}
+      />
+    )
   }
   return (
     <DayView
@@ -265,41 +601,6 @@ function DayCard({
       onStartEdit={onStartEdit}
       dragHandle={dragHandle}
     />
-  )
-}
-
-function SortableDayCard({ id, ...rest }: DayCardProps & { id: string }) {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
-  } = useSortable({ id })
-
-  const style: React.CSSProperties = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging ? 0.6 : undefined,
-  }
-
-  const handle = (
-    <button
-      type="button"
-      aria-label="Drag to reschedule day"
-      className="cursor-grab touch-none border-0 bg-transparent px-0.5 font-mono text-[12px] leading-none text-muted-foreground hover:text-foreground active:cursor-grabbing"
-      {...attributes}
-      {...listeners}
-    >
-      ⠿
-    </button>
-  )
-
-  return (
-    <div ref={setNodeRef} style={style}>
-      <DayCard {...rest} dragHandle={handle} />
-    </div>
   )
 }
 
@@ -389,10 +690,12 @@ function DayView({
 function DayEditor({
   day,
   tripSlug,
+  locations,
   onDone,
 }: {
   day: ItineraryDay
   tripSlug: string
+  locations: ItineraryLocation[]
   onDone: () => void
 }) {
   const [dayDate, setDayDate] = React.useState(day.dayDate)
@@ -400,6 +703,9 @@ function DayEditor({
   const [title, setTitle] = React.useState(day.title)
   const [sub, setSub] = React.useState(day.sub)
   const [tone, setTone] = React.useState<ItineraryTone>(day.tone)
+  const [locationId, setLocationId] = React.useState<string | null>(
+    day.locationId,
+  )
   const [error, setError] = React.useState<string | null>(null)
   const [isPending, startTransition] = React.useTransition()
 
@@ -416,6 +722,7 @@ function DayEditor({
         sub,
         tag,
         tone,
+        locationId,
       })
       if (result.error) {
         setError(result.error)
@@ -438,6 +745,9 @@ function DayEditor({
       setSub={setSub}
       tone={tone}
       setTone={setTone}
+      locations={locations}
+      locationId={locationId}
+      setLocationId={setLocationId}
       error={error}
       isPending={isPending}
       submitLabel="save"
@@ -451,13 +761,19 @@ function AddDayRow({
   tripId,
   tripSlug,
   defaultDate,
+  locationId,
+  open,
+  onClose,
 }: {
   tripId: string
   tripSlug: string
   defaultDate: string
+  locationId: string | null
+  open: boolean
+  onClose: () => void
 }) {
-  const [expanded, setExpanded] = React.useState(false)
   const [dayDate, setDayDate] = React.useState(defaultDate)
+  const [endDate, setEndDate] = React.useState("")
   const [tag, setTag] = React.useState("")
   const [title, setTitle] = React.useState("")
   const [sub, setSub] = React.useState("")
@@ -466,8 +782,9 @@ function AddDayRow({
   const [isPending, startTransition] = React.useTransition()
 
   function reset() {
-    setExpanded(false)
+    onClose()
     setDayDate(defaultDate)
+    setEndDate("")
     setTag("")
     setTitle("")
     setSub("")
@@ -484,10 +801,12 @@ function AddDayRow({
         tripId,
         tripSlug,
         dayDate,
+        endDate,
         title,
         sub,
         tag,
         tone,
+        locationId,
       })
       if (result.error) {
         setError(result.error)
@@ -497,23 +816,15 @@ function AddDayRow({
     })
   }
 
-  if (!expanded) {
-    return (
-      <button
-        type="button"
-        onClick={() => setExpanded(true)}
-        className="block w-full rounded-lg border border-dashed border-rule py-3 font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground hover:border-foreground hover:text-foreground"
-      >
-        + add day
-      </button>
-    )
-  }
+  if (!open) return null
 
   return (
     <DayForm
       heading="Add day"
       dayDate={dayDate}
       setDayDate={setDayDate}
+      endDate={endDate}
+      setEndDate={setEndDate}
       tag={tag}
       setTag={setTag}
       title={title}
@@ -535,6 +846,8 @@ function DayForm({
   heading,
   dayDate,
   setDayDate,
+  endDate,
+  setEndDate,
   tag,
   setTag,
   title,
@@ -543,6 +856,9 @@ function DayForm({
   setSub,
   tone,
   setTone,
+  locations,
+  locationId,
+  setLocationId,
   error,
   isPending,
   submitLabel,
@@ -552,6 +868,9 @@ function DayForm({
   heading: string
   dayDate: string
   setDayDate: (s: string) => void
+  /** When provided (Add mode), a second "To" date enables multi-day creation. */
+  endDate?: string
+  setEndDate?: (s: string) => void
   tag: string
   setTag: (s: string) => void
   title: string
@@ -560,6 +879,10 @@ function DayForm({
   setSub: (s: string) => void
   tone: ItineraryTone
   setTone: (t: ItineraryTone) => void
+  /** When provided (Edit mode), a Location select moves the day. */
+  locations?: ItineraryLocation[]
+  locationId?: string | null
+  setLocationId?: (v: string | null) => void
   error: string | null
   isPending: boolean
   submitLabel: string
@@ -578,7 +901,7 @@ function DayForm({
       <div className="grid grid-cols-2 gap-3">
         <label className="block">
           <span className="block font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
-            Date
+            {setEndDate ? "From" : "Date"}
           </span>
           <input
             type="date"
@@ -589,7 +912,38 @@ function DayForm({
             className="t-num mt-1 w-full border-0 border-b border-rule bg-transparent py-1.5 text-[14px] text-foreground focus:border-clay focus:outline-none disabled:opacity-50"
           />
         </label>
-        <label className="block">
+        {setEndDate ? (
+          <label className="block">
+            <span className="block font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
+              To
+            </span>
+            <input
+              type="date"
+              value={endDate ?? ""}
+              min={dayDate}
+              onChange={(e) => setEndDate(e.target.value)}
+              disabled={isPending}
+              className="t-num mt-1 w-full border-0 border-b border-rule bg-transparent py-1.5 text-[14px] text-foreground placeholder:text-muted-foreground focus:border-clay focus:outline-none disabled:opacity-50"
+            />
+          </label>
+        ) : (
+          <label className="block">
+            <span className="block font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
+              Tag
+            </span>
+            <input
+              type="text"
+              value={tag}
+              onChange={(e) => setTag(e.target.value)}
+              disabled={isPending}
+              className="mt-1 w-full border-0 border-b border-rule bg-transparent py-1.5 text-[14px] uppercase text-foreground placeholder:normal-case placeholder:text-muted-foreground focus:border-clay focus:outline-none disabled:opacity-50"
+            />
+          </label>
+        )}
+      </div>
+
+      {setEndDate ? (
+        <label className="mt-3 block">
           <span className="block font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
             Tag
           </span>
@@ -601,7 +955,7 @@ function DayForm({
             className="mt-1 w-full border-0 border-b border-rule bg-transparent py-1.5 text-[14px] uppercase text-foreground placeholder:normal-case placeholder:text-muted-foreground focus:border-clay focus:outline-none disabled:opacity-50"
           />
         </label>
-      </div>
+      ) : null}
 
       <label className="mt-3 block">
         <span className="block font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
@@ -654,6 +1008,29 @@ function DayForm({
           ))}
         </div>
       </div>
+
+      {locations && setLocationId ? (
+        <label className="mt-3 block">
+          <span className="block font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
+            Location
+          </span>
+          <select
+            value={locationId ?? ""}
+            onChange={(e) =>
+              setLocationId(e.target.value === "" ? null : e.target.value)
+            }
+            disabled={isPending}
+            className="mt-1 w-full border-0 border-b border-rule bg-transparent py-1.5 text-[14px] text-foreground focus:border-clay focus:outline-none disabled:opacity-50"
+          >
+            <option value="">In transit (no location)</option>
+            {locations.map((l) => (
+              <option key={l.id} value={l.id}>
+                {l.name}
+              </option>
+            ))}
+          </select>
+        </label>
+      ) : null}
 
       {error ? (
         <div className="mt-3 font-mono text-[10px] text-clay">{error}</div>

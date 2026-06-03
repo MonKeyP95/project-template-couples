@@ -20,6 +20,7 @@ import { getTripExpenses } from "@/lib/trips/expense-queries"
 import { summarizeBudget } from "@/lib/trips/expense-types"
 import { getTripDetailBySlug, type TripDetail } from "@/lib/trips/fixtures"
 import { getItineraryDays } from "@/lib/trips/itinerary-queries"
+import { getItineraryLocations } from "@/lib/trips/location-queries"
 import { getDreamItineraryDays } from "@/lib/trips/dream-itinerary-queries"
 import { getTripNotes } from "@/lib/trips/note-queries"
 import { getPackingCategories, getPackingItems } from "@/lib/trips/packing-queries"
@@ -139,10 +140,11 @@ export default async function TripPage({
   // level and share the result with the active tab below.
   const showItinerary = activeTab === "itinerary"
   const isDream = header.startDate === null
-  const [datedItinerary, dreamItinerary, notes, packingItems, packingCategories, expenses] =
+  const [datedItinerary, dreamItinerary, locations, notes, packingItems, packingCategories, expenses] =
     await Promise.all([
       showItinerary && !isDream ? getItineraryDays(header.id) : Promise.resolve(null),
       showItinerary && isDream ? getDreamItineraryDays(header.id) : Promise.resolve(null),
+      showItinerary && !isDream ? getItineraryLocations(header.id) : Promise.resolve(null),
       activeTab === "notes" ? getTripNotes(header.id) : Promise.resolve(null),
       getPackingItems(header.id),
       getPackingCategories(header.id),
@@ -189,6 +191,7 @@ export default async function TripPage({
               tripSlug={header.slug}
               tripStartDate={header.startDate}
               initialItems={datedItinerary ?? []}
+              initialLocations={locations ?? []}
             />
           )
         ) : activeTab === "packing" ? (

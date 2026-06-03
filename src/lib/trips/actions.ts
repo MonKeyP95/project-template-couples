@@ -21,6 +21,10 @@ import {
   rowToDreamDay,
   type DreamDay,
 } from "@/lib/trips/dream-itinerary-types"
+import {
+  rowToLocation,
+  type ItineraryLocation,
+} from "@/lib/trips/location-types"
 
 export interface ToggleResult {
   error?: string
@@ -829,10 +833,14 @@ export interface AddItineraryDayInput {
   tripId: string
   tripSlug: string
   dayDate: string
+  /** Optional inclusive end date. When later than dayDate, one entry per day in the range is created. */
+  endDate?: string
   title: string
   sub: string
   tag: string
   tone: ItineraryTone
+  /** Location to file the day(s) under; null/undefined = travel day. */
+  locationId?: string | null
 }
 
 export interface AddItineraryDayResult {
@@ -843,11 +851,27 @@ export interface AddItineraryDayResult {
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/
 
+/** Safety cap on how many days a single multi-day add can create. */
+const MAX_RANGE_DAYS = 31
+
+/** Inclusive list of yyyy-mm-dd dates from start to end. */
+function enumerateDates(start: string, end: string): string[] {
+  const dates: string[] = []
+  const d = new Date(`${start}T00:00:00Z`)
+  const last = new Date(`${end}T00:00:00Z`)
+  while (d <= last) {
+    dates.push(d.toISOString().slice(0, 10))
+    d.setUTCDate(d.getUTCDate() + 1)
+  }
+  return dates
+}
+
 /**
- * Inserts a new itinerary day. RLS gates membership. On unique-violation
- * (another day already uses this date), returns a friendly error. Returns
- * the inserted row as an ItineraryDay so the client can apply it via
- * withOrdinals optimistically.
+ * Inserts one or more itinerary days. With no endDate (or one equal to
+ * dayDate) it creates a single day; a later endDate creates one identical,
+ * independent entry per date in the inclusive range. RLS gates membership.
+ * The unique (trip_id, day_date) constraint makes the range insert
+ * all-or-nothing, so a collision rejects the whole range with a friendly error.
  */
 export async function addItineraryDay(
   input: AddItineraryDayInput,
@@ -859,35 +883,57 @@ export async function addItineraryDay(
   if (!DATE_RE.test(input.dayDate)) return { error: "Invalid date." }
   if (!ITINERARY_TONES.includes(input.tone)) return { error: "Invalid tone." }
 
+  const endDate = input.endDate?.trim() || input.dayDate
+  if (!DATE_RE.test(endDate)) return { error: "Invalid date." }
+  if (endDate < input.dayDate) {
+    return { error: "End date must be on or after start date." }
+  }
+  const dates = enumerateDates(input.dayDate, endDate)
+  if (dates.length > MAX_RANGE_DAYS) {
+    return { error: `Range can span at most ${MAX_RANGE_DAYS} days.` }
+  }
+
   const supabase = await createClient()
   const { data: userData, error: userError } = await supabase.auth.getUser()
   if (userError || !userData.user) return { error: "Not signed in." }
+  const userId = userData.user.id
 
   const sub = input.sub.trim()
 
+  // A multi-day span shares one group_id so the UI can mark "added together".
+  const groupId = dates.length > 1 ? crypto.randomUUID() : null
+
+  const rows = dates.map((day_date) => ({
+    trip_id: input.tripId,
+    day_date,
+    title,
+    sub,
+    tag,
+    tone: input.tone,
+    group_id: groupId,
+    location_id: input.locationId ?? null,
+    created_by: userId,
+  }))
+
   const { data, error } = await supabase
     .from("itinerary_days")
-    .insert({
-      trip_id: input.tripId,
-      day_date: input.dayDate,
-      title,
-      sub,
-      tag,
-      tone: input.tone,
-      created_by: userData.user.id,
-    })
-    .select("id, day_date, title, sub, tag, tone")
-    .single()
+    .insert(rows)
+    .select("id, day_date, title, sub, tag, tone, group_id, location_id")
 
   if (error) {
     if (error.code === "23505") {
-      return { error: "Another day already uses that date." }
+      return {
+        error:
+          dates.length > 1
+            ? "Some days in that range are already planned."
+            : "Another day already uses that date.",
+      }
     }
     return { error: error.message }
   }
 
   revalidatePath(`/trips/${input.tripSlug}`)
-  return { day: rowToItineraryDay(data) }
+  return { day: rowToItineraryDay(data[0]) }
 }
 
 export interface UpdateItineraryDayInput {
@@ -898,6 +944,8 @@ export interface UpdateItineraryDayInput {
   sub: string
   tag: string
   tone: ItineraryTone
+  /** When provided, moves the day to this location (null = travel day). */
+  locationId?: string | null
 }
 
 export interface UpdateItineraryDayResult {
@@ -921,15 +969,25 @@ export async function updateItineraryDay(
   const supabase = await createClient()
   const sub = input.sub.trim()
 
+  const patch: {
+    day_date: string
+    title: string
+    sub: string
+    tag: string
+    tone: ItineraryTone
+    location_id?: string | null
+  } = {
+    day_date: input.dayDate,
+    title,
+    sub,
+    tag,
+    tone: input.tone,
+  }
+  if (input.locationId !== undefined) patch.location_id = input.locationId
+
   const { error } = await supabase
     .from("itinerary_days")
-    .update({
-      day_date: input.dayDate,
-      title,
-      sub,
-      tag,
-      tone: input.tone,
-    })
+    .update(patch)
     .eq("id", input.dayId)
 
   if (error) {
@@ -1120,6 +1178,8 @@ export interface AddDreamDayInput {
   sub: string
   tag: string
   tone: ItineraryTone
+  /** Number of identical days to create (default 1). Dreams have no dates. */
+  count?: number
 }
 
 export interface AddDreamDayResult {
@@ -1129,9 +1189,10 @@ export interface AddDreamDayResult {
 }
 
 /**
- * Inserts a new dream itinerary day at the end (day_index = max + 1). RLS gates
- * membership. Returns the inserted row as a DreamDay so the client can apply it
- * via withDreamOrdinals optimistically.
+ * Inserts one or more dream itinerary days at the end (day_index = max + 1,
+ * max + 2, ...). `count` (default 1) creates that many identical, independent
+ * entries. RLS gates membership. Returns the first inserted row so the client
+ * can apply it via withDreamOrdinals optimistically.
  */
 export async function addDreamItineraryDay(
   input: AddDreamDayInput,
@@ -1142,9 +1203,15 @@ export async function addDreamItineraryDay(
   if (!tag) return { error: "Tag required." }
   if (!ITINERARY_TONES.includes(input.tone)) return { error: "Invalid tone." }
 
+  const count = input.count ?? 1
+  if (!Number.isInteger(count) || count < 1 || count > MAX_RANGE_DAYS) {
+    return { error: `Days must be between 1 and ${MAX_RANGE_DAYS}.` }
+  }
+
   const supabase = await createClient()
   const { data: userData, error: userError } = await supabase.auth.getUser()
   if (userError || !userData.user) return { error: "Not signed in." }
+  const userId = userData.user.id
 
   const { data: maxRow } = await supabase
     .from("dream_itinerary_days")
@@ -1157,24 +1224,25 @@ export async function addDreamItineraryDay(
 
   const sub = input.sub.trim()
 
+  const rows = Array.from({ length: count }, (_, i) => ({
+    trip_id: input.tripId,
+    day_index: nextIndex + i,
+    title,
+    sub,
+    tag,
+    tone: input.tone,
+    created_by: userId,
+  }))
+
   const { data, error } = await supabase
     .from("dream_itinerary_days")
-    .insert({
-      trip_id: input.tripId,
-      day_index: nextIndex,
-      title,
-      sub,
-      tag,
-      tone: input.tone,
-      created_by: userData.user.id,
-    })
+    .insert(rows)
     .select("id, day_index, title, sub, tag, tone")
-    .single()
 
   if (error) return { error: error.message }
 
   revalidatePath(`/trips/${input.tripSlug}`)
-  return { day: rowToDreamDay(data) }
+  return { day: rowToDreamDay(data[0]) }
 }
 
 export interface UpdateDreamDayInput {
@@ -1317,5 +1385,122 @@ export async function updateTripBudget(
   if (error) return { error: error.message }
 
   revalidatePath(`/trips/${input.tripSlug}`)
+  return {}
+}
+
+export interface CreateLocationResult {
+  error?: string
+  /** Populated on success so the client can append optimistically. */
+  location?: ItineraryLocation
+}
+
+/** Creates an empty location at the end of the trip's order. */
+export async function createItineraryLocation(
+  tripId: string,
+  tripSlug: string,
+  name: string,
+): Promise<CreateLocationResult> {
+  const trimmed = name.trim()
+  if (!trimmed) return { error: "Name required." }
+
+  const supabase = await createClient()
+  const { data: userData, error: userError } = await supabase.auth.getUser()
+  if (userError || !userData.user) return { error: "Not signed in." }
+
+  const { data: maxRow } = await supabase
+    .from("itinerary_locations")
+    .select("sort_order")
+    .eq("trip_id", tripId)
+    .order("sort_order", { ascending: false })
+    .limit(1)
+    .maybeSingle()
+  const nextOrder = (maxRow?.sort_order ?? -1) + 1
+
+  const { data, error } = await supabase
+    .from("itinerary_locations")
+    .insert({
+      trip_id: tripId,
+      name: trimmed,
+      sort_order: nextOrder,
+      created_by: userData.user.id,
+    })
+    .select("id, name, sort_order")
+    .single()
+
+  if (error) return { error: error.message }
+
+  revalidatePath(`/trips/${tripSlug}`)
+  return { location: rowToLocation(data) }
+}
+
+export interface RenameLocationResult {
+  error?: string
+}
+
+/** Renames a location in place. */
+export async function renameItineraryLocation(
+  locationId: string,
+  tripSlug: string,
+  name: string,
+): Promise<RenameLocationResult> {
+  const trimmed = name.trim()
+  if (!trimmed) return { error: "Name required." }
+
+  const supabase = await createClient()
+  const { error } = await supabase
+    .from("itinerary_locations")
+    .update({ name: trimmed })
+    .eq("id", locationId)
+
+  if (error) return { error: error.message }
+
+  revalidatePath(`/trips/${tripSlug}`)
+  return {}
+}
+
+export interface ReorderLocationsResult {
+  error?: string
+}
+
+/** Rewrites sort_order to match the given id order (sort_order = index). */
+export async function reorderItineraryLocations(
+  tripSlug: string,
+  orderedIds: string[],
+): Promise<ReorderLocationsResult> {
+  const supabase = await createClient()
+
+  for (let i = 0; i < orderedIds.length; i++) {
+    const { error } = await supabase
+      .from("itinerary_locations")
+      .update({ sort_order: i })
+      .eq("id", orderedIds[i])
+    if (error) return { error: error.message }
+  }
+
+  revalidatePath(`/trips/${tripSlug}`)
+  return {}
+}
+
+export interface DeleteLocationResult {
+  error?: string
+}
+
+/**
+ * Deletes a location. The FK `on delete set null` detaches its days, which
+ * become travel days (location_id null) rather than being deleted.
+ */
+export async function deleteItineraryLocation(
+  locationId: string,
+  tripSlug: string,
+): Promise<DeleteLocationResult> {
+  const supabase = await createClient()
+  const { error } = await supabase
+    .from("itinerary_locations")
+    .delete()
+    .eq("id", locationId)
+
+  if (error) return { error: error.message }
+
+  revalidatePath(`/trips/${tripSlug}`)
   return {}
 }

@@ -225,6 +225,10 @@ export function PackingTab({
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
   )
+  // Stable id keeps dnd-kit's aria-describedby deterministic across SSR/CSR
+  // (its fallback id counter diverges between the long-lived server and a fresh
+  // client load, causing a hydration mismatch).
+  const dndId = React.useId()
   const [, startReorder] = React.useTransition()
 
   function onDragEnd(e: DragEndEvent) {
@@ -280,6 +284,7 @@ export function PackingTab({
 
       <div className="border-t border-border bg-background">
         <DndContext
+          id={dndId}
           sensors={sensors}
           collisionDetection={closestCenter}
           onDragEnd={onDragEnd}
