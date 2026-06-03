@@ -2,21 +2,6 @@
 
 import * as React from "react"
 
-import {
-  DndContext,
-  PointerSensor,
-  closestCenter,
-  useSensor,
-  useSensors,
-  type DragEndEvent,
-} from "@dnd-kit/core"
-import {
-  SortableContext,
-  arrayMove,
-  useSortable,
-  verticalListSortingStrategy,
-} from "@dnd-kit/sortable"
-import { CSS } from "@dnd-kit/utilities"
 import { Label, MonoBadge, SuggestionCard } from "@/components/together"
 import { createClient } from "@/lib/supabase/client"
 import {
@@ -25,7 +10,6 @@ import {
   deleteItineraryDay,
   deleteItineraryLocation,
   renameItineraryLocation,
-  rescheduleItineraryDays,
   updateItineraryDay,
 } from "@/lib/trips/actions"
 import {
@@ -45,12 +29,12 @@ const itineraryBorder: Record<ItineraryTone, string> = {
   sand: "border-l-sand",
 }
 
-// Tone outline + text for location tabs, matching the MonoBadge day-tag look.
-const tabTone: Record<ItineraryTone, string> = {
-  sea: "border-sea text-sea",
-  clay: "border-clay text-clay",
-  moss: "border-moss text-moss",
-  sand: "border-sand text-sand",
+// Tone text color for the location header name (matches MonoBadge tones).
+const toneText: Record<ItineraryTone, string> = {
+  sea: "text-sea",
+  clay: "text-clay",
+  moss: "text-moss",
+  sand: "text-sand",
 }
 
 interface RealtimeRow {
@@ -113,6 +97,74 @@ function orderTabs(
   })
 }
 
+const TRANSIT_KEY = "__transit__"
+
+interface DayGroup {
+  /** Location id, or TRANSIT_KEY for unfiled travel days. */
+  key: string
+  name: string
+  /** null for the transit group. */
+  tone: ItineraryTone | null
+  /** 1-based location number, or null for transit. */
+  ord: number | null
+  days: ItineraryDay[]
+}
+
+function byDate(a: ItineraryDay, b: ItineraryDay): number {
+  return a.dayDate < b.dayDate ? -1 : a.dayDate > b.dayDate ? 1 : 0
+}
+
+/**
+ * Split days into location groups (+ a trailing transit group for unfiled
+ * days), ordered top-to-bottom by each group's earliest day. Empty locations
+ * sort last. Location ordinals follow the location order (earliest day first).
+ */
+function buildGroups(
+  locations: ItineraryLocation[],
+  days: ItineraryDay[],
+): DayGroup[] {
+  const byLoc = new Map<string, ItineraryDay[]>()
+  const travel: ItineraryDay[] = []
+  for (const d of days) {
+    if (d.locationId) {
+      const arr = byLoc.get(d.locationId)
+      if (arr) arr.push(d)
+      else byLoc.set(d.locationId, [d])
+    } else {
+      travel.push(d)
+    }
+  }
+
+  const groups: DayGroup[] = orderTabs(locations, days).map((loc, i) => ({
+    key: loc.id,
+    name: loc.name,
+    tone: slugToTone(loc.id),
+    ord: i + 1,
+    days: (byLoc.get(loc.id) ?? []).slice().sort(byDate),
+  }))
+
+  if (travel.length) {
+    groups.push({
+      key: TRANSIT_KEY,
+      name: "In transit",
+      tone: null,
+      ord: null,
+      days: travel.slice().sort(byDate),
+    })
+  }
+
+  // Chronological top-to-bottom; empty groups (no days) keep their order, last.
+  return groups
+    .map((g, idx) => ({ g, e: g.days[0]?.dayDate ?? null, idx }))
+    .sort((a, b) => {
+      if (a.e && b.e) return a.e < b.e ? -1 : a.e > b.e ? 1 : a.idx - b.idx
+      if (a.e) return -1
+      if (b.e) return 1
+      return a.idx - b.idx
+    })
+    .map((x) => x.g)
+}
+
 export function ItineraryTab({
   tripId,
   tripSlug,
@@ -140,9 +192,7 @@ export function ItineraryTab({
   )
   const [lastInitialLocations, setLastInitialLocations] =
     React.useState(initialLocations)
-  const [activeLocationId, setActiveLocationId] = React.useState<string | null>(
-    initialLocations[0]?.id ?? null,
-  )
+  const [collapsed, setCollapsed] = React.useState<Set<string>>(new Set())
 
   if (initialLocations !== lastInitialLocations) {
     setLastInitialLocations(initialLocations)
@@ -257,104 +307,51 @@ export function ItineraryTab({
       ? nextDayAfter(days[days.length - 1].dayDate)
       : tripStartDate
 
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
-  )
-  // Stable id keeps dnd-kit's aria-describedby deterministic across SSR/CSR.
-  const dndId = React.useId()
-  const [, startReschedule] = React.useTransition()
+  const groups = buildGroups(locations, days)
 
-  function onDragEnd(e: DragEndEvent) {
-    const { active, over } = e
-    if (!over || active.id === over.id) return
-    const oldIndex = days.findIndex((d) => d.id === active.id)
-    const newIndex = days.findIndex((d) => d.id === over.id)
-    if (oldIndex === -1 || newIndex === -1) return
-
-    const snapshot = days
-    const reordered = arrayMove(days, oldIndex, newIndex)
-    // The trip's existing dates, sorted, are the fixed slots. yyyy-mm-dd sorts
-    // lexically = chronologically. Rebuild via rowToItineraryDay so dow/date
-    // recompute from the reassigned day_date.
-    const slots = days.map((d) => d.dayDate).sort()
-    const reassigned = withOrdinals(
-      reordered.map((d, i) =>
-        rowToItineraryDay({
-          id: d.id,
-          day_date: slots[i],
-          title: d.title,
-          sub: d.sub,
-          tag: d.tag,
-          tone: d.tone,
-        }),
-      ),
-    )
-    setDays(reassigned)
-
-    startReschedule(async () => {
-      const result = await rescheduleItineraryDays(
-        tripId,
-        tripSlug,
-        reordered.map((d) => d.id),
-      )
-      if (result.error) setDays(snapshot)
-    })
-  }
-
-  const orderedTabs = orderTabs(locations, days)
-  const hasTravel = days.some((d) => !d.locationId)
-  const tabIds = orderedTabs.map((t) => t.id)
-  const effectiveActive =
-    activeLocationId !== null && tabIds.includes(activeLocationId)
-      ? activeLocationId
-      : activeLocationId === null && hasTravel
-        ? null
-        : (tabIds[0] ?? null)
-  const tabDays = days.filter((d) => (d.locationId ?? null) === effectiveActive)
-
-  const [addMenuOpen, setAddMenuOpen] = React.useState(false)
-  const [addDayOpen, setAddDayOpen] = React.useState(false)
+  const [addDayFor, setAddDayFor] = React.useState<string | null>(null)
   const [addingLocation, setAddingLocation] = React.useState(false)
   const [newLocName, setNewLocName] = React.useState("")
-  const [renaming, setRenaming] = React.useState(false)
+  const [renamingId, setRenamingId] = React.useState<string | null>(null)
   const [renameVal, setRenameVal] = React.useState("")
   const [, startLoc] = React.useTransition()
+
+  function toggleCollapse(key: string) {
+    setCollapsed((prev) => {
+      const next = new Set(prev)
+      if (next.has(key)) next.delete(key)
+      else next.add(key)
+      return next
+    })
+  }
 
   function submitNewLocation(e: React.FormEvent) {
     e.preventDefault()
     const name = newLocName.trim()
     if (!name) return
     startLoc(async () => {
-      const result = await createItineraryLocation(tripId, tripSlug, name)
-      if (!result.error && result.location) {
-        setActiveLocationId(result.location.id)
-      }
+      await createItineraryLocation(tripId, tripSlug, name)
       setNewLocName("")
       setAddingLocation(false)
     })
   }
 
-  function submitRename(e: React.FormEvent) {
+  function submitRename(e: React.FormEvent, locationId: string) {
     e.preventDefault()
     const name = renameVal.trim()
-    if (!name || effectiveActive === null) return
+    if (!name) return
     startLoc(async () => {
-      await renameItineraryLocation(effectiveActive, tripSlug, name)
-      setRenaming(false)
+      await renameItineraryLocation(locationId, tripSlug, name)
+      setRenamingId(null)
     })
   }
 
-  function removeActiveLocation() {
-    if (effectiveActive === null) return
-    if (
-      !window.confirm("Delete this location? Its days become travel days.")
-    ) {
+  function removeLocation(locationId: string) {
+    if (!window.confirm("Delete this location? Its days become travel days.")) {
       return
     }
-    const id = effectiveActive
     startLoc(async () => {
-      await deleteItineraryLocation(id, tripSlug)
-      setActiveLocationId(null)
+      await deleteItineraryLocation(locationId, tripSlug)
     })
   }
 
@@ -365,150 +362,6 @@ export function ItineraryTab({
         <span className="font-mono text-[10px] tracking-[0.06em] text-muted-foreground">
           drafted by <span className="text-sea">● M+G</span>
         </span>
-      </div>
-
-      <div className="flex items-center gap-1.5 px-5 pt-3 lg:px-10">
-        <div className="flex gap-1.5 overflow-x-auto">
-        {orderedTabs.map((loc, i) => {
-          const active = effectiveActive === loc.id
-          const tone = slugToTone(loc.id)
-          return (
-            <button
-              key={loc.id}
-              type="button"
-              onClick={() => setActiveLocationId(loc.id)}
-              aria-pressed={active}
-              className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-[3px] border px-2 py-1 font-mono text-[10px] uppercase leading-none tracking-[0.16em] transition-colors ${
-                active
-                  ? "border-foreground bg-foreground text-background"
-                  : `bg-transparent ${tabTone[tone]}`
-              }`}
-            >
-              <span className={active ? "text-background/60" : "opacity-50"}>
-                {String(i + 1).padStart(2, "0")}
-              </span>
-              {loc.name}
-            </button>
-          )
-        })}
-        {hasTravel ? (
-          <button
-            type="button"
-            onClick={() => setActiveLocationId(null)}
-            aria-pressed={effectiveActive === null}
-            className={`inline-flex items-center whitespace-nowrap rounded-[3px] border px-2 py-1 font-mono text-[10px] uppercase leading-none tracking-[0.16em] transition-colors ${
-              effectiveActive === null
-                ? "border-foreground bg-foreground text-background"
-                : "border-rule bg-transparent text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            In transit
-          </button>
-        ) : null}
-        </div>
-        {addingLocation ? (
-          <form onSubmit={submitNewLocation} className="inline-flex">
-            <input
-              type="text"
-              autoFocus
-              value={newLocName}
-              onChange={(e) => setNewLocName(e.target.value)}
-              onBlur={() => {
-                if (!newLocName.trim()) setAddingLocation(false)
-              }}
-              placeholder="Location name"
-              className="rounded-full border border-clay bg-transparent px-3 py-1 font-mono text-[11px] text-foreground placeholder:text-muted-foreground focus:outline-none"
-            />
-          </form>
-        ) : (
-          <div className="relative shrink-0 group">
-            <button
-              type="button"
-              onClick={() => setAddMenuOpen((v) => !v)}
-              aria-expanded={addMenuOpen}
-              aria-label="Add to itinerary"
-              className="rounded-full border border-dashed border-rule px-3 py-1 font-mono text-[13px] leading-none text-muted-foreground hover:border-foreground hover:text-foreground"
-            >
-              +
-            </button>
-            <div
-              className={`absolute right-0 z-20 mt-1 w-32 flex-col overflow-hidden rounded-lg border border-border bg-card shadow-sm ${
-                addMenuOpen ? "flex" : "hidden group-hover:flex"
-              }`}
-            >
-              <button
-                type="button"
-                onClick={() => {
-                  setAddMenuOpen(false)
-                  setAddDayOpen(true)
-                }}
-                className="px-3 py-2 text-left font-mono text-[11px] uppercase tracking-[0.12em] text-muted-foreground hover:bg-foreground hover:text-background"
-              >
-                + day
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setAddMenuOpen(false)
-                  setAddingLocation(true)
-                }}
-                className="px-3 py-2 text-left font-mono text-[11px] uppercase tracking-[0.12em] text-muted-foreground hover:bg-foreground hover:text-background"
-              >
-                + location
-              </button>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {effectiveActive !== null ? (
-        <div className="flex items-center gap-3 px-5 pt-2 lg:px-10">
-          {renaming ? (
-            <form onSubmit={submitRename} className="inline-flex">
-              <input
-                type="text"
-                autoFocus
-                value={renameVal}
-                onChange={(e) => setRenameVal(e.target.value)}
-                onBlur={() => setRenaming(false)}
-                className="border-0 border-b border-rule bg-transparent py-0.5 text-[13px] text-foreground focus:border-clay focus:outline-none"
-              />
-            </form>
-          ) : (
-            <>
-              <button
-                type="button"
-                onClick={() => {
-                  const name =
-                    orderedTabs.find((t) => t.id === effectiveActive)?.name ?? ""
-                  setRenameVal(name)
-                  setRenaming(true)
-                }}
-                className="font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground hover:text-foreground"
-              >
-                rename
-              </button>
-              <button
-                type="button"
-                onClick={removeActiveLocation}
-                className="font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground hover:text-clay"
-              >
-                delete
-              </button>
-            </>
-          )}
-        </div>
-      ) : null}
-
-      <div className="px-5 pt-2.5 lg:px-10">
-        <AddDayRow
-          tripId={tripId}
-          tripSlug={tripSlug}
-          defaultDate={defaultDate}
-          locationId={effectiveActive}
-          open={addDayOpen}
-          onClose={() => setAddDayOpen(false)}
-        />
       </div>
 
       <div className="px-5 pt-4 lg:px-10">
@@ -526,55 +379,184 @@ export function ItineraryTab({
       </div>
 
       <div className="px-5 pt-4 pb-6 lg:px-10">
-        {tabDays.length === 0 ? (
+        {groups.length === 0 ? (
           <p className="font-serif text-[15px] italic text-muted-foreground">
-            No days planned yet — add the first one.
+            No days planned yet — add a location to start.
           </p>
         ) : (
-          <DndContext
-            id={dndId}
-            sensors={sensors}
-            collisionDetection={closestCenter}
-            onDragEnd={onDragEnd}
-          >
-            <SortableContext
-              items={tabDays.map((d) => d.id)}
-              strategy={verticalListSortingStrategy}
-            >
-              {toSegments(tabDays).map((seg) => {
-                const cards = seg.days.map((day) => (
-                  <SortableDayCard
-                    key={day.id}
-                    id={day.id}
-                    day={day}
-                    tripSlug={tripSlug}
-                    isLast={day.id === tabDays[tabDays.length - 1].id}
-                    isEditing={editingId === day.id}
-                    onStartEdit={() => setEditingId(day.id)}
-                    onStopEdit={() => setEditingId(null)}
-                    locations={locations}
-                  />
-                ))
-                if (seg.groupId && seg.days.length > 1) {
-                  return (
-                    <div
-                      key={seg.groupId}
-                      className="relative my-1.5 rounded-xl border border-rule px-2.5 pt-5 pb-1"
-                    >
-                      <span className="absolute left-3 top-1.5 font-mono text-[9px] uppercase tracking-[0.14em] text-muted-foreground">
-                        added together
-                      </span>
-                      {cards}
+          groups.map((group) => {
+            const open = !collapsed.has(group.key)
+            const isLoc = group.key !== TRANSIT_KEY
+            const count = group.days.length
+            const last = group.days[count - 1]
+            const range =
+              count === 0
+                ? ""
+                : count === 1
+                  ? group.days[0].date
+                  : `${group.days[0].date} – ${last.date}`
+            return (
+              <div
+                key={group.key}
+                className="border-t border-rule first:border-t-0"
+              >
+                <div className="flex items-center gap-3 py-3">
+                  <span className="w-7 flex-shrink-0 font-mono text-[18px] leading-none text-muted-foreground">
+                    {group.ord !== null
+                      ? String(group.ord).padStart(2, "0")
+                      : "··"}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    {isLoc && renamingId === group.key ? (
+                      <form onSubmit={(e) => submitRename(e, group.key)}>
+                        <input
+                          type="text"
+                          autoFocus
+                          value={renameVal}
+                          onChange={(e) => setRenameVal(e.target.value)}
+                          onBlur={() => setRenamingId(null)}
+                          className="t-display w-full border-0 border-b border-rule bg-transparent text-[20px] leading-none text-foreground focus:border-clay focus:outline-none"
+                        />
+                      </form>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => toggleCollapse(group.key)}
+                        aria-expanded={open}
+                        className={`t-display text-left text-[20px] leading-none ${
+                          group.tone ? toneText[group.tone] : "text-foreground"
+                        }`}
+                      >
+                        {group.name}
+                      </button>
+                    )}
+                    <div className="mt-1 font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
+                      {count === 0
+                        ? "no days"
+                        : `${count} ${count === 1 ? "day" : "days"}${
+                            range ? ` · ${range}` : ""
+                          }`}
                     </div>
-                  )
-                }
-                return (
-                  <React.Fragment key={seg.days[0].id}>{cards}</React.Fragment>
-                )
-              })}
-            </SortableContext>
-          </DndContext>
+                  </div>
+                  {isLoc ? (
+                    <div className="flex items-center gap-1">
+                      <button
+                        type="button"
+                        aria-label="Rename location"
+                        onClick={() => {
+                          setRenameVal(group.name)
+                          setRenamingId(group.key)
+                        }}
+                        className="border-0 bg-transparent px-1 font-mono text-[11px] text-muted-foreground hover:text-foreground"
+                      >
+                        ✎
+                      </button>
+                      <button
+                        type="button"
+                        aria-label="Delete location"
+                        onClick={() => removeLocation(group.key)}
+                        className="border-0 bg-transparent px-1 font-mono text-[11px] text-muted-foreground hover:text-clay"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ) : null}
+                  <button
+                    type="button"
+                    aria-label={open ? "Collapse" : "Expand"}
+                    onClick={() => toggleCollapse(group.key)}
+                    className="border-0 bg-transparent px-1 font-mono text-[13px] leading-none text-muted-foreground hover:text-foreground"
+                  >
+                    {open ? "⌄" : "›"}
+                  </button>
+                </div>
+
+                {open ? (
+                  <div className="pb-3 pl-10">
+                    {toSegments(group.days).map((seg) => {
+                      const cards = seg.days.map((day) => (
+                        <DayCard
+                          key={day.id}
+                          day={day}
+                          tripSlug={tripSlug}
+                          isLast={day.id === last.id}
+                          isEditing={editingId === day.id}
+                          onStartEdit={() => setEditingId(day.id)}
+                          onStopEdit={() => setEditingId(null)}
+                          locations={locations}
+                        />
+                      ))
+                      if (seg.groupId && seg.days.length > 1) {
+                        return (
+                          <div
+                            key={seg.groupId}
+                            className="relative my-1.5 rounded-xl border border-rule px-2.5 pt-5 pb-1"
+                          >
+                            <span className="absolute left-3 top-1.5 font-mono text-[9px] uppercase tracking-[0.14em] text-muted-foreground">
+                              added together
+                            </span>
+                            {cards}
+                          </div>
+                        )
+                      }
+                      return (
+                        <React.Fragment key={seg.days[0].id}>
+                          {cards}
+                        </React.Fragment>
+                      )
+                    })}
+
+                    <div className="pt-2">
+                      <AddDayRow
+                        tripId={tripId}
+                        tripSlug={tripSlug}
+                        defaultDate={defaultDate}
+                        locationId={isLoc ? group.key : null}
+                        open={addDayFor === group.key}
+                        onClose={() => setAddDayFor(null)}
+                      />
+                      {addDayFor === group.key ? null : (
+                        <button
+                          type="button"
+                          onClick={() => setAddDayFor(group.key)}
+                          className="block w-full rounded-lg border border-dashed border-rule py-2 font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground hover:border-foreground hover:text-foreground"
+                        >
+                          + day
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ) : null}
+              </div>
+            )
+          })
         )}
+
+        <div className="pt-4">
+          {addingLocation ? (
+            <form onSubmit={submitNewLocation}>
+              <input
+                type="text"
+                autoFocus
+                value={newLocName}
+                onChange={(e) => setNewLocName(e.target.value)}
+                onBlur={() => {
+                  if (!newLocName.trim()) setAddingLocation(false)
+                }}
+                placeholder="Location name"
+                className="block w-full rounded-lg border border-clay bg-transparent px-3 py-2.5 font-mono text-[12px] text-foreground placeholder:text-muted-foreground focus:outline-none"
+              />
+            </form>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setAddingLocation(true)}
+              className="block w-full rounded-lg border border-dashed border-rule py-3 font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground hover:border-foreground hover:text-foreground"
+            >
+              + location
+            </button>
+          )}
+        </div>
       </div>
     </section>
   )
@@ -619,41 +601,6 @@ function DayCard({
       onStartEdit={onStartEdit}
       dragHandle={dragHandle}
     />
-  )
-}
-
-function SortableDayCard({ id, ...rest }: DayCardProps & { id: string }) {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
-  } = useSortable({ id })
-
-  const style: React.CSSProperties = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging ? 0.6 : undefined,
-  }
-
-  const handle = (
-    <button
-      type="button"
-      aria-label="Drag to reschedule day"
-      className="cursor-grab touch-none border-0 bg-transparent px-0.5 font-mono text-[12px] leading-none text-muted-foreground hover:text-foreground active:cursor-grabbing"
-      {...attributes}
-      {...listeners}
-    >
-      ⠿
-    </button>
-  )
-
-  return (
-    <div ref={setNodeRef} style={style}>
-      <DayCard {...rest} dragHandle={handle} />
-    </div>
   )
 }
 
