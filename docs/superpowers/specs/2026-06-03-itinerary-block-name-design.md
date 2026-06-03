@@ -13,27 +13,29 @@ stored anywhere.
 
 ## Goal
 
-Make the block caption an editable name. The block still appears automatically
-for any run of 2+ consecutive same-`group_id` days. The caption shows the name
-if set, else the existing "added together" placeholder. Clicking it edits the
-name inline, the same pattern as the location rename already in the tab.
+Let you name a multi-day block **when you create it**. In the Add-a-day form, a
+"Block name" field appears only when you extend the dates (set a "to" date that
+makes a 2+ day span). The name is stamped on every day of the span. The block
+caption then shows that name, falling back to "added together" when blank.
 
 ## Scope
 
-Dated itinerary only (`itinerary_days`). The dream itinerary is unchanged. No
-naming at creation time — the name is set/edited inline after the span exists.
+Dated itinerary only (`itinerary_days`). The dream itinerary is unchanged.
+
+- Naming happens **only in the Add-a-day form**, only when a span is created.
+- The caption is **display-only** — not click-to-edit. (No rename action, no
+  inline-edit UI.)
+- A single-day add never shows the block-name field and stores no name.
 
 ## Approach (chosen)
 
-**Denormalized `group_name` column on `itinerary_days`.** Every row of a span
-carries the same name; an edit writes it to all rows of the group with one
-`UPDATE ... WHERE group_id = $1`.
-
-Chosen over a normalized `itinerary_groups` table because it reuses everything
-already in place — existing RLS, the existing `itinerary_days` Realtime channel
-(so name edits propagate to the partner for free), and the existing queries.
-The redundancy (name repeated on each row of the span) is minor and kept
-consistent by the group-wide UPDATE.
+**Denormalized `group_name` column on `itinerary_days`.** When the Add form
+creates a span, every inserted row gets the same `group_name` (alongside the
+shared `group_id` it already stamps). Chosen over a normalized
+`itinerary_groups` table because it reuses everything already in place —
+existing RLS, the existing `itinerary_days` Realtime channel (so the named span
+propagates to the partner for free), and the existing query/insert path. The
+name lives only on the span's rows; nothing else changes.
 
 ## Design
 
@@ -50,13 +52,18 @@ No index, no constraint, inherits the table's existing RLS.
 
 ### Action
 
-New server action `renameItineraryGroup(groupId, tripSlug, name)`:
+`addItineraryDay` (in `actions.ts`) gains an optional `groupName` on
+`AddItineraryDayInput`:
 
-- Trims `name`; empty string clears the name (stores `null`), which makes the
-  caption fall back to "added together".
-- `update({ group_name: name || null }).eq("group_id", groupId)` — sets the name
-  on every row of the span in one statement.
-- `revalidatePath` for the trip, matching the other itinerary actions.
+- The span branch already computes `groupId = dates.length > 1 ? randomUUID()
+  : null`. Add a parallel `const groupName = dates.length > 1 ?
+  (input.groupName?.trim() || null) : null` — only spans carry a name; a blank
+  field stores `null`.
+- Each row in the bulk insert gets `group_name: groupName`.
+- The insert `.select(...)` adds `group_name` so the optimistic/return path
+  stays consistent.
+
+No new action is added.
 
 ### Threading the field
 
@@ -64,40 +71,37 @@ New server action `renameItineraryGroup(groupId, tripSlug, name)`:
 
 - `ItineraryRow` / `ItineraryDay` gain `groupName: string | null`.
 - `rowToItineraryDay` maps `row.group_name ?? null`.
-- The itinerary query `.select(...)` adds `group_name`.
+- The itinerary query `.select(...)` in `itinerary-queries.ts` adds
+  `group_name`.
 - `RealtimeRow` in `itinerary-tab.tsx` adds `group_name: string | null`.
 
-The existing UPDATE Realtime handler replaces each changed row, so a group-wide
-rename updates every row of the block and the caption re-renders.
+### UI — Add form
 
-### UI
+In `DayForm` (Add mode, i.e. `setEndDate` present), add an optional **Block
+name** text field that is shown **only when `endDate` is set** (a span is being
+created). `AddDayRow` holds the new `groupName` state and passes it through;
+`reset()` clears it. The field is plain text, optional, no validation beyond the
+trim the action does.
 
-In the multi-day segment branch (`seg.groupId && seg.days.length > 1`), the
-fixed `<span>added together</span>` caption becomes an editable control:
+### UI — caption
 
-- Display state: a button showing `seg.days[0].groupName` if set, else the
-  "added together" placeholder text (placeholder styled muted, a set name styled
-  as a real heading). Clicking enters edit mode.
-- Edit state: an inline text input (autoFocus, submit on Enter, cancel/commit on
-  blur) mirroring the location-rename input already in the file. Submit calls
-  `renameItineraryGroup(seg.groupId, tripSlug, value)` inside a transition.
-- Local edit state keyed by `groupId` (e.g. `editingGroupId` / `groupNameVal`),
-  parallel to the existing `renamingId` / `renameVal` for locations.
-
-The block border and layout are unchanged — only the caption becomes editable.
+In the multi-day segment branch (`seg.groupId && seg.days.length > 1`), replace
+the fixed `"added together"` text with `seg.days[0].groupName ?? "added
+together"`. Style a real name slightly more prominently than the muted
+placeholder. Still display-only — no button, no input.
 
 ## Edge behavior
 
 - Editing or deleting individual days keeps the name (it is on every remaining
-  row). A name survives as long as one row of the group remains.
-- Clearing the name (submit empty) reverts the caption to "added together".
-- Pre-existing spans have `group_name = null` and show the placeholder until
-  named — no data migration needed.
-- A single day (no longer 2+ in a run) never shows the caption, so its
+  row); the caption survives as long as one row of the group remains.
+- Pre-existing spans have `group_name = null` and show the "added together"
+  placeholder — no data migration needed.
+- A run that drops to a single day no longer shows the caption, so its
   `group_name`, if any, is simply not displayed; harmless.
+- Leaving the field blank on a span keeps today's behaviour exactly.
 
 ## Out of scope
 
-- Naming at creation time (the Add-day form is unchanged).
+- Renaming or inline-editing a block after creation.
 - A normalized groups table.
 - Naming dream-itinerary multi-adds.
