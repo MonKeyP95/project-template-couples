@@ -21,6 +21,10 @@ import {
   rowToDreamDay,
   type DreamDay,
 } from "@/lib/trips/dream-itinerary-types"
+import {
+  rowToLocation,
+  type ItineraryLocation,
+} from "@/lib/trips/location-types"
 
 export interface ToggleResult {
   error?: string
@@ -835,6 +839,8 @@ export interface AddItineraryDayInput {
   sub: string
   tag: string
   tone: ItineraryTone
+  /** Location to file the day(s) under; null/undefined = travel day. */
+  locationId?: string | null
 }
 
 export interface AddItineraryDayResult {
@@ -905,13 +911,14 @@ export async function addItineraryDay(
     tag,
     tone: input.tone,
     group_id: groupId,
+    location_id: input.locationId ?? null,
     created_by: userId,
   }))
 
   const { data, error } = await supabase
     .from("itinerary_days")
     .insert(rows)
-    .select("id, day_date, title, sub, tag, tone, group_id")
+    .select("id, day_date, title, sub, tag, tone, group_id, location_id")
 
   if (error) {
     if (error.code === "23505") {
@@ -937,6 +944,8 @@ export interface UpdateItineraryDayInput {
   sub: string
   tag: string
   tone: ItineraryTone
+  /** When provided, moves the day to this location (null = travel day). */
+  locationId?: string | null
 }
 
 export interface UpdateItineraryDayResult {
@@ -960,15 +969,25 @@ export async function updateItineraryDay(
   const supabase = await createClient()
   const sub = input.sub.trim()
 
+  const patch: {
+    day_date: string
+    title: string
+    sub: string
+    tag: string
+    tone: ItineraryTone
+    location_id?: string | null
+  } = {
+    day_date: input.dayDate,
+    title,
+    sub,
+    tag,
+    tone: input.tone,
+  }
+  if (input.locationId !== undefined) patch.location_id = input.locationId
+
   const { error } = await supabase
     .from("itinerary_days")
-    .update({
-      day_date: input.dayDate,
-      title,
-      sub,
-      tag,
-      tone: input.tone,
-    })
+    .update(patch)
     .eq("id", input.dayId)
 
   if (error) {
@@ -1366,5 +1385,122 @@ export async function updateTripBudget(
   if (error) return { error: error.message }
 
   revalidatePath(`/trips/${input.tripSlug}`)
+  return {}
+}
+
+export interface CreateLocationResult {
+  error?: string
+  /** Populated on success so the client can append optimistically. */
+  location?: ItineraryLocation
+}
+
+/** Creates an empty location at the end of the trip's order. */
+export async function createItineraryLocation(
+  tripId: string,
+  tripSlug: string,
+  name: string,
+): Promise<CreateLocationResult> {
+  const trimmed = name.trim()
+  if (!trimmed) return { error: "Name required." }
+
+  const supabase = await createClient()
+  const { data: userData, error: userError } = await supabase.auth.getUser()
+  if (userError || !userData.user) return { error: "Not signed in." }
+
+  const { data: maxRow } = await supabase
+    .from("itinerary_locations")
+    .select("sort_order")
+    .eq("trip_id", tripId)
+    .order("sort_order", { ascending: false })
+    .limit(1)
+    .maybeSingle()
+  const nextOrder = (maxRow?.sort_order ?? -1) + 1
+
+  const { data, error } = await supabase
+    .from("itinerary_locations")
+    .insert({
+      trip_id: tripId,
+      name: trimmed,
+      sort_order: nextOrder,
+      created_by: userData.user.id,
+    })
+    .select("id, name, sort_order")
+    .single()
+
+  if (error) return { error: error.message }
+
+  revalidatePath(`/trips/${tripSlug}`)
+  return { location: rowToLocation(data) }
+}
+
+export interface RenameLocationResult {
+  error?: string
+}
+
+/** Renames a location in place. */
+export async function renameItineraryLocation(
+  locationId: string,
+  tripSlug: string,
+  name: string,
+): Promise<RenameLocationResult> {
+  const trimmed = name.trim()
+  if (!trimmed) return { error: "Name required." }
+
+  const supabase = await createClient()
+  const { error } = await supabase
+    .from("itinerary_locations")
+    .update({ name: trimmed })
+    .eq("id", locationId)
+
+  if (error) return { error: error.message }
+
+  revalidatePath(`/trips/${tripSlug}`)
+  return {}
+}
+
+export interface ReorderLocationsResult {
+  error?: string
+}
+
+/** Rewrites sort_order to match the given id order (sort_order = index). */
+export async function reorderItineraryLocations(
+  tripSlug: string,
+  orderedIds: string[],
+): Promise<ReorderLocationsResult> {
+  const supabase = await createClient()
+
+  for (let i = 0; i < orderedIds.length; i++) {
+    const { error } = await supabase
+      .from("itinerary_locations")
+      .update({ sort_order: i })
+      .eq("id", orderedIds[i])
+    if (error) return { error: error.message }
+  }
+
+  revalidatePath(`/trips/${tripSlug}`)
+  return {}
+}
+
+export interface DeleteLocationResult {
+  error?: string
+}
+
+/**
+ * Deletes a location. The FK `on delete set null` detaches its days, which
+ * become travel days (location_id null) rather than being deleted.
+ */
+export async function deleteItineraryLocation(
+  locationId: string,
+  tripSlug: string,
+): Promise<DeleteLocationResult> {
+  const supabase = await createClient()
+  const { error } = await supabase
+    .from("itinerary_locations")
+    .delete()
+    .eq("id", locationId)
+
+  if (error) return { error: error.message }
+
+  revalidatePath(`/trips/${tripSlug}`)
   return {}
 }
