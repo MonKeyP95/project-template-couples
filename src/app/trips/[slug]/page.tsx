@@ -63,7 +63,7 @@ function formatCoord(lat: number | null, lng: number | null): string | null {
   return `${latStr} · ${lngStr}`
 }
 
-const SHORT_MONTH = new Intl.DateTimeFormat("en-US", {
+const SHORT_MONTH = new Intl.DateTimeFormat("en-GB", {
   month: "short",
   day: "numeric",
   timeZone: "UTC",
@@ -208,7 +208,8 @@ export default async function TripPage({
             expenses={expenses}
             summary={budgetSummary}
             members={memberTones}
-            plannedBudgetCents={detail?.plannedBudgetCents ?? 0}
+            plannedBudgetCents={header.plannedBudgetCents}
+            savedCents={header.savedCents}
             startDate={header.startDate}
             endDate={header.endDate}
             currentUserId={userData.user.id}
@@ -228,7 +229,11 @@ export default async function TripPage({
         packing={{ done: packingDone, total: packingTotal }}
         budget={{
           spentCents: budgetSummary.expenseTotalCents,
-          plannedCents: detail?.plannedBudgetCents ?? 0,
+          plannedCents: header.plannedBudgetCents,
+        }}
+        saved={{
+          savedCents: header.savedCents,
+          plannedCents: header.plannedBudgetCents,
         }}
       />
 
@@ -496,10 +501,12 @@ function DesktopRightRail({
   detail,
   packing,
   budget,
+  saved,
 }: {
   detail: TripDetail | null
   packing: { done: number; total: number }
   budget: { spentCents: number; plannedCents: number }
+  saved: { savedCents: number; plannedCents: number }
 }) {
   const packingPct =
     packing.total === 0 ? 0 : Math.round((packing.done / packing.total) * 100)
@@ -507,6 +514,10 @@ function DesktopRightRail({
     budget.plannedCents === 0
       ? 0
       : Math.min(100, Math.round((budget.spentCents / budget.plannedCents) * 100))
+  const savedPct =
+    saved.plannedCents === 0
+      ? 0
+      : Math.min(100, Math.round((saved.savedCents / saved.plannedCents) * 100))
   return (
     <aside className="hidden lg:flex lg:w-[280px] lg:flex-shrink-0 lg:flex-col lg:gap-8 lg:border-l lg:border-border lg:bg-card lg:px-6 lg:py-8">
       <div>
@@ -523,6 +534,12 @@ function DesktopRightRail({
             value={`€${(budget.spentCents / 100).toFixed(0)} / €${(budget.plannedCents / 100).toFixed(0)}`}
             pct={budgetPct}
             tone="sea"
+          />
+          <ProgressRow
+            label="Saved"
+            value={`€${(saved.savedCents / 100).toFixed(0)} / €${(saved.plannedCents / 100).toFixed(0)}`}
+            pct={savedPct}
+            tone="moss"
           />
         </div>
       </div>

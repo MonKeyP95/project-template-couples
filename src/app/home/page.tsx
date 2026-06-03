@@ -25,8 +25,8 @@ import { CompactRow, DreamTile, HeroCard, TripCard } from "./trip-cards"
 function formatDateLabel(date: Date) {
   const mm = String(date.getMonth() + 1).padStart(2, "0")
   const dd = String(date.getDate()).padStart(2, "0")
-  const weekday = date.toLocaleDateString("en-US", { weekday: "long" })
-  return `${mm} / ${dd} · ${weekday}`
+  const weekday = date.toLocaleDateString("en-GB", { weekday: "long" })
+  return `${dd} / ${mm} · ${weekday}`
 }
 
 function orderMembers(

@@ -1,4 +1,4 @@
-import { Avatar, Bar, Label, TopoBg } from "@/components/together"
+import { Avatar, Label, TopoBg } from "@/components/together"
 import { settleUp } from "@/lib/trips/actions"
 import {
   enumerateDays,
@@ -6,6 +6,7 @@ import {
   type Expense,
 } from "@/lib/trips/expense-types"
 
+import { BudgetFigures } from "./budget-figures"
 import { LedgerRow } from "./ledger-row"
 import { LogExpenseRow } from "./log-expense-row"
 import type { MemberToneEntry } from "./packing-tab"
@@ -22,6 +23,7 @@ export interface BudgetTabProps {
   summary: BudgetSummary
   members: Record<string, MemberToneEntry>
   plannedBudgetCents: number
+  savedCents: number
   startDate: string | null
   endDate: string | null
   currentUserId: string
@@ -35,16 +37,12 @@ export function BudgetTab({
   summary,
   members,
   plannedBudgetCents,
+  savedCents,
   startDate,
   endDate,
   currentUserId,
 }: BudgetTabProps) {
   const totalCents = summary.expenseTotalCents
-  const leftCents = Math.max(0, plannedBudgetCents - totalCents)
-  const pct =
-    plannedBudgetCents === 0
-      ? 0
-      : Math.min(100, Math.round((totalCents / plannedBudgetCents) * 100))
   const isSettled = summary.netBalanceCents === 0
   const creditor = summary.creditorUserId ? members[summary.creditorUserId] : null
   const debtor = summary.debtorUserId ? members[summary.debtorUserId] : null
@@ -53,11 +51,12 @@ export function BudgetTab({
   return (
     <section>
       <BudgetHeader
+        tripId={tripId}
+        tripSlug={tripSlug}
         tripName={tripName}
-        totalCents={totalCents}
+        spentCents={totalCents}
         plannedBudgetCents={plannedBudgetCents}
-        leftCents={leftCents}
-        pct={pct}
+        savedCents={savedCents}
       />
       <SettleUpCard
         isSettled={isSettled}
@@ -87,46 +86,32 @@ export function BudgetTab({
 }
 
 function BudgetHeader({
+  tripId,
+  tripSlug,
   tripName,
-  totalCents,
+  spentCents,
   plannedBudgetCents,
-  leftCents,
-  pct,
+  savedCents,
 }: {
+  tripId: string
+  tripSlug: string
   tripName: string
-  totalCents: number
+  spentCents: number
   plannedBudgetCents: number
-  leftCents: number
-  pct: number
+  savedCents: number
 }) {
-  const hasPlanned = plannedBudgetCents > 0
   return (
     <div className="relative overflow-hidden bg-dusk-tint px-5 pt-6 pb-4">
       <TopoBg tone="sea" opacity={0.1} />
       <div className="relative">
         <Label>Budget · {tripName}</Label>
-        <div className="mt-2 flex items-baseline gap-1">
-          <span className="t-display text-[22px] text-muted-foreground">€</span>
-          <span className="t-display t-num text-[42px] leading-none text-foreground">
-            {fmt(totalCents)}
-          </span>
-          {hasPlanned ? (
-            <span className="t-display text-[22px] text-muted-foreground">
-              {" "}/ €{fmt(plannedBudgetCents)}
-            </span>
-          ) : null}
-        </div>
-        {hasPlanned ? (
-          <>
-            <div className="mt-3">
-              <Bar pct={pct} tone="sea" />
-            </div>
-            <div className="mt-1.5 flex justify-between font-mono text-[10px] tracking-[0.06em] text-muted-foreground">
-              <span>{pct}% of planned</span>
-              <span>€{fmt(leftCents)} left</span>
-            </div>
-          </>
-        ) : null}
+        <BudgetFigures
+          tripId={tripId}
+          tripSlug={tripSlug}
+          spentCents={spentCents}
+          plannedBudgetCents={plannedBudgetCents}
+          savedCents={savedCents}
+        />
       </div>
     </div>
   )

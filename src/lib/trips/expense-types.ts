@@ -89,7 +89,7 @@ export interface DayOption {
   label: string
 }
 
-const SHORT_MONTH_DAY = new Intl.DateTimeFormat("en-US", {
+const SHORT_MONTH_DAY = new Intl.DateTimeFormat("en-GB", {
   month: "short",
   day: "numeric",
   timeZone: "UTC",

@@ -48,7 +48,7 @@ export default async function ProfilePage() {
             <dt className="text-muted-foreground">Member since</dt>
             <dd>
               {profile?.created_at
-                ? new Date(profile.created_at).toLocaleDateString()
+                ? new Date(profile.created_at).toLocaleDateString("en-GB")
                 : "—"}
             </dd>
           </div>
