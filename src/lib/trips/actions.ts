@@ -53,6 +53,38 @@ export async function togglePackingItem(
   return {}
 }
 
+export interface ImportableTrip {
+  id: string
+  name: string
+}
+
+export interface CopyResult {
+  error?: string
+  copied?: number
+}
+
+/** Other trips/dreams in the same workspace as `tripId`, for the import picker. */
+export async function getImportableTrips(
+  tripId: string,
+): Promise<ImportableTrip[]> {
+  const supabase = await createClient()
+  const { data: trip } = await supabase
+    .from("trips")
+    .select("workspace_id")
+    .eq("id", tripId)
+    .single()
+  if (!trip) return []
+
+  const { data } = await supabase
+    .from("trips")
+    .select("id, name")
+    .eq("workspace_id", trip.workspace_id)
+    .neq("id", tripId)
+    .order("start_date", { ascending: true, nullsFirst: false })
+
+  return (data ?? []).map((r) => ({ id: r.id, name: r.name }))
+}
+
 /**
  * Inserts a new packing item under the given category. RLS requires that
  * `added_by = auth.uid()` and that the caller is a member of the trip's
