@@ -849,6 +849,8 @@ export interface AddItineraryDayResult {
   error?: string
   /** Populated on success — full ItineraryDay (d ordinal is placeholder; client re-runs withOrdinals). */
   day?: ItineraryDay
+  /** True when the insert failed only because the date(s) are already taken — the client may offer to push. */
+  dateTaken?: boolean
 }
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/
@@ -932,6 +934,7 @@ export async function addItineraryDay(
           dates.length > 1
             ? "Some days in that range are already planned."
             : "Another day already uses that date.",
+        dateTaken: true,
       }
     }
     return { error: error.message }
@@ -939,6 +942,36 @@ export async function addItineraryDay(
 
   revalidatePath(`/trips/${input.tripSlug}`)
   return { day: rowToItineraryDay(data[0]) }
+}
+
+/**
+ * Insert a day or multi-day block at an already-taken date by pushing every
+ * later day forward to open the window. Only called after addItineraryDay
+ * reported `dateTaken`, so the input is already validated. Atomic via the
+ * shift_and_insert_itinerary RPC; Realtime + revalidate refresh the view.
+ */
+export async function insertItineraryDayWithShift(
+  input: AddItineraryDayInput,
+): Promise<AddItineraryDayResult> {
+  const endDate = input.endDate?.trim() || input.dayDate
+  const count = enumerateDates(input.dayDate, endDate).length
+
+  const supabase = await createClient()
+  const { error } = await supabase.rpc("shift_and_insert_itinerary", {
+    p_trip_id: input.tripId,
+    p_from_date: input.dayDate,
+    p_count: count,
+    p_title: input.title.trim(),
+    p_sub: input.sub.trim(),
+    p_tag: input.tag.trim(),
+    p_tone: input.tone,
+    p_location_id: input.locationId ?? null,
+    p_group_name: input.groupName ?? null,
+  })
+  if (error) return { error: error.message }
+
+  revalidatePath(`/trips/${input.tripSlug}`)
+  return {}
 }
 
 export interface UpdateItineraryDayInput {
