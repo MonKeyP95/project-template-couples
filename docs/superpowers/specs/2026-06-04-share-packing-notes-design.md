@@ -2,7 +2,7 @@
 
 **Date:** 2026-06-04
 **Status:** draft (awaiting user review)
-**Scope:** packing lists and trip notes. Budget is a separate follow-up (its "copy" semantics are undefined — see Out of scope).
+**Scope:** packing lists and trip notes. Budget copy was considered and **dropped** (2026-06-04) — see Out of scope.
 
 ## Problem / vision
 
@@ -91,7 +91,7 @@ The picker component takes the source list + an `onCopy(sourceTripId)` callback,
 
 ## Out of scope
 
-- **Budget copy** — undefined semantics (copying the real expense ledger is wrong; "planned amount" vs "expected-cost template" needs its own brainstorm). Will reuse the same `copy*FromTrip` + picker shape.
+- **Budget copy — won't do** (decided 2026-06-04). Copying the real expense ledger into a new trip is meaningless, and there's no expected-cost template concept to copy. The `copy*FromTrip` + picker shape could host it if that ever changes.
 - A live/synced link between trips (this is a one-time snapshot).
 - Dedup of identical items/notes.
 - Filtering the source picker to trips that actually have a list.
