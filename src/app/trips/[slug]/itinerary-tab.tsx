@@ -314,6 +314,7 @@ export function ItineraryTab({
   const groups = buildGroups(locations, days)
 
   const [addDayFor, setAddDayFor] = React.useState<string | null>(null)
+  const [addDayDate, setAddDayDate] = React.useState("")
   const [addingLocation, setAddingLocation] = React.useState(false)
   const [newLocName, setNewLocName] = React.useState("")
   const [renamingId, setRenamingId] = React.useState<string | null>(null)
@@ -488,9 +489,14 @@ export function ItineraryTab({
                             )
                           : []
                         const emptySlots = gap.map((gd) => (
-                          <div
+                          <button
+                            type="button"
                             key={`empty-${gd}`}
-                            className="my-1 flex items-center gap-3 rounded-lg border border-dashed border-rule/70 px-3 py-2"
+                            onClick={() => {
+                              setAddDayDate(gd)
+                              setAddDayFor(group.key)
+                            }}
+                            className="my-1 flex w-full items-center gap-3 rounded-lg border border-dashed border-rule/70 px-3 py-2 text-left transition-colors hover:border-foreground"
                           >
                             <span className="t-num w-12 flex-shrink-0 font-mono text-[11px] text-muted-foreground">
                               {formatShortDate(gd)}
@@ -498,7 +504,10 @@ export function ItineraryTab({
                             <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground/70">
                               empty
                             </span>
-                          </div>
+                            <span className="ml-auto font-mono text-[13px] leading-none text-muted-foreground/70">
+                              +
+                            </span>
+                          </button>
                         ))
                         const cards = seg.days.map((day) => (
                           <DayCard
@@ -568,9 +577,16 @@ export function ItineraryTab({
 
                     <div className="pt-2">
                       <AddDayRow
+                        key={`add-${group.key}-${
+                          addDayFor === group.key ? addDayDate : ""
+                        }`}
                         tripId={tripId}
                         tripSlug={tripSlug}
-                        defaultDate={defaultDate}
+                        defaultDate={
+                          addDayFor === group.key && addDayDate
+                            ? addDayDate
+                            : defaultDate
+                        }
                         locationId={isLoc ? group.key : null}
                         open={addDayFor === group.key}
                         onClose={() => setAddDayFor(null)}
@@ -578,7 +594,10 @@ export function ItineraryTab({
                       {addDayFor === group.key ? null : (
                         <button
                           type="button"
-                          onClick={() => setAddDayFor(group.key)}
+                          onClick={() => {
+                            setAddDayDate("")
+                            setAddDayFor(group.key)
+                          }}
                           className="block w-full rounded-lg border border-dashed border-rule py-2 font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground hover:border-foreground hover:text-foreground"
                         >
                           + day
