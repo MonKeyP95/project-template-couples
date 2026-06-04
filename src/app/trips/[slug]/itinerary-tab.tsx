@@ -107,15 +107,14 @@ function orderTabs(
   })
 }
 
-const TRANSIT_KEY = "__transit__"
+const LOOSE_KEY = "__loose__"
 
 interface DayGroup {
-  /** Location id, or TRANSIT_KEY for unfiled travel days. */
+  /** Location id. */
   key: string
   name: string
-  /** null for the transit group. */
   tone: ItineraryTone | null
-  /** 1-based location number, or null for transit. */
+  /** 1-based location number. */
   ord: number | null
   /** Declared span start; null = implied by days. */
   start: string | null
@@ -128,59 +127,64 @@ function byDate(a: ItineraryDay, b: ItineraryDay): number {
   return a.dayDate < b.dayDate ? -1 : a.dayDate > b.dayDate ? 1 : 0
 }
 
+type TimelineItem =
+  | { kind: "location"; group: DayGroup }
+  | { kind: "loose"; seg: DaySegment }
+
 /**
- * Split days into location groups (+ a trailing transit group for unfiled
- * days), ordered top-to-bottom by each group's earliest day. Empty locations
- * sort last. Location ordinals follow the location order (earliest day first).
+ * One date-sorted sequence of timeline items: each location is a collapsible
+ * block; each run of location-less days is a bare "loose" segment (single day
+ * or a group_id trek). No "In transit" bucket -- loose days float at their date.
  */
-function buildGroups(
+function buildTimeline(
   locations: ItineraryLocation[],
   days: ItineraryDay[],
-): DayGroup[] {
+): TimelineItem[] {
   const byLoc = new Map<string, ItineraryDay[]>()
-  const travel: ItineraryDay[] = []
+  const loose: ItineraryDay[] = []
   for (const d of days) {
     if (d.locationId) {
       const arr = byLoc.get(d.locationId)
       if (arr) arr.push(d)
       else byLoc.set(d.locationId, [d])
     } else {
-      travel.push(d)
+      loose.push(d)
     }
   }
 
-  const groups: DayGroup[] = orderTabs(locations, days).map((loc, i) => ({
-    key: loc.id,
-    name: loc.name,
-    tone: slugToTone(loc.id),
-    ord: i + 1,
-    start: loc.startDate,
-    end: loc.endDate,
-    days: (byLoc.get(loc.id) ?? []).slice().sort(byDate),
-  }))
+  const items: { item: TimelineItem; sort: string | null }[] = []
 
-  if (travel.length) {
-    groups.push({
-      key: TRANSIT_KEY,
-      name: "In transit",
-      tone: null,
-      ord: null,
-      start: null,
-      end: null,
-      days: travel.slice().sort(byDate),
+  orderTabs(locations, days).forEach((loc, i) => {
+    const gdays = (byLoc.get(loc.id) ?? []).slice().sort(byDate)
+    const group: DayGroup = {
+      key: loc.id,
+      name: loc.name,
+      tone: slugToTone(loc.id),
+      ord: i + 1,
+      start: loc.startDate,
+      end: loc.endDate,
+      days: gdays,
+    }
+    items.push({
+      item: { kind: "location", group },
+      sort: loc.startDate ?? gdays[0]?.dayDate ?? null,
     })
+  })
+
+  for (const seg of toSegments(loose.slice().sort(byDate))) {
+    items.push({ item: { kind: "loose", seg }, sort: seg.days[0].dayDate })
   }
 
-  // Chronological top-to-bottom; empty groups (no days) keep their order, last.
-  return groups
-    .map((g, idx) => ({ g, e: g.start ?? g.days[0]?.dayDate ?? null, idx }))
+  return items
+    .map((x, idx) => ({ ...x, idx }))
     .sort((a, b) => {
-      if (a.e && b.e) return a.e < b.e ? -1 : a.e > b.e ? 1 : a.idx - b.idx
-      if (a.e) return -1
-      if (b.e) return 1
+      if (a.sort && b.sort)
+        return a.sort < b.sort ? -1 : a.sort > b.sort ? 1 : a.idx - b.idx
+      if (a.sort) return -1
+      if (b.sort) return 1
       return a.idx - b.idx
     })
-    .map((x) => x.g)
+    .map((x) => x.item)
 }
 
 export function ItineraryTab({
@@ -308,7 +312,7 @@ export function ItineraryTab({
       ? nextDayAfter(days[days.length - 1].dayDate)
       : tripStartDate
 
-  const groups = buildGroups(locations, days)
+  const timeline = buildTimeline(locations, days)
 
   const [addDayFor, setAddDayFor] = React.useState<string | null>(null)
   const [addDayDate, setAddDayDate] = React.useState("")
@@ -422,14 +426,33 @@ export function ItineraryTab({
       </div>
 
       <div className="px-5 pt-4 pb-6 lg:px-10">
-        {groups.length === 0 ? (
+        {timeline.length === 0 ? (
           <p className="font-serif text-[15px] italic text-muted-foreground">
-            No days planned yet — add a location to start.
+            Nothing planned yet — add a day, or a location to group them.
           </p>
         ) : (
-          groups.map((group) => {
+          timeline.map((item) => {
+            if (item.kind === "loose") {
+              return (
+                <div
+                  key={item.seg.groupId ?? item.seg.days[0].id}
+                  className="border-t border-rule first:border-t-0 py-1 pl-10"
+                >
+                  <DaySegmentView
+                    seg={item.seg}
+                    tripId={tripId}
+                    tripSlug={tripSlug}
+                    lastDayId={item.seg.days[item.seg.days.length - 1].id}
+                    editingId={editingId}
+                    setEditingId={setEditingId}
+                    locations={locations}
+                  />
+                </div>
+              )
+            }
+            const group = item.group
             const open = !collapsed.has(group.key)
-            const isLoc = group.key !== TRANSIT_KEY
+            const isLoc = true
             const count = group.days.length
             const last = group.days[count - 1]
             const range =
@@ -630,67 +653,17 @@ export function ItineraryTab({
                           )
                         }
                         const seg = item.seg
-                        const cards = seg.days.map((day) => (
-                          <DayCard
-                            key={day.id}
-                            day={day}
+                        return (
+                          <DaySegmentView
+                            key={seg.groupId ?? seg.days[0].id}
+                            seg={seg}
+                            tripId={tripId}
                             tripSlug={tripSlug}
-                            isLast={day.id === last.id}
-                            isEditing={editingId === day.id}
-                            onStartEdit={() => setEditingId(day.id)}
-                            onStopEdit={() => setEditingId(null)}
+                            lastDayId={last.id}
+                            editingId={editingId}
+                            setEditingId={setEditingId}
                             locations={locations}
                           />
-                        ))
-                        if (seg.groupId && seg.days.length > 1) {
-                          return (
-                            <div
-                              key={seg.groupId}
-                              className="relative my-1.5 rounded-xl border border-rule px-2.5 pt-5 pb-1"
-                            >
-                              <span
-                                className={`absolute left-3 top-1.5 font-mono text-[9px] uppercase tracking-[0.14em] ${
-                                  seg.days[0].groupName
-                                    ? "text-foreground"
-                                    : "text-muted-foreground"
-                                }`}
-                              >
-                                {seg.days[0].groupName ?? "added together"}
-                              </span>
-                              <form
-                                action={deleteItineraryGroup.bind(
-                                  null,
-                                  tripId,
-                                  tripSlug,
-                                  seg.groupId,
-                                )}
-                                onSubmit={(e) => {
-                                  if (
-                                    !window.confirm(
-                                      `Delete all ${seg.days.length} days in this block? This can't be undone.`,
-                                    )
-                                  ) {
-                                    e.preventDefault()
-                                  }
-                                }}
-                                className="absolute right-1 top-0.5 inline-flex"
-                              >
-                                <button
-                                  type="submit"
-                                  aria-label="Delete block"
-                                  className="border-0 bg-transparent px-2 py-1 font-mono text-[11px] text-muted-foreground hover:text-clay"
-                                >
-                                  ×
-                                </button>
-                              </form>
-                              {cards}
-                            </div>
-                          )
-                        }
-                        return (
-                          <React.Fragment key={seg.days[0].id}>
-                            {cards}
-                          </React.Fragment>
                         )
                       })
                     })()}
@@ -731,7 +704,30 @@ export function ItineraryTab({
           })
         )}
 
-        <div className="pt-4">
+        <div className="space-y-2 pt-4">
+          <AddDayRow
+            key={`add-loose-${addDayFor === LOOSE_KEY ? addDayDate : ""}`}
+            tripId={tripId}
+            tripSlug={tripSlug}
+            defaultDate={
+              addDayFor === LOOSE_KEY && addDayDate ? addDayDate : defaultDate
+            }
+            locationId={null}
+            open={addDayFor === LOOSE_KEY}
+            onClose={() => setAddDayFor(null)}
+          />
+          {addDayFor === LOOSE_KEY ? null : (
+            <button
+              type="button"
+              onClick={() => {
+                setAddDayDate("")
+                setAddDayFor(LOOSE_KEY)
+              }}
+              className="block w-full rounded-lg border border-dashed border-rule py-3 font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground hover:border-foreground hover:text-foreground"
+            >
+              + day
+            </button>
+          )}
           {addingLocation ? (
             <form onSubmit={submitNewLocation}>
               <input
@@ -759,6 +755,73 @@ export function ItineraryTab({
       </div>
     </section>
   )
+}
+
+function DaySegmentView({
+  seg,
+  tripId,
+  tripSlug,
+  lastDayId,
+  editingId,
+  setEditingId,
+  locations,
+}: {
+  seg: DaySegment
+  tripId: string
+  tripSlug: string
+  lastDayId: string
+  editingId: string | null
+  setEditingId: (id: string | null) => void
+  locations: ItineraryLocation[]
+}) {
+  const cards = seg.days.map((day) => (
+    <DayCard
+      key={day.id}
+      day={day}
+      tripSlug={tripSlug}
+      isLast={day.id === lastDayId}
+      isEditing={editingId === day.id}
+      onStartEdit={() => setEditingId(day.id)}
+      onStopEdit={() => setEditingId(null)}
+      locations={locations}
+    />
+  ))
+  if (seg.groupId && seg.days.length > 1) {
+    return (
+      <div className="relative my-1.5 rounded-xl border border-rule px-2.5 pt-5 pb-1">
+        <span
+          className={`absolute left-3 top-1.5 font-mono text-[9px] uppercase tracking-[0.14em] ${
+            seg.days[0].groupName ? "text-foreground" : "text-muted-foreground"
+          }`}
+        >
+          {seg.days[0].groupName ?? "added together"}
+        </span>
+        <form
+          action={deleteItineraryGroup.bind(null, tripId, tripSlug, seg.groupId)}
+          onSubmit={(e) => {
+            if (
+              !window.confirm(
+                `Delete all ${seg.days.length} days in this block? This can't be undone.`,
+              )
+            ) {
+              e.preventDefault()
+            }
+          }}
+          className="absolute right-1 top-0.5 inline-flex"
+        >
+          <button
+            type="submit"
+            aria-label="Delete block"
+            className="border-0 bg-transparent px-2 py-1 font-mono text-[11px] text-muted-foreground hover:text-clay"
+          >
+            ×
+          </button>
+        </form>
+        {cards}
+      </div>
+    )
+  }
+  return <>{cards}</>
 }
 
 interface DayCardProps {
@@ -819,11 +882,11 @@ function DayView({
   return (
     <div className="relative flex gap-3.5 py-3.5">
       <div className="relative w-9 flex-shrink-0">
-        <div className="font-mono text-[9px] uppercase leading-none tracking-[0.14em] text-muted-foreground">
-          DAY
+        <div className="font-mono text-[22px] leading-none tracking-[-0.02em] text-foreground">
+          {day.dom}
         </div>
-        <div className="mt-0.5 font-mono text-[22px] leading-none tracking-[-0.02em] text-foreground">
-          {day.d}
+        <div className="mt-0.5 font-mono text-[9px] uppercase leading-none tracking-[0.14em] text-muted-foreground">
+          {day.mon.toUpperCase()}
         </div>
         <div className="mt-1 font-mono text-[9px] uppercase tracking-[0.14em] text-muted-foreground">
           {day.dow.toUpperCase()}
@@ -841,7 +904,7 @@ function DayView({
             <MonoBadge tone={day.tone}>{day.tag}</MonoBadge>
           </div>
           <span className="font-mono text-[10px] tracking-[0.06em] text-muted-foreground">
-            {day.date}
+            day {Number(day.d)}
           </span>
         </div>
         <div className="t-display mb-1 text-[22px] leading-tight text-foreground">

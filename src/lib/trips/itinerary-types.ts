@@ -12,6 +12,10 @@ export interface ItineraryDay {
   dow: string
   /** "Jun 12"-style short date in UTC. */
   date: string
+  /** Day-of-month, no padding ("10"). */
+  dom: string
+  /** Short month ("Jun"); uppercase at the view. */
+  mon: string
   title: string
   sub: string
   tag: string
@@ -47,6 +51,16 @@ const SHORT_DATE_FMT = new Intl.DateTimeFormat("en-GB", {
   timeZone: "UTC",
 })
 
+const DOM_FMT = new Intl.DateTimeFormat("en-US", {
+  day: "numeric",
+  timeZone: "UTC",
+})
+
+const MON_FMT = new Intl.DateTimeFormat("en-US", {
+  month: "short",
+  timeZone: "UTC",
+})
+
 function toUtc(dayDate: string): Date {
   return new Date(`${dayDate}T00:00:00Z`)
 }
@@ -60,6 +74,8 @@ export function rowToItineraryDay(row: ItineraryRow): ItineraryDay {
     d: "",
     dow: DOW_FMT.format(utc),
     date: SHORT_DATE_FMT.format(utc),
+    dom: DOM_FMT.format(utc),
+    mon: MON_FMT.format(utc),
     title: row.title,
     sub: row.sub ?? "",
     tag: row.tag,
