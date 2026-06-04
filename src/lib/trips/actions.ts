@@ -902,6 +902,27 @@ export async function addItineraryDay(
   if (userError || !userData.user) return { error: "Not signed in." }
   const userId = userData.user.id
 
+  // Refuse adding onto a date inside another location's span (an empty slot
+  // there) — those dates belong to that location. The target location is
+  // excluded, so filling its own empty slots still works.
+  let spanQuery = supabase
+    .from("itinerary_locations")
+    .select("name")
+    .eq("trip_id", input.tripId)
+    .lte("start_date", endDate)
+    .gte("end_date", input.dayDate)
+    .limit(1)
+  if (input.locationId) spanQuery = spanQuery.neq("id", input.locationId)
+  const { data: spanHit } = await spanQuery.maybeSingle()
+  if (spanHit) {
+    return {
+      error:
+        dates.length > 1
+          ? `Those dates are inside ${spanHit.name} — add them there, or pick other dates.`
+          : `That date is inside ${spanHit.name} — add the day there, or pick another date.`,
+    }
+  }
+
   const sub = input.sub.trim()
 
   // A multi-day span shares one group_id so the UI can mark "added together".
