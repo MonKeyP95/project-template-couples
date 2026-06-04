@@ -107,15 +107,12 @@ function orderTabs(
   })
 }
 
-const TRANSIT_KEY = "__transit__"
-
 interface DayGroup {
-  /** Location id, or TRANSIT_KEY for unfiled travel days. */
+  /** Location id. */
   key: string
   name: string
-  /** null for the transit group. */
   tone: ItineraryTone | null
-  /** 1-based location number, or null for transit. */
+  /** 1-based location number. */
   ord: number | null
   /** Declared span start; null = implied by days. */
   start: string | null
@@ -128,59 +125,64 @@ function byDate(a: ItineraryDay, b: ItineraryDay): number {
   return a.dayDate < b.dayDate ? -1 : a.dayDate > b.dayDate ? 1 : 0
 }
 
+type TimelineItem =
+  | { kind: "location"; group: DayGroup }
+  | { kind: "loose"; seg: DaySegment }
+
 /**
- * Split days into location groups (+ a trailing transit group for unfiled
- * days), ordered top-to-bottom by each group's earliest day. Empty locations
- * sort last. Location ordinals follow the location order (earliest day first).
+ * One date-sorted sequence of timeline items: each location is a collapsible
+ * block; each run of location-less days is a bare "loose" segment (single day
+ * or a group_id trek). No "In transit" bucket -- loose days float at their date.
  */
-function buildGroups(
+function buildTimeline(
   locations: ItineraryLocation[],
   days: ItineraryDay[],
-): DayGroup[] {
+): TimelineItem[] {
   const byLoc = new Map<string, ItineraryDay[]>()
-  const travel: ItineraryDay[] = []
+  const loose: ItineraryDay[] = []
   for (const d of days) {
     if (d.locationId) {
       const arr = byLoc.get(d.locationId)
       if (arr) arr.push(d)
       else byLoc.set(d.locationId, [d])
     } else {
-      travel.push(d)
+      loose.push(d)
     }
   }
 
-  const groups: DayGroup[] = orderTabs(locations, days).map((loc, i) => ({
-    key: loc.id,
-    name: loc.name,
-    tone: slugToTone(loc.id),
-    ord: i + 1,
-    start: loc.startDate,
-    end: loc.endDate,
-    days: (byLoc.get(loc.id) ?? []).slice().sort(byDate),
-  }))
+  const items: { item: TimelineItem; sort: string | null }[] = []
 
-  if (travel.length) {
-    groups.push({
-      key: TRANSIT_KEY,
-      name: "In transit",
-      tone: null,
-      ord: null,
-      start: null,
-      end: null,
-      days: travel.slice().sort(byDate),
+  orderTabs(locations, days).forEach((loc, i) => {
+    const gdays = (byLoc.get(loc.id) ?? []).slice().sort(byDate)
+    const group: DayGroup = {
+      key: loc.id,
+      name: loc.name,
+      tone: slugToTone(loc.id),
+      ord: i + 1,
+      start: loc.startDate,
+      end: loc.endDate,
+      days: gdays,
+    }
+    items.push({
+      item: { kind: "location", group },
+      sort: loc.startDate ?? gdays[0]?.dayDate ?? null,
     })
+  })
+
+  for (const seg of toSegments(loose.slice().sort(byDate))) {
+    items.push({ item: { kind: "loose", seg }, sort: seg.days[0].dayDate })
   }
 
-  // Chronological top-to-bottom; empty groups (no days) keep their order, last.
-  return groups
-    .map((g, idx) => ({ g, e: g.start ?? g.days[0]?.dayDate ?? null, idx }))
+  return items
+    .map((x, idx) => ({ ...x, idx }))
     .sort((a, b) => {
-      if (a.e && b.e) return a.e < b.e ? -1 : a.e > b.e ? 1 : a.idx - b.idx
-      if (a.e) return -1
-      if (b.e) return 1
+      if (a.sort && b.sort)
+        return a.sort < b.sort ? -1 : a.sort > b.sort ? 1 : a.idx - b.idx
+      if (a.sort) return -1
+      if (b.sort) return 1
       return a.idx - b.idx
     })
-    .map((x) => x.g)
+    .map((x) => x.item)
 }
 
 export function ItineraryTab({
@@ -308,7 +310,7 @@ export function ItineraryTab({
       ? nextDayAfter(days[days.length - 1].dayDate)
       : tripStartDate
 
-  const groups = buildGroups(locations, days)
+  const timeline = buildTimeline(locations, days)
 
   const [addDayFor, setAddDayFor] = React.useState<string | null>(null)
   const [addDayDate, setAddDayDate] = React.useState("")
@@ -422,14 +424,33 @@ export function ItineraryTab({
       </div>
 
       <div className="px-5 pt-4 pb-6 lg:px-10">
-        {groups.length === 0 ? (
+        {timeline.length === 0 ? (
           <p className="font-serif text-[15px] italic text-muted-foreground">
-            No days planned yet — add a location to start.
+            Nothing planned yet — add a day, or a location to group them.
           </p>
         ) : (
-          groups.map((group) => {
+          timeline.map((item) => {
+            if (item.kind === "loose") {
+              return (
+                <div
+                  key={item.seg.groupId ?? item.seg.days[0].id}
+                  className="border-t border-rule first:border-t-0 py-1 pl-10"
+                >
+                  <DaySegmentView
+                    seg={item.seg}
+                    tripId={tripId}
+                    tripSlug={tripSlug}
+                    lastDayId={item.seg.days[item.seg.days.length - 1].id}
+                    editingId={editingId}
+                    setEditingId={setEditingId}
+                    locations={locations}
+                  />
+                </div>
+              )
+            }
+            const group = item.group
             const open = !collapsed.has(group.key)
-            const isLoc = group.key !== TRANSIT_KEY
+            const isLoc = true
             const count = group.days.length
             const last = group.days[count - 1]
             const range =
