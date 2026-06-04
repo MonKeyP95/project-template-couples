@@ -3,7 +3,13 @@
 import * as React from "react"
 
 import { Avatar, Label } from "@/components/together"
-import { addNote, deleteNote, updateNote } from "@/lib/trips/actions"
+import {
+  addNote,
+  copyNotesFromTrip,
+  deleteNote,
+  updateNote,
+} from "@/lib/trips/actions"
+import { ImportFromTripControl } from "./import-from-trip"
 import type { TripNote } from "@/lib/trips/note-queries"
 
 import type { MemberToneEntry } from "./packing-tab"
@@ -43,6 +49,14 @@ export function NotesTab({
 
       <div className="mt-4">
         <AddNoteRow tripId={tripId} tripSlug={tripSlug} />
+      </div>
+
+      <div className="mt-2">
+        <ImportFromTripControl
+          tripId={tripId}
+          label="Copy notes from another trip"
+          onCopy={(src) => copyNotesFromTrip(tripId, src, tripSlug)}
+        />
       </div>
 
       {initialNotes.length === 0 ? (

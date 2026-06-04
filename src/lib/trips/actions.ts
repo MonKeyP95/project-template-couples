@@ -810,6 +810,38 @@ export async function addNote(
   return { note: rowToNote(data) }
 }
 
+/** Copy another trip's notes into this one. Additive; each note is re-authored
+ * by the current user with fresh timestamps. */
+export async function copyNotesFromTrip(
+  targetTripId: string,
+  sourceTripId: string,
+  tripSlug: string,
+): Promise<CopyResult> {
+  const supabase = await createClient()
+  const { data: userData, error: userError } = await supabase.auth.getUser()
+  if (userError || !userData.user) return { error: "Not signed in." }
+  const userId = userData.user.id
+
+  const { data: srcNotes } = await supabase
+    .from("trip_notes")
+    .select("body")
+    .eq("trip_id", sourceTripId)
+    .order("created_at", { ascending: true })
+
+  const rows = (srcNotes ?? []).map((n) => ({
+    trip_id: targetTripId,
+    body: n.body,
+    created_by: userId,
+  }))
+  if (rows.length) {
+    const { error } = await supabase.from("trip_notes").insert(rows)
+    if (error) return { error: error.message }
+  }
+
+  revalidatePath(`/trips/${tripSlug}`)
+  return { copied: rows.length }
+}
+
 export interface UpdateNoteInput {
   noteId: string
   tripSlug: string
