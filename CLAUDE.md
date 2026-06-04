@@ -4,7 +4,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Status
 
-**Phase 3 — First Trip: in progress.** Phases 1 (Foundation) and 2 (Auth + Pairing) complete. Phase 3 steps 1–9 done: sand-and-sea tokens + primitives, redesigned `/home`, `/trips/[slug]` route with trips/packing/expenses/itinerary_days schemas + RLS, packing tab with Realtime, budget tab with settle-up, live itinerary timeline, desktop breakpoint pass (3-col layout at lg with left/right rails). Step 10 remaining (AI suggestion-card stub). Live punch list in `docs/TODO.md`.
+**Phases 1–3 complete; Phase 4 (Dream-Trip Pipeline), 4.5 (Trip Notes), and 4.6 (Itinerary Editing) shipped.** Foundation, auth + pairing, and the trip workspace are done: sand-and-sea design system, `/home`, `/trips/[slug]` with trips/packing/expenses/itinerary + RLS, Realtime packing, a settle-up budget (partial/overpay), per-trip notes, dark mode, and the desktop 3-col layout.
+
+The itinerary is now a full **location-organized planner**: days grouped under editable locations that can carry an optional **date span**, **empty-day buffer slots** rendered between/across spans that you click to fill, and **gap-aware confirm-and-push** when an add lands on a taken date — single days, multi-day "added together" blocks (with names), and whole location spans all shift consistently (later days + later location spans move; empties are consumed; `end_date` follows). Dateless **dreams** have a parallel numbered itinerary and promote to dated trips.
+
+**Next: Phase 5 — AI assistant** (Anthropic Claude via `lib/ai/claude.ts`), not yet wired; the moss-bordered `SuggestionCard` is its placeholder. Live punch list in `docs/TODO.md`.
 
 ### Commands
 - `pnpm dev` — start dev server (Turbopack) on http://localhost:3000
