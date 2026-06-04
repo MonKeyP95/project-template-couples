@@ -1497,14 +1497,24 @@ export async function renameItineraryLocation(
   locationId: string,
   tripSlug: string,
   name: string,
+  startDate: string | null,
+  endDate: string | null,
 ): Promise<RenameLocationResult> {
   const trimmed = name.trim()
   if (!trimmed) return { error: "Name required." }
+  const span = startDate && endDate ? { startDate, endDate } : null
+  if (span && span.endDate < span.startDate) {
+    return { error: "End date must be on or after start date." }
+  }
 
   const supabase = await createClient()
   const { error } = await supabase
     .from("itinerary_locations")
-    .update({ name: trimmed })
+    .update({
+      name: trimmed,
+      start_date: span ? span.startDate : null,
+      end_date: span ? span.endDate : null,
+    })
     .eq("id", locationId)
 
   if (error) return { error: error.message }

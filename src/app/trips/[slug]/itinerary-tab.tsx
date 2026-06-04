@@ -315,6 +315,8 @@ export function ItineraryTab({
   const [newLocName, setNewLocName] = React.useState("")
   const [renamingId, setRenamingId] = React.useState<string | null>(null)
   const [renameVal, setRenameVal] = React.useState("")
+  const [renameStart, setRenameStart] = React.useState("")
+  const [renameEnd, setRenameEnd] = React.useState("")
   const [, startLoc] = React.useTransition()
 
   function toggleCollapse(key: string) {
@@ -341,8 +343,18 @@ export function ItineraryTab({
     e.preventDefault()
     const name = renameVal.trim()
     if (!name) return
+    const start = renameStart.trim()
+    const end = renameEnd.trim()
+    const useSpan = Boolean(start && end)
+    if (useSpan && end < start) return
     startLoc(async () => {
-      await renameItineraryLocation(locationId, tripSlug, name)
+      await renameItineraryLocation(
+        locationId,
+        tripSlug,
+        name,
+        useSpan ? start : null,
+        useSpan ? end : null,
+      )
       setRenamingId(null)
     })
   }
@@ -409,15 +421,50 @@ export function ItineraryTab({
                   </span>
                   <div className="min-w-0 flex-1">
                     {isLoc && renamingId === group.key ? (
-                      <form onSubmit={(e) => submitRename(e, group.key)}>
+                      <form
+                        onSubmit={(e) => submitRename(e, group.key)}
+                        className="space-y-2"
+                      >
                         <input
                           type="text"
                           autoFocus
                           value={renameVal}
                           onChange={(e) => setRenameVal(e.target.value)}
-                          onBlur={() => setRenamingId(null)}
                           className="t-display w-full border-0 border-b border-rule bg-transparent text-[20px] leading-none text-foreground focus:border-clay focus:outline-none"
                         />
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="date"
+                            aria-label="Location start date"
+                            value={renameStart}
+                            onChange={(e) => setRenameStart(e.target.value)}
+                            className="t-num border-0 border-b border-rule bg-transparent py-1 text-[12px] text-foreground focus:border-clay focus:outline-none"
+                          />
+                          <span className="font-mono text-[10px] text-muted-foreground">
+                            –
+                          </span>
+                          <input
+                            type="date"
+                            aria-label="Location end date"
+                            value={renameEnd}
+                            min={renameStart || undefined}
+                            onChange={(e) => setRenameEnd(e.target.value)}
+                            className="t-num border-0 border-b border-rule bg-transparent py-1 text-[12px] text-foreground focus:border-clay focus:outline-none"
+                          />
+                          <button
+                            type="submit"
+                            className="ml-auto font-mono text-[10px] uppercase tracking-[0.14em] text-clay hover:text-foreground"
+                          >
+                            save
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setRenamingId(null)}
+                            className="font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground hover:text-foreground"
+                          >
+                            cancel
+                          </button>
+                        </div>
                       </form>
                     ) : (
                       <button
@@ -443,9 +490,11 @@ export function ItineraryTab({
                     <div className="flex items-center gap-1">
                       <button
                         type="button"
-                        aria-label="Rename location"
+                        aria-label="Edit location"
                         onClick={() => {
                           setRenameVal(group.name)
+                          setRenameStart(group.start ?? "")
+                          setRenameEnd(group.end ?? "")
                           setRenamingId(group.key)
                         }}
                         className="border-0 bg-transparent px-1 font-mono text-[11px] text-muted-foreground hover:text-foreground"
