@@ -71,7 +71,7 @@ No schema change, no migration. No new server action — loose adds reuse `addIt
 
 ## Edge cases / limitations
 
-- **A loose day whose date falls inside a location block's range** (e.g. a loose Jun 12 while Kuta spans Jun 11–14 with days on 11/13/14): the location block is atomic, so it sorts by its start (Jun 11) and the loose day (Jun 12) renders after it — slightly out of strict date order. Rare in practice (you'd normally fill Kuta's Jun 12 empty slot, creating a *Kuta* day, not a loose one). Documented, not specially handled.
+- **Adding a day onto a date inside another location's span** is **refused** (`addItineraryDay` checks for a location, other than the target, whose span covers the date and returns *"That date is inside &lt;Location&gt; — add the day there, or pick another date."*). This prevents a loose day from double-rendering against that location's empty slot. The target location is excluded, so filling a location's own empty slot and the same-location overflow push are unaffected.
 - Existing seed days with `location_id = null` (e.g. Lombok's) become loose floating days at their dates — an improvement over the old "In transit" bucket.
 
 ## Build slices (for the plan step)
