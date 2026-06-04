@@ -1187,6 +1187,67 @@ export async function addPackingCategory(
   }
 }
 
+/** Copy another trip's packing list into this one. Merge: same-name categories
+ * are reused (items link by name); items come in unpacked. Additive. */
+export async function copyPackingFromTrip(
+  targetTripId: string,
+  sourceTripId: string,
+  tripSlug: string,
+): Promise<CopyResult> {
+  const supabase = await createClient()
+  const { data: userData, error: userError } = await supabase.auth.getUser()
+  if (userError || !userData.user) return { error: "Not signed in." }
+  const userId = userData.user.id
+
+  const [srcCats, srcItems, tgtCats] = await Promise.all([
+    supabase
+      .from("packing_categories")
+      .select("name, sort_order")
+      .eq("trip_id", sourceTripId)
+      .order("sort_order", { ascending: true }),
+    supabase
+      .from("packing_items")
+      .select("category, label")
+      .eq("trip_id", sourceTripId)
+      .order("created_at", { ascending: true }),
+    supabase
+      .from("packing_categories")
+      .select("name, sort_order")
+      .eq("trip_id", targetTripId),
+  ])
+
+  const existing = new Set((tgtCats.data ?? []).map((c) => c.name))
+  let nextOrder =
+    (tgtCats.data ?? []).reduce((m, c) => Math.max(m, c.sort_order), -1) + 1
+
+  const newCats = (srcCats.data ?? [])
+    .filter((c) => !existing.has(c.name))
+    .map((c) => ({
+      trip_id: targetTripId,
+      name: c.name,
+      sort_order: nextOrder++,
+      created_by: userId,
+    }))
+  if (newCats.length) {
+    const { error } = await supabase.from("packing_categories").insert(newCats)
+    if (error) return { error: error.message }
+  }
+
+  const newItems = (srcItems.data ?? []).map((it) => ({
+    trip_id: targetTripId,
+    category: it.category,
+    label: it.label,
+    added_by: userId,
+  }))
+  if (newItems.length) {
+    const { error } = await supabase.from("packing_items").insert(newItems)
+    if (error) return { error: error.message }
+  }
+
+  revalidatePath(`/trips/${tripSlug}`)
+  return { copied: newItems.length }
+}
+
 export interface DeletePackingCategoryResult {
   error?: string
 }

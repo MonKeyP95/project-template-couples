@@ -29,12 +29,14 @@ import { createClient } from "@/lib/supabase/client"
 import {
   addPackingCategory,
   addPackingItem,
+  copyPackingFromTrip,
   deletePackingCategory,
   deletePackingItem,
   reorderPackingCategories,
   togglePackingItem,
   updatePackingItem,
 } from "@/lib/trips/actions"
+import { ImportFromTripControl } from "./import-from-trip"
 import {
   groupPackingItems,
   type PackingCategory,
@@ -334,6 +336,14 @@ export function PackingTab({
 
         <div className="px-5 pt-4">
           <AddCategoryRow onAdd={addCategory} />
+        </div>
+
+        <div className="px-5 pt-2">
+          <ImportFromTripControl
+            tripId={tripId}
+            label="Copy packing from another trip"
+            onCopy={(src) => copyPackingFromTrip(tripId, src, tripSlug)}
+          />
         </div>
 
         <div className="px-5 pt-4 pb-6">
