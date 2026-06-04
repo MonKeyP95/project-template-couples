@@ -318,6 +318,7 @@ export function ItineraryTab({
   const [renameVal, setRenameVal] = React.useState("")
   const [renameStart, setRenameStart] = React.useState("")
   const [renameEnd, setRenameEnd] = React.useState("")
+  const [renameError, setRenameError] = React.useState<string | null>(null)
   const [, startLoc] = React.useTransition()
 
   function toggleCollapse(key: string) {
@@ -348,6 +349,7 @@ export function ItineraryTab({
     const end = renameEnd.trim()
     const useSpan = Boolean(start && end)
     if (useSpan && end < start) return
+    setRenameError(null)
     startLoc(async () => {
       const result = await renameItineraryLocation(
         locationId,
@@ -357,13 +359,17 @@ export function ItineraryTab({
         useSpan ? start : null,
         useSpan ? end : null,
       )
+      if (result.error) {
+        setRenameError(result.error)
+        return
+      }
       if (result.needsPush) {
         if (
           window.confirm(
             "Those dates overlap other plans — push the following days and locations forward to make room?",
           )
         ) {
-          await setLocationSpanWithShift(
+          const pushed = await setLocationSpanWithShift(
             locationId,
             tripId,
             tripSlug,
@@ -371,6 +377,10 @@ export function ItineraryTab({
             start,
             end,
           )
+          if (pushed.error) {
+            setRenameError(pushed.error)
+            return
+          }
           setRenamingId(null)
         }
         return
@@ -489,6 +499,11 @@ export function ItineraryTab({
                             cancel
                           </button>
                         </div>
+                        {renameError ? (
+                          <p className="font-mono text-[10px] text-clay">
+                            {renameError}
+                          </p>
+                        ) : null}
                       </form>
                     ) : (
                       <button
@@ -519,6 +534,7 @@ export function ItineraryTab({
                           setRenameVal(group.name)
                           setRenameStart(group.start ?? "")
                           setRenameEnd(group.end ?? "")
+                          setRenameError(null)
                           setRenamingId(group.key)
                         }}
                         className="border-0 bg-transparent px-1 font-mono text-[11px] text-muted-foreground hover:text-foreground"
