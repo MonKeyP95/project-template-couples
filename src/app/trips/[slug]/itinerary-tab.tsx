@@ -10,6 +10,7 @@ import {
   deleteItineraryDay,
   deleteItineraryGroup,
   deleteItineraryLocation,
+  insertItineraryDayWithShift,
   renameItineraryLocation,
   updateItineraryDay,
 } from "@/lib/trips/actions"
@@ -878,7 +879,7 @@ function AddDayRow({
     if (isPending || !title.trim() || !tag.trim()) return
     setError(null)
     startTransition(async () => {
-      const result = await addItineraryDay({
+      const payload = {
         tripId,
         tripSlug,
         dayDate,
@@ -889,7 +890,23 @@ function AddDayRow({
         tag,
         tone,
         locationId,
-      })
+      }
+      const result = await addItineraryDay(payload)
+      if (result.dateTaken) {
+        if (
+          window.confirm(
+            "No empty day there — push the following days forward to make room?",
+          )
+        ) {
+          const pushed = await insertItineraryDayWithShift(payload)
+          if (pushed.error) {
+            setError(pushed.error)
+            return
+          }
+          reset()
+        }
+        return
+      }
       if (result.error) {
         setError(result.error)
         return
