@@ -835,6 +835,8 @@ export interface AddItineraryDayInput {
   dayDate: string
   /** Optional inclusive end date. When later than dayDate, one entry per day in the range is created. */
   endDate?: string
+  /** Optional name for a multi-day block; only used when a span (2+ days) is created. */
+  groupName?: string
   title: string
   sub: string
   tag: string
@@ -902,6 +904,8 @@ export async function addItineraryDay(
 
   // A multi-day span shares one group_id so the UI can mark "added together".
   const groupId = dates.length > 1 ? crypto.randomUUID() : null
+  // Only a span carries a name; a blank field stores null.
+  const groupName = dates.length > 1 ? input.groupName?.trim() || null : null
 
   const rows = dates.map((day_date) => ({
     trip_id: input.tripId,
@@ -911,6 +915,7 @@ export async function addItineraryDay(
     tag,
     tone: input.tone,
     group_id: groupId,
+    group_name: groupName,
     location_id: input.locationId ?? null,
     created_by: userId,
   }))
@@ -918,7 +923,7 @@ export async function addItineraryDay(
   const { data, error } = await supabase
     .from("itinerary_days")
     .insert(rows)
-    .select("id, day_date, title, sub, tag, tone, group_id, location_id")
+    .select("id, day_date, title, sub, tag, tone, group_id, group_name, location_id")
 
   if (error) {
     if (error.code === "23505") {
