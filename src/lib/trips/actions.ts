@@ -1490,11 +1490,16 @@ export async function createItineraryLocation(
 
 export interface RenameLocationResult {
   error?: string
+  /** True when the span overlaps other days/locations — the client may offer to push. */
+  needsPush?: boolean
 }
 
-/** Renames a location in place. */
+/** Updates a location's name + optional span. When the span overlaps other
+ * days or another location's start, returns { needsPush } without writing so
+ * the caller can confirm the push. */
 export async function renameItineraryLocation(
   locationId: string,
+  tripId: string,
   tripSlug: string,
   name: string,
   startDate: string | null,
@@ -1508,6 +1513,27 @@ export async function renameItineraryLocation(
   }
 
   const supabase = await createClient()
+
+  if (span) {
+    const dayHit = await supabase
+      .from("itinerary_days")
+      .select("id", { count: "exact", head: true })
+      .eq("trip_id", tripId)
+      .or(`location_id.is.null,location_id.neq.${locationId}`)
+      .gte("day_date", span.startDate)
+      .lte("day_date", span.endDate)
+    const spanHit = await supabase
+      .from("itinerary_locations")
+      .select("id", { count: "exact", head: true })
+      .eq("trip_id", tripId)
+      .neq("id", locationId)
+      .gte("start_date", span.startDate)
+      .lte("start_date", span.endDate)
+    if ((dayHit.count ?? 0) > 0 || (spanHit.count ?? 0) > 0) {
+      return { needsPush: true }
+    }
+  }
+
   const { error } = await supabase
     .from("itinerary_locations")
     .update({
@@ -1517,6 +1543,37 @@ export async function renameItineraryLocation(
     })
     .eq("id", locationId)
 
+  if (error) return { error: error.message }
+
+  revalidatePath(`/trips/${tripSlug}`)
+  return {}
+}
+
+/** Sets a location's span by pushing conflicting later days + location spans
+ * forward (gap-aware) via the RPC. Called after renameItineraryLocation
+ * reported needsPush and the user confirmed. */
+export async function setLocationSpanWithShift(
+  locationId: string,
+  tripId: string,
+  tripSlug: string,
+  name: string,
+  startDate: string,
+  endDate: string,
+): Promise<RenameLocationResult> {
+  const trimmed = name.trim()
+  if (!trimmed) return { error: "Name required." }
+  if (endDate < startDate) {
+    return { error: "End date must be on or after start date." }
+  }
+
+  const supabase = await createClient()
+  const { error } = await supabase.rpc("set_location_span_with_shift", {
+    p_location_id: locationId,
+    p_trip_id: tripId,
+    p_name: trimmed,
+    p_start: startDate,
+    p_end: endDate,
+  })
   if (error) return { error: error.message }
 
   revalidatePath(`/trips/${tripSlug}`)

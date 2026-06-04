@@ -12,6 +12,7 @@ import {
   deleteItineraryLocation,
   insertItineraryDayWithShift,
   renameItineraryLocation,
+  setLocationSpanWithShift,
   updateItineraryDay,
 } from "@/lib/trips/actions"
 import {
@@ -348,13 +349,32 @@ export function ItineraryTab({
     const useSpan = Boolean(start && end)
     if (useSpan && end < start) return
     startLoc(async () => {
-      await renameItineraryLocation(
+      const result = await renameItineraryLocation(
         locationId,
+        tripId,
         tripSlug,
         name,
         useSpan ? start : null,
         useSpan ? end : null,
       )
+      if (result.needsPush) {
+        if (
+          window.confirm(
+            "Those dates overlap other plans — push the following days and locations forward to make room?",
+          )
+        ) {
+          await setLocationSpanWithShift(
+            locationId,
+            tripId,
+            tripSlug,
+            name,
+            start,
+            end,
+          )
+          setRenamingId(null)
+        }
+        return
+      }
       setRenamingId(null)
     })
   }
