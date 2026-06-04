@@ -8,6 +8,7 @@ import {
   addItineraryDay,
   createItineraryLocation,
   deleteItineraryDay,
+  deleteItineraryGroup,
   deleteItineraryLocation,
   renameItineraryLocation,
   updateItineraryDay,
@@ -502,6 +503,32 @@ export function ItineraryTab({
                             >
                               {seg.days[0].groupName ?? "added together"}
                             </span>
+                            <form
+                              action={deleteItineraryGroup.bind(
+                                null,
+                                tripId,
+                                tripSlug,
+                                seg.groupId,
+                              )}
+                              onSubmit={(e) => {
+                                if (
+                                  !window.confirm(
+                                    `Delete all ${seg.days.length} days in this block? This can't be undone.`,
+                                  )
+                                ) {
+                                  e.preventDefault()
+                                }
+                              }}
+                              className="absolute right-1 top-0.5 inline-flex"
+                            >
+                              <button
+                                type="submit"
+                                aria-label="Delete block"
+                                className="border-0 bg-transparent px-2 py-1 font-mono text-[11px] text-muted-foreground hover:text-clay"
+                              >
+                                ×
+                              </button>
+                            </form>
                             {cards}
                           </div>
                         )
