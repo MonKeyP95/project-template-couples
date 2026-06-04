@@ -50,13 +50,19 @@ backward cascade on delete.
 `itinerary_days` row. No placeholder rows, no "empty day" column; the buffer is
 derived from the dates present.
 
-The one new stored thing is a **location's own date span** (optional). A day and
-a location are both "dated anchors":
+The one new stored thing is a **location's own date span** (optional). Days,
+multi-day blocks, and locations are all "dated anchors":
 
 | Anchor   | Occupies                   | Length N |
 |----------|----------------------------|----------|
 | Day      | one date (`day_date`)      | 1        |
+| Multi-day block (trek / course) | N consecutive dates sharing one `group_id` (+ optional block name) | day count |
 | Location | a span (`start_date`..`end_date`) | `end_date − start_date + 1` |
+
+A multi-day block is created **inside a location** by today's From/To range add
+(e.g. a 3-day "Mount Fuji Trek" or a 5-day "Surf School" filed under Kuta) and
+renders in the existing "added together" box. It is unchanged except that its
+date collision now offers the push (below) instead of erroring.
 
 A location's **effective range** = its declared span if set, else
 `min(day_date)..max(day_date)` of its days (today's behavior). Locations without
@@ -113,12 +119,16 @@ in the `>= D` set), so the new anchor slots in cleanly.
 
 ## Server actions
 
-- **`addItineraryDay` — unchanged.** Empty-slot fills on a free date go through
-  it verbatim (single date, no `endDate`). Its existing single-day `23505` is the
-  signal that the date is taken → triggers the confirm-then-push (below).
-- **New `insertDayWithShift(input)`** — calls `shift_itinerary_from(tripId, date,
-  1)` then inserts the day, same `AddItineraryDayResult` shape as
-  `addItineraryDay`. Only called after the user confirms a single-day push.
+- **`addItineraryDay` — unchanged.** Both the single-date fill and the From/To
+  multi-day range add (N days sharing a `group_id` + optional block name) go
+  through it verbatim. When the target dates are free it inserts directly; its
+  existing `23505` ("Another day already uses that date." / "Some days in that
+  range are already planned.") is the signal that dates are taken → triggers the
+  confirm-then-push (below).
+- **New `insertWithShift(input)`** — calls `shift_itinerary_from(tripId,
+  fromDate, N)` (N = 1 for a day, the range length for a multi-day block) then
+  inserts the day(s), same `AddItineraryDayResult` shape as `addItineraryDay`.
+  Only called after the user confirms a push.
 - **`createLocation` / `updateLocation` — extended** to accept optional
   `startDate` + `endDate`. Setting a span checks whether `[start, end]` overlaps
   any already-assigned date (another location's effective range or any day not in
@@ -140,10 +150,12 @@ In `itinerary-tab.tsx`, within each location group:
   covered dates and the leading gap before a location's start are shown; nothing
   is rendered after the last covered date of the last anchor.
 - **Click to fill.** Opens the existing `AddDayRow`/`DayForm` pre-filled with the
-  slot's date and the group's `location_id` (date field stays editable). Submit →
-  `addItineraryDay` (single date). On the single-day `23505`, swap the inline
-  error for the confirm *"No empty day there — push the following days forward by
-  1?"*; on confirm call `insertDayWithShift`, on cancel restore the error.
+  slot's date and the group's `location_id` (date field + the From/To range stay
+  editable, so an empty slot can also be the start of a multi-day trek). Submit →
+  `addItineraryDay`. On a `23505` (single date or range), swap the inline error
+  for the confirm *"No empty day there — push the following N days forward?"* (N =
+  1 for a day, the range length for a block); on confirm call `insertWithShift`,
+  on cancel restore the error.
 - **Location dates.** The create/rename-location control gains optional **start**
   and **end** date inputs. Saving a span that overlaps assigned dates shows the
   confirm *"No room — push the following N days forward?"*; on confirm,
@@ -171,9 +183,10 @@ block is contiguous by construction, so it has no internal gaps.
 
 1. **Render empty slots between days.** Pure UI from existing day dates. No
    actions, no DB. (Delivers the visible buffer immediately.)
-2. **Click-to-fill + single-day overflow push.** `shift_itinerary_from` RPC +
-   `insertDayWithShift`; wire empty-slot click to the add form and the single-day
-   `23505` to confirm-then-push.
+2. **Click-to-fill + overflow push (day and multi-day block).**
+   `shift_itinerary_from` RPC + `insertWithShift`; wire empty-slot click to the
+   add form and turn the `23505` (single date or From/To range) into
+   confirm-then-push by N.
 3. **Location date spans.** The `start_date`/`end_date` columns, location form
    date fields, span-based empty-slot rendering, ordering change, and
    `setLocationSpanWithShift` (reusing the same RPC with N = span length).
