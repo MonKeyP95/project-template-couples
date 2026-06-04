@@ -1024,6 +1024,23 @@ export async function deleteItineraryDay(
   revalidatePath(`/trips/${tripSlug}`)
 }
 
+/** Deletes every day in a multi-day block (all rows sharing group_id). */
+export async function deleteItineraryGroup(
+  tripId: string,
+  tripSlug: string,
+  groupId: string,
+): Promise<void> {
+  const supabase = await createClient()
+  const { error } = await supabase
+    .from("itinerary_days")
+    .delete()
+    .eq("trip_id", tripId)
+    .eq("group_id", groupId)
+  if (error) throw new Error(error.message)
+
+  revalidatePath(`/trips/${tripSlug}`)
+}
+
 export interface AddPackingCategoryResult {
   error?: string
   /** Populated on success so the client can append it with a stable id. */
