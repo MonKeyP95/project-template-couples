@@ -80,3 +80,22 @@ export function withOrdinals(days: ItineraryDay[]): ItineraryDay[] {
     d: String(i + 1).padStart(2, "0"),
   }))
 }
+
+/** yyyy-mm-dd dates strictly between `a` and `b` (both exclusive), ascending.
+ * Empty when the two dates are adjacent, equal, or out of order. */
+export function gapDates(a: string, b: string): string[] {
+  const out: string[] = []
+  const d = new Date(`${a}T00:00:00Z`)
+  d.setUTCDate(d.getUTCDate() + 1)
+  const end = new Date(`${b}T00:00:00Z`)
+  while (d < end) {
+    out.push(d.toISOString().slice(0, 10))
+    d.setUTCDate(d.getUTCDate() + 1)
+  }
+  return out
+}
+
+/** "Jun 12"-style short UTC date for a yyyy-mm-dd string. */
+export function formatShortDate(dayDate: string): string {
+  return SHORT_DATE_FMT.format(new Date(`${dayDate}T00:00:00Z`))
+}
