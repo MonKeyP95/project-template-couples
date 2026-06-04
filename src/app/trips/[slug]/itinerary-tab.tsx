@@ -630,67 +630,17 @@ export function ItineraryTab({
                           )
                         }
                         const seg = item.seg
-                        const cards = seg.days.map((day) => (
-                          <DayCard
-                            key={day.id}
-                            day={day}
+                        return (
+                          <DaySegmentView
+                            key={seg.groupId ?? seg.days[0].id}
+                            seg={seg}
+                            tripId={tripId}
                             tripSlug={tripSlug}
-                            isLast={day.id === last.id}
-                            isEditing={editingId === day.id}
-                            onStartEdit={() => setEditingId(day.id)}
-                            onStopEdit={() => setEditingId(null)}
+                            lastDayId={last.id}
+                            editingId={editingId}
+                            setEditingId={setEditingId}
                             locations={locations}
                           />
-                        ))
-                        if (seg.groupId && seg.days.length > 1) {
-                          return (
-                            <div
-                              key={seg.groupId}
-                              className="relative my-1.5 rounded-xl border border-rule px-2.5 pt-5 pb-1"
-                            >
-                              <span
-                                className={`absolute left-3 top-1.5 font-mono text-[9px] uppercase tracking-[0.14em] ${
-                                  seg.days[0].groupName
-                                    ? "text-foreground"
-                                    : "text-muted-foreground"
-                                }`}
-                              >
-                                {seg.days[0].groupName ?? "added together"}
-                              </span>
-                              <form
-                                action={deleteItineraryGroup.bind(
-                                  null,
-                                  tripId,
-                                  tripSlug,
-                                  seg.groupId,
-                                )}
-                                onSubmit={(e) => {
-                                  if (
-                                    !window.confirm(
-                                      `Delete all ${seg.days.length} days in this block? This can't be undone.`,
-                                    )
-                                  ) {
-                                    e.preventDefault()
-                                  }
-                                }}
-                                className="absolute right-1 top-0.5 inline-flex"
-                              >
-                                <button
-                                  type="submit"
-                                  aria-label="Delete block"
-                                  className="border-0 bg-transparent px-2 py-1 font-mono text-[11px] text-muted-foreground hover:text-clay"
-                                >
-                                  ×
-                                </button>
-                              </form>
-                              {cards}
-                            </div>
-                          )
-                        }
-                        return (
-                          <React.Fragment key={seg.days[0].id}>
-                            {cards}
-                          </React.Fragment>
                         )
                       })
                     })()}
@@ -759,6 +709,73 @@ export function ItineraryTab({
       </div>
     </section>
   )
+}
+
+function DaySegmentView({
+  seg,
+  tripId,
+  tripSlug,
+  lastDayId,
+  editingId,
+  setEditingId,
+  locations,
+}: {
+  seg: DaySegment
+  tripId: string
+  tripSlug: string
+  lastDayId: string
+  editingId: string | null
+  setEditingId: (id: string | null) => void
+  locations: ItineraryLocation[]
+}) {
+  const cards = seg.days.map((day) => (
+    <DayCard
+      key={day.id}
+      day={day}
+      tripSlug={tripSlug}
+      isLast={day.id === lastDayId}
+      isEditing={editingId === day.id}
+      onStartEdit={() => setEditingId(day.id)}
+      onStopEdit={() => setEditingId(null)}
+      locations={locations}
+    />
+  ))
+  if (seg.groupId && seg.days.length > 1) {
+    return (
+      <div className="relative my-1.5 rounded-xl border border-rule px-2.5 pt-5 pb-1">
+        <span
+          className={`absolute left-3 top-1.5 font-mono text-[9px] uppercase tracking-[0.14em] ${
+            seg.days[0].groupName ? "text-foreground" : "text-muted-foreground"
+          }`}
+        >
+          {seg.days[0].groupName ?? "added together"}
+        </span>
+        <form
+          action={deleteItineraryGroup.bind(null, tripId, tripSlug, seg.groupId)}
+          onSubmit={(e) => {
+            if (
+              !window.confirm(
+                `Delete all ${seg.days.length} days in this block? This can't be undone.`,
+              )
+            ) {
+              e.preventDefault()
+            }
+          }}
+          className="absolute right-1 top-0.5 inline-flex"
+        >
+          <button
+            type="submit"
+            aria-label="Delete block"
+            className="border-0 bg-transparent px-2 py-1 font-mono text-[11px] text-muted-foreground hover:text-clay"
+          >
+            ×
+          </button>
+        </form>
+        {cards}
+      </div>
+    )
+  }
+  return <>{cards}</>
 }
 
 interface DayCardProps {
