@@ -23,7 +23,11 @@ import {
   type ItineraryDay,
   type ItineraryTone,
 } from "@/lib/trips/itinerary-types"
-import type { ItineraryLocation } from "@/lib/trips/location-types"
+import {
+  rowToLocation,
+  type ItineraryLocation,
+  type ItineraryLocationRow,
+} from "@/lib/trips/location-types"
 import { slugToTone } from "@/lib/trips/slug-tone"
 
 const itineraryBorder: Record<ItineraryTone, string> = {
@@ -93,8 +97,8 @@ function orderTabs(
     if (cur === undefined || d.dayDate < cur) earliest.set(d.locationId, d.dayDate)
   }
   return [...locations].sort((a, b) => {
-    const da = earliest.get(a.id)
-    const db = earliest.get(b.id)
+    const da = a.startDate ?? earliest.get(a.id)
+    const db = b.startDate ?? earliest.get(b.id)
     if (da && db) return da < db ? -1 : da > db ? 1 : a.sortOrder - b.sortOrder
     if (da) return -1
     if (db) return 1
@@ -112,6 +116,10 @@ interface DayGroup {
   tone: ItineraryTone | null
   /** 1-based location number, or null for transit. */
   ord: number | null
+  /** Declared span start; null = implied by days. */
+  start: string | null
+  /** Declared span end; null = implied by days. */
+  end: string | null
   days: ItineraryDay[]
 }
 
@@ -145,6 +153,8 @@ function buildGroups(
     name: loc.name,
     tone: slugToTone(loc.id),
     ord: i + 1,
+    start: loc.startDate,
+    end: loc.endDate,
     days: (byLoc.get(loc.id) ?? []).slice().sort(byDate),
   }))
 
@@ -154,13 +164,15 @@ function buildGroups(
       name: "In transit",
       tone: null,
       ord: null,
+      start: null,
+      end: null,
       days: travel.slice().sort(byDate),
     })
   }
 
   // Chronological top-to-bottom; empty groups (no days) keep their order, last.
   return groups
-    .map((g, idx) => ({ g, e: g.days[0]?.dayDate ?? null, idx }))
+    .map((g, idx) => ({ g, e: g.start ?? g.days[0]?.dayDate ?? null, idx }))
     .sort((a, b) => {
       if (a.e && b.e) return a.e < b.e ? -1 : a.e > b.e ? 1 : a.idx - b.idx
       if (a.e) return -1
@@ -262,34 +274,17 @@ export function ItineraryTab({
         },
         (payload) => {
           if (payload.eventType === "INSERT") {
-            const r = payload.new as {
-              id: string
-              name: string
-              sort_order: number
-            }
-            const incoming: ItineraryLocation = {
-              id: r.id,
-              name: r.name,
-              sortOrder: r.sort_order,
-            }
+            const incoming = rowToLocation(payload.new as ItineraryLocationRow)
             setLocations((prev) =>
               prev.some((l) => l.id === incoming.id)
                 ? prev
                 : [...prev, incoming].sort((a, b) => a.sortOrder - b.sortOrder),
             )
           } else if (payload.eventType === "UPDATE") {
-            const r = payload.new as {
-              id: string
-              name: string
-              sort_order: number
-            }
+            const incoming = rowToLocation(payload.new as ItineraryLocationRow)
             setLocations((prev) =>
               prev
-                .map((l) =>
-                  l.id === r.id
-                    ? { id: r.id, name: r.name, sortOrder: r.sort_order }
-                    : l,
-                )
+                .map((l) => (l.id === incoming.id ? incoming : l))
                 .sort((a, b) => a.sortOrder - b.sortOrder),
             )
           } else if (payload.eventType === "DELETE") {
