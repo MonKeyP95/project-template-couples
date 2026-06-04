@@ -1,12 +1,14 @@
 -- Overflow push for itinerary adds.
--- Opens a p_count-day window at p_from_date by shifting every day on/after it
--- forward, then inserts the new day(s) into the freed window -- atomically,
--- under the DEFERRABLE (trip_id, day_date) unique from
--- 20260529000002_itinerary_reschedule.sql. SECURITY INVOKER (default): the
--- caller's RLS gates the update/insert, and auth.uid() stamps created_by.
--- Multi-day adds (p_count > 1) share one group_id and an optional group_name,
--- so a pushed trek still renders in the "added together" box. Idempotent
--- (create or replace).
+-- Inserts p_count day(s) starting at p_from_date and pushes only the OVERFLOW
+-- of the occupied tail forward, so any empty buffer days between p_from_date and
+-- the first occupied day are consumed instead of being shoved past the new block.
+-- The shift is count minus that free runway (>= 1 when there is a collision);
+-- run under the DEFERRABLE (trip_id, day_date) unique from
+-- 20260529000002_itinerary_reschedule.sql, so it is atomic. SECURITY INVOKER
+-- (default): the caller's RLS gates the update/insert, and auth.uid() stamps
+-- created_by. Multi-day adds (p_count > 1) share one group_id and an optional
+-- group_name, so a pushed trek still renders in the "added together" box.
+-- Idempotent (create or replace).
 
 create or replace function public.shift_and_insert_itinerary(
   p_trip_id     uuid,
@@ -25,11 +27,25 @@ declare
   v_group uuid := case when p_count > 1 then gen_random_uuid() else null end;
   v_name  text := case when p_count > 1 then nullif(btrim(p_group_name), '') else null end;
   v_uid   uuid := auth.uid();
+  v_first date;
+  v_shift int;
 begin
   set constraints all deferred;
 
+  -- First occupied date at/after the insertion point. Empty dates between
+  -- p_from_date and it are free runway the new block uses, so we only push the
+  -- occupied tail by the days that do not fit in that runway.
+  select min(day_date) into v_first
+  from public.itinerary_days
+  where trip_id = p_trip_id and day_date >= p_from_date;
+
+  v_shift := case
+    when v_first is null then 0
+    else greatest(0, p_count - (v_first - p_from_date))
+  end;
+
   update public.itinerary_days
-  set day_date = day_date + p_count
+  set day_date = day_date + v_shift
   where trip_id = p_trip_id and day_date >= p_from_date;
 
   insert into public.itinerary_days
