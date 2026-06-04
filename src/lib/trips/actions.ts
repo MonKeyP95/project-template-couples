@@ -53,6 +53,38 @@ export async function togglePackingItem(
   return {}
 }
 
+export interface ImportableTrip {
+  id: string
+  name: string
+}
+
+export interface CopyResult {
+  error?: string
+  copied?: number
+}
+
+/** Other trips/dreams in the same workspace as `tripId`, for the import picker. */
+export async function getImportableTrips(
+  tripId: string,
+): Promise<ImportableTrip[]> {
+  const supabase = await createClient()
+  const { data: trip } = await supabase
+    .from("trips")
+    .select("workspace_id")
+    .eq("id", tripId)
+    .single()
+  if (!trip) return []
+
+  const { data } = await supabase
+    .from("trips")
+    .select("id, name")
+    .eq("workspace_id", trip.workspace_id)
+    .neq("id", tripId)
+    .order("start_date", { ascending: true, nullsFirst: false })
+
+  return (data ?? []).map((r) => ({ id: r.id, name: r.name }))
+}
+
 /**
  * Inserts a new packing item under the given category. RLS requires that
  * `added_by = auth.uid()` and that the caller is a member of the trip's
@@ -778,6 +810,38 @@ export async function addNote(
   return { note: rowToNote(data) }
 }
 
+/** Copy another trip's notes into this one. Additive; each note is re-authored
+ * by the current user with fresh timestamps. */
+export async function copyNotesFromTrip(
+  targetTripId: string,
+  sourceTripId: string,
+  tripSlug: string,
+): Promise<CopyResult> {
+  const supabase = await createClient()
+  const { data: userData, error: userError } = await supabase.auth.getUser()
+  if (userError || !userData.user) return { error: "Not signed in." }
+  const userId = userData.user.id
+
+  const { data: srcNotes } = await supabase
+    .from("trip_notes")
+    .select("body")
+    .eq("trip_id", sourceTripId)
+    .order("created_at", { ascending: true })
+
+  const rows = (srcNotes ?? []).map((n) => ({
+    trip_id: targetTripId,
+    body: n.body,
+    created_by: userId,
+  }))
+  if (rows.length) {
+    const { error } = await supabase.from("trip_notes").insert(rows)
+    if (error) return { error: error.message }
+  }
+
+  revalidatePath(`/trips/${tripSlug}`)
+  return { copied: rows.length }
+}
+
 export interface UpdateNoteInput {
   noteId: string
   tripSlug: string
@@ -1153,6 +1217,67 @@ export async function addPackingCategory(
       sortOrder: data.sort_order,
     },
   }
+}
+
+/** Copy another trip's packing list into this one. Merge: same-name categories
+ * are reused (items link by name); items come in unpacked. Additive. */
+export async function copyPackingFromTrip(
+  targetTripId: string,
+  sourceTripId: string,
+  tripSlug: string,
+): Promise<CopyResult> {
+  const supabase = await createClient()
+  const { data: userData, error: userError } = await supabase.auth.getUser()
+  if (userError || !userData.user) return { error: "Not signed in." }
+  const userId = userData.user.id
+
+  const [srcCats, srcItems, tgtCats] = await Promise.all([
+    supabase
+      .from("packing_categories")
+      .select("name, sort_order")
+      .eq("trip_id", sourceTripId)
+      .order("sort_order", { ascending: true }),
+    supabase
+      .from("packing_items")
+      .select("category, label")
+      .eq("trip_id", sourceTripId)
+      .order("created_at", { ascending: true }),
+    supabase
+      .from("packing_categories")
+      .select("name, sort_order")
+      .eq("trip_id", targetTripId),
+  ])
+
+  const existing = new Set((tgtCats.data ?? []).map((c) => c.name))
+  let nextOrder =
+    (tgtCats.data ?? []).reduce((m, c) => Math.max(m, c.sort_order), -1) + 1
+
+  const newCats = (srcCats.data ?? [])
+    .filter((c) => !existing.has(c.name))
+    .map((c) => ({
+      trip_id: targetTripId,
+      name: c.name,
+      sort_order: nextOrder++,
+      created_by: userId,
+    }))
+  if (newCats.length) {
+    const { error } = await supabase.from("packing_categories").insert(newCats)
+    if (error) return { error: error.message }
+  }
+
+  const newItems = (srcItems.data ?? []).map((it) => ({
+    trip_id: targetTripId,
+    category: it.category,
+    label: it.label,
+    added_by: userId,
+  }))
+  if (newItems.length) {
+    const { error } = await supabase.from("packing_items").insert(newItems)
+    if (error) return { error: error.message }
+  }
+
+  revalidatePath(`/trips/${tripSlug}`)
+  return { copied: newItems.length }
 }
 
 export interface DeletePackingCategoryResult {
