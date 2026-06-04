@@ -819,11 +819,11 @@ function DayView({
   return (
     <div className="relative flex gap-3.5 py-3.5">
       <div className="relative w-9 flex-shrink-0">
-        <div className="font-mono text-[9px] uppercase leading-none tracking-[0.14em] text-muted-foreground">
-          DAY
+        <div className="font-mono text-[22px] leading-none tracking-[-0.02em] text-foreground">
+          {day.dom}
         </div>
-        <div className="mt-0.5 font-mono text-[22px] leading-none tracking-[-0.02em] text-foreground">
-          {day.d}
+        <div className="mt-0.5 font-mono text-[9px] uppercase leading-none tracking-[0.14em] text-muted-foreground">
+          {day.mon.toUpperCase()}
         </div>
         <div className="mt-1 font-mono text-[9px] uppercase tracking-[0.14em] text-muted-foreground">
           {day.dow.toUpperCase()}
@@ -841,7 +841,7 @@ function DayView({
             <MonoBadge tone={day.tone}>{day.tag}</MonoBadge>
           </div>
           <span className="font-mono text-[10px] tracking-[0.06em] text-muted-foreground">
-            {day.date}
+            day {Number(day.d)}
           </span>
         </div>
         <div className="t-display mb-1 text-[22px] leading-tight text-foreground">
