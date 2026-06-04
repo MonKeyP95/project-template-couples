@@ -11,7 +11,7 @@ export async function getItineraryLocations(
   const supabase = await createClient()
   const { data } = await supabase
     .from("itinerary_locations")
-    .select("id, name, sort_order")
+    .select("id, name, sort_order, start_date, end_date")
     .eq("trip_id", tripId)
     .order("sort_order", { ascending: true })
 

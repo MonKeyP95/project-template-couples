@@ -16,14 +16,18 @@ import {
 } from "@/lib/trips/actions"
 import {
   ITINERARY_TONES,
+  dateRange,
   formatShortDate,
-  gapDates,
   rowToItineraryDay,
   withOrdinals,
   type ItineraryDay,
   type ItineraryTone,
 } from "@/lib/trips/itinerary-types"
-import type { ItineraryLocation } from "@/lib/trips/location-types"
+import {
+  rowToLocation,
+  type ItineraryLocation,
+  type ItineraryLocationRow,
+} from "@/lib/trips/location-types"
 import { slugToTone } from "@/lib/trips/slug-tone"
 
 const itineraryBorder: Record<ItineraryTone, string> = {
@@ -93,8 +97,8 @@ function orderTabs(
     if (cur === undefined || d.dayDate < cur) earliest.set(d.locationId, d.dayDate)
   }
   return [...locations].sort((a, b) => {
-    const da = earliest.get(a.id)
-    const db = earliest.get(b.id)
+    const da = a.startDate ?? earliest.get(a.id)
+    const db = b.startDate ?? earliest.get(b.id)
     if (da && db) return da < db ? -1 : da > db ? 1 : a.sortOrder - b.sortOrder
     if (da) return -1
     if (db) return 1
@@ -112,6 +116,10 @@ interface DayGroup {
   tone: ItineraryTone | null
   /** 1-based location number, or null for transit. */
   ord: number | null
+  /** Declared span start; null = implied by days. */
+  start: string | null
+  /** Declared span end; null = implied by days. */
+  end: string | null
   days: ItineraryDay[]
 }
 
@@ -145,6 +153,8 @@ function buildGroups(
     name: loc.name,
     tone: slugToTone(loc.id),
     ord: i + 1,
+    start: loc.startDate,
+    end: loc.endDate,
     days: (byLoc.get(loc.id) ?? []).slice().sort(byDate),
   }))
 
@@ -154,13 +164,15 @@ function buildGroups(
       name: "In transit",
       tone: null,
       ord: null,
+      start: null,
+      end: null,
       days: travel.slice().sort(byDate),
     })
   }
 
   // Chronological top-to-bottom; empty groups (no days) keep their order, last.
   return groups
-    .map((g, idx) => ({ g, e: g.days[0]?.dayDate ?? null, idx }))
+    .map((g, idx) => ({ g, e: g.start ?? g.days[0]?.dayDate ?? null, idx }))
     .sort((a, b) => {
       if (a.e && b.e) return a.e < b.e ? -1 : a.e > b.e ? 1 : a.idx - b.idx
       if (a.e) return -1
@@ -262,34 +274,17 @@ export function ItineraryTab({
         },
         (payload) => {
           if (payload.eventType === "INSERT") {
-            const r = payload.new as {
-              id: string
-              name: string
-              sort_order: number
-            }
-            const incoming: ItineraryLocation = {
-              id: r.id,
-              name: r.name,
-              sortOrder: r.sort_order,
-            }
+            const incoming = rowToLocation(payload.new as ItineraryLocationRow)
             setLocations((prev) =>
               prev.some((l) => l.id === incoming.id)
                 ? prev
                 : [...prev, incoming].sort((a, b) => a.sortOrder - b.sortOrder),
             )
           } else if (payload.eventType === "UPDATE") {
-            const r = payload.new as {
-              id: string
-              name: string
-              sort_order: number
-            }
+            const incoming = rowToLocation(payload.new as ItineraryLocationRow)
             setLocations((prev) =>
               prev
-                .map((l) =>
-                  l.id === r.id
-                    ? { id: r.id, name: r.name, sortOrder: r.sort_order }
-                    : l,
-                )
+                .map((l) => (l.id === incoming.id ? incoming : l))
                 .sort((a, b) => a.sortOrder - b.sortOrder),
             )
           } else if (payload.eventType === "DELETE") {
@@ -320,6 +315,8 @@ export function ItineraryTab({
   const [newLocName, setNewLocName] = React.useState("")
   const [renamingId, setRenamingId] = React.useState<string | null>(null)
   const [renameVal, setRenameVal] = React.useState("")
+  const [renameStart, setRenameStart] = React.useState("")
+  const [renameEnd, setRenameEnd] = React.useState("")
   const [, startLoc] = React.useTransition()
 
   function toggleCollapse(key: string) {
@@ -346,8 +343,18 @@ export function ItineraryTab({
     e.preventDefault()
     const name = renameVal.trim()
     if (!name) return
+    const start = renameStart.trim()
+    const end = renameEnd.trim()
+    const useSpan = Boolean(start && end)
+    if (useSpan && end < start) return
     startLoc(async () => {
-      await renameItineraryLocation(locationId, tripSlug, name)
+      await renameItineraryLocation(
+        locationId,
+        tripSlug,
+        name,
+        useSpan ? start : null,
+        useSpan ? end : null,
+      )
       setRenamingId(null)
     })
   }
@@ -401,6 +408,10 @@ export function ItineraryTab({
                 : count === 1
                   ? group.days[0].date
                   : `${group.days[0].date} – ${last.date}`
+            const spanRange =
+              group.start && group.end
+                ? `${formatShortDate(group.start)} – ${formatShortDate(group.end)}`
+                : ""
             return (
               <div
                 key={group.key}
@@ -414,15 +425,50 @@ export function ItineraryTab({
                   </span>
                   <div className="min-w-0 flex-1">
                     {isLoc && renamingId === group.key ? (
-                      <form onSubmit={(e) => submitRename(e, group.key)}>
+                      <form
+                        onSubmit={(e) => submitRename(e, group.key)}
+                        className="space-y-2"
+                      >
                         <input
                           type="text"
                           autoFocus
                           value={renameVal}
                           onChange={(e) => setRenameVal(e.target.value)}
-                          onBlur={() => setRenamingId(null)}
                           className="t-display w-full border-0 border-b border-rule bg-transparent text-[20px] leading-none text-foreground focus:border-clay focus:outline-none"
                         />
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="date"
+                            aria-label="Location start date"
+                            value={renameStart}
+                            onChange={(e) => setRenameStart(e.target.value)}
+                            className="t-num border-0 border-b border-rule bg-transparent py-1 text-[12px] text-foreground focus:border-clay focus:outline-none"
+                          />
+                          <span className="font-mono text-[10px] text-muted-foreground">
+                            –
+                          </span>
+                          <input
+                            type="date"
+                            aria-label="Location end date"
+                            value={renameEnd}
+                            min={renameStart || undefined}
+                            onChange={(e) => setRenameEnd(e.target.value)}
+                            className="t-num border-0 border-b border-rule bg-transparent py-1 text-[12px] text-foreground focus:border-clay focus:outline-none"
+                          />
+                          <button
+                            type="submit"
+                            className="ml-auto font-mono text-[10px] uppercase tracking-[0.14em] text-clay hover:text-foreground"
+                          >
+                            save
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setRenamingId(null)}
+                            className="font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground hover:text-foreground"
+                          >
+                            cancel
+                          </button>
+                        </div>
                       </form>
                     ) : (
                       <button
@@ -438,9 +484,9 @@ export function ItineraryTab({
                     )}
                     <div className="mt-1 font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
                       {count === 0
-                        ? "no days"
-                        : `${count} ${count === 1 ? "day" : "days"}${
-                            range ? ` · ${range}` : ""
+                        ? spanRange || "no days"
+                        : `${count} ${count === 1 ? "day" : "days"} · ${
+                            spanRange || range
                           }`}
                     </div>
                   </div>
@@ -448,9 +494,11 @@ export function ItineraryTab({
                     <div className="flex items-center gap-1">
                       <button
                         type="button"
-                        aria-label="Rename location"
+                        aria-label="Edit location"
                         onClick={() => {
                           setRenameVal(group.name)
+                          setRenameStart(group.start ?? "")
+                          setRenameEnd(group.end ?? "")
                           setRenamingId(group.key)
                         }}
                         className="border-0 bg-transparent px-1 font-mono text-[11px] text-muted-foreground hover:text-foreground"
@@ -481,35 +529,71 @@ export function ItineraryTab({
                   <div className="pb-3 pl-10">
                     {(() => {
                       const segs = toSegments(group.days)
-                      return segs.map((seg, si) => {
-                        const prev = si > 0 ? segs[si - 1] : null
-                        const gap = prev
-                          ? gapDates(
-                              prev.days[prev.days.length - 1].dayDate,
-                              seg.days[0].dayDate,
+                      const dayDates = group.days.map((d) => d.dayDate)
+                      // Effective range = declared span unioned with any days.
+                      const lows = [group.start, ...dayDates].filter(
+                        (v): v is string => Boolean(v),
+                      )
+                      const highs = [group.end, ...dayDates].filter(
+                        (v): v is string => Boolean(v),
+                      )
+                      const rangeStart = lows.length
+                        ? lows.reduce((a, b) => (a < b ? a : b))
+                        : null
+                      const rangeEnd = highs.length
+                        ? highs.reduce((a, b) => (a > b ? a : b))
+                        : null
+                      const occupied = new Set(dayDates)
+                      const empties =
+                        rangeStart && rangeEnd
+                          ? dateRange(rangeStart, rangeEnd).filter(
+                              (d) => !occupied.has(d),
                             )
                           : []
-                        const emptySlots = gap.map((gd) => (
-                          <button
-                            type="button"
-                            key={`empty-${gd}`}
-                            onClick={() => {
-                              setAddDayDate(gd)
-                              setAddDayFor(group.key)
-                            }}
-                            className="my-1 flex w-full items-center gap-3 rounded-lg border border-dashed border-rule/70 px-3 py-2 text-left transition-colors hover:border-foreground"
-                          >
-                            <span className="t-num w-12 flex-shrink-0 font-mono text-[11px] text-muted-foreground">
-                              {formatShortDate(gd)}
-                            </span>
-                            <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground/70">
-                              empty
-                            </span>
-                            <span className="ml-auto font-mono text-[13px] leading-none text-muted-foreground/70">
-                              +
-                            </span>
-                          </button>
-                        ))
+                      type Item =
+                        | { kind: "seg"; key: string; seg: (typeof segs)[number] }
+                        | { kind: "empty"; key: string; date: string }
+                      const items: Item[] = [
+                        ...segs.map((seg) => ({
+                          kind: "seg" as const,
+                          key: seg.days[0].dayDate,
+                          seg,
+                        })),
+                        ...empties.map((date) => ({
+                          kind: "empty" as const,
+                          key: date,
+                          date,
+                        })),
+                      ].sort((a, b) =>
+                        a.key < b.key ? -1 : a.key > b.key ? 1 : 0,
+                      )
+
+                      return items.map((item) => {
+                        if (item.kind === "empty") {
+                          const gd = item.date
+                          return (
+                            <button
+                              type="button"
+                              key={`empty-${gd}`}
+                              onClick={() => {
+                                setAddDayDate(gd)
+                                setAddDayFor(group.key)
+                              }}
+                              className="my-1 flex w-full items-center gap-3 rounded-lg border border-dashed border-rule/70 px-3 py-2 text-left transition-colors hover:border-foreground"
+                            >
+                              <span className="t-num w-12 flex-shrink-0 font-mono text-[11px] text-muted-foreground">
+                                {formatShortDate(gd)}
+                              </span>
+                              <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground/70">
+                                empty
+                              </span>
+                              <span className="ml-auto font-mono text-[13px] leading-none text-muted-foreground/70">
+                                +
+                              </span>
+                            </button>
+                          )
+                        }
+                        const seg = item.seg
                         const cards = seg.days.map((day) => (
                           <DayCard
                             key={day.id}
@@ -524,52 +608,51 @@ export function ItineraryTab({
                         ))
                         if (seg.groupId && seg.days.length > 1) {
                           return (
-                            <React.Fragment key={seg.groupId}>
-                              {emptySlots}
-                              <div className="relative my-1.5 rounded-xl border border-rule px-2.5 pt-5 pb-1">
-                                <span
-                                  className={`absolute left-3 top-1.5 font-mono text-[9px] uppercase tracking-[0.14em] ${
-                                    seg.days[0].groupName
-                                      ? "text-foreground"
-                                      : "text-muted-foreground"
-                                  }`}
+                            <div
+                              key={seg.groupId}
+                              className="relative my-1.5 rounded-xl border border-rule px-2.5 pt-5 pb-1"
+                            >
+                              <span
+                                className={`absolute left-3 top-1.5 font-mono text-[9px] uppercase tracking-[0.14em] ${
+                                  seg.days[0].groupName
+                                    ? "text-foreground"
+                                    : "text-muted-foreground"
+                                }`}
+                              >
+                                {seg.days[0].groupName ?? "added together"}
+                              </span>
+                              <form
+                                action={deleteItineraryGroup.bind(
+                                  null,
+                                  tripId,
+                                  tripSlug,
+                                  seg.groupId,
+                                )}
+                                onSubmit={(e) => {
+                                  if (
+                                    !window.confirm(
+                                      `Delete all ${seg.days.length} days in this block? This can't be undone.`,
+                                    )
+                                  ) {
+                                    e.preventDefault()
+                                  }
+                                }}
+                                className="absolute right-1 top-0.5 inline-flex"
+                              >
+                                <button
+                                  type="submit"
+                                  aria-label="Delete block"
+                                  className="border-0 bg-transparent px-2 py-1 font-mono text-[11px] text-muted-foreground hover:text-clay"
                                 >
-                                  {seg.days[0].groupName ?? "added together"}
-                                </span>
-                                <form
-                                  action={deleteItineraryGroup.bind(
-                                    null,
-                                    tripId,
-                                    tripSlug,
-                                    seg.groupId,
-                                  )}
-                                  onSubmit={(e) => {
-                                    if (
-                                      !window.confirm(
-                                        `Delete all ${seg.days.length} days in this block? This can't be undone.`,
-                                      )
-                                    ) {
-                                      e.preventDefault()
-                                    }
-                                  }}
-                                  className="absolute right-1 top-0.5 inline-flex"
-                                >
-                                  <button
-                                    type="submit"
-                                    aria-label="Delete block"
-                                    className="border-0 bg-transparent px-2 py-1 font-mono text-[11px] text-muted-foreground hover:text-clay"
-                                  >
-                                    ×
-                                  </button>
-                                </form>
-                                {cards}
-                              </div>
-                            </React.Fragment>
+                                  ×
+                                </button>
+                              </form>
+                              {cards}
+                            </div>
                           )
                         }
                         return (
                           <React.Fragment key={seg.days[0].id}>
-                            {emptySlots}
                             {cards}
                           </React.Fragment>
                         )
