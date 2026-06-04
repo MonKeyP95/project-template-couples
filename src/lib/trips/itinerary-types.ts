@@ -99,3 +99,15 @@ export function gapDates(a: string, b: string): string[] {
 export function formatShortDate(dayDate: string): string {
   return SHORT_DATE_FMT.format(new Date(`${dayDate}T00:00:00Z`))
 }
+
+/** All yyyy-mm-dd dates in [start, end] inclusive, ascending. Empty if start > end. */
+export function dateRange(start: string, end: string): string[] {
+  const out: string[] = []
+  const d = new Date(`${start}T00:00:00Z`)
+  const last = new Date(`${end}T00:00:00Z`)
+  while (d <= last) {
+    out.push(d.toISOString().slice(0, 10))
+    d.setUTCDate(d.getUTCDate() + 1)
+  }
+  return out
+}

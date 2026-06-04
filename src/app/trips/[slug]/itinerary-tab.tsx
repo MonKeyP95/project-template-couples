@@ -16,8 +16,8 @@ import {
 } from "@/lib/trips/actions"
 import {
   ITINERARY_TONES,
+  dateRange,
   formatShortDate,
-  gapDates,
   rowToItineraryDay,
   withOrdinals,
   type ItineraryDay,
@@ -408,6 +408,10 @@ export function ItineraryTab({
                 : count === 1
                   ? group.days[0].date
                   : `${group.days[0].date} – ${last.date}`
+            const spanRange =
+              group.start && group.end
+                ? `${formatShortDate(group.start)} – ${formatShortDate(group.end)}`
+                : ""
             return (
               <div
                 key={group.key}
@@ -480,9 +484,9 @@ export function ItineraryTab({
                     )}
                     <div className="mt-1 font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
                       {count === 0
-                        ? "no days"
-                        : `${count} ${count === 1 ? "day" : "days"}${
-                            range ? ` · ${range}` : ""
+                        ? spanRange || "no days"
+                        : `${count} ${count === 1 ? "day" : "days"} · ${
+                            spanRange || range
                           }`}
                     </div>
                   </div>
@@ -525,35 +529,71 @@ export function ItineraryTab({
                   <div className="pb-3 pl-10">
                     {(() => {
                       const segs = toSegments(group.days)
-                      return segs.map((seg, si) => {
-                        const prev = si > 0 ? segs[si - 1] : null
-                        const gap = prev
-                          ? gapDates(
-                              prev.days[prev.days.length - 1].dayDate,
-                              seg.days[0].dayDate,
+                      const dayDates = group.days.map((d) => d.dayDate)
+                      // Effective range = declared span unioned with any days.
+                      const lows = [group.start, ...dayDates].filter(
+                        (v): v is string => Boolean(v),
+                      )
+                      const highs = [group.end, ...dayDates].filter(
+                        (v): v is string => Boolean(v),
+                      )
+                      const rangeStart = lows.length
+                        ? lows.reduce((a, b) => (a < b ? a : b))
+                        : null
+                      const rangeEnd = highs.length
+                        ? highs.reduce((a, b) => (a > b ? a : b))
+                        : null
+                      const occupied = new Set(dayDates)
+                      const empties =
+                        rangeStart && rangeEnd
+                          ? dateRange(rangeStart, rangeEnd).filter(
+                              (d) => !occupied.has(d),
                             )
                           : []
-                        const emptySlots = gap.map((gd) => (
-                          <button
-                            type="button"
-                            key={`empty-${gd}`}
-                            onClick={() => {
-                              setAddDayDate(gd)
-                              setAddDayFor(group.key)
-                            }}
-                            className="my-1 flex w-full items-center gap-3 rounded-lg border border-dashed border-rule/70 px-3 py-2 text-left transition-colors hover:border-foreground"
-                          >
-                            <span className="t-num w-12 flex-shrink-0 font-mono text-[11px] text-muted-foreground">
-                              {formatShortDate(gd)}
-                            </span>
-                            <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground/70">
-                              empty
-                            </span>
-                            <span className="ml-auto font-mono text-[13px] leading-none text-muted-foreground/70">
-                              +
-                            </span>
-                          </button>
-                        ))
+                      type Item =
+                        | { kind: "seg"; key: string; seg: (typeof segs)[number] }
+                        | { kind: "empty"; key: string; date: string }
+                      const items: Item[] = [
+                        ...segs.map((seg) => ({
+                          kind: "seg" as const,
+                          key: seg.days[0].dayDate,
+                          seg,
+                        })),
+                        ...empties.map((date) => ({
+                          kind: "empty" as const,
+                          key: date,
+                          date,
+                        })),
+                      ].sort((a, b) =>
+                        a.key < b.key ? -1 : a.key > b.key ? 1 : 0,
+                      )
+
+                      return items.map((item) => {
+                        if (item.kind === "empty") {
+                          const gd = item.date
+                          return (
+                            <button
+                              type="button"
+                              key={`empty-${gd}`}
+                              onClick={() => {
+                                setAddDayDate(gd)
+                                setAddDayFor(group.key)
+                              }}
+                              className="my-1 flex w-full items-center gap-3 rounded-lg border border-dashed border-rule/70 px-3 py-2 text-left transition-colors hover:border-foreground"
+                            >
+                              <span className="t-num w-12 flex-shrink-0 font-mono text-[11px] text-muted-foreground">
+                                {formatShortDate(gd)}
+                              </span>
+                              <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground/70">
+                                empty
+                              </span>
+                              <span className="ml-auto font-mono text-[13px] leading-none text-muted-foreground/70">
+                                +
+                              </span>
+                            </button>
+                          )
+                        }
+                        const seg = item.seg
                         const cards = seg.days.map((day) => (
                           <DayCard
                             key={day.id}
@@ -568,52 +608,51 @@ export function ItineraryTab({
                         ))
                         if (seg.groupId && seg.days.length > 1) {
                           return (
-                            <React.Fragment key={seg.groupId}>
-                              {emptySlots}
-                              <div className="relative my-1.5 rounded-xl border border-rule px-2.5 pt-5 pb-1">
-                                <span
-                                  className={`absolute left-3 top-1.5 font-mono text-[9px] uppercase tracking-[0.14em] ${
-                                    seg.days[0].groupName
-                                      ? "text-foreground"
-                                      : "text-muted-foreground"
-                                  }`}
+                            <div
+                              key={seg.groupId}
+                              className="relative my-1.5 rounded-xl border border-rule px-2.5 pt-5 pb-1"
+                            >
+                              <span
+                                className={`absolute left-3 top-1.5 font-mono text-[9px] uppercase tracking-[0.14em] ${
+                                  seg.days[0].groupName
+                                    ? "text-foreground"
+                                    : "text-muted-foreground"
+                                }`}
+                              >
+                                {seg.days[0].groupName ?? "added together"}
+                              </span>
+                              <form
+                                action={deleteItineraryGroup.bind(
+                                  null,
+                                  tripId,
+                                  tripSlug,
+                                  seg.groupId,
+                                )}
+                                onSubmit={(e) => {
+                                  if (
+                                    !window.confirm(
+                                      `Delete all ${seg.days.length} days in this block? This can't be undone.`,
+                                    )
+                                  ) {
+                                    e.preventDefault()
+                                  }
+                                }}
+                                className="absolute right-1 top-0.5 inline-flex"
+                              >
+                                <button
+                                  type="submit"
+                                  aria-label="Delete block"
+                                  className="border-0 bg-transparent px-2 py-1 font-mono text-[11px] text-muted-foreground hover:text-clay"
                                 >
-                                  {seg.days[0].groupName ?? "added together"}
-                                </span>
-                                <form
-                                  action={deleteItineraryGroup.bind(
-                                    null,
-                                    tripId,
-                                    tripSlug,
-                                    seg.groupId,
-                                  )}
-                                  onSubmit={(e) => {
-                                    if (
-                                      !window.confirm(
-                                        `Delete all ${seg.days.length} days in this block? This can't be undone.`,
-                                      )
-                                    ) {
-                                      e.preventDefault()
-                                    }
-                                  }}
-                                  className="absolute right-1 top-0.5 inline-flex"
-                                >
-                                  <button
-                                    type="submit"
-                                    aria-label="Delete block"
-                                    className="border-0 bg-transparent px-2 py-1 font-mono text-[11px] text-muted-foreground hover:text-clay"
-                                  >
-                                    ×
-                                  </button>
-                                </form>
-                                {cards}
-                              </div>
-                            </React.Fragment>
+                                  ×
+                                </button>
+                              </form>
+                              {cards}
+                            </div>
                           )
                         }
                         return (
                           <React.Fragment key={seg.days[0].id}>
-                            {emptySlots}
                             {cards}
                           </React.Fragment>
                         )
