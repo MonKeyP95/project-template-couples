@@ -18,6 +18,8 @@ export interface ItineraryDay {
   tone: ItineraryTone
   /** Shared id for days added as one multi-day span; null when ungrouped. */
   groupId: string | null
+  /** Name of the multi-day block; null when unnamed or ungrouped. */
+  groupName: string | null
   /** Location this day is filed under; null = a travel/transit day. */
   locationId: string | null
 }
@@ -30,6 +32,7 @@ export interface ItineraryRow {
   tag: string
   tone: string
   group_id?: string | null
+  group_name?: string | null
   location_id?: string | null
 }
 
@@ -62,6 +65,7 @@ export function rowToItineraryDay(row: ItineraryRow): ItineraryDay {
     tag: row.tag,
     tone: row.tone as ItineraryTone,
     groupId: row.group_id ?? null,
+    groupName: row.group_name ?? null,
     locationId: row.location_id ?? null,
   }
 }

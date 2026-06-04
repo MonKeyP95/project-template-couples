@@ -46,6 +46,7 @@ interface RealtimeRow {
   tag: string
   tone: string
   group_id: string | null
+  group_name: string | null
   location_id: string | null
   created_by: string
   created_at: string
@@ -492,8 +493,14 @@ export function ItineraryTab({
                             key={seg.groupId}
                             className="relative my-1.5 rounded-xl border border-rule px-2.5 pt-5 pb-1"
                           >
-                            <span className="absolute left-3 top-1.5 font-mono text-[9px] uppercase tracking-[0.14em] text-muted-foreground">
-                              added together
+                            <span
+                              className={`absolute left-3 top-1.5 font-mono text-[9px] uppercase tracking-[0.14em] ${
+                                seg.days[0].groupName
+                                  ? "text-foreground"
+                                  : "text-muted-foreground"
+                              }`}
+                            >
+                              {seg.days[0].groupName ?? "added together"}
                             </span>
                             {cards}
                           </div>
@@ -774,6 +781,7 @@ function AddDayRow({
 }) {
   const [dayDate, setDayDate] = React.useState(defaultDate)
   const [endDate, setEndDate] = React.useState("")
+  const [groupName, setGroupName] = React.useState("")
   const [tag, setTag] = React.useState("")
   const [title, setTitle] = React.useState("")
   const [sub, setSub] = React.useState("")
@@ -785,6 +793,7 @@ function AddDayRow({
     onClose()
     setDayDate(defaultDate)
     setEndDate("")
+    setGroupName("")
     setTag("")
     setTitle("")
     setSub("")
@@ -802,6 +811,7 @@ function AddDayRow({
         tripSlug,
         dayDate,
         endDate,
+        groupName,
         title,
         sub,
         tag,
@@ -825,6 +835,8 @@ function AddDayRow({
       setDayDate={setDayDate}
       endDate={endDate}
       setEndDate={setEndDate}
+      groupName={groupName}
+      setGroupName={setGroupName}
       tag={tag}
       setTag={setTag}
       title={title}
@@ -848,6 +860,8 @@ function DayForm({
   setDayDate,
   endDate,
   setEndDate,
+  groupName,
+  setGroupName,
   tag,
   setTag,
   title,
@@ -871,6 +885,9 @@ function DayForm({
   /** When provided (Add mode), a second "To" date enables multi-day creation. */
   endDate?: string
   setEndDate?: (s: string) => void
+  /** When provided (Add mode), the block-name field for multi-day spans. */
+  groupName?: string
+  setGroupName?: (s: string) => void
   tag: string
   setTag: (s: string) => void
   title: string
@@ -953,6 +970,22 @@ function DayForm({
             onChange={(e) => setTag(e.target.value)}
             disabled={isPending}
             className="mt-1 w-full border-0 border-b border-rule bg-transparent py-1.5 text-[14px] uppercase text-foreground placeholder:normal-case placeholder:text-muted-foreground focus:border-clay focus:outline-none disabled:opacity-50"
+          />
+        </label>
+      ) : null}
+
+      {setEndDate && setGroupName && endDate ? (
+        <label className="mt-3 block">
+          <span className="block font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
+            Block name
+          </span>
+          <input
+            type="text"
+            value={groupName ?? ""}
+            onChange={(e) => setGroupName(e.target.value)}
+            placeholder="Optional, e.g. Rinjani Trek"
+            disabled={isPending}
+            className="mt-1 w-full border-0 border-b border-rule bg-transparent py-1.5 text-[14px] text-foreground placeholder:text-muted-foreground focus:border-clay focus:outline-none disabled:opacity-50"
           />
         </label>
       ) : null}
