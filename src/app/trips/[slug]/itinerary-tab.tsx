@@ -15,6 +15,8 @@ import {
 } from "@/lib/trips/actions"
 import {
   ITINERARY_TONES,
+  formatShortDate,
+  gapDates,
   rowToItineraryDay,
   withOrdinals,
   type ItineraryDay,
@@ -312,6 +314,7 @@ export function ItineraryTab({
   const groups = buildGroups(locations, days)
 
   const [addDayFor, setAddDayFor] = React.useState<string | null>(null)
+  const [addDayDate, setAddDayDate] = React.useState("")
   const [addingLocation, setAddingLocation] = React.useState(false)
   const [newLocName, setNewLocName] = React.useState("")
   const [renamingId, setRenamingId] = React.useState<string | null>(null)
@@ -475,76 +478,115 @@ export function ItineraryTab({
 
                 {open ? (
                   <div className="pb-3 pl-10">
-                    {toSegments(group.days).map((seg) => {
-                      const cards = seg.days.map((day) => (
-                        <DayCard
-                          key={day.id}
-                          day={day}
-                          tripSlug={tripSlug}
-                          isLast={day.id === last.id}
-                          isEditing={editingId === day.id}
-                          onStartEdit={() => setEditingId(day.id)}
-                          onStopEdit={() => setEditingId(null)}
-                          locations={locations}
-                        />
-                      ))
-                      if (seg.groupId && seg.days.length > 1) {
-                        return (
-                          <div
-                            key={seg.groupId}
-                            className="relative my-1.5 rounded-xl border border-rule px-2.5 pt-5 pb-1"
+                    {(() => {
+                      const segs = toSegments(group.days)
+                      return segs.map((seg, si) => {
+                        const prev = si > 0 ? segs[si - 1] : null
+                        const gap = prev
+                          ? gapDates(
+                              prev.days[prev.days.length - 1].dayDate,
+                              seg.days[0].dayDate,
+                            )
+                          : []
+                        const emptySlots = gap.map((gd) => (
+                          <button
+                            type="button"
+                            key={`empty-${gd}`}
+                            onClick={() => {
+                              setAddDayDate(gd)
+                              setAddDayFor(group.key)
+                            }}
+                            className="my-1 flex w-full items-center gap-3 rounded-lg border border-dashed border-rule/70 px-3 py-2 text-left transition-colors hover:border-foreground"
                           >
-                            <span
-                              className={`absolute left-3 top-1.5 font-mono text-[9px] uppercase tracking-[0.14em] ${
-                                seg.days[0].groupName
-                                  ? "text-foreground"
-                                  : "text-muted-foreground"
-                              }`}
-                            >
-                              {seg.days[0].groupName ?? "added together"}
+                            <span className="t-num w-12 flex-shrink-0 font-mono text-[11px] text-muted-foreground">
+                              {formatShortDate(gd)}
                             </span>
-                            <form
-                              action={deleteItineraryGroup.bind(
-                                null,
-                                tripId,
-                                tripSlug,
-                                seg.groupId,
-                              )}
-                              onSubmit={(e) => {
-                                if (
-                                  !window.confirm(
-                                    `Delete all ${seg.days.length} days in this block? This can't be undone.`,
-                                  )
-                                ) {
-                                  e.preventDefault()
-                                }
-                              }}
-                              className="absolute right-1 top-0.5 inline-flex"
-                            >
-                              <button
-                                type="submit"
-                                aria-label="Delete block"
-                                className="border-0 bg-transparent px-2 py-1 font-mono text-[11px] text-muted-foreground hover:text-clay"
-                              >
-                                ×
-                              </button>
-                            </form>
+                            <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground/70">
+                              empty
+                            </span>
+                            <span className="ml-auto font-mono text-[13px] leading-none text-muted-foreground/70">
+                              +
+                            </span>
+                          </button>
+                        ))
+                        const cards = seg.days.map((day) => (
+                          <DayCard
+                            key={day.id}
+                            day={day}
+                            tripSlug={tripSlug}
+                            isLast={day.id === last.id}
+                            isEditing={editingId === day.id}
+                            onStartEdit={() => setEditingId(day.id)}
+                            onStopEdit={() => setEditingId(null)}
+                            locations={locations}
+                          />
+                        ))
+                        if (seg.groupId && seg.days.length > 1) {
+                          return (
+                            <React.Fragment key={seg.groupId}>
+                              {emptySlots}
+                              <div className="relative my-1.5 rounded-xl border border-rule px-2.5 pt-5 pb-1">
+                                <span
+                                  className={`absolute left-3 top-1.5 font-mono text-[9px] uppercase tracking-[0.14em] ${
+                                    seg.days[0].groupName
+                                      ? "text-foreground"
+                                      : "text-muted-foreground"
+                                  }`}
+                                >
+                                  {seg.days[0].groupName ?? "added together"}
+                                </span>
+                                <form
+                                  action={deleteItineraryGroup.bind(
+                                    null,
+                                    tripId,
+                                    tripSlug,
+                                    seg.groupId,
+                                  )}
+                                  onSubmit={(e) => {
+                                    if (
+                                      !window.confirm(
+                                        `Delete all ${seg.days.length} days in this block? This can't be undone.`,
+                                      )
+                                    ) {
+                                      e.preventDefault()
+                                    }
+                                  }}
+                                  className="absolute right-1 top-0.5 inline-flex"
+                                >
+                                  <button
+                                    type="submit"
+                                    aria-label="Delete block"
+                                    className="border-0 bg-transparent px-2 py-1 font-mono text-[11px] text-muted-foreground hover:text-clay"
+                                  >
+                                    ×
+                                  </button>
+                                </form>
+                                {cards}
+                              </div>
+                            </React.Fragment>
+                          )
+                        }
+                        return (
+                          <React.Fragment key={seg.days[0].id}>
+                            {emptySlots}
                             {cards}
-                          </div>
+                          </React.Fragment>
                         )
-                      }
-                      return (
-                        <React.Fragment key={seg.days[0].id}>
-                          {cards}
-                        </React.Fragment>
-                      )
-                    })}
+                      })
+                    })()}
 
                     <div className="pt-2">
                       <AddDayRow
+                        key={`add-${group.key}-${
+                          addDayFor === group.key ? addDayDate : ""
+                        }`}
                         tripId={tripId}
                         tripSlug={tripSlug}
-                        defaultDate={defaultDate}
+                        defaultDate={
+                          addDayFor === group.key && addDayDate
+                            ? addDayDate
+                            : defaultDate
+                        }
                         locationId={isLoc ? group.key : null}
                         open={addDayFor === group.key}
                         onClose={() => setAddDayFor(null)}
@@ -552,7 +594,10 @@ export function ItineraryTab({
                       {addDayFor === group.key ? null : (
                         <button
                           type="button"
-                          onClick={() => setAddDayFor(group.key)}
+                          onClick={() => {
+                            setAddDayDate("")
+                            setAddDayFor(group.key)
+                          }}
                           className="block w-full rounded-lg border border-dashed border-rule py-2 font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground hover:border-foreground hover:text-foreground"
                         >
                           + day
