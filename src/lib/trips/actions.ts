@@ -1515,6 +1515,23 @@ export async function renameItineraryLocation(
   const supabase = await createClient()
 
   if (span) {
+    // A start that falls strictly inside another location's span can't be made
+    // room for by pushing (it would split that location), so refuse it.
+    const { data: straddle } = await supabase
+      .from("itinerary_locations")
+      .select("name")
+      .eq("trip_id", tripId)
+      .neq("id", locationId)
+      .lt("start_date", span.startDate)
+      .gte("end_date", span.startDate)
+      .limit(1)
+      .maybeSingle()
+    if (straddle) {
+      return {
+        error: `That start date falls inside ${straddle.name} — set it on or after that location ends.`,
+      }
+    }
+
     const dayHit = await supabase
       .from("itinerary_days")
       .select("id", { count: "exact", head: true })
