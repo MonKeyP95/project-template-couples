@@ -8,7 +8,9 @@
 -- (default): the caller's RLS gates the update/insert, and auth.uid() stamps
 -- created_by. Multi-day adds (p_count > 1) share one group_id and an optional
 -- group_name, so a pushed trek still renders in the "added together" box.
--- Idempotent (create or replace).
+-- Location spans are kept in sync with their shifted days: a location entirely
+-- at/after the insertion moves as a whole unit; the location being added into
+-- (and any straddler) keeps its start and extends its end. Idempotent.
 
 create or replace function public.shift_and_insert_itinerary(
   p_trip_id     uuid,
@@ -56,10 +58,29 @@ begin
     v_group, v_name, p_location_id, v_uid
   from generate_series(0, p_count - 1) as g;
 
+  -- Other locations entirely at/after the insertion move as whole units, so
+  -- their declared span stays aligned with their shifted days.
+  update public.itinerary_locations
+  set start_date = start_date + v_shift,
+      end_date   = end_date + v_shift
+  where trip_id = p_trip_id
+    and id is distinct from p_location_id
+    and start_date >= p_from_date;
+
+  -- The location being added into (and any straddler) keeps its start and
+  -- extends its end to cover the days that shifted forward within it.
+  update public.itinerary_locations
+  set start_date = least(start_date, p_from_date),
+      end_date   = end_date + v_shift
+  where trip_id = p_trip_id
+    and (id = p_location_id or start_date < p_from_date)
+    and end_date >= p_from_date;
+
   update public.trips
   set end_date = greatest(
     end_date,
-    (select max(day_date) from public.itinerary_days where trip_id = p_trip_id)
+    coalesce((select max(day_date) from public.itinerary_days where trip_id = p_trip_id), end_date),
+    coalesce((select max(end_date) from public.itinerary_locations where trip_id = p_trip_id), end_date)
   )
   where id = p_trip_id;
 end;
