@@ -1,4 +1,4 @@
-# Itinerary gap days — design (Locations Slice 2, re-scoped)
+# Itinerary dated anchors — gap days + location spans (Locations Slice 2, re-scoped)
 
 **Date:** 2026-06-04
 **Status:** draft (awaiting user review)
@@ -6,158 +6,202 @@
 
 ## Problem / vision
 
-Today you add itinerary days on whatever dates you type. If you add a day on
-Jun 12 and another on Jun 15, the days Jun 13–14 simply don't appear — the gap
-is invisible. The user wants those in-between days to **show as empty slots you
-can click to fill**, so the calendar reads as a continuous strip with obvious
-"nothing planned yet" days acting as a buffer.
+Today you add itinerary days on whatever dates you type, and a location has no
+dates of its own — its span is implied by the days under it. Two gaps:
 
-The buffer is deliberate: filling an empty day never disturbs anything else.
-Only when there is **no** empty day where you want one — you're inserting
-between two adjacent, already-dated days — does the app **ask to push the later
-days forward by one** and then cascade.
+- If you add a day on Jun 12 and another on Jun 15, the in-between days don't
+  appear; the empty time is invisible.
+- You can't lay out a trip by saying "Kuta is Jun 12–16" up front and then fill
+  those days in.
 
-This **re-scopes** the original Locations Slice 2 (`2026-06-03-itinerary-locations-design.md`),
-which proposed fully computed dates + auto-cascade + reorder. That is dropped.
-Everything shipped in Slice 1 stays as-is; this is a small additive change.
+The user wants **one timeline of dated anchors**, where a **day** occupies one
+date and a **location** occupies a span, and both behave the same way:
+
+1. The dates an anchor covers that have **no activity yet** show as **empty day
+   slots** you can click to fill. Gaps before an anchor (between it and what came
+   before) also show as empties. Empty days are a deliberate buffer.
+2. Filling a **free** date never disturbs anything.
+3. Placing or growing an anchor onto **already-assigned** dates prompts a
+   confirm — *"No room there — push the following days forward?"* — and on
+   confirm everything from that date is **pushed forward by N** (N = the new
+   anchor's length: 1 for a day, the span length for a location), opening a clean
+   window. Whole locations move as units. The trip's `end_date` extends by N.
+
+This **re-scopes** the original Locations Slice 2
+(`2026-06-03-itinerary-locations-design.md`), which proposed fully
+computed-from-order dates + auto-cascade + drag-reorder. That is dropped.
+Everything shipped in Slice 1 stays; dates remain **manually set**, and this adds
+the empty-day buffer, click-to-fill, location date spans, and the
+confirm-then-push.
 
 ## What stays exactly as today (non-goals)
 
-No change to: the location groups, the add-day form, the date picker, the
-From/To multi-day range add, the `group_id` "added together" blocks (incl. block
-name + block delete), per-day edit/delete, the Realtime channel, or the existing
+No change to: the location groups, the add-day form, the date picker, the From/To
+multi-day range add, the `group_id` "added together" blocks (incl. block name +
+block delete), per-day edit/delete, the Realtime channels, or the existing
 `reschedule_itinerary_days` RPC (stays in place, still unused by the UI). No
 computed-from-order dates. No removing the date picker. No drag-to-reorder. No
-location-model changes.
+backward cascade on delete.
 
 ## The model
 
-`day_date` stays the stored source of truth. "Empty days" are **implicit** —
-they are just calendar dates inside a location group's span that have no
-`itinerary_days` row. There are **no placeholder rows** and **no schema column**
-for them; the gap count is derived from the dates already present.
+`day_date` stays the stored source of truth for days. "Empty days" are
+**implicit** — calendar dates inside an anchor's range that have no
+`itinerary_days` row. No placeholder rows, no "empty day" column; the buffer is
+derived from the dates present.
 
-Three behaviours change:
+The one new stored thing is a **location's own date span** (optional). A day and
+a location are both "dated anchors":
 
-1. **Render gap dates as empty slots.** Inside a location group, the days are
-   already sorted by date. Between two consecutive days whose dates are more than
-   one day apart, render a faint empty slot per missing date, in date order. A
-   group with days on Jun 12 and Jun 15 shows: `Jun 12` (real), `Jun 13` (empty),
-   `Jun 14` (empty), `Jun 15` (real). Pure render, driven by existing data.
+| Anchor   | Occupies                   | Length N |
+|----------|----------------------------|----------|
+| Day      | one date (`day_date`)      | 1        |
+| Location | a span (`start_date`..`end_date`) | `end_date − start_date + 1` |
 
-2. **Click an empty slot to fill it.** Clicking opens the **existing** add form,
-   pre-filled with that slot's date and that group's `location_id`. Submitting
-   inserts one ordinary day on that free date via the **unchanged**
-   `addItineraryDay` (single date, no `endDate`). No shift — the date was empty,
-   so the `unique (trip_id, day_date)` insert succeeds directly.
-
-3. **Overflow: push, with confirm.** Adding a day whose date is already taken —
-   i.e. squeezing one in between two adjacent days with no gap — currently fails
-   with "Another day already uses that date." Instead, surface a confirm: *"No
-   empty day there — push the following days forward by 1?"* On confirm, a new
-   RPC bumps every day dated `>= newDate` by +1 (deferred-unique, atomic),
-   inserts the new day, and the trip's `end_date` extends by 1.
-
-`end_date` only ever **extends** here (overflow push, or a fill on a date past
-the current end). Deleting a day does **not** pull anything back — that keeps
-this slice purely additive and avoids touching the existing delete path.
+A location's **effective range** = its declared span if set, else
+`min(day_date)..max(day_date)` of its days (today's behavior). Locations without
+a span (and "In transit") keep working exactly as now.
 
 ## Data model
 
-No new table. No new column. The only DB artifact is one new function.
+### `itinerary_locations` — add optional span
 
-### New RPC `insert_itinerary_day_shift`
-
-Mirrors the existing `reschedule_itinerary_days` pattern (the
-`unique (trip_id, day_date)` constraint is already `DEFERRABLE INITIALLY
-IMMEDIATE`, so the RPC opts into deferral and permutes safely in one statement).
-
-```
-insert_itinerary_day_shift(
-  p_trip_id    uuid,
-  p_from_date  date,     -- the occupied date the user is inserting at
-  p_title      text,
-  p_sub        text,
-  p_tag        text,
-  p_tone       text,
-  p_location_id uuid,    -- nullable
-  p_created_by uuid
-) returns the inserted row
+```sql
+alter table itinerary_locations
+  add column if not exists start_date date,
+  add column if not exists end_date   date;
+-- both null = "span implied by its days" (current behavior); a check keeps them
+-- consistent when set.
+alter table itinerary_locations
+  drop constraint if exists itinerary_locations_span_chk,
+  add  constraint itinerary_locations_span_chk
+    check (
+      (start_date is null and end_date is null)
+      or (start_date is not null and end_date is not null and end_date >= start_date)
+    );
 ```
 
-Behaviour, inside one transaction with `set constraints all deferred`:
-1. `update itinerary_days set day_date = day_date + 1 where trip_id = p_trip_id and day_date >= p_from_date` (shifts the tail forward, opening p_from_date).
-2. `insert` the new day at `p_from_date`.
-3. `update trips set end_date = greatest(end_date, <max day_date>)` for the trip.
+No change to `itinerary_days`. The `unique (trip_id, day_date)` constraint stays
+`DEFERRABLE INITIALLY IMMEDIATE` (already so from
+`20260529000002_itinerary_reschedule.sql`); locations carry **no** unique date
+constraint, so two locations' spans could in principle overlap — the
+collision-and-push flow exists precisely to avoid creating overlaps through the
+UI.
 
-SECURITY INVOKER (default) so the caller's RLS still gates every write, matching
-`reschedule_itinerary_days`. Idempotency note: the function is `create or
+### New RPC `shift_itinerary_from`
+
+Generalized insertion-shift, same deferred-unique pattern as
+`reschedule_itinerary_days`. Opens an N-day window at `p_from_date` by moving
+everything at or after it forward:
+
+```
+shift_itinerary_from(p_trip_id uuid, p_from_date date, p_n int) returns void
+```
+
+Inside one transaction with `set constraints all deferred`:
+1. `update itinerary_days set day_date = day_date + p_n where trip_id = p_trip_id and day_date >= p_from_date`.
+2. `update itinerary_locations set start_date = start_date + p_n, end_date = end_date + p_n where trip_id = p_trip_id and start_date >= p_from_date`.
+3. `update trips set end_date = end_date + p_n where id = p_trip_id`.
+
+A location that **straddles** `p_from_date` (`start_date < p_from_date <= end_date`)
+keeps its `start_date` and has `end_date += p_n` so it still contains its shifted
+tail days. SECURITY INVOKER (default) — caller RLS gates every write. `create or
 replace`, safe to paste repeatedly.
+
+Pushing forward by N from D always frees the window `[D, D+N−1]` (nothing below D
+in the `>= D` set), so the new anchor slots in cleanly.
 
 ## Server actions
 
-- **`addItineraryDay` — unchanged.** Empty-slot fills go through it verbatim
-  (single date). Its existing `23505` branch is what signals "overflow" to the
-  client (see below).
-- **New `insertItineraryDayShift(input)`** — thin wrapper calling the RPC, same
-  `AddItineraryDayResult` shape (`{ day }` / `{ error }`) as `addItineraryDay`,
-  plus `revalidatePath`. Only called after the user confirms the push.
+- **`addItineraryDay` — unchanged.** Empty-slot fills on a free date go through
+  it verbatim (single date, no `endDate`). Its existing single-day `23505` is the
+  signal that the date is taken → triggers the confirm-then-push (below).
+- **New `insertDayWithShift(input)`** — calls `shift_itinerary_from(tripId, date,
+  1)` then inserts the day, same `AddItineraryDayResult` shape as
+  `addItineraryDay`. Only called after the user confirms a single-day push.
+- **`createLocation` / `updateLocation` — extended** to accept optional
+  `startDate` + `endDate`. Setting a span checks whether `[start, end]` overlaps
+  any already-assigned date (another location's effective range or any day not in
+  this location). No overlap → write the span directly. Overlap → return a
+  `needsPush` result with the from-date `D = start` and `N = end − start + 1`; the
+  client confirms, then calls **`setLocationSpanWithShift`** which runs
+  `shift_itinerary_from(tripId, D, N)` and writes the span.
+- `renameLocation`, `deleteLocation`, `deleteItineraryDay`, `deleteItineraryGroup`
+  — unchanged. Deleting leaves the freed dates as gaps (they just render as empty
+  slots); **no backward cascade** in this slice.
 
 ## UI / interaction
 
-In `itinerary-tab.tsx`, within each location group's rendered day list:
+In `itinerary-tab.tsx`, within each location group:
 
-- **Empty slots.** Compute the missing dates strictly *between* consecutive days
-  in the group (never before the first or after the last planned day — matching
-  "between the manual added days"). Render each as a faint, dashed, low-height
-  card showing just its date and a `+` affordance.
-- **Click to fill.** Clicking an empty slot opens the existing `AddDayRow`/
-  `DayForm` with `dayDate` pre-set to the slot date and the location preselected;
-  the date field stays editable. Submit → `addItineraryDay` (single date).
-- **Overflow confirm.** The normal "+ day" / edit path is unchanged. When a
-  submit returns the single-day `23505` ("Another day already uses that date"),
-  the client replaces the inline error with a confirm prompt: *"No empty day
-  there — push the following days forward by 1?"* On confirm, call
-  `insertItineraryDayShift` with the same field values; on cancel, restore the
-  prior error. Realtime + the existing optimistic `setDays` reconcile the shifted
-  dates (the RPC's UPDATEs broadcast one event per row, handled by the existing
-  UPDATE branch).
+- **Empty slots.** From the group's effective range (declared span, else
+  min..max of its days), render every date with no activity row as a faint,
+  dashed, low-height card showing its date and a `+`. Gaps strictly *between*
+  covered dates and the leading gap before a location's start are shown; nothing
+  is rendered after the last covered date of the last anchor.
+- **Click to fill.** Opens the existing `AddDayRow`/`DayForm` pre-filled with the
+  slot's date and the group's `location_id` (date field stays editable). Submit →
+  `addItineraryDay` (single date). On the single-day `23505`, swap the inline
+  error for the confirm *"No empty day there — push the following days forward by
+  1?"*; on confirm call `insertDayWithShift`, on cancel restore the error.
+- **Location dates.** The create/rename-location control gains optional **start**
+  and **end** date inputs. Saving a span that overlaps assigned dates shows the
+  confirm *"No room — push the following N days forward?"*; on confirm,
+  `setLocationSpanWithShift`. A location with a span renders its full range as
+  empty slots until filled.
+- **Ordering.** Location groups order by `start_date` when set, else by earliest
+  day date (today's rule) as the fallback; `sort_order` remains the final
+  tiebreaker for empty, date-less locations.
+- **Reconciliation.** The shift RPC's UPDATEs broadcast one Realtime event per
+  row; the existing UPDATE handler + optimistic `setDays` reconcile shifted
+  dates. Location-row changes ride the existing locations Realtime channel /
+  `revalidatePath`.
 
-The empty slots render read-only inside `group_id` "added together" boxes is not
-a concern — a trek block is contiguous by construction, so it has no internal
-gaps to show.
+Empty slots are not rendered inside a `group_id` "added together" box — a trek
+block is contiguous by construction, so it has no internal gaps.
 
 ## Migration plan (idempotent, paste-and-run)
 
-1. `create or replace function insert_itinerary_day_shift(...)`. No table or
-   column changes; the deferrable unique constraint already exists from
-   `20260529000002_itinerary_reschedule.sql`.
+1. `alter table itinerary_locations add column if not exists start_date / end_date`
+   + the `drop constraint if exists` / `add constraint` span check.
+2. `create or replace function shift_itinerary_from(...)`. No change to
+   `itinerary_days`; the deferrable unique already exists.
 
 ## Build slices (for the plan step)
 
-1. **Render empty slots.** Pure UI: compute + render gap-date slots between
-   consecutive days in a group. No actions, no DB.
-2. **Click-to-fill.** Wire an empty slot to open the existing add form pre-filled
-   (date + location); submit via the unchanged `addItineraryDay`.
-3. **Overflow push.** Add the `insert_itinerary_day_shift` RPC + the
-   `insertItineraryDayShift` action; turn the single-day `23505` into a
-   confirm-and-push.
+1. **Render empty slots between days.** Pure UI from existing day dates. No
+   actions, no DB. (Delivers the visible buffer immediately.)
+2. **Click-to-fill + single-day overflow push.** `shift_itinerary_from` RPC +
+   `insertDayWithShift`; wire empty-slot click to the add form and the single-day
+   `23505` to confirm-then-push.
+3. **Location date spans.** The `start_date`/`end_date` columns, location form
+   date fields, span-based empty-slot rendering, ordering change, and
+   `setLocationSpanWithShift` (reusing the same RPC with N = span length).
 
 ## Decisions captured
 
-1. **Empty days are implicit** (no rows, no column) — derived from dates.
-2. **The date picker stays.** Dates remain manually set; this slice only makes
-   gaps visible/fillable and adds the overflow push.
-3. **`end_date` only extends, never shrinks** in this slice. Deleting days leaves
-   their now-empty dates as gaps (which simply render as empty slots) rather than
-   pulling the tail back — keeps the delete path untouched.
-4. **Overflow is detected via the existing `23505`**, not a pre-check, so the
-   plain add stays untouched and the push is opt-in behind a confirm.
+1. **Days and locations are one kind of thing** — dated anchors that occupy
+   dates and push the same way.
+2. **Empty days are implicit** (no rows, no column) — derived from anchor ranges.
+3. **The date picker stays;** dates are manually set. Locations gain an
+   *optional* span; a date-less location keeps today's "implied by its days"
+   behavior.
+4. **Push is by N** (the inserted anchor's length), opening a clean window;
+   `end_date` extends by N. Whole locations move as units.
+5. **`end_date` only extends, never shrinks** here. Deleting an anchor leaves its
+   dates as gaps (empty slots), not a backward cascade — keeps the delete path
+   untouched.
+6. **Overflow is detected from the assigned dates** (day `23505` for a single
+   day; an overlap check for a location span), so the plain free-date fill stays
+   untouched and the push is always opt-in behind a confirm.
 
 ## Out of scope
 
-- Computed-from-order dates, removing the date picker, drag-to-reorder
-  (all dropped from the original Slice 2).
-- Backward cascade on delete (gaps from deletes just become empty slots).
-- Empty slots before the first / after the last planned day in a group.
-- Gap days for dream itineraries.
+- Computed-from-order dates, removing the date picker, drag-to-reorder (all
+  dropped from the original Slice 2).
+- Backward cascade on delete (freed dates just become empty slots).
+- Empty slots before the first / after the last covered date of the whole
+  itinerary.
+- A unique constraint on location spans (the confirm-push flow is what prevents
+  overlaps via the UI).
+- Gap days / location spans for dream itineraries.
