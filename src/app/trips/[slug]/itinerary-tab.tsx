@@ -107,6 +107,8 @@ function orderTabs(
   })
 }
 
+const LOOSE_KEY = "__loose__"
+
 interface DayGroup {
   /** Location id. */
   key: string
@@ -702,7 +704,30 @@ export function ItineraryTab({
           })
         )}
 
-        <div className="pt-4">
+        <div className="space-y-2 pt-4">
+          <AddDayRow
+            key={`add-loose-${addDayFor === LOOSE_KEY ? addDayDate : ""}`}
+            tripId={tripId}
+            tripSlug={tripSlug}
+            defaultDate={
+              addDayFor === LOOSE_KEY && addDayDate ? addDayDate : defaultDate
+            }
+            locationId={null}
+            open={addDayFor === LOOSE_KEY}
+            onClose={() => setAddDayFor(null)}
+          />
+          {addDayFor === LOOSE_KEY ? null : (
+            <button
+              type="button"
+              onClick={() => {
+                setAddDayDate("")
+                setAddDayFor(LOOSE_KEY)
+              }}
+              className="block w-full rounded-lg border border-dashed border-rule py-3 font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground hover:border-foreground hover:text-foreground"
+            >
+              + day
+            </button>
+          )}
           {addingLocation ? (
             <form onSubmit={submitNewLocation}>
               <input
