@@ -426,6 +426,55 @@ export function ItineraryTab({
       </div>
 
       <div className="px-5 pt-4 pb-6 lg:px-10">
+        <div className="space-y-2 pb-4">
+          <AddDayRow
+            key={`add-loose-${addDayFor === LOOSE_KEY ? addDayDate : ""}`}
+            tripId={tripId}
+            tripSlug={tripSlug}
+            defaultDate={
+              addDayFor === LOOSE_KEY && addDayDate ? addDayDate : defaultDate
+            }
+            locationId={null}
+            open={addDayFor === LOOSE_KEY}
+            onClose={() => setAddDayFor(null)}
+          />
+          {addDayFor === LOOSE_KEY ? null : (
+            <button
+              type="button"
+              onClick={() => {
+                setAddDayDate("")
+                setAddDayFor(LOOSE_KEY)
+              }}
+              className="block w-full rounded-lg border border-dashed border-rule py-3 font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground hover:border-foreground hover:text-foreground"
+            >
+              + day
+            </button>
+          )}
+          {addingLocation ? (
+            <form onSubmit={submitNewLocation}>
+              <input
+                type="text"
+                autoFocus
+                value={newLocName}
+                onChange={(e) => setNewLocName(e.target.value)}
+                onBlur={() => {
+                  if (!newLocName.trim()) setAddingLocation(false)
+                }}
+                placeholder="Location name"
+                className="block w-full rounded-lg border border-clay bg-transparent px-3 py-2.5 font-mono text-[12px] text-foreground placeholder:text-muted-foreground focus:outline-none"
+              />
+            </form>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setAddingLocation(true)}
+              className="block w-full rounded-lg border border-dashed border-rule py-3 font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground hover:border-foreground hover:text-foreground"
+            >
+              + location
+            </button>
+          )}
+        </div>
+
         {timeline.length === 0 ? (
           <p className="font-serif text-[15px] italic text-muted-foreground">
             Nothing planned yet — add a day, or a location to group them.
@@ -703,55 +752,6 @@ export function ItineraryTab({
             )
           })
         )}
-
-        <div className="space-y-2 pt-4">
-          <AddDayRow
-            key={`add-loose-${addDayFor === LOOSE_KEY ? addDayDate : ""}`}
-            tripId={tripId}
-            tripSlug={tripSlug}
-            defaultDate={
-              addDayFor === LOOSE_KEY && addDayDate ? addDayDate : defaultDate
-            }
-            locationId={null}
-            open={addDayFor === LOOSE_KEY}
-            onClose={() => setAddDayFor(null)}
-          />
-          {addDayFor === LOOSE_KEY ? null : (
-            <button
-              type="button"
-              onClick={() => {
-                setAddDayDate("")
-                setAddDayFor(LOOSE_KEY)
-              }}
-              className="block w-full rounded-lg border border-dashed border-rule py-3 font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground hover:border-foreground hover:text-foreground"
-            >
-              + day
-            </button>
-          )}
-          {addingLocation ? (
-            <form onSubmit={submitNewLocation}>
-              <input
-                type="text"
-                autoFocus
-                value={newLocName}
-                onChange={(e) => setNewLocName(e.target.value)}
-                onBlur={() => {
-                  if (!newLocName.trim()) setAddingLocation(false)
-                }}
-                placeholder="Location name"
-                className="block w-full rounded-lg border border-clay bg-transparent px-3 py-2.5 font-mono text-[12px] text-foreground placeholder:text-muted-foreground focus:outline-none"
-              />
-            </form>
-          ) : (
-            <button
-              type="button"
-              onClick={() => setAddingLocation(true)}
-              className="block w-full rounded-lg border border-dashed border-rule py-3 font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground hover:border-foreground hover:text-foreground"
-            >
-              + location
-            </button>
-          )}
-        </div>
       </div>
     </section>
   )
