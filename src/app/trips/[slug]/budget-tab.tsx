@@ -1,5 +1,6 @@
 import { Avatar, Label, TopoBg } from "@/components/together"
 import { type BudgetSummary, type Expense } from "@/lib/trips/expense-types"
+import { type SavingsContribution } from "@/lib/trips/savings-types"
 
 import { BudgetFigures } from "./budget-figures"
 import { LedgerRow } from "./ledger-row"
@@ -20,6 +21,8 @@ export interface BudgetTabProps {
   members: Record<string, MemberToneEntry>
   plannedBudgetCents: number
   savedCents: number
+  savingsContributions: SavingsContribution[]
+  savedPerUser: Record<string, number>
   currentUserId: string
 }
 
@@ -32,6 +35,8 @@ export function BudgetTab({
   members,
   plannedBudgetCents,
   savedCents,
+  savingsContributions,
+  savedPerUser,
   currentUserId,
 }: BudgetTabProps) {
   const totalCents = summary.expenseTotalCents
@@ -48,6 +53,9 @@ export function BudgetTab({
         spentCents={totalCents}
         plannedBudgetCents={plannedBudgetCents}
         savedCents={savedCents}
+        savingsContributions={savingsContributions}
+        savedPerUser={savedPerUser}
+        members={members}
       />
       <SettleUpCard
         isSettled={isSettled}
@@ -76,6 +84,9 @@ function BudgetHeader({
   spentCents,
   plannedBudgetCents,
   savedCents,
+  savingsContributions,
+  savedPerUser,
+  members,
 }: {
   tripId: string
   tripSlug: string
@@ -83,6 +94,9 @@ function BudgetHeader({
   spentCents: number
   plannedBudgetCents: number
   savedCents: number
+  savingsContributions: SavingsContribution[]
+  savedPerUser: Record<string, number>
+  members: Record<string, MemberToneEntry>
 }) {
   return (
     <div className="relative overflow-hidden bg-dusk-tint px-5 pt-6 pb-4">
@@ -95,6 +109,9 @@ function BudgetHeader({
           spentCents={spentCents}
           plannedBudgetCents={plannedBudgetCents}
           savedCents={savedCents}
+          contributions={savingsContributions}
+          perUser={savedPerUser}
+          members={members}
         />
       </div>
     </div>
