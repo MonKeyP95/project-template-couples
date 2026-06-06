@@ -1885,10 +1885,11 @@ export interface MoveLocationBudgetInput {
 }
 
 /**
- * Transfers budget from one envelope to another. Either endpoint may be the
- * unallocated pool (null): moving to the pool only debits the source; moving
- * from the pool only credits the destination. A location whose target reaches
- * zero is cleared to null.
+ * Transfers budget from one envelope to another via the move_location_budget
+ * RPC (atomic: validate + debit + credit in one transaction, with a row lock
+ * on the source). Either endpoint may be the unallocated pool (null): moving to
+ * the pool only debits the source; moving from the pool only credits the
+ * destination. A location whose target reaches zero is cleared to null.
  */
 export async function moveLocationBudget(
   input: MoveLocationBudgetInput,
@@ -1905,48 +1906,13 @@ export async function moveLocationBudget(
   }
 
   const supabase = await createClient()
-  const ids = [input.fromLocationId, input.toLocationId].filter(
-    (x): x is string => x !== null,
-  )
-  const { data: rows, error: fetchError } = await supabase
-    .from("itinerary_locations")
-    .select("id, budget_cents")
-    .eq("trip_id", input.tripId)
-    .in("id", ids)
-  if (fetchError) return { error: fetchError.message }
-
-  const budgetOf = (id: string) =>
-    rows?.find((r) => r.id === id)?.budget_cents ?? null
-
-  // Validate the debit is possible before writing anything: a source with no
-  // target has nothing to move; an insufficient one can't cover the amount.
-  if (input.fromLocationId) {
-    const current = budgetOf(input.fromLocationId)
-    if (current === null) return { error: "Source has no budget to move." }
-    if (current < input.amountCents) {
-      return { error: "Not enough budget to move." }
-    }
-  }
-
-  // Credit before debit: a partial DB failure then leaves a visible surplus
-  // rather than money silently lost from the source.
-  if (input.toLocationId) {
-    const next = (budgetOf(input.toLocationId) ?? 0) + input.amountCents
-    const { error } = await supabase
-      .from("itinerary_locations")
-      .update({ budget_cents: next })
-      .eq("id", input.toLocationId)
-    if (error) return { error: error.message }
-  }
-
-  if (input.fromLocationId) {
-    const next = budgetOf(input.fromLocationId)! - input.amountCents
-    const { error } = await supabase
-      .from("itinerary_locations")
-      .update({ budget_cents: next === 0 ? null : next })
-      .eq("id", input.fromLocationId)
-    if (error) return { error: error.message }
-  }
+  const { error } = await supabase.rpc("move_location_budget", {
+    p_trip_id: input.tripId,
+    p_from: input.fromLocationId,
+    p_to: input.toLocationId,
+    p_amount: input.amountCents,
+  })
+  if (error) return { error: error.message }
 
   revalidatePath(`/trips/${input.tripSlug}`)
   return {}
