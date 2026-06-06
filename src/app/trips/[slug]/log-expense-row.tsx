@@ -10,12 +10,14 @@ import {
 
 import { ExpenseFields } from "./expense-fields"
 import type { MemberToneEntry } from "./packing-tab"
+import type { ItineraryLocation } from "@/lib/trips/location-types"
 
 export interface LogExpenseRowProps {
   tripId: string
   tripSlug: string
   currentUserId: string
   members: Record<string, MemberToneEntry>
+  locations: ItineraryLocation[]
 }
 
 function todayIso(): string {
@@ -27,6 +29,7 @@ export function LogExpenseRow({
   tripSlug,
   currentUserId,
   members,
+  locations,
 }: LogExpenseRowProps) {
   const initialDay = React.useMemo(() => todayIso(), [])
 
@@ -38,6 +41,7 @@ export function LogExpenseRow({
   )
   const [paidBy, setPaidBy] = React.useState<string>(currentUserId)
   const [dayDate, setDayDate] = React.useState<string | null>(initialDay)
+  const [locationId, setLocationId] = React.useState<string | null>(null)
   const [error, setError] = React.useState<string | null>(null)
   const [isPending, startTransition] = React.useTransition()
   const titleRef = React.useRef<HTMLInputElement>(null)
@@ -53,6 +57,7 @@ export function LogExpenseRow({
     setCategory(EXPENSE_CATEGORY_DEFAULT)
     setPaidBy(currentUserId)
     setDayDate(initialDay)
+    setLocationId(null)
     setError(null)
   }
 
@@ -73,6 +78,7 @@ export function LogExpenseRow({
         category,
         paidBy,
         dayDate,
+        locationId,
       })
       if (result.error) {
         setError(result.error)
@@ -143,6 +149,9 @@ export function LogExpenseRow({
         paidBy={paidBy}
         onPaidByChange={setPaidBy}
         members={members}
+        locations={locations}
+        locationId={locationId}
+        onLocationChange={setLocationId}
         disabled={isPending}
       />
 

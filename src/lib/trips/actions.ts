@@ -169,6 +169,7 @@ export interface LogExpenseInput {
   category: string
   paidBy: string
   dayDate: string | null
+  locationId: string | null
 }
 
 export interface LogExpenseResult {
@@ -219,6 +220,7 @@ export async function logExpense(
     paid_by: input.paidBy,
     category: input.category,
     day_date: input.dayDate,
+    location_id: input.locationId,
     is_settlement: false,
   })
 
@@ -372,6 +374,7 @@ export interface UpdateExpenseInput {
   category: string
   paidBy: string
   dayDate: string | null
+  locationId: string | null
 }
 
 export interface UpdateExpenseResult {
@@ -417,6 +420,7 @@ export async function updateExpense(
       paid_by: input.paidBy,
       category: input.category,
       day_date: input.dayDate,
+      location_id: input.locationId,
     })
     .eq("id", input.expenseId)
 

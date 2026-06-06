@@ -13,6 +13,7 @@ import {
 
 import { ExpenseFields } from "./expense-fields"
 import type { MemberToneEntry } from "./packing-tab"
+import type { ItineraryLocation } from "@/lib/trips/location-types"
 
 const CATEGORY_TONE: Record<string, MonoBadgeTone> = {
   Surf: "sea",
@@ -47,9 +48,10 @@ export interface LedgerRowProps {
   expense: Expense
   members: Record<string, MemberToneEntry>
   tripSlug: string
+  locations: ItineraryLocation[]
 }
 
-export function LedgerRow({ expense, members, tripSlug }: LedgerRowProps) {
+export function LedgerRow({ expense, members, tripSlug, locations }: LedgerRowProps) {
   const [editing, setEditing] = React.useState(false)
 
   if (editing && !expense.isSettlement) {
@@ -58,6 +60,7 @@ export function LedgerRow({ expense, members, tripSlug }: LedgerRowProps) {
         expense={expense}
         members={members}
         tripSlug={tripSlug}
+        locations={locations}
         onDone={() => setEditing(false)}
       />
     )
@@ -171,11 +174,13 @@ function LedgerRowEditor({
   expense,
   members,
   tripSlug,
+  locations,
   onDone,
 }: {
   expense: Expense
   members: Record<string, MemberToneEntry>
   tripSlug: string
+  locations: ItineraryLocation[]
   onDone: () => void
 }) {
   const validCategory = EXPENSE_CATEGORIES.includes(
@@ -188,6 +193,9 @@ function LedgerRowEditor({
   )
   const [paidBy, setPaidBy] = React.useState(expense.paidBy)
   const [dayDate, setDayDate] = React.useState<string | null>(expense.dayDate)
+  const [locationId, setLocationId] = React.useState<string | null>(
+    expense.locationId,
+  )
   const [error, setError] = React.useState<string | null>(null)
   const [isPending, startTransition] = React.useTransition()
 
@@ -208,6 +216,7 @@ function LedgerRowEditor({
         category,
         paidBy,
         dayDate,
+        locationId,
       })
       if (result.error) {
         setError(result.error)
@@ -252,6 +261,9 @@ function LedgerRowEditor({
         paidBy={paidBy}
         onPaidByChange={setPaidBy}
         members={members}
+        locations={locations}
+        locationId={locationId}
+        onLocationChange={setLocationId}
         disabled={isPending}
       />
 
