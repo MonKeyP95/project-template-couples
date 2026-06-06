@@ -300,7 +300,7 @@ function TargetEditor({
         onClick={open}
         className="border-0 bg-transparent p-0 font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground hover:text-foreground"
       >
-        {budgetCents ? "edit budget" : "+ set budget"}
+        {budgetCents !== null ? "edit budget" : "+ set budget"}
       </button>
     )
   }
