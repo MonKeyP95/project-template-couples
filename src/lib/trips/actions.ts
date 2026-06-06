@@ -1840,3 +1840,103 @@ export async function deleteSavingsContribution(
   revalidatePath(`/trips/${tripSlug}`)
   return {}
 }
+
+export interface SetLocationBudgetInput {
+  locationId: string
+  tripSlug: string
+  /** null clears the target. */
+  budgetCents: number | null
+}
+
+/** Sets (or clears) one location's budget target. RLS gates membership. */
+export async function setLocationBudget(
+  input: SetLocationBudgetInput,
+): Promise<{ error?: string }> {
+  if (input.budgetCents !== null) {
+    if (
+      !Number.isInteger(input.budgetCents) ||
+      input.budgetCents <= 0 ||
+      input.budgetCents >= MAX_AMOUNT_CENTS
+    ) {
+      return { error: "Budget out of range." }
+    }
+  }
+
+  const supabase = await createClient()
+  const { error } = await supabase
+    .from("itinerary_locations")
+    .update({ budget_cents: input.budgetCents })
+    .eq("id", input.locationId)
+
+  if (error) return { error: error.message }
+
+  revalidatePath(`/trips/${input.tripSlug}`)
+  return {}
+}
+
+export interface MoveLocationBudgetInput {
+  tripId: string
+  tripSlug: string
+  /** null = the unallocated pool (no counterpart to debit). */
+  fromLocationId: string | null
+  /** null = the unallocated pool (no counterpart to credit). */
+  toLocationId: string | null
+  amountCents: number
+}
+
+/**
+ * Transfers budget from one envelope to another. Either endpoint may be the
+ * unallocated pool (null): moving to the pool only debits the source; moving
+ * from the pool only credits the destination. A location whose target reaches
+ * zero is cleared to null.
+ */
+export async function moveLocationBudget(
+  input: MoveLocationBudgetInput,
+): Promise<{ error?: string }> {
+  if (
+    !Number.isInteger(input.amountCents) ||
+    input.amountCents <= 0 ||
+    input.amountCents >= MAX_AMOUNT_CENTS
+  ) {
+    return { error: "Amount must be greater than zero." }
+  }
+  if (input.fromLocationId === input.toLocationId) {
+    return { error: "Pick a different destination." }
+  }
+
+  const supabase = await createClient()
+  const ids = [input.fromLocationId, input.toLocationId].filter(
+    (x): x is string => x !== null,
+  )
+  const { data: rows, error: fetchError } = await supabase
+    .from("itinerary_locations")
+    .select("id, budget_cents")
+    .eq("trip_id", input.tripId)
+    .in("id", ids)
+  if (fetchError) return { error: fetchError.message }
+
+  const budgetOf = (id: string) =>
+    rows?.find((r) => r.id === id)?.budget_cents ?? 0
+
+  if (input.fromLocationId) {
+    const next = budgetOf(input.fromLocationId) - input.amountCents
+    if (next < 0) return { error: "Not enough budget to move." }
+    const { error } = await supabase
+      .from("itinerary_locations")
+      .update({ budget_cents: next === 0 ? null : next })
+      .eq("id", input.fromLocationId)
+    if (error) return { error: error.message }
+  }
+
+  if (input.toLocationId) {
+    const next = budgetOf(input.toLocationId) + input.amountCents
+    const { error } = await supabase
+      .from("itinerary_locations")
+      .update({ budget_cents: next })
+      .eq("id", input.toLocationId)
+    if (error) return { error: error.message }
+  }
+
+  revalidatePath(`/trips/${input.tripSlug}`)
+  return {}
+}
