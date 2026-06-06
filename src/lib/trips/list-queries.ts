@@ -39,7 +39,6 @@ interface TripRow {
   lat: string | number | null
   lng: string | number | null
   planned_budget_cents: number
-  saved_cents: number
   created_at: string
 }
 
@@ -74,7 +73,7 @@ export async function listTripsForWorkspace(
   const { data } = await supabase
     .from("trips")
     .select(
-      "id, slug, name, country, start_date, end_date, fuzzy_when, lat, lng, planned_budget_cents, saved_cents, created_at",
+      "id, slug, name, country, start_date, end_date, fuzzy_when, lat, lng, planned_budget_cents, created_at",
     )
     .eq("workspace_id", workspaceId)
     .order("created_at", { ascending: true })
@@ -82,6 +81,18 @@ export async function listTripsForWorkspace(
 
   const rows = data ?? []
   const today = new Date().toISOString().slice(0, 10)
+
+  const tripIds = rows.map((r) => r.id)
+  const savedByTrip: Record<string, number> = {}
+  if (tripIds.length > 0) {
+    const { data: contribRows } = await supabase
+      .from("trip_savings_contributions")
+      .select("trip_id, amount_cents")
+      .in("trip_id", tripIds)
+    for (const c of contribRows ?? []) {
+      savedByTrip[c.trip_id] = (savedByTrip[c.trip_id] ?? 0) + c.amount_cents
+    }
+  }
 
   const items: TripListItem[] = rows.map((row) => ({
     id: row.id,
@@ -94,7 +105,7 @@ export async function listTripsForWorkspace(
     lat: asNumber(row.lat),
     lng: asNumber(row.lng),
     plannedBudgetCents: row.planned_budget_cents,
-    savedCents: row.saved_cents,
+    savedCents: savedByTrip[row.id] ?? 0,
     state: deriveState(today, row.start_date, row.end_date),
   }))
 
