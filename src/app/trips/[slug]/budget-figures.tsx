@@ -32,7 +32,7 @@ function AmountField({
   valueCents: number
   onSave: (cents: number) => Promise<{ error?: string }>
   trigger: React.ReactNode
-  /** When true, the entered amount is added to the current value instead of replacing it. */
+  /** When true, the field reads as a contribution ("+€ … add") rather than a replace; the entered amount is passed through as-is. */
   additive?: boolean
 }) {
   const [editing, setEditing] = React.useState(false)
