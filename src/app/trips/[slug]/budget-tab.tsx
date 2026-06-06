@@ -1,7 +1,10 @@
 import { Avatar, Label, TopoBg } from "@/components/together"
 import { type BudgetSummary, type Expense } from "@/lib/trips/expense-types"
 import { type SavingsContribution } from "@/lib/trips/savings-types"
+import { type DayLocation } from "@/lib/trips/location-budget-types"
+import { type ItineraryLocation } from "@/lib/trips/location-types"
 
+import { BudgetByLocation } from "./budget-by-location"
 import { BudgetFigures } from "./budget-figures"
 import { LedgerRow } from "./ledger-row"
 import { LogExpenseRow } from "./log-expense-row"
@@ -23,6 +26,8 @@ export interface BudgetTabProps {
   savedCents: number
   savingsContributions: SavingsContribution[]
   savedPerUser: Record<string, number>
+  locations: ItineraryLocation[]
+  itineraryDays: DayLocation[]
   currentUserId: string
 }
 
@@ -37,6 +42,8 @@ export function BudgetTab({
   savedCents,
   savingsContributions,
   savedPerUser,
+  locations,
+  itineraryDays,
   currentUserId,
 }: BudgetTabProps) {
   const totalCents = summary.expenseTotalCents
@@ -66,13 +73,27 @@ export function BudgetTab({
         tripSlug={tripSlug}
       />
       <SplitBreakdown members={members} paidByUser={summary.expensePaidByUser} />
+      <BudgetByLocation
+        tripId={tripId}
+        tripSlug={tripSlug}
+        masterBudgetCents={plannedBudgetCents}
+        locations={locations}
+        expenses={expenses}
+        itineraryDays={itineraryDays}
+      />
       <LogExpenseRow
         tripId={tripId}
         tripSlug={tripSlug}
         currentUserId={currentUserId}
         members={members}
+        locations={locations}
       />
-      <Ledger expenses={expenses} members={members} tripSlug={tripSlug} />
+      <Ledger
+        expenses={expenses}
+        members={members}
+        tripSlug={tripSlug}
+        locations={locations}
+      />
     </section>
   )
 }
@@ -158,10 +179,12 @@ function Ledger({
   expenses,
   members,
   tripSlug,
+  locations,
 }: {
   expenses: Expense[]
   members: Record<string, MemberToneEntry>
   tripSlug: string
+  locations: ItineraryLocation[]
 }) {
   return (
     <div className="border-t border-border bg-background">
@@ -178,6 +201,7 @@ function Ledger({
             expense={e}
             members={members}
             tripSlug={tripSlug}
+            locations={locations}
           />
         ))}
       </div>

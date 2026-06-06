@@ -143,9 +143,13 @@ export default async function TripPage({
   const isDream = header.startDate === null
   const [datedItinerary, dreamItinerary, locations, notes, packingItems, packingCategories, expenses, savings] =
     await Promise.all([
-      showItinerary && !isDream ? getItineraryDays(header.id) : Promise.resolve(null),
+      (showItinerary && !isDream) || activeTab === "budget"
+        ? getItineraryDays(header.id)
+        : Promise.resolve(null),
       showItinerary && isDream ? getDreamItineraryDays(header.id) : Promise.resolve(null),
-      showItinerary && !isDream ? getItineraryLocations(header.id) : Promise.resolve(null),
+      (showItinerary && !isDream) || activeTab === "budget"
+        ? getItineraryLocations(header.id)
+        : Promise.resolve(null),
       activeTab === "notes" ? getTripNotes(header.id) : Promise.resolve(null),
       getPackingItems(header.id),
       getPackingCategories(header.id),
@@ -217,6 +221,8 @@ export default async function TripPage({
             savedCents={savings.totalCents}
             savingsContributions={savings.contributions}
             savedPerUser={savings.perUser}
+            locations={locations ?? []}
+            itineraryDays={datedItinerary ?? []}
             currentUserId={userData.user.id}
           />
         ) : (
