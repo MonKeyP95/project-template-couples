@@ -1540,7 +1540,6 @@ export interface UpdateTripBudgetInput {
   tripId: string
   tripSlug: string
   plannedBudgetCents?: number
-  savedCents?: number
 }
 
 export interface UpdateTripBudgetResult {
@@ -1552,27 +1551,18 @@ function validCents(value: number): boolean {
 }
 
 /**
- * Sets the trip's planned budget and/or saved-so-far total. Both are shared
- * workspace values; RLS gates membership. Only the provided field(s) are
- * written, so a one-figure edit never overwrites the other.
+ * Sets the trip's planned budget. Shared workspace value; RLS gates membership.
  */
 export async function updateTripBudget(
   input: UpdateTripBudgetInput,
 ): Promise<UpdateTripBudgetResult> {
-  const patch: { planned_budget_cents?: number; saved_cents?: number } = {}
+  const patch: { planned_budget_cents?: number } = {}
 
   if (input.plannedBudgetCents !== undefined) {
     if (!validCents(input.plannedBudgetCents)) {
       return { error: "Budget out of range." }
     }
     patch.planned_budget_cents = input.plannedBudgetCents
-  }
-
-  if (input.savedCents !== undefined) {
-    if (!validCents(input.savedCents)) {
-      return { error: "Saved amount out of range." }
-    }
-    patch.saved_cents = input.savedCents
   }
 
   if (Object.keys(patch).length === 0) return { error: "Nothing to update." }
@@ -1783,6 +1773,63 @@ export async function deleteItineraryLocation(
     .from("itinerary_locations")
     .delete()
     .eq("id", locationId)
+
+  if (error) return { error: error.message }
+
+  revalidatePath(`/trips/${tripSlug}`)
+  return {}
+}
+
+export interface AddSavingsContributionInput {
+  tripId: string
+  tripSlug: string
+  amountCents: number
+}
+
+export interface SavingsActionResult {
+  error?: string
+}
+
+/**
+ * Logs one savings contribution credited to the current user. Each tap of
+ * "+ add" inserts a row; the saved total is the sum of these rows.
+ */
+export async function addSavingsContribution(
+  input: AddSavingsContributionInput,
+): Promise<SavingsActionResult> {
+  if (!Number.isInteger(input.amountCents) || input.amountCents <= 0) {
+    return { error: "Enter an amount greater than zero." }
+  }
+  if (input.amountCents >= MAX_AMOUNT_CENTS) {
+    return { error: "Amount out of range." }
+  }
+
+  const supabase = await createClient()
+  const { data: userData, error: userError } = await supabase.auth.getUser()
+  if (userError || !userData.user) return { error: "Not signed in." }
+
+  const { error } = await supabase.from("trip_savings_contributions").insert({
+    trip_id: input.tripId,
+    user_id: userData.user.id,
+    amount_cents: input.amountCents,
+  })
+
+  if (error) return { error: error.message }
+
+  revalidatePath(`/trips/${input.tripSlug}`)
+  return {}
+}
+
+/** Removes one savings contribution. */
+export async function deleteSavingsContribution(
+  contributionId: string,
+  tripSlug: string,
+): Promise<SavingsActionResult> {
+  const supabase = await createClient()
+  const { error } = await supabase
+    .from("trip_savings_contributions")
+    .delete()
+    .eq("id", contributionId)
 
   if (error) return { error: error.message }
 
