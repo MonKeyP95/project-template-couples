@@ -7,6 +7,7 @@ export interface Expense {
   paidBy: string
   category: string
   dayDate: string | null
+  locationId: string | null
   isSettlement: boolean
   createdAt: string
 }
