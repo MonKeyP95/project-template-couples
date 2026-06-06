@@ -1916,24 +1916,35 @@ export async function moveLocationBudget(
   if (fetchError) return { error: fetchError.message }
 
   const budgetOf = (id: string) =>
-    rows?.find((r) => r.id === id)?.budget_cents ?? 0
+    rows?.find((r) => r.id === id)?.budget_cents ?? null
 
+  // Validate the debit is possible before writing anything: a source with no
+  // target has nothing to move; an insufficient one can't cover the amount.
   if (input.fromLocationId) {
-    const next = budgetOf(input.fromLocationId) - input.amountCents
-    if (next < 0) return { error: "Not enough budget to move." }
-    const { error } = await supabase
-      .from("itinerary_locations")
-      .update({ budget_cents: next === 0 ? null : next })
-      .eq("id", input.fromLocationId)
-    if (error) return { error: error.message }
+    const current = budgetOf(input.fromLocationId)
+    if (current === null) return { error: "Source has no budget to move." }
+    if (current < input.amountCents) {
+      return { error: "Not enough budget to move." }
+    }
   }
 
+  // Credit before debit: a partial DB failure then leaves a visible surplus
+  // rather than money silently lost from the source.
   if (input.toLocationId) {
-    const next = budgetOf(input.toLocationId) + input.amountCents
+    const next = (budgetOf(input.toLocationId) ?? 0) + input.amountCents
     const { error } = await supabase
       .from("itinerary_locations")
       .update({ budget_cents: next })
       .eq("id", input.toLocationId)
+    if (error) return { error: error.message }
+  }
+
+  if (input.fromLocationId) {
+    const next = budgetOf(input.fromLocationId)! - input.amountCents
+    const { error } = await supabase
+      .from("itinerary_locations")
+      .update({ budget_cents: next === 0 ? null : next })
+      .eq("id", input.fromLocationId)
     if (error) return { error: error.message }
   }
 
