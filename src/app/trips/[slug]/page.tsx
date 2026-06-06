@@ -17,6 +17,7 @@ import { ThemeToggle } from "@/components/theme-toggle"
 import { createClient } from "@/lib/supabase/server"
 import { isDarkTheme } from "@/lib/theme"
 import { getTripExpenses } from "@/lib/trips/expense-queries"
+import { getTripSavings } from "@/lib/trips/savings-queries"
 import { summarizeBudget } from "@/lib/trips/expense-types"
 import { getTripDetailBySlug, type TripDetail } from "@/lib/trips/fixtures"
 import { getItineraryDays } from "@/lib/trips/itinerary-queries"
@@ -140,7 +141,7 @@ export default async function TripPage({
   // level and share the result with the active tab below.
   const showItinerary = activeTab === "itinerary"
   const isDream = header.startDate === null
-  const [datedItinerary, dreamItinerary, locations, notes, packingItems, packingCategories, expenses] =
+  const [datedItinerary, dreamItinerary, locations, notes, packingItems, packingCategories, expenses, savings] =
     await Promise.all([
       showItinerary && !isDream ? getItineraryDays(header.id) : Promise.resolve(null),
       showItinerary && isDream ? getDreamItineraryDays(header.id) : Promise.resolve(null),
@@ -149,6 +150,7 @@ export default async function TripPage({
       getPackingItems(header.id),
       getPackingCategories(header.id),
       getTripExpenses(header.id),
+      getTripSavings(header.id, memberIds),
     ])
 
   const budgetSummary = summarizeBudget(expenses, memberIds)
@@ -212,7 +214,9 @@ export default async function TripPage({
             summary={budgetSummary}
             members={memberTones}
             plannedBudgetCents={header.plannedBudgetCents}
-            savedCents={header.savedCents}
+            savedCents={savings.totalCents}
+            savingsContributions={savings.contributions}
+            savedPerUser={savings.perUser}
             currentUserId={userData.user.id}
           />
         ) : (
@@ -233,7 +237,7 @@ export default async function TripPage({
           plannedCents: header.plannedBudgetCents,
         }}
         saved={{
-          savedCents: header.savedCents,
+          savedCents: savings.totalCents,
           plannedCents: header.plannedBudgetCents,
         }}
       />
