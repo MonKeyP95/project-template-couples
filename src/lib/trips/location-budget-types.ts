@@ -17,7 +17,7 @@ export interface Envelope {
 }
 
 export interface EnvelopeSummary {
-  /** One per location, in itinerary order. Unassigned is tracked separately. */
+  /** One per location, in the order locations is supplied. Unassigned is tracked separately. */
   envelopes: Envelope[]
   /** Sum of location targets. */
   allocatedCents: number
@@ -120,6 +120,6 @@ export function groupByMonth(expenses: Expense[]): MonthGroup[] {
   return keys.map((key) => ({
     key,
     label: key === "undated" ? "Undated" : monthLabel(key),
-    spentCents: totals.get(key)!,
+    spentCents: totals.get(key) ?? 0,
   }))
 }
