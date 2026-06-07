@@ -16,6 +16,9 @@ Two related additions to the budget tab:
    location's own ledger: its attributed expenses (reusing existing attribution)
    plus its budget moves. Pure derivation for the expense side — no change to the
    underlying expense model.
+3. **Effective-location chip on main-ledger rows** — each expense row shows which
+   location it's filed under (explicit tag or date-derived), with tagged ones
+   marked distinctly. Display only; no data change.
 
 ## Motivation
 
@@ -120,6 +123,10 @@ Plus pure helpers:
   is null).
 - `movesForLocation(moves, locationId): { move: BudgetMove; signedCents: number }[]`
   — moves where this location is `from` (negative) or `to` (positive).
+- `effectiveLocation(expense, dayMap, locationsById): { name: string | null; tagged: boolean }`
+  — resolves the chip shown on a main-ledger row: `tagged = expense.locationId
+  !== null`; `name` from `expenseLocationId` looked up in `locationsById`, or
+  null when attributed nowhere.
 
 ## Main Ledger (#2)
 
@@ -134,6 +141,23 @@ rendering:
 Move rows have **no edit/delete** (deleting an audit line would not reverse the
 budget; undo = make the opposite move). Moves are absent from `summarizeBudget`
 inputs, so spent total and settle-up are untouched by construction.
+
+### Expense rows show their effective location
+
+Each expense's `LedgerRowView` gains a small **location chip** showing the
+location it is filed under — its **effective** attribution (explicit tag if set,
+else date-derived), not just the explicit tag. Explicitly-tagged expenses are
+marked distinctly from date-derived ones (e.g. a small pin glyph before the
+name) so the two are distinguishable at a glance. An expense attributed nowhere
+(no tag, no matching dated location) shows no chip (or a muted "Unassigned").
+
+To render this, the ledger resolves each expense to
+`{ name: string | null; tagged: boolean }` using the existing
+`expenseLocationId` (against the `dayMap` built from `itineraryDays`) plus the
+`locations` name lookup, and passes it into `LedgerRowView`. `tagged` is simply
+`expense.locationId !== null`. The chip sits alongside the existing category
+badge. The inline edit form (`LedgerRowEditor`) is unchanged — it already has
+the Location picker.
 
 ## Per-Location Activity (#3 + #2)
 
@@ -162,7 +186,9 @@ To render editable rows, `BudgetByLocation` gains a `members` prop (passed from
 - `app/trips/[slug]/budget-move-row.tsx` — the read-only move row (shared by the
   main ledger and, in signed form, per-location). The signed per-location line
   may be a small variant/prop rather than a second component.
-- Modify: `budget-tab.tsx` (thread `moves` + `members`; merge into `Ledger`),
+- Modify: `budget-tab.tsx` (thread `moves` + `members`; build the `dayMap` and
+  resolve each row's effective location; merge moves into `Ledger`),
+  `ledger-row.tsx` (`LedgerRowView` renders the effective-location chip),
   `budget-by-location.tsx` (`members` + `moves` props; expandable `EnvelopeRow`
   reusing `LedgerRow`), `page.tsx` (load moves for the budget tab).
 
