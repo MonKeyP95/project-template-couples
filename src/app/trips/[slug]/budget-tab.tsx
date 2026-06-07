@@ -64,6 +64,13 @@ export function BudgetTab({
         savedPerUser={savedPerUser}
         members={members}
       />
+      <LogExpenseRow
+        tripId={tripId}
+        tripSlug={tripSlug}
+        currentUserId={currentUserId}
+        members={members}
+        locations={locations}
+      />
       <SettleUpCard
         isSettled={isSettled}
         netBalanceCents={summary.netBalanceCents}
@@ -80,13 +87,6 @@ export function BudgetTab({
         locations={locations}
         expenses={expenses}
         itineraryDays={itineraryDays}
-      />
-      <LogExpenseRow
-        tripId={tripId}
-        tripSlug={tripSlug}
-        currentUserId={currentUserId}
-        members={members}
-        locations={locations}
       />
       <Ledger
         expenses={expenses}
