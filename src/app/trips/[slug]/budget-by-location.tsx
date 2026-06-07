@@ -366,7 +366,7 @@ function LocationActivity({
             key={`m-${item.move.id}`}
             move={item.move}
             locationsById={locationsById}
-            perspectiveLocationId={locationId as string}
+            perspectiveLocationId={locationId ?? undefined}
           />
         ),
       )}
