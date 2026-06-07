@@ -9,6 +9,7 @@ import type { ItineraryLocation } from "@/lib/trips/location-types"
 import {
   dayLocationMap,
   expensesForLocation,
+  formatLocationSpan,
   groupByMonth,
   movesForLocation,
   summarizeEnvelopes,
@@ -238,6 +239,7 @@ function EnvelopeRow({
     hasTarget && target > 0
       ? Math.min(100, Math.round((envelope.spentCents / target) * 100))
       : 0
+  const span = formatLocationSpan(envelope.startDate, envelope.endDate)
 
   return (
     <div className="border-t border-border py-3">
@@ -247,8 +249,15 @@ function EnvelopeRow({
         aria-expanded={expanded}
         className="flex w-full items-baseline justify-between border-0 bg-transparent p-0 text-left"
       >
-        <span className="font-serif text-[14px] italic text-foreground">
-          {envelope.name}
+        <span className="flex items-baseline gap-2">
+          <span className="font-serif text-[14px] italic text-foreground">
+            {envelope.name}
+          </span>
+          {span ? (
+            <span className="font-mono text-[9px] uppercase tracking-[0.14em] text-muted-foreground">
+              {span}
+            </span>
+          ) : null}
         </span>
         <span className="t-num text-[13px] text-foreground">
           €{fmt(envelope.spentCents)}

@@ -1,4 +1,5 @@
 import type { Expense } from "./expense-types"
+import { formatShortDate } from "./itinerary-types"
 import type { ItineraryLocation } from "./location-types"
 
 /** Minimal day shape needed for date-based attribution. */
@@ -14,6 +15,9 @@ export interface Envelope {
   /** null = no target set; always null for Unassigned. */
   budgetCents: number | null
   spentCents: number
+  /** Declared span ends; null = implied by the location's days. */
+  startDate: string | null
+  endDate: string | null
 }
 
 export interface EnvelopeSummary {
@@ -77,6 +81,8 @@ export function summarizeEnvelopes(
     name: l.name,
     budgetCents: l.budgetCents,
     spentCents: spent[l.id] ?? 0,
+    startDate: l.startDate,
+    endDate: l.endDate,
   }))
 
   const allocatedCents = locations.reduce(
@@ -159,6 +165,17 @@ export function movesForLocation(
     }
   }
   return out
+}
+
+/** Short date span for a location, e.g. "8 Jun – 12 Jun". Null when no start set. */
+export function formatLocationSpan(
+  startDate: string | null,
+  endDate: string | null,
+): string | null {
+  if (!startDate) return null
+  const start = formatShortDate(startDate)
+  if (!endDate || endDate === startDate) return start
+  return `${start} – ${formatShortDate(endDate)}`
 }
 
 /** The location chip for a main-ledger row: effective attribution + whether tagged. */

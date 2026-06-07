@@ -94,6 +94,10 @@ The edit-trip spec (`docs/superpowers/specs/2026-05-28-phase-4-edit-trip-design.
   - **Won't do — OS `prefers-color-scheme` on first visit:** the server can't read the OS preference at request time, so honoring it needs either a blocking inline `<head>` script (rejected in `DECISIONS.md`) or a duplicated `.dark` token block inside an `@media` query (DRY hazard). Both are real complexity for a marginal first-visit nicety; the toggle already lets anyone set + persist their choice. Left deferred/declined intentionally.
   - **Follow-up 2026-05-30:** the toggle was only on `/profile`, which had no inbound link, so it was unreachable. Added `<ThemeToggle>` directly to the `/home` footer (alongside "Sign out") so the theme can be flipped without leaving home. Verified in-browser: flips light/dark and persists. (A brief detour wrapping the home-header avatar in a `/profile` link was reverted once the footer toggle landed.)
 
+## Budget polish — 2026-06-07
+- **Ledger now collapsible (collapsed by default).** Extracted the `Ledger` block out of `budget-tab.tsx` into a new client component `budget-ledger.tsx` so `budget-tab` stays a Server Component; the "Ledger · N" header is a toggle button (`aria-expanded`) whose rows render only when open, with a "show" / "most recent" hint.
+- **Date span on each location's budget envelope.** Added `startDate`/`endDate` to `Envelope` (populated in `summarizeEnvelopes`) and a pure `formatLocationSpan` helper (reuses `formatShortDate`); `EnvelopeRow` renders the span (e.g. `8 Jun – 12 Jun`) next to the name, blank when no span is set.
+
 ## Between-phase polish — 2026-05-30 (UI session)
 Small UI changes + one bugfix, all verified in-browser (Playwright, light + dark, mobile + desktop):
 - **Home "Trips" band → mini-hero cards.** The non-hero upcoming trips rendered as small colorless `CompactRow`s; replaced with a new `TripCard` in `home/trip-cards.tsx` — a shorter hero (tone surface + `TopoBg`, larger italic name, `// now` badge + coord, day-count footer) that drops into the same `md:grid-cols-2 lg:grid-cols-3` grid. Past trips keep the dimmed `CompactRow`.

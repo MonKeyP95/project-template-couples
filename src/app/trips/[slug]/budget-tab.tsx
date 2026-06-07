@@ -2,8 +2,6 @@ import { Avatar, Label, TopoBg } from "@/components/together"
 import { type BudgetSummary, type Expense } from "@/lib/trips/expense-types"
 import { type SavingsContribution } from "@/lib/trips/savings-types"
 import {
-  dayLocationMap,
-  effectiveLocation,
   type BudgetMove,
   type DayLocation,
 } from "@/lib/trips/location-budget-types"
@@ -11,8 +9,7 @@ import { type ItineraryLocation } from "@/lib/trips/location-types"
 
 import { BudgetByLocation } from "./budget-by-location"
 import { BudgetFigures } from "./budget-figures"
-import { BudgetMoveRow } from "./budget-move-row"
-import { LedgerRow } from "./ledger-row"
+import { Ledger } from "./budget-ledger"
 import { LogExpenseRow } from "./log-expense-row"
 import type { MemberToneEntry } from "./packing-tab"
 import { SettleUpCard } from "./settle-up-card"
@@ -187,62 +184,4 @@ function SplitBreakdown({
   )
 }
 
-function Ledger({
-  expenses,
-  moves,
-  members,
-  tripSlug,
-  locations,
-  itineraryDays,
-}: {
-  expenses: Expense[]
-  moves: BudgetMove[]
-  members: Record<string, MemberToneEntry>
-  tripSlug: string
-  locations: ItineraryLocation[]
-  itineraryDays: DayLocation[]
-}) {
-  const dayMap = dayLocationMap(itineraryDays)
-  const locationsById = Object.fromEntries(locations.map((l) => [l.id, l.name]))
-  const hasLocations = locations.length > 0
-  const items = [
-    ...expenses.map((e) => ({ kind: "expense" as const, at: e.createdAt, expense: e })),
-    ...moves.map((m) => ({ kind: "move" as const, at: m.createdAt, move: m })),
-  ].sort((a, b) => (a.at < b.at ? 1 : a.at > b.at ? -1 : 0))
-
-  return (
-    <div className="border-t border-border bg-background">
-      <div className="flex items-baseline justify-between px-5 pt-4 pb-1.5">
-        <Label>Ledger · {expenses.length}</Label>
-        <span className="font-mono text-[10px] text-muted-foreground">
-          most recent
-        </span>
-      </div>
-      <div>
-        {items.map((item) =>
-          item.kind === "expense" ? (
-            <LedgerRow
-              key={`e-${item.expense.id}`}
-              expense={item.expense}
-              members={members}
-              tripSlug={tripSlug}
-              locations={locations}
-              locationChip={
-                hasLocations
-                  ? effectiveLocation(item.expense, dayMap, locationsById)
-                  : undefined
-              }
-            />
-          ) : (
-            <BudgetMoveRow
-              key={`m-${item.move.id}`}
-              move={item.move}
-              locationsById={locationsById}
-            />
-          ),
-        )}
-      </div>
-    </div>
-  )
-}
 
