@@ -2,8 +2,14 @@
 
 import * as React from "react"
 
-import { Bar, Label } from "@/components/together"
-import { updateTripBudget } from "@/lib/trips/actions"
+import {
+  addSavingsContribution,
+  deleteSavingsContribution,
+  updateTripBudget,
+} from "@/lib/trips/actions"
+import { Avatar, Bar, Label } from "@/components/together"
+import { type SavingsContribution } from "@/lib/trips/savings-types"
+import type { MemberToneEntry } from "./packing-tab"
 
 function fmt(cents: number): string {
   return (cents / 100).toFixed(2)
@@ -26,7 +32,7 @@ function AmountField({
   valueCents: number
   onSave: (cents: number) => Promise<{ error?: string }>
   trigger: React.ReactNode
-  /** When true, the entered amount is added to the current value instead of replacing it. */
+  /** When true, the field reads as a contribution ("+€ … add") rather than a replace; the entered amount is passed through as-is. */
   additive?: boolean
 }) {
   const [editing, setEditing] = React.useState(false)
@@ -56,9 +62,8 @@ function AmountField({
       return
     }
     const cents = Math.round(num * 100)
-    const next = additive ? valueCents + cents : cents
     startTransition(async () => {
-      const result = await onSave(next)
+      const result = await onSave(cents)
       if (result.error) {
         setError(result.error)
         return
@@ -124,6 +129,9 @@ export interface BudgetFiguresProps {
   spentCents: number
   plannedBudgetCents: number
   savedCents: number
+  contributions: SavingsContribution[]
+  perUser: Record<string, number>
+  members: Record<string, MemberToneEntry>
 }
 
 export function BudgetFigures({
@@ -132,7 +140,11 @@ export function BudgetFigures({
   spentCents,
   plannedBudgetCents,
   savedCents,
+  contributions,
+  perUser,
+  members,
 }: BudgetFiguresProps) {
+  const [expanded, setExpanded] = React.useState(false)
   const hasPlanned = plannedBudgetCents > 0
   const leftCents = Math.max(0, plannedBudgetCents - spentCents)
   const spentPct = hasPlanned
@@ -146,7 +158,7 @@ export function BudgetFigures({
   const savePlanned = (cents: number) =>
     updateTripBudget({ tripId, tripSlug, plannedBudgetCents: cents })
   const saveSaved = (cents: number) =>
-    updateTripBudget({ tripId, tripSlug, savedCents: cents })
+    addSavingsContribution({ tripId, tripSlug, amountCents: cents })
 
   return (
     <>
@@ -188,9 +200,14 @@ export function BudgetFigures({
         <Label>Saved so far</Label>
         <div className="mt-1.5 flex items-baseline gap-1">
           <span className="t-display text-[18px] text-muted-foreground">€</span>
-          <span className="t-display t-num text-[28px] leading-none text-foreground">
+          <button
+            type="button"
+            onClick={() => setExpanded((v) => !v)}
+            aria-expanded={expanded}
+            className="t-display t-num border-0 bg-transparent p-0 text-[28px] leading-none text-foreground"
+          >
             {fmt(savedCents)}
-          </span>
+          </button>
           <AmountField
             additive
             valueCents={savedCents}
@@ -223,7 +240,151 @@ export function BudgetFigures({
             </div>
           </>
         ) : null}
+        {expanded ? (
+          <SavingsDetails
+            contributions={contributions}
+            perUser={perUser}
+            members={members}
+            tripSlug={tripSlug}
+          />
+        ) : null}
       </div>
     </>
+  )
+}
+
+const MONTH_SHORT = new Intl.DateTimeFormat("en-US", {
+  month: "short",
+  timeZone: "UTC",
+})
+
+function contributionDate(iso: string): { mon: string; day: string } {
+  const d = new Date(iso)
+  return {
+    mon: MONTH_SHORT.format(d).toUpperCase(),
+    day: String(d.getUTCDate()),
+  }
+}
+
+function SavingsDetails({
+  contributions,
+  perUser,
+  members,
+  tripSlug,
+}: {
+  contributions: SavingsContribution[]
+  perUser: Record<string, number>
+  members: Record<string, MemberToneEntry>
+  tripSlug: string
+}) {
+  const memberEntries = Object.entries(members)
+  return (
+    <div className="mt-4 border-t border-border pt-4">
+      {memberEntries.length === 2 ? (
+        <div className="grid grid-cols-2 gap-2.5">
+          {memberEntries.map(([userId, member]) => (
+            <div
+              key={userId}
+              className="rounded-lg border border-border bg-card px-3.5 py-3"
+            >
+              <div className="flex items-center gap-2">
+                <Avatar name={member.initial} size={18} tone={member.tone} />
+                <span className="font-serif text-[14px] italic text-foreground">
+                  {member.displayName}
+                </span>
+              </div>
+              <div className="mt-1.5 font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+                saved
+              </div>
+              <div className="t-num mt-0.5 text-[22px] text-foreground">
+                €{fmt(perUser[userId] ?? 0)}
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : null}
+
+      <div className="mt-3">
+        {contributions.length === 0 ? (
+          <div className="py-3 font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+            No contributions yet
+          </div>
+        ) : (
+          contributions.map((c) => (
+            <SavingsLogRow
+              key={c.id}
+              contribution={c}
+              member={members[c.userId]}
+              tripSlug={tripSlug}
+            />
+          ))
+        )}
+      </div>
+    </div>
+  )
+}
+
+function SavingsLogRow({
+  contribution,
+  member,
+  tripSlug,
+}: {
+  contribution: SavingsContribution
+  member: MemberToneEntry | undefined
+  tripSlug: string
+}) {
+  const [error, setError] = React.useState<string | null>(null)
+  const [isPending, startTransition] = React.useTransition()
+  const date = contributionDate(contribution.createdAt)
+
+  function remove() {
+    if (isPending) return
+    if (!confirm("Delete this contribution?")) return
+    startTransition(async () => {
+      const result = await deleteSavingsContribution(contribution.id, tripSlug)
+      if (result.error) setError(result.error)
+    })
+  }
+
+  return (
+    <div
+      className={`grid grid-cols-[44px_1fr_auto] items-center gap-3 border-t border-border py-3 ${
+        isPending ? "opacity-50" : ""
+      }`}
+    >
+      <div className="text-center">
+        <div className="font-mono text-[9px] uppercase tracking-[0.14em] text-muted-foreground">
+          {date.mon}
+        </div>
+        <div className="font-mono text-[18px] leading-none tracking-[-0.02em] text-foreground">
+          {date.day}
+        </div>
+      </div>
+      <div className="flex items-center gap-2">
+        {member ? (
+          <Avatar name={member.initial} size={16} tone={member.tone} />
+        ) : null}
+        <span className="text-[13px] text-foreground">
+          {member?.displayName ?? "Someone"}
+        </span>
+        {error ? (
+          <span className="font-mono text-[10px] text-clay">{error}</span>
+        ) : null}
+      </div>
+      <div className="flex items-center gap-2">
+        <span className="t-num text-[15px] text-foreground">
+          €{fmt(contribution.amountCents)}
+        </span>
+        <button
+          type="button"
+          onClick={remove}
+          disabled={isPending}
+          aria-label="Delete contribution"
+          className="border-0 bg-transparent font-mono text-[12px] text-muted-foreground hover:text-foreground"
+        >
+          ×
+        </button>
+      </div>
+    </div>
   )
 }

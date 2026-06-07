@@ -6,7 +6,7 @@ export async function getTripExpenses(tripId: string): Promise<Expense[]> {
   const { data } = await supabase
     .from("expenses")
     .select(
-      "id, trip_id, title, amount_cents, currency, paid_by, category, day_date, is_settlement, created_at",
+      "id, trip_id, title, amount_cents, currency, paid_by, category, day_date, location_id, is_settlement, created_at",
     )
     .eq("trip_id", tripId)
     .order("created_at", { ascending: false })
@@ -20,6 +20,7 @@ export async function getTripExpenses(tripId: string): Promise<Expense[]> {
     paidBy: row.paid_by,
     category: row.category,
     dayDate: row.day_date,
+    locationId: row.location_id,
     isSettlement: row.is_settlement,
     createdAt: row.created_at,
   }))

@@ -1,8 +1,15 @@
 import { Avatar, Label, TopoBg } from "@/components/together"
 import { type BudgetSummary, type Expense } from "@/lib/trips/expense-types"
+import { type SavingsContribution } from "@/lib/trips/savings-types"
+import {
+  type BudgetMove,
+  type DayLocation,
+} from "@/lib/trips/location-budget-types"
+import { type ItineraryLocation } from "@/lib/trips/location-types"
 
+import { BudgetByLocation } from "./budget-by-location"
 import { BudgetFigures } from "./budget-figures"
-import { LedgerRow } from "./ledger-row"
+import { Ledger } from "./budget-ledger"
 import { LogExpenseRow } from "./log-expense-row"
 import type { MemberToneEntry } from "./packing-tab"
 import { SettleUpCard } from "./settle-up-card"
@@ -20,6 +27,11 @@ export interface BudgetTabProps {
   members: Record<string, MemberToneEntry>
   plannedBudgetCents: number
   savedCents: number
+  savingsContributions: SavingsContribution[]
+  savedPerUser: Record<string, number>
+  locations: ItineraryLocation[]
+  itineraryDays: DayLocation[]
+  moves: BudgetMove[]
   currentUserId: string
 }
 
@@ -32,6 +44,11 @@ export function BudgetTab({
   members,
   plannedBudgetCents,
   savedCents,
+  savingsContributions,
+  savedPerUser,
+  locations,
+  itineraryDays,
+  moves,
   currentUserId,
 }: BudgetTabProps) {
   const totalCents = summary.expenseTotalCents
@@ -48,6 +65,16 @@ export function BudgetTab({
         spentCents={totalCents}
         plannedBudgetCents={plannedBudgetCents}
         savedCents={savedCents}
+        savingsContributions={savingsContributions}
+        savedPerUser={savedPerUser}
+        members={members}
+      />
+      <LogExpenseRow
+        tripId={tripId}
+        tripSlug={tripSlug}
+        currentUserId={currentUserId}
+        members={members}
+        locations={locations}
       />
       <SettleUpCard
         isSettled={isSettled}
@@ -58,13 +85,24 @@ export function BudgetTab({
         tripSlug={tripSlug}
       />
       <SplitBreakdown members={members} paidByUser={summary.expensePaidByUser} />
-      <LogExpenseRow
+      <BudgetByLocation
         tripId={tripId}
         tripSlug={tripSlug}
-        currentUserId={currentUserId}
+        masterBudgetCents={plannedBudgetCents}
+        locations={locations}
+        expenses={expenses}
+        itineraryDays={itineraryDays}
         members={members}
+        moves={moves}
       />
-      <Ledger expenses={expenses} members={members} tripSlug={tripSlug} />
+      <Ledger
+        expenses={expenses}
+        moves={moves}
+        members={members}
+        tripSlug={tripSlug}
+        locations={locations}
+        itineraryDays={itineraryDays}
+      />
     </section>
   )
 }
@@ -76,6 +114,9 @@ function BudgetHeader({
   spentCents,
   plannedBudgetCents,
   savedCents,
+  savingsContributions,
+  savedPerUser,
+  members,
 }: {
   tripId: string
   tripSlug: string
@@ -83,6 +124,9 @@ function BudgetHeader({
   spentCents: number
   plannedBudgetCents: number
   savedCents: number
+  savingsContributions: SavingsContribution[]
+  savedPerUser: Record<string, number>
+  members: Record<string, MemberToneEntry>
 }) {
   return (
     <div className="relative overflow-hidden bg-dusk-tint px-5 pt-6 pb-4">
@@ -95,6 +139,9 @@ function BudgetHeader({
           spentCents={spentCents}
           plannedBudgetCents={plannedBudgetCents}
           savedCents={savedCents}
+          contributions={savingsContributions}
+          perUser={savedPerUser}
+          members={members}
         />
       </div>
     </div>
@@ -137,34 +184,4 @@ function SplitBreakdown({
   )
 }
 
-function Ledger({
-  expenses,
-  members,
-  tripSlug,
-}: {
-  expenses: Expense[]
-  members: Record<string, MemberToneEntry>
-  tripSlug: string
-}) {
-  return (
-    <div className="border-t border-border bg-background">
-      <div className="flex items-baseline justify-between px-5 pt-4 pb-1.5">
-        <Label>Ledger · {expenses.length}</Label>
-        <span className="font-mono text-[10px] text-muted-foreground">
-          most recent
-        </span>
-      </div>
-      <div>
-        {expenses.map((e) => (
-          <LedgerRow
-            key={e.id}
-            expense={e}
-            members={members}
-            tripSlug={tripSlug}
-          />
-        ))}
-      </div>
-    </div>
-  )
-}
 

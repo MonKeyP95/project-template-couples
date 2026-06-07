@@ -169,6 +169,7 @@ export interface LogExpenseInput {
   category: string
   paidBy: string
   dayDate: string | null
+  locationId: string | null
 }
 
 export interface LogExpenseResult {
@@ -219,6 +220,7 @@ export async function logExpense(
     paid_by: input.paidBy,
     category: input.category,
     day_date: input.dayDate,
+    location_id: input.locationId,
     is_settlement: false,
   })
 
@@ -372,6 +374,7 @@ export interface UpdateExpenseInput {
   category: string
   paidBy: string
   dayDate: string | null
+  locationId: string | null
 }
 
 export interface UpdateExpenseResult {
@@ -417,6 +420,7 @@ export async function updateExpense(
       paid_by: input.paidBy,
       category: input.category,
       day_date: input.dayDate,
+      location_id: input.locationId,
     })
     .eq("id", input.expenseId)
 
@@ -1540,7 +1544,6 @@ export interface UpdateTripBudgetInput {
   tripId: string
   tripSlug: string
   plannedBudgetCents?: number
-  savedCents?: number
 }
 
 export interface UpdateTripBudgetResult {
@@ -1552,27 +1555,18 @@ function validCents(value: number): boolean {
 }
 
 /**
- * Sets the trip's planned budget and/or saved-so-far total. Both are shared
- * workspace values; RLS gates membership. Only the provided field(s) are
- * written, so a one-figure edit never overwrites the other.
+ * Sets the trip's planned budget. Shared workspace value; RLS gates membership.
  */
 export async function updateTripBudget(
   input: UpdateTripBudgetInput,
 ): Promise<UpdateTripBudgetResult> {
-  const patch: { planned_budget_cents?: number; saved_cents?: number } = {}
+  const patch: { planned_budget_cents?: number } = {}
 
   if (input.plannedBudgetCents !== undefined) {
     if (!validCents(input.plannedBudgetCents)) {
       return { error: "Budget out of range." }
     }
     patch.planned_budget_cents = input.plannedBudgetCents
-  }
-
-  if (input.savedCents !== undefined) {
-    if (!validCents(input.savedCents)) {
-      return { error: "Saved amount out of range." }
-    }
-    patch.saved_cents = input.savedCents
   }
 
   if (Object.keys(patch).length === 0) return { error: "Nothing to update." }
@@ -1787,5 +1781,139 @@ export async function deleteItineraryLocation(
   if (error) return { error: error.message }
 
   revalidatePath(`/trips/${tripSlug}`)
+  return {}
+}
+
+export interface AddSavingsContributionInput {
+  tripId: string
+  tripSlug: string
+  amountCents: number
+}
+
+export interface SavingsActionResult {
+  error?: string
+}
+
+/**
+ * Logs one savings contribution credited to the current user. Each tap of
+ * "+ add" inserts a row; the saved total is the sum of these rows.
+ */
+export async function addSavingsContribution(
+  input: AddSavingsContributionInput,
+): Promise<SavingsActionResult> {
+  if (!Number.isInteger(input.amountCents) || input.amountCents <= 0) {
+    return { error: "Enter an amount greater than zero." }
+  }
+  if (input.amountCents >= MAX_AMOUNT_CENTS) {
+    return { error: "Amount out of range." }
+  }
+
+  const supabase = await createClient()
+  const { data: userData, error: userError } = await supabase.auth.getUser()
+  if (userError || !userData.user) return { error: "Not signed in." }
+
+  const { error } = await supabase.from("trip_savings_contributions").insert({
+    trip_id: input.tripId,
+    user_id: userData.user.id,
+    amount_cents: input.amountCents,
+  })
+
+  if (error) return { error: error.message }
+
+  revalidatePath(`/trips/${input.tripSlug}`)
+  return {}
+}
+
+/** Removes one savings contribution. */
+export async function deleteSavingsContribution(
+  contributionId: string,
+  tripSlug: string,
+): Promise<SavingsActionResult> {
+  const supabase = await createClient()
+  const { error } = await supabase
+    .from("trip_savings_contributions")
+    .delete()
+    .eq("id", contributionId)
+
+  if (error) return { error: error.message }
+
+  revalidatePath(`/trips/${tripSlug}`)
+  return {}
+}
+
+export interface SetLocationBudgetInput {
+  locationId: string
+  tripSlug: string
+  /** null clears the target. */
+  budgetCents: number | null
+}
+
+/** Sets (or clears) one location's budget target. RLS gates membership. */
+export async function setLocationBudget(
+  input: SetLocationBudgetInput,
+): Promise<{ error?: string }> {
+  if (input.budgetCents !== null) {
+    if (
+      !Number.isInteger(input.budgetCents) ||
+      input.budgetCents <= 0 ||
+      input.budgetCents >= MAX_AMOUNT_CENTS
+    ) {
+      return { error: "Budget out of range." }
+    }
+  }
+
+  const supabase = await createClient()
+  const { error } = await supabase
+    .from("itinerary_locations")
+    .update({ budget_cents: input.budgetCents })
+    .eq("id", input.locationId)
+
+  if (error) return { error: error.message }
+
+  revalidatePath(`/trips/${input.tripSlug}`)
+  return {}
+}
+
+export interface MoveLocationBudgetInput {
+  tripId: string
+  tripSlug: string
+  /** null = the unallocated pool (no counterpart to debit). */
+  fromLocationId: string | null
+  /** null = the unallocated pool (no counterpart to credit). */
+  toLocationId: string | null
+  amountCents: number
+}
+
+/**
+ * Transfers budget from one envelope to another via the move_location_budget
+ * RPC (atomic: validate + debit + credit in one transaction, with a row lock
+ * on the source). Either endpoint may be the unallocated pool (null): moving to
+ * the pool only debits the source; moving from the pool only credits the
+ * destination. A location whose target reaches zero is cleared to null.
+ */
+export async function moveLocationBudget(
+  input: MoveLocationBudgetInput,
+): Promise<{ error?: string }> {
+  if (
+    !Number.isInteger(input.amountCents) ||
+    input.amountCents <= 0 ||
+    input.amountCents >= MAX_AMOUNT_CENTS
+  ) {
+    return { error: "Amount must be greater than zero." }
+  }
+  if (input.fromLocationId === input.toLocationId) {
+    return { error: "Pick a different destination." }
+  }
+
+  const supabase = await createClient()
+  const { error } = await supabase.rpc("move_location_budget", {
+    p_trip_id: input.tripId,
+    p_from: input.fromLocationId,
+    p_to: input.toLocationId,
+    p_amount: input.amountCents,
+  })
+  if (error) return { error: error.message }
+
+  revalidatePath(`/trips/${input.tripSlug}`)
   return {}
 }
