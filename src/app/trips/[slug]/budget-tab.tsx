@@ -4,12 +4,14 @@ import { type SavingsContribution } from "@/lib/trips/savings-types"
 import {
   dayLocationMap,
   effectiveLocation,
+  type BudgetMove,
   type DayLocation,
 } from "@/lib/trips/location-budget-types"
 import { type ItineraryLocation } from "@/lib/trips/location-types"
 
 import { BudgetByLocation } from "./budget-by-location"
 import { BudgetFigures } from "./budget-figures"
+import { BudgetMoveRow } from "./budget-move-row"
 import { LedgerRow } from "./ledger-row"
 import { LogExpenseRow } from "./log-expense-row"
 import type { MemberToneEntry } from "./packing-tab"
@@ -32,6 +34,7 @@ export interface BudgetTabProps {
   savedPerUser: Record<string, number>
   locations: ItineraryLocation[]
   itineraryDays: DayLocation[]
+  moves: BudgetMove[]
   currentUserId: string
 }
 
@@ -48,6 +51,7 @@ export function BudgetTab({
   savedPerUser,
   locations,
   itineraryDays,
+  moves,
   currentUserId,
 }: BudgetTabProps) {
   const totalCents = summary.expenseTotalCents
@@ -94,6 +98,7 @@ export function BudgetTab({
       />
       <Ledger
         expenses={expenses}
+        moves={moves}
         members={members}
         tripSlug={tripSlug}
         locations={locations}
@@ -182,12 +187,14 @@ function SplitBreakdown({
 
 function Ledger({
   expenses,
+  moves,
   members,
   tripSlug,
   locations,
   itineraryDays,
 }: {
   expenses: Expense[]
+  moves: BudgetMove[]
   members: Record<string, MemberToneEntry>
   tripSlug: string
   locations: ItineraryLocation[]
@@ -196,6 +203,11 @@ function Ledger({
   const dayMap = dayLocationMap(itineraryDays)
   const locationsById = Object.fromEntries(locations.map((l) => [l.id, l.name]))
   const hasLocations = locations.length > 0
+  const items = [
+    ...expenses.map((e) => ({ kind: "expense" as const, at: e.createdAt, expense: e })),
+    ...moves.map((m) => ({ kind: "move" as const, at: m.createdAt, move: m })),
+  ].sort((a, b) => (a.at < b.at ? 1 : a.at > b.at ? -1 : 0))
+
   return (
     <div className="border-t border-border bg-background">
       <div className="flex items-baseline justify-between px-5 pt-4 pb-1.5">
@@ -205,20 +217,28 @@ function Ledger({
         </span>
       </div>
       <div>
-        {expenses.map((e) => (
-          <LedgerRow
-            key={e.id}
-            expense={e}
-            members={members}
-            tripSlug={tripSlug}
-            locations={locations}
-            locationChip={
-              hasLocations
-                ? effectiveLocation(e, dayMap, locationsById)
-                : undefined
-            }
-          />
-        ))}
+        {items.map((item) =>
+          item.kind === "expense" ? (
+            <LedgerRow
+              key={`e-${item.expense.id}`}
+              expense={item.expense}
+              members={members}
+              tripSlug={tripSlug}
+              locations={locations}
+              locationChip={
+                hasLocations
+                  ? effectiveLocation(item.expense, dayMap, locationsById)
+                  : undefined
+              }
+            />
+          ) : (
+            <BudgetMoveRow
+              key={`m-${item.move.id}`}
+              move={item.move}
+              locationsById={locationsById}
+            />
+          ),
+        )}
       </div>
     </div>
   )
