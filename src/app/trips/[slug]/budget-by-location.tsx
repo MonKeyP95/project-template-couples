@@ -9,7 +9,6 @@ import type { ItineraryLocation } from "@/lib/trips/location-types"
 import {
   dayLocationMap,
   expensesForLocation,
-  formatLocationSpan,
   groupByMonth,
   movesForLocation,
   summarizeEnvelopes,
@@ -239,7 +238,7 @@ function EnvelopeRow({
     hasTarget && target > 0
       ? Math.min(100, Math.round((envelope.spentCents / target) * 100))
       : 0
-  const span = formatLocationSpan(envelope.startDate, envelope.endDate)
+  const span = envelope.dateLabel
 
   return (
     <div className="border-t border-border py-3">

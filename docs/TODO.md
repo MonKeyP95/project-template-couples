@@ -96,7 +96,7 @@ The edit-trip spec (`docs/superpowers/specs/2026-05-28-phase-4-edit-trip-design.
 
 ## Budget polish — 2026-06-07
 - **Ledger now collapsible (collapsed by default).** Extracted the `Ledger` block out of `budget-tab.tsx` into a new client component `budget-ledger.tsx` so `budget-tab` stays a Server Component; the "Ledger · N" header is a toggle button (`aria-expanded`) whose rows render only when open, with a "show" / "most recent" hint.
-- **Date span on each location's budget envelope.** Added `startDate`/`endDate` to `Envelope` (populated in `summarizeEnvelopes`) and a pure `formatLocationSpan` helper (reuses `formatShortDate`); `EnvelopeRow` renders the span (e.g. `8 Jun – 12 Jun`) next to the name, blank when no span is set.
+- **Date label on each location's budget envelope.** `Envelope` carries a `dateLabel` computed in `summarizeEnvelopes` via the pure `locationDateLabel` helper (reuses `formatShortDate`). Mirrors the itinerary header exactly: declared span when both ends set, else the range derived from the location's days; `EnvelopeRow` renders it (e.g. `8 Jun – 12 Jun`) next to the name, blank only when undated.
 
 ## Between-phase polish — 2026-05-30 (UI session)
 Small UI changes + one bugfix, all verified in-browser (Playwright, light + dark, mobile + desktop):

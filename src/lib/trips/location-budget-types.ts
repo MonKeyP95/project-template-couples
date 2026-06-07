@@ -15,9 +15,8 @@ export interface Envelope {
   /** null = no target set; always null for Unassigned. */
   budgetCents: number | null
   spentCents: number
-  /** Declared span ends; null = implied by the location's days. */
-  startDate: string | null
-  endDate: string | null
+  /** Itinerary-style date label, e.g. "8 Jun – 12 Jun"; null when undated. */
+  dateLabel: string | null
 }
 
 export interface EnvelopeSummary {
@@ -66,6 +65,10 @@ export function summarizeEnvelopes(
   masterBudgetCents: number,
 ): EnvelopeSummary {
   const dayMap = dayLocationMap(days)
+  const datesByLoc: Record<string, string[]> = {}
+  for (const d of days) {
+    if (d.locationId) (datesByLoc[d.locationId] ??= []).push(d.dayDate)
+  }
   const spent: Record<string, number> = {}
   let unassignedSpentCents = 0
 
@@ -81,8 +84,7 @@ export function summarizeEnvelopes(
     name: l.name,
     budgetCents: l.budgetCents,
     spentCents: spent[l.id] ?? 0,
-    startDate: l.startDate,
-    endDate: l.endDate,
+    dateLabel: locationDateLabel(l.startDate, l.endDate, datesByLoc[l.id] ?? []),
   }))
 
   const allocatedCents = locations.reduce(
@@ -167,15 +169,26 @@ export function movesForLocation(
   return out
 }
 
-/** Short date span for a location, e.g. "8 Jun – 12 Jun". Null when no start set. */
-export function formatLocationSpan(
+/** Location date label, mirroring the itinerary header: the declared span when
+ * both ends are set, else the range derived from the location's days. Null when
+ * neither a span nor any days exist. */
+export function locationDateLabel(
   startDate: string | null,
   endDate: string | null,
+  dayDates: string[],
 ): string | null {
-  if (!startDate) return null
-  const start = formatShortDate(startDate)
-  if (!endDate || endDate === startDate) return start
-  return `${start} – ${formatShortDate(endDate)}`
+  if (startDate && endDate) {
+    return `${formatShortDate(startDate)} – ${formatShortDate(endDate)}`
+  }
+  if (dayDates.length > 0) {
+    const sorted = [...dayDates].sort()
+    const first = sorted[0]
+    const last = sorted[sorted.length - 1]
+    return first === last
+      ? formatShortDate(first)
+      : `${formatShortDate(first)} – ${formatShortDate(last)}`
+  }
+  return startDate ? formatShortDate(startDate) : null
 }
 
 /** The location chip for a main-ledger row: effective attribution + whether tagged. */
