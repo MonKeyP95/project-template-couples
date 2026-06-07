@@ -1,7 +1,11 @@
 import { Avatar, Label, TopoBg } from "@/components/together"
 import { type BudgetSummary, type Expense } from "@/lib/trips/expense-types"
 import { type SavingsContribution } from "@/lib/trips/savings-types"
-import { type DayLocation } from "@/lib/trips/location-budget-types"
+import {
+  dayLocationMap,
+  effectiveLocation,
+  type DayLocation,
+} from "@/lib/trips/location-budget-types"
 import { type ItineraryLocation } from "@/lib/trips/location-types"
 
 import { BudgetByLocation } from "./budget-by-location"
@@ -93,6 +97,7 @@ export function BudgetTab({
         members={members}
         tripSlug={tripSlug}
         locations={locations}
+        itineraryDays={itineraryDays}
       />
     </section>
   )
@@ -180,12 +185,17 @@ function Ledger({
   members,
   tripSlug,
   locations,
+  itineraryDays,
 }: {
   expenses: Expense[]
   members: Record<string, MemberToneEntry>
   tripSlug: string
   locations: ItineraryLocation[]
+  itineraryDays: DayLocation[]
 }) {
+  const dayMap = dayLocationMap(itineraryDays)
+  const locationsById = Object.fromEntries(locations.map((l) => [l.id, l.name]))
+  const hasLocations = locations.length > 0
   return (
     <div className="border-t border-border bg-background">
       <div className="flex items-baseline justify-between px-5 pt-4 pb-1.5">
@@ -202,6 +212,11 @@ function Ledger({
             members={members}
             tripSlug={tripSlug}
             locations={locations}
+            locationChip={
+              hasLocations
+                ? effectiveLocation(e, dayMap, locationsById)
+                : undefined
+            }
           />
         ))}
       </div>

@@ -49,9 +49,16 @@ export interface LedgerRowProps {
   members: Record<string, MemberToneEntry>
   tripSlug: string
   locations: ItineraryLocation[]
+  locationChip?: { name: string | null; tagged: boolean }
 }
 
-export function LedgerRow({ expense, members, tripSlug, locations }: LedgerRowProps) {
+export function LedgerRow({
+  expense,
+  members,
+  tripSlug,
+  locations,
+  locationChip,
+}: LedgerRowProps) {
   const [editing, setEditing] = React.useState(false)
 
   if (editing && !expense.isSettlement) {
@@ -71,6 +78,7 @@ export function LedgerRow({ expense, members, tripSlug, locations }: LedgerRowPr
       expense={expense}
       members={members}
       tripSlug={tripSlug}
+      locationChip={locationChip}
       onEdit={() => setEditing(true)}
     />
   )
@@ -80,11 +88,13 @@ function LedgerRowView({
   expense,
   members,
   tripSlug,
+  locationChip,
   onEdit,
 }: {
   expense: Expense
   members: Record<string, MemberToneEntry>
   tripSlug: string
+  locationChip?: { name: string | null; tagged: boolean }
   onEdit: () => void
 }) {
   const [error, setError] = React.useState<string | null>(null)
@@ -133,6 +143,16 @@ function LedgerRowView({
           </span>
           {payer ? (
             <Avatar name={payer.initial} size={16} tone={payer.tone} />
+          ) : null}
+          {locationChip ? (
+            <span
+              className={`font-mono text-[10px] ${
+                locationChip.tagged ? "text-clay" : "text-muted-foreground"
+              }`}
+              title={locationChip.tagged ? "Tagged location" : "Location by date"}
+            >
+              {locationChip.name ? `@${locationChip.name}` : "unassigned"}
+            </span>
           ) : null}
         </div>
         {error ? (
