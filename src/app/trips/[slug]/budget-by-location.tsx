@@ -7,13 +7,21 @@ import { moveLocationBudget, setLocationBudget } from "@/lib/trips/actions"
 import type { Expense } from "@/lib/trips/expense-types"
 import type { ItineraryLocation } from "@/lib/trips/location-types"
 import {
+  dayLocationMap,
+  expensesForLocation,
   groupByMonth,
+  movesForLocation,
   summarizeEnvelopes,
+  type BudgetMove,
   type DayLocation,
   type Envelope,
   type EnvelopeSummary,
   type MonthGroup,
 } from "@/lib/trips/location-budget-types"
+
+import { BudgetMoveRow } from "./budget-move-row"
+import { LedgerRow } from "./ledger-row"
+import type { MemberToneEntry } from "./packing-tab"
 
 function fmt(cents: number): string {
   return (cents / 100).toFixed(2)
@@ -34,6 +42,8 @@ export interface BudgetByLocationProps {
   locations: ItineraryLocation[]
   expenses: Expense[]
   itineraryDays: DayLocation[]
+  members: Record<string, MemberToneEntry>
+  moves: BudgetMove[]
 }
 
 export function BudgetByLocation({
@@ -43,6 +53,8 @@ export function BudgetByLocation({
   locations,
   expenses,
   itineraryDays,
+  members,
+  moves,
 }: BudgetByLocationProps) {
   const [view, setView] = React.useState<View>("location")
   const summary = summarizeEnvelopes(
@@ -52,6 +64,8 @@ export function BudgetByLocation({
     masterBudgetCents,
   )
   const months = groupByMonth(expenses)
+  const dayMap = dayLocationMap(itineraryDays)
+  const locationsById = Object.fromEntries(locations.map((l) => [l.id, l.name]))
 
   return (
     <div className="border-t border-border bg-background px-5 pt-4 pb-2">
@@ -67,6 +81,11 @@ export function BudgetByLocation({
           masterBudgetCents={masterBudgetCents}
           summary={summary}
           locations={locations}
+          expenses={expenses}
+          moves={moves}
+          members={members}
+          dayMap={dayMap}
+          locationsById={locationsById}
         />
       ) : (
         <MonthView months={months} />
@@ -109,12 +128,22 @@ function LocationView({
   masterBudgetCents,
   summary,
   locations,
+  expenses,
+  moves,
+  members,
+  dayMap,
+  locationsById,
 }: {
   tripId: string
   tripSlug: string
   masterBudgetCents: number
   summary: EnvelopeSummary
   locations: ItineraryLocation[]
+  expenses: Expense[]
+  moves: BudgetMove[]
+  members: Record<string, MemberToneEntry>
+  dayMap: Record<string, string>
+  locationsById: Record<string, string>
 }) {
   if (locations.length === 0) {
     return (
@@ -152,18 +181,24 @@ function LocationView({
           tripSlug={tripSlug}
           envelope={e}
           targets={targets}
+          expenses={expenses}
+          moves={moves}
+          members={members}
+          locations={locations}
+          dayMap={dayMap}
+          locationsById={locationsById}
         />
       ))}
 
       {summary.unassignedSpentCents > 0 ? (
-        <div className="flex items-baseline justify-between border-t border-border py-3">
-          <span className="font-serif text-[14px] italic text-muted-foreground">
-            Unassigned
-          </span>
-          <span className="t-num text-[13px] text-foreground">
-            €{fmt(summary.unassignedSpentCents)}
-          </span>
-        </div>
+        <UnassignedRow
+          tripSlug={tripSlug}
+          spentCents={summary.unassignedSpentCents}
+          expenses={expenses}
+          members={members}
+          locations={locations}
+          dayMap={dayMap}
+        />
       ) : null}
     </div>
   )
@@ -174,13 +209,26 @@ function EnvelopeRow({
   tripSlug,
   envelope,
   targets,
+  expenses,
+  moves,
+  members,
+  locations,
+  dayMap,
+  locationsById,
 }: {
   tripId: string
   tripSlug: string
   envelope: Envelope
   targets: MoveTarget[]
+  expenses: Expense[]
+  moves: BudgetMove[]
+  members: Record<string, MemberToneEntry>
+  locations: ItineraryLocation[]
+  dayMap: Record<string, string>
+  locationsById: Record<string, string>
 }) {
   const [moving, setMoving] = React.useState(false)
+  const [expanded, setExpanded] = React.useState(false)
   const locationId = envelope.locationId as string
   const hasTarget = envelope.budgetCents !== null
   const target = envelope.budgetCents ?? 0
@@ -193,7 +241,12 @@ function EnvelopeRow({
 
   return (
     <div className="border-t border-border py-3">
-      <div className="flex items-baseline justify-between">
+      <button
+        type="button"
+        onClick={() => setExpanded((v) => !v)}
+        aria-expanded={expanded}
+        className="flex w-full items-baseline justify-between border-0 bg-transparent p-0 text-left"
+      >
         <span className="font-serif text-[14px] italic text-foreground">
           {envelope.name}
         </span>
@@ -203,7 +256,7 @@ function EnvelopeRow({
             <span className="text-muted-foreground"> / €{fmt(target)}</span>
           ) : null}
         </span>
-      </div>
+      </button>
 
       {hasTarget ? (
         <>
@@ -244,6 +297,124 @@ function EnvelopeRow({
           leftover={leftover}
           targets={targets.filter((t) => t.id !== locationId)}
           onDone={() => setMoving(false)}
+        />
+      ) : null}
+
+      {expanded ? (
+        <LocationActivity
+          tripSlug={tripSlug}
+          locationId={locationId}
+          expenses={expenses}
+          moves={moves}
+          members={members}
+          locations={locations}
+          dayMap={dayMap}
+          locationsById={locationsById}
+        />
+      ) : null}
+    </div>
+  )
+}
+
+function LocationActivity({
+  tripSlug,
+  locationId,
+  expenses,
+  moves,
+  members,
+  locations,
+  dayMap,
+  locationsById,
+}: {
+  tripSlug: string
+  locationId: string | null
+  expenses: Expense[]
+  moves: BudgetMove[]
+  members: Record<string, MemberToneEntry>
+  locations: ItineraryLocation[]
+  dayMap: Record<string, string>
+  locationsById: Record<string, string>
+}) {
+  const locExpenses = expensesForLocation(expenses, dayMap, locationId)
+  const locMoves = locationId ? movesForLocation(moves, locationId) : []
+  const items = [
+    ...locExpenses.map((e) => ({ kind: "expense" as const, at: e.createdAt, expense: e })),
+    ...locMoves.map(({ move }) => ({ kind: "move" as const, at: move.createdAt, move })),
+  ].sort((a, b) => (a.at < b.at ? 1 : a.at > b.at ? -1 : 0))
+
+  if (items.length === 0) {
+    return (
+      <div className="mt-1 py-2 font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
+        No activity yet
+      </div>
+    )
+  }
+
+  return (
+    <div className="mt-1 border-t border-rule">
+      {items.map((item) =>
+        item.kind === "expense" ? (
+          <LedgerRow
+            key={`e-${item.expense.id}`}
+            expense={item.expense}
+            members={members}
+            tripSlug={tripSlug}
+            locations={locations}
+          />
+        ) : (
+          <BudgetMoveRow
+            key={`m-${item.move.id}`}
+            move={item.move}
+            locationsById={locationsById}
+            perspectiveLocationId={locationId as string}
+          />
+        ),
+      )}
+    </div>
+  )
+}
+
+function UnassignedRow({
+  tripSlug,
+  spentCents,
+  expenses,
+  members,
+  locations,
+  dayMap,
+}: {
+  tripSlug: string
+  spentCents: number
+  expenses: Expense[]
+  members: Record<string, MemberToneEntry>
+  locations: ItineraryLocation[]
+  dayMap: Record<string, string>
+}) {
+  const [expanded, setExpanded] = React.useState(false)
+  return (
+    <div className="border-t border-border py-3">
+      <button
+        type="button"
+        onClick={() => setExpanded((v) => !v)}
+        aria-expanded={expanded}
+        className="flex w-full items-baseline justify-between border-0 bg-transparent p-0 text-left"
+      >
+        <span className="font-serif text-[14px] italic text-muted-foreground">
+          Unassigned
+        </span>
+        <span className="t-num text-[13px] text-foreground">
+          €{fmt(spentCents)}
+        </span>
+      </button>
+      {expanded ? (
+        <LocationActivity
+          tripSlug={tripSlug}
+          locationId={null}
+          expenses={expenses}
+          moves={[]}
+          members={members}
+          locations={locations}
+          dayMap={dayMap}
+          locationsById={{}}
         />
       ) : null}
     </div>

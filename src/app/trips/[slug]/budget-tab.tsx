@@ -95,6 +95,8 @@ export function BudgetTab({
         locations={locations}
         expenses={expenses}
         itineraryDays={itineraryDays}
+        members={members}
+        moves={moves}
       />
       <Ledger
         expenses={expenses}
