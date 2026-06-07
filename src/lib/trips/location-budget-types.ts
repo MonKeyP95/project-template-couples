@@ -123,3 +123,53 @@ export function groupByMonth(expenses: Expense[]): MonthGroup[] {
     spentCents: totals.get(key) ?? 0,
   }))
 }
+
+export interface BudgetMove {
+  id: string
+  tripId: string
+  fromLocationId: string | null
+  toLocationId: string | null
+  amountCents: number
+  createdBy: string
+  createdAt: string
+}
+
+/** Non-settlement expenses attributed to `locationId` (null = Unassigned). */
+export function expensesForLocation(
+  expenses: Expense[],
+  dayMap: Record<string, string>,
+  locationId: string | null,
+): Expense[] {
+  return expenses.filter(
+    (e) => !e.isSettlement && expenseLocationId(e, dayMap) === locationId,
+  )
+}
+
+/** Moves touching `locationId`, signed by perspective: +in (destination), -out (source). */
+export function movesForLocation(
+  moves: BudgetMove[],
+  locationId: string,
+): { move: BudgetMove; signedCents: number }[] {
+  const out: { move: BudgetMove; signedCents: number }[] = []
+  for (const m of moves) {
+    if (m.toLocationId === locationId) {
+      out.push({ move: m, signedCents: m.amountCents })
+    } else if (m.fromLocationId === locationId) {
+      out.push({ move: m, signedCents: -m.amountCents })
+    }
+  }
+  return out
+}
+
+/** The location chip for a main-ledger row: effective attribution + whether tagged. */
+export function effectiveLocation(
+  expense: Pick<Expense, "locationId" | "dayDate">,
+  dayMap: Record<string, string>,
+  locationsById: Record<string, string>,
+): { name: string | null; tagged: boolean } {
+  const id = expenseLocationId(expense, dayMap)
+  return {
+    name: id ? locationsById[id] ?? null : null,
+    tagged: expense.locationId !== null,
+  }
+}
