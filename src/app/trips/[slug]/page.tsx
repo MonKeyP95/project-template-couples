@@ -159,7 +159,9 @@ export default async function TripPage({
         ? getItineraryDays(header.id)
         : Promise.resolve(null),
       showItinerary && isDream ? getDreamItineraryDays(header.id) : Promise.resolve(null),
-      (showItinerary && !isDream) || activeTab === "budget"
+      (showItinerary && !isDream) ||
+      activeTab === "budget" ||
+      activeTab === "notes"
         ? getItineraryLocations(header.id)
         : Promise.resolve(null),
       activeTab === "notes" ? getTripNotes(header.id) : Promise.resolve(null),
@@ -246,6 +248,7 @@ export default async function TripPage({
             tripId={header.id}
             tripSlug={header.slug}
             initialNotes={notes ?? []}
+            locations={locations ?? []}
             members={memberTones}
           />
         )}
