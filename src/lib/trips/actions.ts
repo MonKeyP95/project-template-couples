@@ -842,6 +842,8 @@ export interface AddNoteInput {
   tripId: string
   tripSlug: string
   body: string
+  /** Location to file the note under; null/undefined = General (no location). */
+  locationId?: string | null
 }
 
 export interface AddNoteResult {
@@ -870,6 +872,7 @@ export async function addNote(
     .insert({
       trip_id: input.tripId,
       body,
+      location_id: input.locationId ?? null,
       created_by: userData.user.id,
     })
     .select("id, trip_id, body, location_id, created_by, created_at, updated_at")
@@ -917,6 +920,8 @@ export interface UpdateNoteInput {
   noteId: string
   tripSlug: string
   body: string
+  /** New location for the note; null = move to General. */
+  locationId?: string | null
 }
 
 export interface UpdateNoteResult {
@@ -937,7 +942,11 @@ export async function updateNote(
   const supabase = await createClient()
   const { error } = await supabase
     .from("trip_notes")
-    .update({ body, updated_at: new Date().toISOString() })
+    .update({
+      body,
+      location_id: input.locationId ?? null,
+      updated_at: new Date().toISOString(),
+    })
     .eq("id", input.noteId)
 
   if (error) return { error: error.message }
