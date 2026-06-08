@@ -950,6 +950,23 @@ async function tripStartDate(tripId: string): Promise<string | null> {
 }
 
 /**
+ * Grows trips.end_date to `date` when it currently falls short (forward-only,
+ * mirroring the push/span RPCs) so the header always covers planned content.
+ * No-op for a dateless dream (null end_date).
+ */
+async function growTripEndDate(tripId: string, date: string): Promise<void> {
+  const supabase = await createClient()
+  const { data } = await supabase
+    .from("trips")
+    .select("end_date")
+    .eq("id", tripId)
+    .maybeSingle()
+  if (data?.end_date && date > data.end_date) {
+    await supabase.from("trips").update({ end_date: date }).eq("id", tripId)
+  }
+}
+
+/**
  * Inserts one or more itinerary days. With no endDate (or one equal to
  * dayDate) it creates a single day; a later endDate creates one identical,
  * independent entry per date in the inclusive range. RLS gates membership.
@@ -1047,6 +1064,7 @@ export async function addItineraryDay(
     return { error: error.message }
   }
 
+  await growTripEndDate(input.tripId, endDate)
   revalidatePath(`/trips/${input.tripSlug}`)
   return { day: rowToItineraryDay(data[0]) }
 }
@@ -1155,6 +1173,7 @@ export async function updateItineraryDay(
     return { error: error.message }
   }
 
+  if (dayRow) await growTripEndDate(dayRow.trip_id, input.dayDate)
   revalidatePath(`/trips/${input.tripSlug}`)
   return {}
 }
@@ -1733,6 +1752,7 @@ export async function renameItineraryLocation(
 
   if (error) return { error: error.message }
 
+  if (span) await growTripEndDate(tripId, span.endDate)
   revalidatePath(`/trips/${tripSlug}`)
   return {}
 }
