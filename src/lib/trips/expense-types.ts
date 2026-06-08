@@ -85,6 +85,15 @@ export function summarizeBudget(
   }
 }
 
+/** A per-trip expense category row (see expense_categories). */
+export interface ExpenseCategoryRow {
+  id: string
+  tripId: string
+  name: string
+  sortOrder: number
+}
+
+/** Default set seeded into every new trip. */
 export const EXPENSE_CATEGORIES = [
   "Surf",
   "Dive",

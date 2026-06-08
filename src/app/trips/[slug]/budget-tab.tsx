@@ -1,5 +1,9 @@
 import { Avatar, Label, TopoBg } from "@/components/together"
-import { type BudgetSummary, type Expense } from "@/lib/trips/expense-types"
+import {
+  type BudgetSummary,
+  type Expense,
+  type ExpenseCategoryRow,
+} from "@/lib/trips/expense-types"
 import { type SavingsContribution } from "@/lib/trips/savings-types"
 import {
   type BudgetMove,
@@ -23,6 +27,7 @@ export interface BudgetTabProps {
   tripSlug: string
   tripName: string
   expenses: Expense[]
+  expenseCategories: ExpenseCategoryRow[]
   summary: BudgetSummary
   members: Record<string, MemberToneEntry>
   plannedBudgetCents: number
@@ -40,6 +45,7 @@ export function BudgetTab({
   tripSlug,
   tripName,
   expenses,
+  expenseCategories,
   summary,
   members,
   plannedBudgetCents,
@@ -75,6 +81,7 @@ export function BudgetTab({
         currentUserId={currentUserId}
         members={members}
         locations={locations}
+        categories={expenseCategories}
       />
       <SettleUpCard
         isSettled={isSettled}
@@ -94,6 +101,7 @@ export function BudgetTab({
         itineraryDays={itineraryDays}
         members={members}
         moves={moves}
+        categories={expenseCategories}
       />
       <Ledger
         expenses={expenses}
@@ -102,6 +110,7 @@ export function BudgetTab({
         tripSlug={tripSlug}
         locations={locations}
         itineraryDays={itineraryDays}
+        categories={expenseCategories}
       />
     </section>
   )

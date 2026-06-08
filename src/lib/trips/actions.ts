@@ -6,7 +6,7 @@ import { redirect } from "next/navigation"
 import { createClient } from "@/lib/supabase/server"
 import {
   EXPENSE_CATEGORIES,
-  type ExpenseCategory,
+  type ExpenseCategoryRow,
 } from "@/lib/trips/expense-types"
 import { getCurrentWorkspace } from "@/lib/workspace/queries"
 import type { PackingCategory } from "@/lib/trips/packing-types"
@@ -198,9 +198,7 @@ export async function logExpense(
     return { error: "Amount out of range." }
   }
 
-  if (!EXPENSE_CATEGORIES.includes(input.category as ExpenseCategory)) {
-    return { error: "Invalid category." }
-  }
+  if (!input.category.trim()) return { error: "Category required." }
 
   if (!input.paidBy) return { error: "Payer required." }
 
@@ -401,9 +399,7 @@ export async function updateExpense(
     return { error: "Amount out of range." }
   }
 
-  if (!EXPENSE_CATEGORIES.includes(input.category as ExpenseCategory)) {
-    return { error: "Invalid category." }
-  }
+  if (!input.category.trim()) return { error: "Category required." }
 
   if (!input.paidBy) return { error: "Payer required." }
 
@@ -453,6 +449,66 @@ export async function deleteExpense(
 
   revalidatePath(`/trips/${tripSlug}`)
   return {}
+}
+
+export interface AddExpenseCategoryResult {
+  error?: string
+  /** Populated on success so the client can append it with a stable id. */
+  category?: ExpenseCategoryRow
+}
+
+/**
+ * Creates a new expense category at the end of the trip's order. RLS gates
+ * trip membership. Duplicate name -> friendly error. Mirrors addPackingCategory.
+ */
+export async function addExpenseCategory(
+  tripId: string,
+  tripSlug: string,
+  name: string,
+): Promise<AddExpenseCategoryResult> {
+  const trimmed = name.trim()
+  if (!trimmed) return { error: "Name required." }
+
+  const supabase = await createClient()
+  const { data: userData, error: userError } = await supabase.auth.getUser()
+  if (userError || !userData.user) return { error: "Not signed in." }
+
+  const { data: maxRow } = await supabase
+    .from("expense_categories")
+    .select("sort_order")
+    .eq("trip_id", tripId)
+    .order("sort_order", { ascending: false })
+    .limit(1)
+    .maybeSingle()
+  const nextOrder = (maxRow?.sort_order ?? -1) + 1
+
+  const { data, error } = await supabase
+    .from("expense_categories")
+    .insert({
+      trip_id: tripId,
+      name: trimmed,
+      sort_order: nextOrder,
+      created_by: userData.user.id,
+    })
+    .select("id, trip_id, name, sort_order")
+    .single()
+
+  if (error) {
+    if (error.code === "23505") {
+      return { error: "A category with that name already exists." }
+    }
+    return { error: error.message }
+  }
+
+  revalidatePath(`/trips/${tripSlug}`)
+  return {
+    category: {
+      id: data.id,
+      tripId: data.trip_id,
+      name: data.name,
+      sortOrder: data.sort_order,
+    },
+  }
 }
 
 export interface CreateTripInput {
@@ -583,6 +639,17 @@ export async function createTrip(
     .from("trip_members")
     .insert(memberRows)
   if (membersError) return { error: membersError.message }
+
+  const categoryRows = EXPENSE_CATEGORIES.map((name, i) => ({
+    trip_id: tripRow.id,
+    name,
+    sort_order: i,
+    created_by: userData.user.id,
+  }))
+  const { error: categoriesError } = await supabase
+    .from("expense_categories")
+    .insert(categoryRows)
+  if (categoriesError) return { error: categoriesError.message }
 
   return { slug }
 }
@@ -805,7 +872,7 @@ export async function addNote(
       body,
       created_by: userData.user.id,
     })
-    .select("id, trip_id, body, created_by, created_at, updated_at")
+    .select("id, trip_id, body, location_id, created_by, created_at, updated_at")
     .single()
 
   if (error) return { error: error.message }

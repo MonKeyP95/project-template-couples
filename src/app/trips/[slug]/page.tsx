@@ -17,7 +17,10 @@ import { ThemeToggle } from "@/components/theme-toggle"
 import { TripCountdown } from "@/components/trip-countdown"
 import { createClient } from "@/lib/supabase/server"
 import { isDarkTheme } from "@/lib/theme"
-import { getTripExpenses } from "@/lib/trips/expense-queries"
+import {
+  getTripExpenses,
+  getTripExpenseCategories,
+} from "@/lib/trips/expense-queries"
 import { getTripSavings } from "@/lib/trips/savings-queries"
 import { getTripBudgetMoves } from "@/lib/trips/budget-move-queries"
 import { summarizeBudget } from "@/lib/trips/expense-types"
@@ -150,7 +153,7 @@ export default async function TripPage({
   // level and share the result with the active tab below.
   const showItinerary = activeTab === "itinerary"
   const isDream = header.startDate === null
-  const [datedItinerary, dreamItinerary, locations, notes, packingItems, packingCategories, expenses, savings, budgetMoves] =
+  const [datedItinerary, dreamItinerary, locations, notes, packingItems, packingCategories, expenses, expenseCategories, savings, budgetMoves] =
     await Promise.all([
       (showItinerary && !isDream) || activeTab === "budget"
         ? getItineraryDays(header.id)
@@ -163,6 +166,7 @@ export default async function TripPage({
       getPackingItems(header.id),
       getPackingCategories(header.id),
       getTripExpenses(header.id),
+      activeTab === "budget" ? getTripExpenseCategories(header.id) : Promise.resolve(null),
       getTripSavings(header.id, memberIds),
       activeTab === "budget" ? getTripBudgetMoves(header.id) : Promise.resolve(null),
     ])
@@ -225,6 +229,7 @@ export default async function TripPage({
             tripSlug={header.slug}
             tripName={header.name}
             expenses={expenses}
+            expenseCategories={expenseCategories ?? []}
             summary={budgetSummary}
             members={memberTones}
             plannedBudgetCents={header.plannedBudgetCents}

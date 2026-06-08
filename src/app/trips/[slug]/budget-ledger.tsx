@@ -3,7 +3,10 @@
 import * as React from "react"
 
 import { Label } from "@/components/together"
-import { type Expense } from "@/lib/trips/expense-types"
+import {
+  type Expense,
+  type ExpenseCategoryRow,
+} from "@/lib/trips/expense-types"
 import {
   dayLocationMap,
   effectiveLocation,
@@ -23,6 +26,7 @@ export function Ledger({
   tripSlug,
   locations,
   itineraryDays,
+  categories,
 }: {
   expenses: Expense[]
   moves: BudgetMove[]
@@ -30,6 +34,7 @@ export function Ledger({
   tripSlug: string
   locations: ItineraryLocation[]
   itineraryDays: DayLocation[]
+  categories: ExpenseCategoryRow[]
 }) {
   const [expanded, setExpanded] = React.useState(false)
   const dayMap = dayLocationMap(itineraryDays)
@@ -63,6 +68,7 @@ export function Ledger({
                 members={members}
                 tripSlug={tripSlug}
                 locations={locations}
+                categories={categories}
                 locationChip={
                   hasLocations
                     ? effectiveLocation(item.expense, dayMap, locationsById)

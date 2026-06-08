@@ -4,7 +4,10 @@ import * as React from "react"
 
 import { Bar, Label } from "@/components/together"
 import { moveLocationBudget, setLocationBudget } from "@/lib/trips/actions"
-import type { Expense } from "@/lib/trips/expense-types"
+import type {
+  Expense,
+  ExpenseCategoryRow,
+} from "@/lib/trips/expense-types"
 import type { ItineraryLocation } from "@/lib/trips/location-types"
 import {
   dayLocationMap,
@@ -44,6 +47,7 @@ export interface BudgetByLocationProps {
   itineraryDays: DayLocation[]
   members: Record<string, MemberToneEntry>
   moves: BudgetMove[]
+  categories: ExpenseCategoryRow[]
 }
 
 export function BudgetByLocation({
@@ -55,6 +59,7 @@ export function BudgetByLocation({
   itineraryDays,
   members,
   moves,
+  categories,
 }: BudgetByLocationProps) {
   const [view, setView] = React.useState<View>("location")
   const summary = summarizeEnvelopes(
@@ -84,6 +89,7 @@ export function BudgetByLocation({
           expenses={expenses}
           moves={moves}
           members={members}
+          categories={categories}
           dayMap={dayMap}
           locationsById={locationsById}
         />
@@ -131,6 +137,7 @@ function LocationView({
   expenses,
   moves,
   members,
+  categories,
   dayMap,
   locationsById,
 }: {
@@ -142,6 +149,7 @@ function LocationView({
   expenses: Expense[]
   moves: BudgetMove[]
   members: Record<string, MemberToneEntry>
+  categories: ExpenseCategoryRow[]
   dayMap: Record<string, string>
   locationsById: Record<string, string>
 }) {
@@ -184,6 +192,7 @@ function LocationView({
           expenses={expenses}
           moves={moves}
           members={members}
+          categories={categories}
           locations={locations}
           dayMap={dayMap}
           locationsById={locationsById}
@@ -196,6 +205,7 @@ function LocationView({
           spentCents={summary.unassignedSpentCents}
           expenses={expenses}
           members={members}
+          categories={categories}
           locations={locations}
           dayMap={dayMap}
         />
@@ -212,6 +222,7 @@ function EnvelopeRow({
   expenses,
   moves,
   members,
+  categories,
   locations,
   dayMap,
   locationsById,
@@ -223,6 +234,7 @@ function EnvelopeRow({
   expenses: Expense[]
   moves: BudgetMove[]
   members: Record<string, MemberToneEntry>
+  categories: ExpenseCategoryRow[]
   locations: ItineraryLocation[]
   dayMap: Record<string, string>
   locationsById: Record<string, string>
@@ -315,6 +327,7 @@ function EnvelopeRow({
           expenses={expenses}
           moves={moves}
           members={members}
+          categories={categories}
           locations={locations}
           dayMap={dayMap}
           locationsById={locationsById}
@@ -330,6 +343,7 @@ function LocationActivity({
   expenses,
   moves,
   members,
+  categories,
   locations,
   dayMap,
   locationsById,
@@ -339,6 +353,7 @@ function LocationActivity({
   expenses: Expense[]
   moves: BudgetMove[]
   members: Record<string, MemberToneEntry>
+  categories: ExpenseCategoryRow[]
   locations: ItineraryLocation[]
   dayMap: Record<string, string>
   locationsById: Record<string, string>
@@ -368,6 +383,7 @@ function LocationActivity({
             members={members}
             tripSlug={tripSlug}
             locations={locations}
+            categories={categories}
           />
         ) : (
           <BudgetMoveRow
@@ -387,6 +403,7 @@ function UnassignedRow({
   spentCents,
   expenses,
   members,
+  categories,
   locations,
   dayMap,
 }: {
@@ -394,6 +411,7 @@ function UnassignedRow({
   spentCents: number
   expenses: Expense[]
   members: Record<string, MemberToneEntry>
+  categories: ExpenseCategoryRow[]
   locations: ItineraryLocation[]
   dayMap: Record<string, string>
 }) {
@@ -420,6 +438,7 @@ function UnassignedRow({
           expenses={expenses}
           moves={[]}
           members={members}
+          categories={categories}
           locations={locations}
           dayMap={dayMap}
           locationsById={{}}
