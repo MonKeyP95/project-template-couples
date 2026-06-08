@@ -14,6 +14,7 @@ import {
 } from "@/components/together"
 import { RefreshOnVisible } from "@/components/refresh-on-visible"
 import { ThemeToggle } from "@/components/theme-toggle"
+import { TripCountdown } from "@/components/trip-countdown"
 import { createClient } from "@/lib/supabase/server"
 import { isDarkTheme } from "@/lib/theme"
 import { getTripExpenses } from "@/lib/trips/expense-queries"
@@ -81,7 +82,14 @@ function formatDateRange(
   endDate: string | null,
 ): string | null {
   if (!startDate || !endDate) return null
-  return `${formatDayLabel(startDate)} — ${formatDayLabel(endDate)}`
+  const startYear = startDate.slice(0, 4)
+  const endYear = endDate.slice(0, 4)
+  // Show the year once when start and end share it; otherwise on both ends.
+  const start =
+    startYear === endYear
+      ? formatDayLabel(startDate)
+      : `${formatDayLabel(startDate)} ${startYear}`
+  return `${start} — ${formatDayLabel(endDate)} ${endYear}`
 }
 
 function computeDaysOut(startDate: string | null): number | null {
@@ -322,7 +330,12 @@ function TripHeaderView({
             {fuzzyLabel}
           </div>
         ) : dateRange ? (
-          <div className="font-mono text-[12px] text-foreground">{dateRange}</div>
+          <div className="flex items-baseline gap-3">
+            <div className="font-mono text-[12px] text-foreground">{dateRange}</div>
+            {header.startDate ? (
+              <TripCountdown startDate={header.startDate} />
+            ) : null}
+          </div>
         ) : (
           <span />
         )}

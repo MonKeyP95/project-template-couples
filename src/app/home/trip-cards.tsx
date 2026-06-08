@@ -8,6 +8,7 @@ import {
   MonoBadge,
   TopoBg,
 } from "@/components/together"
+import { TripCountdown } from "@/components/trip-countdown"
 import type { TripListItem } from "@/lib/trips/list-queries"
 import { slugToTone, type CardTone } from "@/lib/trips/slug-tone"
 
@@ -37,15 +38,14 @@ function formatDayLabel(date: string): string {
 
 function formatDateRange(start: string | null, end: string | null): string | null {
   if (!start || !end) return null
-  return `${formatDayLabel(start)} — ${formatDayLabel(end)}`
-}
-
-function tripLengthDays(start: string | null, end: string | null): number | null {
-  if (!start || !end) return null
-  const s = new Date(`${start}T00:00:00Z`)
-  const e = new Date(`${end}T00:00:00Z`)
-  const days = Math.round((e.getTime() - s.getTime()) / 86_400_000) + 1
-  return days > 0 ? days : null
+  const startYear = start.slice(0, 4)
+  const endYear = end.slice(0, 4)
+  // Show the year once when start and end share it; otherwise on both ends.
+  const startLabel =
+    startYear === endYear
+      ? formatDayLabel(start)
+      : `${formatDayLabel(start)} ${startYear}`
+  return `${startLabel} — ${formatDayLabel(end)} ${endYear}`
 }
 
 function formatCoord(lat: number | null, lng: number | null): string | null {
@@ -73,17 +73,10 @@ function SavedBar({ saved, planned }: { saved: number; planned: number }) {
 }
 
 /** Top-of-page hero card. Used for at most one trip per render. */
-export function HeroCard({
-  trip,
-  memberCount,
-}: {
-  trip: TripListItem
-  memberCount: number
-}) {
+export function HeroCard({ trip }: { trip: TripListItem }) {
   const tone = slugToTone(trip.slug)
   const coord = formatCoord(trip.lat, trip.lng)
   const dateRange = formatDateRange(trip.startDate, trip.endDate)
-  const length = tripLengthDays(trip.startDate, trip.endDate)
   return (
     <Link
       href={`/trips/${trip.slug}`}
@@ -118,14 +111,18 @@ export function HeroCard({
         <div className="flex items-center justify-between">
           <div>
             {dateRange ? (
-              <div className="font-mono text-[11px] tracking-[0.04em] text-foreground">
-                {dateRange}
+              <div className="flex items-baseline gap-2.5">
+                <div className="font-mono text-[11px] tracking-[0.04em] text-foreground">
+                  {dateRange}
+                </div>
+                {trip.startDate ? (
+                  <TripCountdown
+                    startDate={trip.startDate}
+                    className="text-[9px] tracking-[0.12em]"
+                  />
+                ) : null}
               </div>
             ) : null}
-            <div className="mt-0.5 font-mono text-[10px] tracking-[0.06em] text-muted-foreground">
-              {length ? `${length} days · ` : ""}
-              {memberCount} {memberCount === 1 ? "traveller" : "travellers"}
-            </div>
           </div>
           <Chevron />
         </div>
@@ -140,7 +137,6 @@ export function TripCard({ trip }: { trip: TripListItem }) {
   const tone = slugToTone(trip.slug)
   const coord = formatCoord(trip.lat, trip.lng)
   const dateRange = formatDateRange(trip.startDate, trip.endDate)
-  const length = tripLengthDays(trip.startDate, trip.endDate)
   return (
     <Link
       href={`/trips/${trip.slug}`}
@@ -172,22 +168,23 @@ export function TripCard({ trip }: { trip: TripListItem }) {
         </div>
       </div>
       <div className="px-3.5 py-2.5 md:px-4 md:py-3">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between gap-2">
           {dateRange ? (
-            <span className="font-mono text-[10px] tracking-[0.06em] text-foreground">
-              {dateRange}
+            <span className="flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-0.5">
+              <span className="font-mono text-[10px] tracking-[0.06em] text-foreground">
+                {dateRange}
+              </span>
+              {trip.startDate ? (
+                <TripCountdown
+                  startDate={trip.startDate}
+                  className="text-[9px] tracking-[0.1em]"
+                />
+              ) : null}
             </span>
           ) : (
             <span />
           )}
-          <div className="flex items-center gap-2.5">
-            {length ? (
-              <span className="font-mono text-[10px] tracking-[0.06em] text-muted-foreground">
-                {length} days
-              </span>
-            ) : null}
-            <Chevron />
-          </div>
+          <Chevron />
         </div>
         <SavedBar saved={trip.savedCents} planned={trip.plannedBudgetCents} />
       </div>
