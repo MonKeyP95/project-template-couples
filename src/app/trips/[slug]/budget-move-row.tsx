@@ -39,7 +39,7 @@ export function BudgetMoveRow({
     return (
       <div className="flex items-baseline justify-between py-1.5">
         <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
-          {date.mon} {date.day} · budget {incoming ? `from ${other}` : `to ${other}`}
+          {date.day} {date.mon} · budget {incoming ? `from ${other}` : `to ${other}`}
         </span>
         <span
           className={`t-num text-[12px] ${incoming ? "text-moss" : "text-clay"}`}
@@ -53,11 +53,11 @@ export function BudgetMoveRow({
   return (
     <div className="grid grid-cols-[44px_1fr_auto] items-center gap-3 border-t border-border px-5 py-3">
       <div className="text-center">
-        <div className="font-mono text-[9px] uppercase tracking-[0.14em] text-muted-foreground">
-          {date.mon}
-        </div>
         <div className="font-mono text-[18px] leading-none tracking-[-0.02em] text-foreground">
           {date.day}
+        </div>
+        <div className="font-mono text-[9px] uppercase tracking-[0.14em] text-muted-foreground">
+          {date.mon}
         </div>
       </div>
       <div>

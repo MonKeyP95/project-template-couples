@@ -123,11 +123,11 @@ function LedgerRowView({
       <div className="text-center">
         {date ? (
           <>
-            <div className="font-mono text-[9px] uppercase tracking-[0.14em] text-muted-foreground">
-              {date.mon}
-            </div>
             <div className="font-mono text-[18px] leading-none tracking-[-0.02em] text-foreground">
               {date.day}
+            </div>
+            <div className="font-mono text-[9px] uppercase tracking-[0.14em] text-muted-foreground">
+              {date.mon}
             </div>
           </>
         ) : (
