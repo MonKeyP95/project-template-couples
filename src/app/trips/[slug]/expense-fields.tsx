@@ -2,11 +2,9 @@
 
 import * as React from "react"
 
-import {
-  EXPENSE_CATEGORIES,
-  type ExpenseCategory,
-} from "@/lib/trips/expense-types"
+import type { ExpenseCategoryRow } from "@/lib/trips/expense-types"
 
+import { CategorySelect } from "./category-select"
 import type { MemberToneEntry } from "./packing-tab"
 import type { ItineraryLocation } from "@/lib/trips/location-types"
 
@@ -18,8 +16,11 @@ export interface ExpenseFieldsProps {
   onAmountChange: (value: string) => void
   dayDate: string | null
   onDayDateChange: (value: string | null) => void
-  category: ExpenseCategory
-  onCategoryChange: (value: ExpenseCategory) => void
+  categories: ExpenseCategoryRow[]
+  category: string
+  onCategoryChange: (value: string) => void
+  tripId: string
+  tripSlug: string
   paidBy: string
   onPaidByChange: (value: string) => void
   members: Record<string, MemberToneEntry>
@@ -42,8 +43,11 @@ export function ExpenseFields({
   onAmountChange,
   dayDate,
   onDayDateChange,
+  categories,
   category,
   onCategoryChange,
+  tripId,
+  tripSlug,
   paidBy,
   onPaidByChange,
   members,
@@ -101,23 +105,19 @@ export function ExpenseFields({
           />
         </label>
 
-        <label className="block">
+        <div className="block">
           <span className="block font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
             Category
           </span>
-          <select
+          <CategorySelect
+            categories={categories}
             value={category}
-            onChange={(e) => onCategoryChange(e.target.value as ExpenseCategory)}
+            onChange={onCategoryChange}
+            tripId={tripId}
+            tripSlug={tripSlug}
             disabled={disabled}
-            className="mt-1 w-full border-0 border-b border-rule bg-transparent py-1 text-[14px] text-foreground focus:border-clay focus:outline-none disabled:opacity-50"
-          >
-            {EXPENSE_CATEGORIES.map((c) => (
-              <option key={c} value={c}>
-                {c}
-              </option>
-            ))}
-          </select>
-        </label>
+          />
+        </div>
 
         <div className="block">
           <span className="block font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">

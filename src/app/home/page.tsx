@@ -177,7 +177,7 @@ export default async function HomePage() {
                 ) : null}
               </div>
               <div className="md:grid md:grid-cols-2 md:gap-5 lg:grid-cols-3">
-                <HeroCard trip={hero} memberCount={memberCount} />
+                <HeroCard trip={hero} />
               </div>
             </section>
           ) : null}

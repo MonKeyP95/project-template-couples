@@ -14,9 +14,13 @@ import {
 } from "@/components/together"
 import { RefreshOnVisible } from "@/components/refresh-on-visible"
 import { ThemeToggle } from "@/components/theme-toggle"
+import { TripCountdown } from "@/components/trip-countdown"
 import { createClient } from "@/lib/supabase/server"
 import { isDarkTheme } from "@/lib/theme"
-import { getTripExpenses } from "@/lib/trips/expense-queries"
+import {
+  getTripExpenses,
+  getTripExpenseCategories,
+} from "@/lib/trips/expense-queries"
 import { getTripSavings } from "@/lib/trips/savings-queries"
 import { getTripBudgetMoves } from "@/lib/trips/budget-move-queries"
 import { summarizeBudget } from "@/lib/trips/expense-types"
@@ -81,7 +85,14 @@ function formatDateRange(
   endDate: string | null,
 ): string | null {
   if (!startDate || !endDate) return null
-  return `${formatDayLabel(startDate)} — ${formatDayLabel(endDate)}`
+  const startYear = startDate.slice(0, 4)
+  const endYear = endDate.slice(0, 4)
+  // Show the year once when start and end share it; otherwise on both ends.
+  const start =
+    startYear === endYear
+      ? formatDayLabel(startDate)
+      : `${formatDayLabel(startDate)} ${startYear}`
+  return `${start} — ${formatDayLabel(endDate)} ${endYear}`
 }
 
 function computeDaysOut(startDate: string | null): number | null {
@@ -142,19 +153,22 @@ export default async function TripPage({
   // level and share the result with the active tab below.
   const showItinerary = activeTab === "itinerary"
   const isDream = header.startDate === null
-  const [datedItinerary, dreamItinerary, locations, notes, packingItems, packingCategories, expenses, savings, budgetMoves] =
+  const [datedItinerary, dreamItinerary, locations, notes, packingItems, packingCategories, expenses, expenseCategories, savings, budgetMoves] =
     await Promise.all([
       (showItinerary && !isDream) || activeTab === "budget"
         ? getItineraryDays(header.id)
         : Promise.resolve(null),
       showItinerary && isDream ? getDreamItineraryDays(header.id) : Promise.resolve(null),
-      (showItinerary && !isDream) || activeTab === "budget"
+      (showItinerary && !isDream) ||
+      activeTab === "budget" ||
+      activeTab === "notes"
         ? getItineraryLocations(header.id)
         : Promise.resolve(null),
       activeTab === "notes" ? getTripNotes(header.id) : Promise.resolve(null),
       getPackingItems(header.id),
       getPackingCategories(header.id),
       getTripExpenses(header.id),
+      activeTab === "budget" ? getTripExpenseCategories(header.id) : Promise.resolve(null),
       getTripSavings(header.id, memberIds),
       activeTab === "budget" ? getTripBudgetMoves(header.id) : Promise.resolve(null),
     ])
@@ -217,6 +231,7 @@ export default async function TripPage({
             tripSlug={header.slug}
             tripName={header.name}
             expenses={expenses}
+            expenseCategories={expenseCategories ?? []}
             summary={budgetSummary}
             members={memberTones}
             plannedBudgetCents={header.plannedBudgetCents}
@@ -233,6 +248,7 @@ export default async function TripPage({
             tripId={header.id}
             tripSlug={header.slug}
             initialNotes={notes ?? []}
+            locations={locations ?? []}
             members={memberTones}
           />
         )}
@@ -322,7 +338,12 @@ function TripHeaderView({
             {fuzzyLabel}
           </div>
         ) : dateRange ? (
-          <div className="font-mono text-[12px] text-foreground">{dateRange}</div>
+          <div className="flex items-baseline gap-3">
+            <div className="font-mono text-[12px] text-foreground">{dateRange}</div>
+            {header.startDate ? (
+              <TripCountdown startDate={header.startDate} />
+            ) : null}
+          </div>
         ) : (
           <span />
         )}

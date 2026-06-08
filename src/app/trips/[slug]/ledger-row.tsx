@@ -5,10 +5,9 @@ import * as React from "react"
 import { Avatar, MonoBadge, type MonoBadgeTone } from "@/components/together"
 import { deleteExpense, updateExpense } from "@/lib/trips/actions"
 import {
-  EXPENSE_CATEGORIES,
   EXPENSE_CATEGORY_DEFAULT,
   type Expense,
-  type ExpenseCategory,
+  type ExpenseCategoryRow,
 } from "@/lib/trips/expense-types"
 
 import { ExpenseFields } from "./expense-fields"
@@ -49,6 +48,7 @@ export interface LedgerRowProps {
   members: Record<string, MemberToneEntry>
   tripSlug: string
   locations: ItineraryLocation[]
+  categories: ExpenseCategoryRow[]
   locationChip?: { name: string | null; tagged: boolean }
 }
 
@@ -57,6 +57,7 @@ export function LedgerRow({
   members,
   tripSlug,
   locations,
+  categories,
   locationChip,
 }: LedgerRowProps) {
   const [editing, setEditing] = React.useState(false)
@@ -68,6 +69,7 @@ export function LedgerRow({
         members={members}
         tripSlug={tripSlug}
         locations={locations}
+        categories={categories}
         onDone={() => setEditing(false)}
       />
     )
@@ -121,11 +123,11 @@ function LedgerRowView({
       <div className="text-center">
         {date ? (
           <>
-            <div className="font-mono text-[9px] uppercase tracking-[0.14em] text-muted-foreground">
-              {date.mon}
-            </div>
             <div className="font-mono text-[18px] leading-none tracking-[-0.02em] text-foreground">
               {date.day}
+            </div>
+            <div className="font-mono text-[9px] uppercase tracking-[0.14em] text-muted-foreground">
+              {date.mon}
             </div>
           </>
         ) : (
@@ -195,21 +197,25 @@ function LedgerRowEditor({
   members,
   tripSlug,
   locations,
+  categories,
   onDone,
 }: {
   expense: Expense
   members: Record<string, MemberToneEntry>
   tripSlug: string
   locations: ItineraryLocation[]
+  categories: ExpenseCategoryRow[]
   onDone: () => void
 }) {
-  const validCategory = EXPENSE_CATEGORIES.includes(
-    expense.category as ExpenseCategory,
-  )
+  const validCategory = categories.some((c) => c.name === expense.category)
+  const defaultCategory =
+    categories.find((c) => c.name === EXPENSE_CATEGORY_DEFAULT)?.name ??
+    categories[0]?.name ??
+    ""
   const [title, setTitle] = React.useState(expense.title)
   const [amount, setAmount] = React.useState(fmt(expense.amountCents))
-  const [category, setCategory] = React.useState<ExpenseCategory>(
-    validCategory ? (expense.category as ExpenseCategory) : EXPENSE_CATEGORY_DEFAULT,
+  const [category, setCategory] = React.useState<string>(
+    validCategory ? expense.category : defaultCategory,
   )
   const [paidBy, setPaidBy] = React.useState(expense.paidBy)
   const [dayDate, setDayDate] = React.useState<string | null>(expense.dayDate)
@@ -276,8 +282,11 @@ function LedgerRowEditor({
         onAmountChange={setAmount}
         dayDate={dayDate}
         onDayDateChange={setDayDate}
+        categories={categories}
         category={category}
         onCategoryChange={setCategory}
+        tripId={expense.tripId}
+        tripSlug={tripSlug}
         paidBy={paidBy}
         onPaidByChange={setPaidBy}
         members={members}

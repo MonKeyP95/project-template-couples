@@ -5,7 +5,7 @@ import * as React from "react"
 import { logExpense } from "@/lib/trips/actions"
 import {
   EXPENSE_CATEGORY_DEFAULT,
-  type ExpenseCategory,
+  type ExpenseCategoryRow,
 } from "@/lib/trips/expense-types"
 
 import { ExpenseFields } from "./expense-fields"
@@ -18,6 +18,7 @@ export interface LogExpenseRowProps {
   currentUserId: string
   members: Record<string, MemberToneEntry>
   locations: ItineraryLocation[]
+  categories: ExpenseCategoryRow[]
 }
 
 function todayIso(): string {
@@ -30,15 +31,18 @@ export function LogExpenseRow({
   currentUserId,
   members,
   locations,
+  categories,
 }: LogExpenseRowProps) {
   const initialDay = React.useMemo(() => todayIso(), [])
+  const defaultCategory =
+    categories.find((c) => c.name === EXPENSE_CATEGORY_DEFAULT)?.name ??
+    categories[0]?.name ??
+    ""
 
   const [expanded, setExpanded] = React.useState(false)
   const [title, setTitle] = React.useState("")
   const [amount, setAmount] = React.useState("")
-  const [category, setCategory] = React.useState<ExpenseCategory>(
-    EXPENSE_CATEGORY_DEFAULT,
-  )
+  const [category, setCategory] = React.useState<string>(defaultCategory)
   const [paidBy, setPaidBy] = React.useState<string>(currentUserId)
   const [dayDate, setDayDate] = React.useState<string | null>(initialDay)
   const [locationId, setLocationId] = React.useState<string | null>(null)
@@ -54,7 +58,7 @@ export function LogExpenseRow({
     setExpanded(false)
     setTitle("")
     setAmount("")
-    setCategory(EXPENSE_CATEGORY_DEFAULT)
+    setCategory(defaultCategory)
     setPaidBy(currentUserId)
     setDayDate(initialDay)
     setLocationId(null)
@@ -144,8 +148,11 @@ export function LogExpenseRow({
         onAmountChange={setAmount}
         dayDate={dayDate}
         onDayDateChange={setDayDate}
+        categories={categories}
         category={category}
         onCategoryChange={setCategory}
+        tripId={tripId}
+        tripSlug={tripSlug}
         paidBy={paidBy}
         onPaidByChange={setPaidBy}
         members={members}

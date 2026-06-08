@@ -1,3 +1,231 @@
+# Location-filed Notes Implementation Plan
+
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+
+**Goal:** File `/notes` notes under the trip's existing itinerary locations, shown as a collapsible itinerary-style list (one block per location plus a General block), while keeping location-less notes possible.
+
+**Architecture:** Add a nullable `location_id` FK on `trip_notes` referencing `itinerary_locations` (`on delete set null`, mirroring `itinerary_days`). The query/action layer carries `locationId`; the Notes tab is rebuilt into collapsible location blocks with an in-block add-note form, mirroring `itinerary-tab.tsx`.
+
+**Tech Stack:** Next.js 16 App Router, React 19, Server Actions, Supabase (Postgres + RLS), Tailwind v4, TypeScript.
+
+**Testing note:** This repo has no test framework (per `CLAUDE.md`). The validation gate for each code task is `pnpm lint` then `pnpm build`, both clean. The migration is applied by hand in the Supabase SQL editor (no migration tooling). Do not invent a test command.
+
+---
+
+### Task 1: Add `location_id` column to `trip_notes`
+
+**Files:**
+- Create: `supabase/migrations/20260608000003_trip_note_location.sql`
+
+- [ ] **Step 1: Write the migration**
+
+Create `supabase/migrations/20260608000003_trip_note_location.sql` with exactly:
+
+```sql
+-- Location-filed notes: trip_notes can reference an itinerary_locations row.
+-- Mirrors itinerary_days.location_id -- nullable, on delete set null, so
+-- deleting a location turns its notes into General (location-less) notes
+-- rather than destroying them. No RLS change: existing trip_notes policies
+-- already gate by trip via is_trip_workspace_member().
+--
+-- Idempotent: safe to paste-and-run multiple times.
+
+alter table public.trip_notes
+  add column if not exists location_id uuid
+  references public.itinerary_locations(id) on delete set null;
+
+create index if not exists trip_notes_location_idx
+  on public.trip_notes (location_id);
+```
+
+- [ ] **Step 2: Apply the migration by hand**
+
+Open the Supabase SQL editor for this project, paste the file contents, and run it. It is idempotent, so re-running is safe. (There is no migration CLI in this repo — committing the file does nothing to the DB on its own.)
+
+- [ ] **Step 3: Verify the column exists**
+
+In the Supabase SQL editor run:
+
+```sql
+select column_name, data_type
+from information_schema.columns
+where table_name = 'trip_notes' and column_name = 'location_id';
+```
+
+Expected: one row, `location_id | uuid`.
+
+- [ ] **Step 4: Commit**
+
+```bash
+git add supabase/migrations/20260608000003_trip_note_location.sql
+git commit -m "feat(notes): add location_id column to trip_notes"
+```
+
+---
+
+### Task 2: Carry `locationId` through the note query layer
+
+**Files:**
+- Modify: `src/lib/trips/note-queries.ts`
+
+- [ ] **Step 1: Add `locationId` to `TripNote`**
+
+In `src/lib/trips/note-queries.ts`, add the field to the `TripNote` interface (after `body`):
+
+```ts
+export interface TripNote {
+  id: string
+  tripId: string
+  body: string
+  locationId: string | null
+  createdBy: string
+  /** ISO timestamptz from Postgres. */
+  createdAt: string
+  updatedAt: string
+}
+```
+
+- [ ] **Step 2: Add `location_id` to the row type**
+
+```ts
+interface TripNoteRow {
+  id: string
+  trip_id: string
+  body: string
+  location_id: string | null
+  created_by: string
+  created_at: string
+  updated_at: string
+}
+```
+
+- [ ] **Step 3: Map it in `rowToNote`**
+
+```ts
+function rowToNote(r: TripNoteRow): TripNote {
+  return {
+    id: r.id,
+    tripId: r.trip_id,
+    body: r.body,
+    locationId: r.location_id,
+    createdBy: r.created_by,
+    createdAt: r.created_at,
+    updatedAt: r.updated_at,
+  }
+}
+```
+
+- [ ] **Step 4: Select the column in `getTripNotes`**
+
+Change the `.select(...)` string to include `location_id`:
+
+```ts
+    .select("id, trip_id, body, location_id, created_by, created_at, updated_at")
+```
+
+- [ ] **Step 5: Validate**
+
+Run: `pnpm lint`
+Expected: no errors.
+
+Run: `pnpm build`
+Expected: build succeeds.
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add src/lib/trips/note-queries.ts
+git commit -m "feat(notes): carry locationId through note query layer"
+```
+
+---
+
+### Task 3: Accept `locationId` in the note actions
+
+**Files:**
+- Modify: `src/lib/trips/actions.ts` (`AddNoteInput`/`addNote` near line 841-882, `UpdateNoteInput`/`updateNote` near line 916-947)
+
+- [ ] **Step 1: Add `locationId` to `AddNoteInput`**
+
+```ts
+export interface AddNoteInput {
+  tripId: string
+  tripSlug: string
+  body: string
+  /** Location to file the note under; null/undefined = General (no location). */
+  locationId?: string | null
+}
+```
+
+- [ ] **Step 2: Write `location_id` in `addNote`'s insert**
+
+In `addNote`, change the `.insert({...})` to include `location_id`:
+
+```ts
+    .insert({
+      trip_id: input.tripId,
+      body,
+      location_id: input.locationId ?? null,
+      created_by: userData.user.id,
+    })
+```
+
+- [ ] **Step 3: Add `locationId` to `UpdateNoteInput`**
+
+```ts
+export interface UpdateNoteInput {
+  noteId: string
+  tripSlug: string
+  body: string
+  /** New location for the note; null = move to General. */
+  locationId?: string | null
+}
+```
+
+- [ ] **Step 4: Write `location_id` in `updateNote`'s update**
+
+In `updateNote`, change the `.update({...})` to include `location_id`:
+
+```ts
+    .update({
+      body,
+      location_id: input.locationId ?? null,
+      updated_at: new Date().toISOString(),
+    })
+```
+
+(Leave `copyNotesFromTrip` unchanged — copied notes stay General, since locations are per-trip.)
+
+- [ ] **Step 5: Validate**
+
+Run: `pnpm lint`
+Expected: no errors.
+
+Run: `pnpm build`
+Expected: build succeeds.
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add src/lib/trips/actions.ts
+git commit -m "feat(notes): accept locationId in addNote and updateNote"
+```
+
+---
+
+### Task 4: Rebuild the Notes tab into collapsible location blocks
+
+**Files:**
+- Modify: `src/app/trips/[slug]/notes-tab.tsx` (full rewrite)
+- Modify: `src/app/trips/[slug]/page.tsx` (notes branch, near lines 156-172 and 244-251)
+
+Both files change in one commit so the build stays green (the new `NotesTab` requires a `locations` prop that the page must supply).
+
+- [ ] **Step 1: Rewrite `notes-tab.tsx`**
+
+Replace the entire contents of `src/app/trips/[slug]/notes-tab.tsx` with:
+
+```tsx
 "use client"
 
 import * as React from "react"
@@ -435,3 +663,106 @@ function NoteEditor({
     </form>
   )
 }
+```
+
+- [ ] **Step 2: Load locations for the notes tab in `page.tsx`**
+
+In `src/app/trips/[slug]/page.tsx`, the `locations` entry of the `Promise.all` currently reads:
+
+```ts
+      (showItinerary && !isDream) || activeTab === "budget"
+        ? getItineraryLocations(header.id)
+        : Promise.resolve(null),
+```
+
+Change its condition to also load on the notes tab:
+
+```ts
+      (showItinerary && !isDream) ||
+      activeTab === "budget" ||
+      activeTab === "notes"
+        ? getItineraryLocations(header.id)
+        : Promise.resolve(null),
+```
+
+- [ ] **Step 3: Pass `locations` into `NotesTab` in `page.tsx`**
+
+Change the `<NotesTab .../>` block (the final `else` branch) to add the prop:
+
+```tsx
+          <NotesTab
+            tripId={header.id}
+            tripSlug={header.slug}
+            initialNotes={notes ?? []}
+            locations={locations ?? []}
+            members={memberTones}
+          />
+```
+
+- [ ] **Step 4: Validate**
+
+Run: `pnpm lint`
+Expected: no errors. (Watch for the React 19 JSX-comment / unescaped-entity rules; there are none new here.)
+
+Run: `pnpm build`
+Expected: build succeeds.
+
+- [ ] **Step 5: Manual check in the browser**
+
+Run `pnpm dev`, open a trip with at least one itinerary location, go to the Notes tab. Verify:
+- A `General` block appears first, then one block per location, all collapsed.
+- Clicking a header expands it; the add-note form is the first thing inside.
+- Adding a note inside a location block files it there; reload and confirm it stays under that location.
+- Adding inside General creates a location-less note.
+- Editing a note shows the Location select and can move the note (including to General).
+- Each block's count subtitle (`no notes` / `N notes`) is correct.
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add src/app/trips/[slug]/notes-tab.tsx src/app/trips/[slug]/page.tsx
+git commit -m "feat(notes): collapsible location blocks with location-filed notes"
+```
+
+---
+
+### Task 5: Update docs
+
+**Files:**
+- Modify: `docs/TODO.md`
+- Modify: `docs/DECISIONS.md`
+
+- [ ] **Step 1: Mark the task done in `docs/TODO.md`**
+
+Add a completed entry for location-filed notes under the appropriate section (match the file's existing format for done items).
+
+- [ ] **Step 2: Record the decision in `docs/DECISIONS.md`**
+
+Append a row noting: notes reuse `itinerary_locations` (no separate notes-location concept); `trip_notes.location_id` is `on delete set null` so deleting a location preserves its notes as General; locations are created only in the Itinerary tab.
+
+- [ ] **Step 3: Commit**
+
+```bash
+git add docs/TODO.md docs/DECISIONS.md
+git commit -m "docs: record location-filed notes"
+```
+
+---
+
+## Self-Review
+
+**Spec coverage:**
+- Reuse `itinerary_locations` → Task 1 (FK), Task 4 (groups built from `locations`). ✓
+- Collapsible itinerary-style list, no location hidden, all start collapsed → Task 4 `NotesTab` (`buildGroups` includes every location; `open` Set starts empty). ✓
+- General block first → Task 4 `buildGroups` (General pushed first). ✓
+- "+ add a note" first inside an open block, location implied → Task 4 (`AddNoteRow` rendered before notes, `locationId` bound from group). ✓
+- Notes render as plain pre-wrapped text, no markdown → Task 4 `NoteView` (`whitespace-pre-wrap`, unchanged). ✓
+- Editing re-files via Location select → Task 4 `NoteEditor`. ✓
+- `on delete set null` preserves notes → Task 1. ✓
+- `copyNotesFromTrip` leaves location null → Task 3 (left unchanged). ✓
+- Locations created only in Itinerary (out of scope here) → no task adds creation. ✓
+- Realtime unchanged → no realtime code added. ✓
+
+**Placeholder scan:** No TBD/TODO-in-code/“handle edge cases” placeholders; every code step shows full content. ✓
+
+**Type consistency:** `TripNote.locationId: string | null` (Task 2) is read in Task 4 (`n.locationId`, `note.locationId`) and written via `addNote`/`updateNote` `locationId?: string | null` (Task 3). `CardTone` from `slug-tone` keys `toneText` and types `NoteGroup.tone` (Task 4). `NotesTab` gains `locations: ItineraryLocation[]`, supplied by `page.tsx` (Task 4). All consistent. ✓

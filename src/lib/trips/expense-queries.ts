@@ -1,5 +1,23 @@
 import { createClient } from "@/lib/supabase/server"
-import type { Expense } from "./expense-types"
+import type { Expense, ExpenseCategoryRow } from "./expense-types"
+
+export async function getTripExpenseCategories(
+  tripId: string,
+): Promise<ExpenseCategoryRow[]> {
+  const supabase = await createClient()
+  const { data } = await supabase
+    .from("expense_categories")
+    .select("id, trip_id, name, sort_order")
+    .eq("trip_id", tripId)
+    .order("sort_order", { ascending: true })
+
+  return (data ?? []).map((row) => ({
+    id: row.id,
+    tripId: row.trip_id,
+    name: row.name,
+    sortOrder: row.sort_order,
+  }))
+}
 
 export async function getTripExpenses(tripId: string): Promise<Expense[]> {
   const supabase = await createClient()
