@@ -920,7 +920,12 @@ export interface UpdateNoteInput {
   noteId: string
   tripSlug: string
   body: string
-  /** New location for the note; null = move to General. */
+  /**
+   * New location for the note. NOTE: both null and omitted move the note to
+   * General — updateNote always writes location_id, there is no "leave
+   * unchanged". Safe today because the only caller (NoteEditor) always sends
+   * an explicit value; revisit if a body-only update path is ever added.
+   */
   locationId?: string | null
 }
 
