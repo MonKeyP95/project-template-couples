@@ -4,6 +4,14 @@ import * as React from "react"
 
 import type { ExpenseCategoryRow } from "@/lib/trips/expense-types"
 
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+
 import { CategorySelect } from "./category-select"
 import type { MemberToneEntry } from "./packing-tab"
 import type { ItineraryLocation } from "@/lib/trips/location-types"
@@ -167,21 +175,30 @@ export function ExpenseFields({
           <span className="block font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
             Location
           </span>
-          <select
-            value={locationId ?? ""}
-            onChange={(e) =>
-              onLocationChange(e.target.value === "" ? null : e.target.value)
-            }
+          <Select<string | null>
+            value={locationId}
+            onValueChange={(value) => onLocationChange(value)}
             disabled={disabled}
-            className="mt-1 w-full border-0 border-b border-rule bg-transparent py-1 text-[14px] text-foreground focus:border-clay focus:outline-none disabled:opacity-50"
           >
-            <option value="">Auto (by date)</option>
-            {locations.map((l) => (
-              <option key={l.id} value={l.id}>
-                {l.name}
-              </option>
-            ))}
-          </select>
+            <SelectTrigger>
+              <SelectValue>
+                {(value: string | null) =>
+                  value === null
+                    ? "Auto (by date)"
+                    : (locations.find((l) => l.id === value)?.name ??
+                      "Auto (by date)")
+                }
+              </SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={null}>Auto (by date)</SelectItem>
+              {locations.map((l) => (
+                <SelectItem key={l.id} value={l.id}>
+                  {l.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </label>
       </div>
     </>

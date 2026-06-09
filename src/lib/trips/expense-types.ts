@@ -93,14 +93,11 @@ export interface ExpenseCategoryRow {
   sortOrder: number
 }
 
-/** Default set seeded into every new trip. */
+/** Default set seeded into every new trip. Kept minimal; users add the rest. */
 export const EXPENSE_CATEGORIES = [
-  "Surf",
-  "Dive",
-  "Trek",
   "Food",
-  "Transit",
-  "Lodging",
+  "Transportation",
+  "Accommodation",
   "Other",
 ] as const
 

@@ -15,10 +15,13 @@ import type { MemberToneEntry } from "./packing-tab"
 import type { ItineraryLocation } from "@/lib/trips/location-types"
 
 const CATEGORY_TONE: Record<string, MonoBadgeTone> = {
+  Food: "clay",
+  Transportation: "sea",
+  Accommodation: "sand",
+  // Kept for trips seeded with the older default set.
   Surf: "sea",
   Dive: "sea",
   Trek: "moss",
-  Food: "clay",
   Transit: "ink",
   Lodging: "sand",
   Settlement: "ink",
