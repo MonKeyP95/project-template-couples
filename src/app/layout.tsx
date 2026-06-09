@@ -6,6 +6,7 @@ import {
 } from "next/font/google"
 import "./globals.css"
 
+import { WorldMapBg } from "@/components/together"
 import { isDarkTheme } from "@/lib/theme"
 
 const sans = IBM_Plex_Sans({
@@ -52,6 +53,7 @@ export default async function RootLayout({
         className="min-h-full flex flex-col font-sans"
         suppressHydrationWarning
       >
+        <WorldMapBg className="fixed inset-0 -z-10 text-foreground/[0.07]" />
         {children}
       </body>
     </html>

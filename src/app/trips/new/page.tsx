@@ -16,7 +16,7 @@ export default async function NewTripPage() {
   if (!workspace) notFound()
 
   return (
-    <main className="mx-auto min-h-screen w-full max-w-[440px] bg-background px-5 pt-10 pb-20">
+    <main className="mx-auto min-h-screen w-full max-w-[440px] px-5 pt-10 pb-20">
       <Link
         href="/home"
         className="inline-flex items-center gap-1 font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground hover:text-foreground"

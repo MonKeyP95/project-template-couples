@@ -179,7 +179,7 @@ export default async function TripPage({
   const dark = await isDarkTheme()
 
   return (
-    <main className="relative mx-auto min-h-screen w-full max-w-[440px] bg-background pb-32 lg:flex lg:max-w-none lg:items-stretch lg:pb-0">
+    <main className="relative mx-auto min-h-screen w-full max-w-[440px] pb-32 lg:flex lg:max-w-none lg:items-stretch lg:pb-0">
       <RefreshOnVisible />
       <DesktopLeftRail workspace={workspace} initialDark={dark} />
 

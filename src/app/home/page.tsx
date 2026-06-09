@@ -83,7 +83,7 @@ export default async function HomePage() {
     : null
 
   return (
-    <main className="mx-auto min-h-screen w-full max-w-[440px] bg-background px-5 pt-14 pb-10 md:max-w-[1200px] md:px-12 md:pt-12 md:pb-16">
+    <main className="mx-auto min-h-screen w-full max-w-[440px] px-5 pt-14 pb-10 md:max-w-[1200px] md:px-12 md:pt-12 md:pb-16">
       <header className="mb-14 flex items-center justify-between md:hidden">
         <Label>Together · Workspace</Label>
         {members.length >= 2 ? (

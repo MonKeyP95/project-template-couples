@@ -4,6 +4,13 @@ import * as React from "react"
 
 import { addExpenseCategory } from "@/lib/trips/actions"
 import type { ExpenseCategoryRow } from "@/lib/trips/expense-types"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 
 const ADD_SENTINEL = "__add_category__"
 
@@ -35,7 +42,8 @@ export function CategorySelect({
   const [isPending, startTransition] = React.useTransition()
   const busy = disabled || isPending
 
-  function onSelect(next: string) {
+  function onSelect(next: string | null) {
+    if (next === null) return
     if (next === ADD_SENTINEL) {
       setAdding(true)
       return
@@ -61,19 +69,21 @@ export function CategorySelect({
 
   return (
     <>
-      <select
-        value={value}
-        onChange={(e) => onSelect(e.target.value)}
-        disabled={disabled}
-        className="mt-1 w-full border-0 border-b border-rule bg-transparent py-1 text-[14px] text-foreground focus:border-clay focus:outline-none disabled:opacity-50"
-      >
-        {categories.map((c) => (
-          <option key={c.id} value={c.name}>
-            {c.name}
-          </option>
-        ))}
-        <option value={ADD_SENTINEL}>+ Add category…</option>
-      </select>
+      <Select value={value} onValueChange={onSelect} disabled={disabled}>
+        <SelectTrigger>
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {categories.map((c) => (
+            <SelectItem key={c.id} value={c.name}>
+              {c.name}
+            </SelectItem>
+          ))}
+          <SelectItem value={ADD_SENTINEL} className="text-clay">
+            + Add category…
+          </SelectItem>
+        </SelectContent>
+      </Select>
 
       {adding ? (
         <div className="mt-2 flex items-center gap-2">
