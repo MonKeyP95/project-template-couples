@@ -222,6 +222,7 @@ export function ItineraryTab({
   const [lastInitialLocations, setLastInitialLocations] =
     React.useState(initialLocations)
   const [collapsed, setCollapsed] = React.useState<Set<string>>(new Set())
+  const [expandedRuns, setExpandedRuns] = React.useState<Set<string>>(new Set())
 
   if (initialLocations !== lastInitialLocations) {
     setLastInitialLocations(initialLocations)
@@ -334,6 +335,15 @@ export function ItineraryTab({
 
   function toggleCollapse(key: string) {
     setCollapsed((prev) => {
+      const next = new Set(prev)
+      if (next.has(key)) next.delete(key)
+      else next.add(key)
+      return next
+    })
+  }
+
+  function toggleRun(key: string) {
+    setExpandedRuns((prev) => {
       const next = new Set(prev)
       if (next.has(key)) next.delete(key)
       else next.add(key)
@@ -683,32 +693,81 @@ export function ItineraryTab({
                         a.key < b.key ? -1 : a.key > b.key ? 1 : 0,
                       )
 
-                      return items.map((item) => {
+                      // Adjacent empty items in the date-sorted list are always
+                      // calendar-consecutive (any occupied date is a seg between
+                      // them), so neighbours coalesce into one run.
+                      type Row =
+                        | { kind: "seg"; seg: (typeof segs)[number] }
+                        | { kind: "emptyRun"; dates: string[] }
+                      const rows: Row[] = []
+                      for (const item of items) {
                         if (item.kind === "empty") {
-                          const gd = item.date
+                          const tail = rows[rows.length - 1]
+                          if (tail && tail.kind === "emptyRun") {
+                            tail.dates.push(item.date)
+                          } else {
+                            rows.push({ kind: "emptyRun", dates: [item.date] })
+                          }
+                        } else {
+                          rows.push({ kind: "seg", seg: item.seg })
+                        }
+                      }
+
+                      const fillEmpty = (date: string) => {
+                        setAddDayDate(date)
+                        setAddDayFor(group.key)
+                      }
+
+                      return rows.map((row) => {
+                        if (row.kind === "emptyRun") {
+                          const { dates } = row
+                          if (dates.length === 1) {
+                            return (
+                              <EmptyDayButton
+                                key={`empty-${dates[0]}`}
+                                date={dates[0]}
+                                onFill={fillEmpty}
+                              />
+                            )
+                          }
+                          const runKey = `${group.key}:${dates[0]}`
+                          const expanded = expandedRuns.has(runKey)
+                          const label = `${formatShortDate(dates[0])} – ${formatShortDate(
+                            dates[dates.length - 1],
+                          )}`
                           return (
-                            <button
-                              type="button"
-                              key={`empty-${gd}`}
-                              onClick={() => {
-                                setAddDayDate(gd)
-                                setAddDayFor(group.key)
-                              }}
-                              className="my-1 flex w-full items-center gap-3 rounded-lg border border-dashed border-rule/70 px-3 py-2 text-left transition-colors hover:border-foreground"
-                            >
-                              <span className="t-num w-12 flex-shrink-0 font-mono text-[11px] text-muted-foreground">
-                                {formatShortDate(gd)}
-                              </span>
-                              <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground/70">
-                                empty
-                              </span>
-                              <span className="ml-auto font-mono text-[13px] leading-none text-muted-foreground/70">
-                                +
-                              </span>
-                            </button>
+                            <div key={`emptyrun-${dates[0]}`} className="my-1">
+                              <button
+                                type="button"
+                                onClick={() => toggleRun(runKey)}
+                                aria-expanded={expanded}
+                                className="flex w-full items-center gap-3 rounded-lg border border-dashed border-rule/70 px-3 py-2 text-left transition-colors hover:border-foreground"
+                              >
+                                <span className="t-num flex-shrink-0 font-mono text-[11px] text-muted-foreground">
+                                  {label}
+                                </span>
+                                <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground/70">
+                                  {dates.length} empty days
+                                </span>
+                                <span className="ml-auto font-mono text-[13px] leading-none text-muted-foreground">
+                                  {expanded ? "⌄" : "›"}
+                                </span>
+                              </button>
+                              {expanded ? (
+                                <div className="pl-4">
+                                  {dates.map((d) => (
+                                    <EmptyDayButton
+                                      key={d}
+                                      date={d}
+                                      onFill={fillEmpty}
+                                    />
+                                  ))}
+                                </div>
+                              ) : null}
+                            </div>
                           )
                         }
-                        const seg = item.seg
+                        const seg = row.seg
                         return (
                           <DaySegmentView
                             key={seg.groupId ?? seg.days[0].id}
@@ -829,6 +888,32 @@ function DaySegmentView({
     )
   }
   return <>{cards}</>
+}
+
+function EmptyDayButton({
+  date,
+  onFill,
+}: {
+  date: string
+  onFill: (date: string) => void
+}) {
+  return (
+    <button
+      type="button"
+      onClick={() => onFill(date)}
+      className="my-1 flex w-full items-center gap-3 rounded-lg border border-dashed border-rule/70 px-3 py-2 text-left transition-colors hover:border-foreground"
+    >
+      <span className="t-num w-12 flex-shrink-0 font-mono text-[11px] text-muted-foreground">
+        {formatShortDate(date)}
+      </span>
+      <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground/70">
+        empty
+      </span>
+      <span className="ml-auto font-mono text-[13px] leading-none text-muted-foreground/70">
+        +
+      </span>
+    </button>
+  )
 }
 
 interface DayCardProps {
