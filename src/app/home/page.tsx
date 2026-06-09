@@ -12,6 +12,7 @@ import {
 } from "@/components/together"
 import { createClient } from "@/lib/supabase/server"
 import { isDarkTheme } from "@/lib/theme"
+import { getItineraryLocations } from "@/lib/trips/location-queries"
 import { listTripsForWorkspace } from "@/lib/trips/list-queries"
 import {
   getCurrentWorkspace,
@@ -21,6 +22,7 @@ import {
 
 import { daysUntil, dayWithinTrip } from "./format-helpers"
 import { CompactRow, DreamTile, HeroCard, TripCard } from "./trip-cards"
+import { TripRoutePanel } from "./trip-route-panel"
 
 function formatDateLabel(date: Date) {
   const mm = String(date.getMonth() + 1).padStart(2, "0")
@@ -64,6 +66,9 @@ export default async function HomePage() {
 
   // Hero claim: prefer the earliest "now" trip; otherwise the soonest "upcoming".
   const hero = buckets.now[0] ?? buckets.upcoming[0] ?? null
+  const heroLocations = hero
+    ? (await getItineraryLocations(hero.id)).map((l) => l.name)
+    : []
   const trips = [
     ...buckets.now.slice(buckets.now[0] ? 1 : 0),
     ...buckets.upcoming.slice(hero && !buckets.now[0] ? 1 : 0),
@@ -176,8 +181,11 @@ export default async function HomePage() {
                   </span>
                 ) : null}
               </div>
-              <div className="md:grid md:grid-cols-2 md:gap-5 lg:grid-cols-3">
+              <div className="md:grid md:grid-cols-2 md:gap-5">
                 <HeroCard trip={hero} />
+                <div className="hidden md:block">
+                  <TripRoutePanel slug={hero.slug} locations={heroLocations} />
+                </div>
               </div>
             </section>
           ) : null}
