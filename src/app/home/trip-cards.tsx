@@ -1,4 +1,6 @@
+import React from "react"
 import Link from "next/link"
+import { CloudIcon, CloudRainIcon, CloudSnowIcon, SunIcon } from "lucide-react"
 
 import {
   Bar,
@@ -11,6 +13,7 @@ import {
 import { TripCountdown } from "@/components/trip-countdown"
 import type { TripListItem } from "@/lib/trips/list-queries"
 import { slugToTone, type CardTone } from "@/lib/trips/slug-tone"
+import { getWeather, type Weather } from "@/lib/weather/get-weather"
 
 const surface: Record<CardTone, string> = {
   sea: "bg-sea-tint",
@@ -72,11 +75,36 @@ function SavedBar({ saved, planned }: { saved: number; planned: number }) {
   )
 }
 
+/** Maps a WMO weather code to one of four condition icons. */
+function weatherIcon(code: number) {
+  if (code >= 71 && code <= 77) return CloudSnowIcon
+  if (code === 85 || code === 86) return CloudSnowIcon
+  if (code >= 51 && code <= 67) return CloudRainIcon
+  if (code >= 80 && code <= 82) return CloudRainIcon
+  if (code >= 95) return CloudRainIcon
+  if (code === 0) return SunIcon
+  return CloudIcon
+}
+
+/** Condition icon + current temperature, shown top-left on the hero card. */
+function WeatherBadge({ tempC, code }: Weather) {
+  return (
+    <span className="flex items-center gap-1 font-mono text-[10px] tracking-[0.06em] text-muted-foreground">
+      {React.createElement(weatherIcon(code), { className: "h-3 w-3", strokeWidth: 2 })}
+      {Math.round(tempC)}°
+    </span>
+  )
+}
+
 /** Top-of-page hero card. Used for at most one trip per render. */
-export function HeroCard({ trip }: { trip: TripListItem }) {
+export async function HeroCard({ trip }: { trip: TripListItem }) {
   const tone = slugToTone(trip.slug)
   const coord = formatCoord(trip.lat, trip.lng)
   const dateRange = formatDateRange(trip.startDate, trip.endDate)
+  const weather =
+    trip.lat != null && trip.lng != null
+      ? await getWeather(trip.lat, trip.lng)
+      : null
   return (
     <Link
       href={`/trips/${trip.slug}`}
@@ -88,11 +116,12 @@ export function HeroCard({ trip }: { trip: TripListItem }) {
         <TopoBg tone={tone} opacity={0.16} />
         <div className="relative flex h-full flex-col justify-between p-4 md:p-5">
           <div className="flex items-start justify-between">
-            {trip.state === "now" ? (
-              <MonoBadge tone={monoBadgeTone[tone]}>{"// now"}</MonoBadge>
-            ) : (
-              <span />
-            )}
+            <div className="flex items-center gap-2">
+              {trip.state === "now" ? (
+                <MonoBadge tone={monoBadgeTone[tone]}>{"// now"}</MonoBadge>
+              ) : null}
+              {weather ? <WeatherBadge {...weather} /> : null}
+            </div>
             {coord ? <Coord>{coord}</Coord> : <span />}
           </div>
           <div>
