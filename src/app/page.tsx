@@ -56,9 +56,13 @@ export default function Home() {
           >
             Sign in
           </Link>
-          <span className="font-mono text-[10px] uppercase tracking-[0.25em] text-muted-foreground/55">
-            placeholder · auth lands next
-          </span>
+          <Link
+            href="/signup"
+            prefetch={false}
+            className="font-mono text-[10px] uppercase tracking-[0.25em] text-muted-foreground/55 underline-offset-4 transition-colors hover:text-muted-foreground hover:underline"
+          >
+            Create an account
+          </Link>
         </div>
       </section>
 
