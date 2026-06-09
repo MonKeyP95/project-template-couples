@@ -135,6 +135,8 @@ Small UI changes + one bugfix, all verified in-browser (Playwright, light + dark
 
 - [x] **HeroCard current-weather box** — Done 2026-06-09. The `/home` HeroCard shows a small condition-icon + current temperature top-left (beside the `// now` badge; alone on an upcoming trip), for the trip's destination; coords stay top-right. Data goes through one stubbed file `src/lib/weather/get-weather.ts` (`getWeather(lat, lng): Promise<Weather>`, `Weather = { tempC, code }` with `code` = WMO weather code) returning mock values — `HeroCard` is now an async server component that awaits it when the trip has `lat`/`lng`, else renders no weather. `WeatherBadge` in `trip-cards.tsx` maps the WMO code to a lucide icon (clear/cloudy/rain/snow). **Real weather API deferred** — wiring it later changes only the stub's body, never the UI. Spec: `docs/superpowers/specs/2026-06-09-hero-weather-box-design.md`; plan: `docs/superpowers/plans/2026-06-09-hero-weather-box.md`. Build + lint clean.
 
+- [x] **HeroCard schematic route panel (desktop)** — Done 2026-06-09. On desktop (`md:` and up) a schematic route panel sits beside the hero card at the same footprint — it draws the hero trip's itinerary location names as a deterministic decorative line (no real map tiles, no coordinates). Built from the hero trip's ordered `itinerary_locations` rows (names only). When the trip has no locations a quiet `// map` placeholder renders instead. Desktop-only; mobile layout unchanged.
+
 ## Working rules
 - One task per session. Finish, validate, then move on.
 - After completing a task, check it off here and add a row to `DECISIONS.md` if anything non-obvious was chosen.
