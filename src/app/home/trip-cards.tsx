@@ -96,8 +96,16 @@ export function HeroCard({ trip }: { trip: TripListItem }) {
             {coord ? <Coord>{coord}</Coord> : <span />}
           </div>
           <div>
-            <div className="t-display text-[38px] leading-none text-foreground md:text-[44px]">
-              <em>{trip.name}</em>
+            <div className="flex items-baseline gap-3">
+              <div className="t-display text-[38px] leading-none text-foreground md:text-[44px]">
+                <em>{trip.name}</em>
+              </div>
+              {trip.startDate ? (
+                <TripCountdown
+                  startDate={trip.startDate}
+                  className="text-[13px] tracking-[0.1em] md:text-[15px]"
+                />
+              ) : null}
             </div>
             {trip.country ? (
               <div className="mt-1 font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
@@ -111,16 +119,8 @@ export function HeroCard({ trip }: { trip: TripListItem }) {
         <div className="flex items-center justify-between">
           <div>
             {dateRange ? (
-              <div className="flex items-baseline gap-2.5">
-                <div className="font-mono text-[11px] tracking-[0.04em] text-foreground">
-                  {dateRange}
-                </div>
-                {trip.startDate ? (
-                  <TripCountdown
-                    startDate={trip.startDate}
-                    className="text-[9px] tracking-[0.12em]"
-                  />
-                ) : null}
+              <div className="font-mono text-[11px] tracking-[0.04em] text-foreground">
+                {dateRange}
               </div>
             ) : null}
           </div>
@@ -156,8 +156,17 @@ export function TripCard({ trip }: { trip: TripListItem }) {
             {coord ? <Coord>{coord}</Coord> : <span />}
           </div>
           <div>
-            <div className="t-display text-[28px] leading-none text-foreground md:text-[32px]">
-              <em>{trip.name}</em>
+            <div className="flex items-baseline gap-2.5">
+              <div className="t-display text-[28px] leading-none text-foreground md:text-[32px]">
+                <em>{trip.name}</em>
+              </div>
+              {trip.startDate ? (
+                <TripCountdown
+                  startDate={trip.startDate}
+                  daysOnly
+                  className="text-[11px] tracking-[0.1em] md:text-[13px]"
+                />
+              ) : null}
             </div>
             {trip.country ? (
               <div className="mt-1 font-mono text-[9px] uppercase tracking-[0.18em] text-muted-foreground">
@@ -170,16 +179,8 @@ export function TripCard({ trip }: { trip: TripListItem }) {
       <div className="px-3.5 py-2.5 md:px-4 md:py-3">
         <div className="flex items-center justify-between gap-2">
           {dateRange ? (
-            <span className="flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-0.5">
-              <span className="font-mono text-[10px] tracking-[0.06em] text-foreground">
-                {dateRange}
-              </span>
-              {trip.startDate ? (
-                <TripCountdown
-                  startDate={trip.startDate}
-                  className="text-[9px] tracking-[0.1em]"
-                />
-              ) : null}
+            <span className="font-mono text-[10px] tracking-[0.06em] text-foreground">
+              {dateRange}
             </span>
           ) : (
             <span />
