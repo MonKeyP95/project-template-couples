@@ -10,18 +10,20 @@ import { cn } from "@/lib/utils"
 export function TripCountdown({
   startDate,
   className,
+  daysOnly = false,
 }: {
   startDate: string
   className?: string
+  daysOnly?: boolean
 }) {
   const [label, setLabel] = useState<string | null>(null)
 
   useEffect(() => {
-    const tick = () => setLabel(countdownLabel(startDate))
+    const tick = () => setLabel(countdownLabel(startDate, daysOnly))
     tick()
     const id = setInterval(tick, 30_000)
     return () => clearInterval(id)
-  }, [startDate])
+  }, [startDate, daysOnly])
 
   if (!label) return null
   return (
@@ -36,7 +38,7 @@ export function TripCountdown({
   )
 }
 
-function countdownLabel(startDate: string): string | null {
+function countdownLabel(startDate: string, daysOnly: boolean): string | null {
   const [y, m, d] = startDate.split("-").map(Number)
   const target = new Date(y, m - 1, d)
   const now = new Date()
@@ -50,6 +52,18 @@ function countdownLabel(startDate: string): string | null {
   const days = Math.floor(totalMin / 1_440)
   const hrs = Math.floor((totalMin % 1_440) / 60)
   const min = totalMin % 60
+
+  if (daysOnly) {
+    if (days <= 0) return "TODAY"
+    const years = Math.floor(days / 365)
+    const remDays = days % 365
+    const parts: string[] = []
+    if (years > 0) parts.push(`${years} ${years === 1 ? "YEAR" : "YEARS"}`)
+    if (remDays > 0 || years === 0) {
+      parts.push(`${remDays} ${remDays === 1 ? "DAY" : "DAYS"}`)
+    }
+    return `${parts.join(" ")} TO GO`
+  }
 
   const parts: string[] = []
   if (days > 0) parts.push(`${days}D`)
