@@ -3,6 +3,13 @@
 import * as React from "react"
 
 import { getImportableTrips, type ImportableTrip } from "@/lib/trips/actions"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 
 export function ImportFromTripControl({
   tripId,
@@ -62,18 +69,26 @@ export function ImportFromTripControl({
         </p>
       ) : (
         <div className="flex items-center gap-2">
-          <select
+          <Select
             value={selected}
-            onChange={(e) => setSelected(e.target.value)}
+            onValueChange={(value) => setSelected(value ?? "")}
             disabled={isPending}
-            className="flex-1 border-0 border-b border-rule bg-transparent py-1 text-[13px] text-foreground focus:border-clay focus:outline-none"
           >
-            {trips.map((t) => (
-              <option key={t.id} value={t.id}>
-                {t.name}
-              </option>
-            ))}
-          </select>
+            <SelectTrigger className="mt-0 w-auto flex-1 text-[13px]">
+              <SelectValue>
+                {(value: string | null) =>
+                  trips.find((t) => t.id === value)?.name ?? ""
+                }
+              </SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              {trips.map((t) => (
+                <SelectItem key={t.id} value={t.id}>
+                  {t.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
           <button
             type="button"
             onClick={copy}

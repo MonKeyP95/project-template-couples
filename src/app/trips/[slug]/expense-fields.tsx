@@ -156,18 +156,29 @@ export function ExpenseFields({
               })}
             </div>
           ) : (
-            <select
+            <Select
               value={paidBy}
-              onChange={(e) => onPaidByChange(e.target.value)}
+              onValueChange={(value) => {
+                if (value) onPaidByChange(value)
+              }}
               disabled={disabled}
-              className="mt-1 w-full border-0 border-b border-rule bg-transparent py-1 text-[14px] text-foreground focus:border-clay focus:outline-none disabled:opacity-50"
             >
-              {memberEntries.map(([userId, m]) => (
-                <option key={userId} value={userId}>
-                  {m.displayName}
-                </option>
-              ))}
-            </select>
+              <SelectTrigger>
+                <SelectValue>
+                  {(value: string | null) =>
+                    memberEntries.find(([id]) => id === value)?.[1]
+                      .displayName ?? ""
+                  }
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                {memberEntries.map(([userId, m]) => (
+                  <SelectItem key={userId} value={userId}>
+                    {m.displayName}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           )}
         </div>
 
