@@ -3,6 +3,13 @@
 import * as React from "react"
 
 import { Bar, Label } from "@/components/together"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { moveLocationBudget, setLocationBudget } from "@/lib/trips/actions"
 import type {
   Expense,
@@ -606,18 +613,26 @@ function MoveForm({
           disabled={isPending}
           className="t-num w-20 border-0 border-b border-border bg-transparent text-[13px] text-foreground outline-none focus:border-foreground"
         />
-        <select
+        <Select
           value={otherId}
-          onChange={(e) => setOtherId(e.target.value)}
+          onValueChange={(value) => setOtherId(value ?? "")}
           disabled={isPending}
-          className="border-0 border-b border-border bg-transparent py-0.5 text-[13px] text-foreground focus:outline-none"
         >
-          {targets.map((t) => (
-            <option key={t.id ?? "pool"} value={t.id ?? ""}>
-              {t.name}
-            </option>
-          ))}
-        </select>
+          <SelectTrigger className="mt-0 w-auto border-border py-0.5 text-[13px]">
+            <SelectValue>
+              {(value: string | null) =>
+                targets.find((t) => (t.id ?? "") === value)?.name ?? ""
+              }
+            </SelectValue>
+          </SelectTrigger>
+          <SelectContent>
+            {targets.map((t) => (
+              <SelectItem key={t.id ?? "pool"} value={t.id ?? ""}>
+                {t.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
         <button
           type="submit"
           disabled={isPending}

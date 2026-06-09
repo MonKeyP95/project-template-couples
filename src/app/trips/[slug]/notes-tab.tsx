@@ -4,6 +4,13 @@ import * as React from "react"
 
 import { Avatar, Label } from "@/components/together"
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import {
   addNote,
   copyNotesFromTrip,
   deleteNote,
@@ -396,21 +403,30 @@ function NoteEditor({
         <span className="block font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
           Location
         </span>
-        <select
-          value={locationId ?? ""}
-          onChange={(e) =>
-            setLocationId(e.target.value === "" ? null : e.target.value)
-          }
+        <Select
+          value={locationId}
+          onValueChange={(value: string | null) => setLocationId(value)}
           disabled={isPending}
-          className="mt-1 w-full border-0 border-b border-rule bg-transparent py-1.5 text-[14px] text-foreground focus:border-clay focus:outline-none disabled:opacity-50"
         >
-          <option value="">General (no location)</option>
-          {locations.map((l) => (
-            <option key={l.id} value={l.id}>
-              {l.name}
-            </option>
-          ))}
-        </select>
+          <SelectTrigger className="py-1.5">
+            <SelectValue>
+              {(value: string | null) =>
+                value === null
+                  ? "General (no location)"
+                  : (locations.find((l) => l.id === value)?.name ??
+                    "General (no location)")
+              }
+            </SelectValue>
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value={null}>General (no location)</SelectItem>
+            {locations.map((l) => (
+              <SelectItem key={l.id} value={l.id}>
+                {l.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </label>
       {error ? (
         <div className="mt-2 font-mono text-[10px] text-clay">{error}</div>

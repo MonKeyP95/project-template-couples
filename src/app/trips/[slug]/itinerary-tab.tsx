@@ -3,6 +3,13 @@
 import * as React from "react"
 
 import { Label, MonoBadge, SuggestionCard } from "@/components/together"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { createClient } from "@/lib/supabase/client"
 import {
   addItineraryDay,
@@ -1318,21 +1325,30 @@ function DayForm({
           <span className="block font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
             Location
           </span>
-          <select
-            value={locationId ?? ""}
-            onChange={(e) =>
-              setLocationId(e.target.value === "" ? null : e.target.value)
-            }
+          <Select
+            value={locationId}
+            onValueChange={(value: string | null) => setLocationId(value)}
             disabled={isPending}
-            className="mt-1 w-full border-0 border-b border-rule bg-transparent py-1.5 text-[14px] text-foreground focus:border-clay focus:outline-none disabled:opacity-50"
           >
-            <option value="">In transit (no location)</option>
-            {locations.map((l) => (
-              <option key={l.id} value={l.id}>
-                {l.name}
-              </option>
-            ))}
-          </select>
+            <SelectTrigger className="py-1.5">
+              <SelectValue>
+                {(value: string | null) =>
+                  value === null
+                    ? "In transit (no location)"
+                    : (locations.find((l) => l.id === value)?.name ??
+                      "In transit (no location)")
+                }
+              </SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={null}>In transit (no location)</SelectItem>
+              {locations.map((l) => (
+                <SelectItem key={l.id} value={l.id}>
+                  {l.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </label>
       ) : null}
 
