@@ -40,9 +40,7 @@ export default function Home() {
           className="reveal mt-10 max-w-[34ch] text-[15px] leading-[1.75] text-muted-foreground sm:text-base"
           style={{ animationDelay: "0.42s" }}
         >
-          A calm shared space for couples and families.
-          <br />
-          Itineraries, packing lists, ideas, dreams.
+          Itineraries, budgets, packing, ideas.
         </p>
 
         <div
