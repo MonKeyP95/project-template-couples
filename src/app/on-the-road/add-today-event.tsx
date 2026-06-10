@@ -65,7 +65,7 @@ export function AddTodayEvent({
         onClick={() => setOpen(true)}
         className="mt-3 font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground hover:text-foreground"
       >
-        + add event
+        add event
       </button>
     )
   }

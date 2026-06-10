@@ -12,7 +12,6 @@ import { slugToTone } from "@/lib/trips/slug-tone"
 import { formatShortDate, daySummary } from "@/lib/trips/itinerary-types"
 import { getWeather } from "@/lib/weather/get-weather"
 import { WeatherCard } from "@/components/weather-card"
-import { TodayNextEvent } from "@/app/home/today-next-event"
 import {
   getTripExpenseCategories,
   getTripExpenses,
@@ -24,6 +23,7 @@ import { QuickExpense } from "./quick-expense"
 import { QuickNote } from "./quick-note"
 import { LookingAheadPanel } from "./looking-ahead-panel"
 import { AddTodayEvent } from "./add-today-event"
+import { TodayUpcoming } from "./today-upcoming"
 
 const WEEKDAY_FMT = new Intl.DateTimeFormat("en-GB", {
   weekday: "short",
@@ -112,7 +112,7 @@ export default async function OnTheRoadPage() {
                 {daySummary(todayDay)}
               </div>
             ) : null}
-            <TodayNextEvent events={todayDay.events} />
+            <TodayUpcoming events={todayDay.events} />
           </>
         ) : (
           <div className="mt-2 text-[13px] text-muted-foreground">
