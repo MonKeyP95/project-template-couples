@@ -4,7 +4,7 @@ import { Avatar, Chevron, Coord, Label } from "@/components/together"
 import { ThemeToggle } from "@/components/theme-toggle"
 import type { CurrentWorkspace } from "@/lib/workspace/queries"
 
-export type NavKey = "home" | "on-the-road" | "trip"
+export type NavKey = "home" | "on-the-road" | "checklists" | "trip"
 
 export interface NavDestination {
   key: NavKey
@@ -30,6 +30,7 @@ export function buildNavDestinations(opts: {
     })
   }
   items.push({ key: "home", label: "Home", href: "/home" })
+  items.push({ key: "checklists", label: "Checklists", href: "/checklists" })
   if (opts.tripSlug) {
     items.push({
       key: "trip",
