@@ -14,6 +14,8 @@ import { TripCountdown } from "@/components/trip-countdown"
 import type { TripListItem } from "@/lib/trips/list-queries"
 import { slugToTone, type CardTone } from "@/lib/trips/slug-tone"
 import { getWeather, type Weather } from "@/lib/weather/get-weather"
+import { daySummary, type ItineraryDay } from "@/lib/trips/itinerary-types"
+import { TodayNextEvent } from "./today-next-event"
 
 const surface: Record<CardTone, string> = {
   sea: "bg-sea-tint",
@@ -97,7 +99,13 @@ function WeatherBadge({ tempC, code }: Weather) {
 }
 
 /** Top-of-page hero card. Used for at most one trip per render. */
-export async function HeroCard({ trip }: { trip: TripListItem }) {
+export async function HeroCard({
+  trip,
+  today,
+}: {
+  trip: TripListItem
+  today?: ItineraryDay | null
+}) {
   const tone = slugToTone(trip.slug)
   const coord = formatCoord(trip.lat, trip.lng)
   const dateRange = formatDateRange(trip.startDate, trip.endDate)
@@ -145,6 +153,19 @@ export async function HeroCard({ trip }: { trip: TripListItem }) {
         </div>
       </div>
       <div className="px-4 py-3 md:px-5 md:py-3.5">
+        {today ? (
+          <div className="mb-2.5">
+            <div className="t-display text-[17px] leading-tight text-foreground">
+              {today.title}
+            </div>
+            {daySummary(today) ? (
+              <div className="mt-0.5 text-[12px] leading-snug text-muted-foreground">
+                {daySummary(today)}
+              </div>
+            ) : null}
+            <TodayNextEvent events={today.events} />
+          </div>
+        ) : null}
         <div className="flex items-center justify-between">
           <div>
             {dateRange ? (

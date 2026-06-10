@@ -162,3 +162,12 @@ export function dayZone(dayDate: string, today: string): DayZone {
 export function tripActive(today: string, start: string, end: string): boolean {
   return today >= start && today <= end
 }
+
+/** One-line summary for a day: the typed sub, else a cheap hint from the events
+ * (the lone event's text, or "N events"), else "". Pure; safe server or client. */
+export function daySummary(day: ItineraryDay): string {
+  if (day.sub.trim()) return day.sub
+  if (day.events.length === 0) return ""
+  if (day.events.length === 1) return day.events[0].text
+  return `${day.events.length} events`
+}
