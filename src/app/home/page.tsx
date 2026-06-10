@@ -10,6 +10,7 @@ import {
   Label,
   PairAvatar,
 } from "@/components/together"
+import { LeftRail, MobileTopNav, buildNavDestinations } from "@/components/app-nav"
 import { createClient } from "@/lib/supabase/server"
 import { isDarkTheme } from "@/lib/theme"
 import { getItineraryLocations } from "@/lib/trips/location-queries"
@@ -67,6 +68,10 @@ export default async function HomePage() {
 
   // Hero claim: prefer the earliest "now" trip; otherwise the soonest "upcoming".
   const hero = buckets.now[0] ?? buckets.upcoming[0] ?? null
+  const navDestinations = buildNavDestinations({
+    onTheRoad: buckets.now.length > 0,
+    tripSlug: hero?.slug ?? null,
+  })
   const heroLocations = hero
     ? (await getItineraryLocations(hero.id)).map((l) => l.name)
     : []
@@ -93,7 +98,19 @@ export default async function HomePage() {
     : null
 
   return (
-    <main className="mx-auto min-h-screen w-full max-w-[440px] px-5 pt-14 pb-10 md:max-w-[1200px] md:px-12 md:pt-12 md:pb-16">
+    <div className="relative mx-auto min-h-screen w-full max-w-[440px] lg:flex lg:max-w-none lg:items-stretch">
+      {workspace ? (
+        <>
+          <MobileTopNav destinations={navDestinations} current="home" />
+          <LeftRail
+            workspace={workspace}
+            initialDark={dark}
+            destinations={navDestinations}
+            current="home"
+          />
+        </>
+      ) : null}
+      <main className="w-full px-5 pt-14 pb-10 lg:min-w-0 lg:flex-1 lg:px-12 lg:pt-12 lg:pb-16">
       <header className="mb-14 flex items-center justify-between md:hidden">
         <Label>Together · Workspace</Label>
         {members.length >= 2 ? (
@@ -262,7 +279,8 @@ export default async function HomePage() {
           </button>
         </form>
       </footer>
-    </main>
+      </main>
+    </div>
   )
 }
 
