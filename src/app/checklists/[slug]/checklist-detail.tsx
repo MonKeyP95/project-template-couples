@@ -1,6 +1,7 @@
 "use client"
 
 import * as React from "react"
+import Link from "next/link"
 import { useRouter } from "next/navigation"
 
 import { Bar, CheckRow, Label, TopoBg } from "@/components/together"
@@ -210,7 +211,12 @@ export function ChecklistDetail({
         <TopoBg tone="sea" opacity={0.1} />
         <div className="relative flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <Label>Checklist</Label>
+            <Link
+              href="/checklists"
+              className="inline-flex items-center gap-1 font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground hover:text-foreground"
+            >
+              <span aria-hidden>‹</span> Checklists
+            </Link>
             <ChecklistName name={name} slug={slug} checklistId={checklistId} />
             <div className="t-num mt-1 text-[14px] text-muted-foreground">
               {done} / {total} · {pct}%
