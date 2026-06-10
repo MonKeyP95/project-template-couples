@@ -845,6 +845,8 @@ export interface AddNoteInput {
   body: string
   /** Location to file the note under; null/undefined = General (no location). */
   locationId?: string | null
+  /** Day (yyyy-mm-dd) to tag the note to; null/undefined = un-dated. */
+  dayDate?: string | null
 }
 
 export interface AddNoteResult {
@@ -874,9 +876,12 @@ export async function addNote(
       trip_id: input.tripId,
       body,
       location_id: input.locationId ?? null,
+      day_date: input.dayDate ?? null,
       created_by: userData.user.id,
     })
-    .select("id, trip_id, body, location_id, created_by, created_at, updated_at")
+    .select(
+      "id, trip_id, body, location_id, day_date, created_by, created_at, updated_at",
+    )
     .single()
 
   if (error) return { error: error.message }
