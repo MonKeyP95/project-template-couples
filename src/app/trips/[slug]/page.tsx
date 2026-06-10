@@ -2,7 +2,6 @@ import Link from "next/link"
 import { notFound, redirect } from "next/navigation"
 
 import {
-  Avatar,
   Bar,
   Chevron,
   Coord,
@@ -13,7 +12,6 @@ import {
   WaveGlyph,
 } from "@/components/together"
 import { RefreshOnVisible } from "@/components/refresh-on-visible"
-import { ThemeToggle } from "@/components/theme-toggle"
 import { TripCountdown } from "@/components/trip-countdown"
 import { createClient } from "@/lib/supabase/server"
 import { isDarkTheme } from "@/lib/theme"
@@ -30,11 +28,13 @@ import { getItineraryLocations } from "@/lib/trips/location-queries"
 import { getDreamItineraryDays } from "@/lib/trips/dream-itinerary-queries"
 import { getTripNotes } from "@/lib/trips/note-queries"
 import { getPackingCategories, getPackingItems } from "@/lib/trips/packing-queries"
+import { listTripsForWorkspace } from "@/lib/trips/list-queries"
 import { getTripBySlug, type TripHeader } from "@/lib/trips/queries"
 import {
   getCurrentWorkspace,
   type CurrentWorkspace,
 } from "@/lib/workspace/queries"
+import { LeftRail, MobileTopNav, buildNavDestinations } from "@/components/app-nav"
 
 import { BudgetTab } from "./budget-tab"
 import { ItineraryTab } from "./itinerary-tab"
@@ -177,11 +177,22 @@ export default async function TripPage({
   const packingTotal = packingItems.length
   const packingDone = packingItems.filter((i) => i.done).length
   const dark = await isDarkTheme()
+  const navTrips = await listTripsForWorkspace(workspace.id)
+  const navDestinations = buildNavDestinations({
+    onTheRoad: navTrips.now.length > 0,
+    tripSlug: header.slug,
+  })
 
   return (
     <main className="relative mx-auto min-h-screen w-full max-w-[440px] pb-32 lg:flex lg:max-w-none lg:items-stretch lg:pb-0">
       <RefreshOnVisible />
-      <DesktopLeftRail workspace={workspace} initialDark={dark} />
+      <MobileTopNav destinations={navDestinations} current="trip" />
+      <LeftRail
+        workspace={workspace}
+        initialDark={dark}
+        destinations={navDestinations}
+        current="trip"
+      />
 
       <div className="lg:min-w-0 lg:flex-1">
         <TripHeaderView header={header} workspace={workspace} />
@@ -463,74 +474,6 @@ function DesktopTabs({
         )
       })}
     </div>
-  )
-}
-
-function DesktopLeftRail({
-  workspace,
-  initialDark,
-}: {
-  workspace: CurrentWorkspace
-  initialDark: boolean
-}) {
-  const estYear = new Date(workspace.createdAt).getFullYear()
-  return (
-    <aside className="hidden lg:flex lg:w-[220px] lg:flex-shrink-0 lg:flex-col lg:gap-9 lg:border-r lg:border-border lg:bg-card lg:px-6 lg:py-8">
-      <div>
-        <Label>Together</Label>
-        <div className="t-display mt-2 text-[28px] leading-[0.95] text-foreground">
-          {workspace.members.map((m, i) => (
-            <span key={m.user_id}>
-              {i > 0 ? (
-                <span className="text-muted-foreground"> &amp; </span>
-              ) : null}
-              <em>{m.display_name}</em>
-            </span>
-          ))}
-        </div>
-        <Coord>workspace · est. {estYear}</Coord>
-      </div>
-
-      <div>
-        <Label className="mb-2.5 block">Navigate</Label>
-        <nav className="flex flex-col gap-0.5">
-          <Link
-            href="/home"
-            className="flex items-center justify-between rounded-md px-2.5 py-2 text-[13.5px] text-muted-foreground transition-colors hover:bg-sea-tint hover:text-foreground"
-          >
-            <span>Home</span>
-            <Chevron />
-          </Link>
-          <div className="flex items-center justify-between rounded-md bg-sea-tint px-2.5 py-2 text-[13.5px] text-foreground">
-            <span className="font-serif italic">Trip</span>
-            <Chevron />
-          </div>
-        </nav>
-      </div>
-
-      <div className="mt-auto">
-        <Label className="mb-2.5 block">Members</Label>
-        <div className="flex flex-col gap-2">
-          {workspace.members.map((m, i) => (
-            <div key={m.user_id} className="flex items-center gap-2.5">
-              <Avatar
-                name={m.display_name}
-                size={24}
-                tone={i === 0 ? "sea" : "clay"}
-              />
-              <div className="font-serif text-[13px] italic text-foreground">
-                {m.display_name}
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      <div className="flex items-center justify-between border-t border-border pt-5">
-        <Label>Appearance</Label>
-        <ThemeToggle initialDark={initialDark} />
-      </div>
-    </aside>
   )
 }
 
