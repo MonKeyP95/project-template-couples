@@ -30,7 +30,6 @@ export function buildNavDestinations(opts: {
     })
   }
   items.push({ key: "home", label: "Home", href: "/home" })
-  items.push({ key: "checklists", label: "Checklists", href: "/checklists" })
   if (opts.tripSlug) {
     items.push({
       key: "trip",
@@ -39,6 +38,7 @@ export function buildNavDestinations(opts: {
       italic: true,
     })
   }
+  items.push({ key: "checklists", label: "Checklists", href: "/checklists" })
   return items
 }
 
