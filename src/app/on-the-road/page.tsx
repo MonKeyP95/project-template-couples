@@ -10,8 +10,8 @@ import { getTodayForTrip, getItineraryDays } from "@/lib/trips/itinerary-queries
 import { getItineraryLocations } from "@/lib/trips/location-queries"
 import { slugToTone } from "@/lib/trips/slug-tone"
 import { formatShortDate, daySummary } from "@/lib/trips/itinerary-types"
-import { dayWithinTrip } from "@/app/home/format-helpers"
 import { getWeather } from "@/lib/weather/get-weather"
+import { WeatherCard } from "@/components/weather-card"
 import { TodayNextEvent } from "@/app/home/today-next-event"
 import {
   getTripExpenseCategories,
@@ -23,6 +23,11 @@ import { computeLookingAhead } from "@/lib/trips/looking-ahead"
 import { QuickExpense } from "./quick-expense"
 import { QuickNote } from "./quick-note"
 import { LookingAheadPanel } from "./looking-ahead-panel"
+
+const WEEKDAY_FMT = new Intl.DateTimeFormat("en-GB", {
+  weekday: "short",
+  timeZone: "UTC",
+})
 
 export default async function OnTheRoadPage() {
   const supabase = await createClient()
@@ -65,7 +70,7 @@ export default async function OnTheRoadPage() {
     locations,
   )
 
-  const dayCount = dayWithinTrip(trip.startDate, trip.endDate)
+  const fullDate = `${WEEKDAY_FMT.format(new Date(`${today}T00:00:00Z`))} ${formatShortDate(today)}`
   const locationName = todayDay?.locationId
     ? locations.find((l) => l.id === todayDay.locationId)?.name ?? null
     : null
@@ -86,24 +91,11 @@ export default async function OnTheRoadPage() {
       <section className="relative overflow-hidden rounded-[14px] border border-border bg-card p-5">
         <TopoBg tone={tone} opacity={0.12} />
         <div className="relative">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Coord>{formatShortDate(today)}</Coord>
-              {weather ? (
-                <span className="font-mono text-[10px] tracking-[0.06em] text-muted-foreground">
-                  {Math.round(weather.tempC)}°
-                </span>
-              ) : null}
-            </div>
-            {dayCount ? (
-              <span className="font-mono text-[10px] tracking-[0.06em] text-muted-foreground">
-                day {dayCount.day} / {dayCount.total}
-              </span>
-            ) : null}
-          </div>
+          <Coord>{fullDate}</Coord>
           <div className="t-display mt-2 text-[36px] leading-none text-foreground">
             <em>{place}</em>
           </div>
+          {weather ? <WeatherCard weather={weather} className="mt-3" /> : null}
         </div>
       </section>
 
