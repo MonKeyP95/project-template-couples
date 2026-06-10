@@ -1,6 +1,8 @@
 import { redirect } from "next/navigation"
 
 import { Coord, Label, TopoBg } from "@/components/together"
+import { isDarkTheme } from "@/lib/theme"
+import { LeftRail, MobileTopNav, buildNavDestinations } from "@/components/app-nav"
 import { createClient } from "@/lib/supabase/server"
 import { getCurrentWorkspace } from "@/lib/workspace/queries"
 import { listTripsForWorkspace } from "@/lib/trips/list-queries"
@@ -38,6 +40,11 @@ export default async function OnTheRoadPage() {
   const todayDay = await getTodayForTrip(trip.id, today)
   const locations = await getItineraryLocations(trip.id)
   const tone = slugToTone(trip.slug)
+  const dark = await isDarkTheme()
+  const navDestinations = buildNavDestinations({
+    onTheRoad: true,
+    tripSlug: trip.slug,
+  })
 
   const weather =
     trip.lat != null && trip.lng != null
@@ -65,16 +72,16 @@ export default async function OnTheRoadPage() {
   const place = locationName ?? trip.country ?? "On the road"
 
   return (
-    <main className="mx-auto min-h-screen w-full max-w-[440px] px-5 pt-12 pb-16 md:max-w-[560px] md:px-8">
-      <header className="mb-6 flex items-center justify-between">
-        <Label>{`On the road · ${trip.name}`}</Label>
-        <a
-          href="/home"
-          className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground hover:text-foreground"
-        >
-          home
-        </a>
-      </header>
+    <main className="relative mx-auto min-h-screen w-full max-w-[440px] pb-16 lg:flex lg:max-w-none lg:items-stretch lg:pb-0">
+      <MobileTopNav destinations={navDestinations} current="on-the-road" />
+      <LeftRail
+        workspace={workspace}
+        initialDark={dark}
+        destinations={navDestinations}
+        current="on-the-road"
+      />
+      <div className="px-5 pt-6 pb-16 lg:min-w-0 lg:flex-1 lg:px-8 lg:py-8">
+        <Label className="mb-4 block">{`On the road · ${trip.name}`}</Label>
 
       <section className="relative overflow-hidden rounded-[14px] border border-border bg-card p-5">
         <TopoBg tone={tone} opacity={0.12} />
@@ -138,6 +145,7 @@ export default async function OnTheRoadPage() {
       />
 
       <LookingAheadPanel ahead={ahead} />
+      </div>
     </main>
   )
 }
