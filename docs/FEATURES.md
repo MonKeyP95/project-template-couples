@@ -24,6 +24,7 @@ That's it. Three things. Ship them, use them on a real trip, then expand.
 - Reminders & notifications
 - Dark mode
 - Photo / memory sharing per trip
+- Visited-countries map — color in each country a couple has taken a trip to (needs a country-keyed map asset + `country` text → ISO-code lookup; the current background map is anonymous outlines, so it's a swap not a tweak)
 
 ## Future (only if the app actually gets used)
 
