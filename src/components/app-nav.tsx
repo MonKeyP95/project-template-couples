@@ -29,7 +29,6 @@ export function buildNavDestinations(opts: {
       href: "/on-the-road",
     })
   }
-  items.push({ key: "home", label: "Home", href: "/home" })
   if (opts.tripSlug) {
     items.push({
       key: "trip",
@@ -38,6 +37,7 @@ export function buildNavDestinations(opts: {
       italic: true,
     })
   }
+  items.push({ key: "home", label: "Home", href: "/home" })
   items.push({ key: "checklists", label: "Checklists", href: "/checklists" })
   return items
 }
