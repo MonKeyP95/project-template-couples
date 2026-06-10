@@ -21,9 +21,7 @@ export function buildNavDestinations(opts: {
   onTheRoad: boolean
   tripSlug: string | null
 }): NavDestination[] {
-  const items: NavDestination[] = [
-    { key: "home", label: "Home", href: "/home" },
-  ]
+  const items: NavDestination[] = []
   if (opts.onTheRoad) {
     items.push({
       key: "on-the-road",
@@ -31,6 +29,7 @@ export function buildNavDestinations(opts: {
       href: "/on-the-road",
     })
   }
+  items.push({ key: "home", label: "Home", href: "/home" })
   if (opts.tripSlug) {
     items.push({
       key: "trip",
