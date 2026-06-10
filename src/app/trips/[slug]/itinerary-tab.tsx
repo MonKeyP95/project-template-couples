@@ -29,6 +29,7 @@ import {
   rowToItineraryDay,
   withOrdinals,
   type ItineraryDay,
+  type ItineraryEvent,
   type ItineraryTone,
 } from "@/lib/trips/itinerary-types"
 import {
@@ -58,7 +59,7 @@ interface RealtimeRow {
   trip_id: string
   day_date: string
   title: string
-  sub: string | null
+  events: unknown
   tag: string
   tone: string
   group_id: string | null
@@ -71,6 +72,41 @@ interface RealtimeRow {
 interface DaySegment {
   groupId: string | null
   days: ItineraryDay[]
+}
+
+interface EventDraft {
+  key: string
+  time: string
+  text: string
+}
+
+function newEventDraft(time = "", text = ""): EventDraft {
+  return { key: crypto.randomUUID(), time, text }
+}
+
+/** Normalize a typed time to "HH:MM": "11" -> "11:00", "9:5" -> "09:05".
+ * Leaves blanks and unrecognized input untouched. */
+function normalizeTime(raw: string): string {
+  const v = raw.trim()
+  if (!v) return ""
+  const m = v.match(/^(\d{1,2})(?::?(\d{1,2}))?$/)
+  if (!m) return v
+  return `${m[1].padStart(2, "0")}:${(m[2] ?? "0").padStart(2, "0")}`
+}
+
+/** Sort events ascending by time; untimed events keep their order at the end.
+ * Time strings are zero-padded "HH:MM", so a plain string compare is chronological. */
+function sortEvents<T extends { time: string }>(list: T[]): T[] {
+  return [...list].sort((a, b) => {
+    if (!a.time && !b.time) return 0
+    if (!a.time) return 1
+    if (!b.time) return -1
+    return a.time < b.time ? -1 : a.time > b.time ? 1 : 0
+  })
+}
+
+function toEventDrafts(events: ItineraryEvent[]): EventDraft[] {
+  return events.map((e) => newEventDraft(e.time, e.text))
 }
 
 /** Collapse sorted days into maximal runs of consecutive same-group_id days. */
@@ -1002,9 +1038,21 @@ function DayView({
         <div className="t-display mb-1 text-[22px] leading-tight text-foreground">
           {day.title}
         </div>
-        {day.sub ? (
-          <div className="text-[12.5px] leading-snug text-muted-foreground">
-            {day.sub}
+        {day.events.length > 0 ? (
+          <div className="space-y-0.5">
+            {sortEvents(day.events).map((ev, i) => (
+              <div
+                key={i}
+                className="flex gap-1.5 text-[12.5px] leading-snug text-muted-foreground"
+              >
+                {ev.time ? (
+                  <span className="t-num shrink-0 text-foreground/70">
+                    {ev.time}
+                  </span>
+                ) : null}
+                <span>{ev.text}</span>
+              </div>
+            ))}
           </div>
         ) : null}
         <div className="mt-2 flex items-center justify-end gap-1">
@@ -1055,7 +1103,9 @@ function DayEditor({
   const [dayDate, setDayDate] = React.useState(day.dayDate)
   const [tag, setTag] = React.useState(day.tag)
   const [title, setTitle] = React.useState(day.title)
-  const [sub, setSub] = React.useState(day.sub)
+  const [events, setEvents] = React.useState<EventDraft[]>(() =>
+    toEventDrafts(day.events),
+  )
   const [tone, setTone] = React.useState<ItineraryTone>(day.tone)
   const [locationId, setLocationId] = React.useState<string | null>(
     day.locationId,
@@ -1073,7 +1123,7 @@ function DayEditor({
         tripSlug,
         dayDate,
         title,
-        sub,
+        events: events.map((e) => ({ time: e.time, text: e.text })),
         tag,
         tone,
         locationId,
@@ -1095,8 +1145,8 @@ function DayEditor({
       setTag={setTag}
       title={title}
       setTitle={setTitle}
-      sub={sub}
-      setSub={setSub}
+      events={events}
+      setEvents={setEvents}
       tone={tone}
       setTone={setTone}
       locations={locations}
@@ -1131,7 +1181,7 @@ function AddDayRow({
   const [groupName, setGroupName] = React.useState("")
   const [tag, setTag] = React.useState("")
   const [title, setTitle] = React.useState("")
-  const [sub, setSub] = React.useState("")
+  const [events, setEvents] = React.useState<EventDraft[]>([])
   const [tone, setTone] = React.useState<ItineraryTone>("sea")
   const [error, setError] = React.useState<string | null>(null)
   const [isPending, startTransition] = React.useTransition()
@@ -1143,7 +1193,7 @@ function AddDayRow({
     setGroupName("")
     setTag("")
     setTitle("")
-    setSub("")
+    setEvents([])
     setTone("sea")
     setError(null)
   }
@@ -1160,7 +1210,7 @@ function AddDayRow({
         endDate,
         groupName,
         title,
-        sub,
+        events: events.map((e) => ({ time: e.time, text: e.text })),
         tag,
         tone,
         locationId,
@@ -1204,8 +1254,8 @@ function AddDayRow({
       setTag={setTag}
       title={title}
       setTitle={setTitle}
-      sub={sub}
-      setSub={setSub}
+      events={events}
+      setEvents={setEvents}
       tone={tone}
       setTone={setTone}
       error={error}
@@ -1229,8 +1279,8 @@ function DayForm({
   setTag,
   title,
   setTitle,
-  sub,
-  setSub,
+  events,
+  setEvents,
   tone,
   setTone,
   locations,
@@ -1255,8 +1305,8 @@ function DayForm({
   setTag: (s: string) => void
   title: string
   setTitle: (s: string) => void
-  sub: string
-  setSub: (s: string) => void
+  events: EventDraft[]
+  setEvents: (e: EventDraft[]) => void
   tone: ItineraryTone
   setTone: (t: ItineraryTone) => void
   /** When provided (Edit mode), a Location select moves the day. */
@@ -1366,19 +1416,65 @@ function DayForm({
         />
       </label>
 
-      <label className="mt-3 block">
+      <div className="mt-3">
         <span className="block font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
-          Sub
+          Events
         </span>
-        <input
-          type="text"
-          value={sub}
-          onChange={(e) => setSub(e.target.value)}
-          placeholder="Optional"
-          disabled={isPending}
-          className="mt-1 w-full border-0 border-b border-rule bg-transparent py-1.5 text-[14px] text-foreground placeholder:text-muted-foreground focus:border-clay focus:outline-none disabled:opacity-50"
-        />
-      </label>
+        <div className="mt-1.5 space-y-2">
+          {events.map((ev) => (
+            <div key={ev.key} className="flex items-center gap-2">
+              <input
+                type="text"
+                value={ev.time}
+                onChange={(e) =>
+                  setEvents(
+                    events.map((x) =>
+                      x.key === ev.key ? { ...x, time: e.target.value } : x,
+                    ),
+                  )
+                }
+                onBlur={() =>
+                  setEvents(
+                    sortEvents(
+                      events.map((x) =>
+                        x.key === ev.key
+                          ? { ...x, time: normalizeTime(x.time) }
+                          : x,
+                      ),
+                    ),
+                  )
+                }
+                placeholder="09:00"
+                disabled={isPending}
+                className="t-num w-16 shrink-0 border-0 border-b border-rule bg-transparent py-1.5 text-[13px] text-foreground placeholder:text-muted-foreground focus:border-clay focus:outline-none disabled:opacity-50"
+              />
+              <input
+                type="text"
+                value={ev.text}
+                onChange={(e) =>
+                  setEvents(
+                    events.map((x) =>
+                      x.key === ev.key ? { ...x, text: e.target.value } : x,
+                    ),
+                  )
+                }
+                placeholder="What happens"
+                disabled={isPending}
+                className="flex-1 border-0 border-b border-rule bg-transparent py-1.5 text-[14px] text-foreground placeholder:text-muted-foreground focus:border-clay focus:outline-none disabled:opacity-50"
+              />
+              <button
+                type="button"
+                onClick={() => setEvents(events.filter((x) => x.key !== ev.key))}
+                disabled={isPending}
+                aria-label="Remove event"
+                className="border-0 bg-transparent px-1.5 py-1 font-mono text-[13px] text-muted-foreground hover:text-clay disabled:opacity-50"
+              >
+                ×
+              </button>
+            </div>
+          ))}
+        </div>
+      </div>
 
       <div className="mt-4">
         <span className="block font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
@@ -1441,22 +1537,32 @@ function DayForm({
         <div className="mt-3 font-mono text-[10px] text-clay">{error}</div>
       ) : null}
 
-      <div className="mt-4 flex justify-end gap-2">
+      <div className="mt-4 flex items-center justify-between">
         <button
           type="button"
-          onClick={onCancel}
+          onClick={() => setEvents([...events, newEventDraft()])}
           disabled={isPending}
-          className="border-0 bg-transparent px-3 py-1.5 font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground hover:text-foreground"
+          className="border-0 bg-transparent px-1 py-1.5 font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground hover:text-foreground disabled:opacity-50"
         >
-          cancel
+          + add event
         </button>
-        <button
-          type="submit"
-          disabled={isPending || !title.trim() || !tag.trim()}
-          className="rounded-full border-0 bg-foreground px-3.5 py-1.5 font-mono text-[10px] uppercase tracking-[0.2em] text-background disabled:opacity-40"
-        >
-          {isPending ? "…" : submitLabel}
-        </button>
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={onCancel}
+            disabled={isPending}
+            className="border-0 bg-transparent px-3 py-1.5 font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground hover:text-foreground"
+          >
+            cancel
+          </button>
+          <button
+            type="submit"
+            disabled={isPending || !title.trim() || !tag.trim()}
+            className="rounded-full border-0 bg-foreground px-3.5 py-1.5 font-mono text-[10px] uppercase tracking-[0.2em] text-background disabled:opacity-40"
+          >
+            {isPending ? "…" : submitLabel}
+          </button>
+        </div>
       </div>
     </form>
   )

@@ -16,8 +16,13 @@ small "time + text" entry — instead of cramming everything into one line.
   Not a full nested day (no own tag/title/tone).
 - Events **replace** the single `sub` field. The day keeps its title; the old
   `sub` becomes the first event on existing rows.
-- **Time is optional, order is manual.** Events render in the order added; no
-  auto-sort by time. Time is a free `"HH:MM"`-style string, cosmetic only.
+- **Time is optional; events auto-sort by time.** *(Superseded the original
+  "manual order" call during implementation, at the user's request.)* Events
+  render ascending by time; untimed events sort to the end keeping their relative
+  order. Time is a free `"HH:MM"`-style string. On blur the form normalizes a
+  typed time (`"11"` -> `"11:00"`, `"9:5"` -> `"09:05"`) and re-sorts. Sorting is
+  a string compare on the zero-padded value, applied both in the form (on blur)
+  and on the day card (on render), so it survives reload and Realtime.
 - Storage is a dedicated **`events jsonb`** column (Approach A), not JSON packed
   into the text column.
 
@@ -82,7 +87,9 @@ nothing, same as an empty sub today.
 
 ## Out of scope
 
-- Auto-sorting events by time.
-- Drag-to-reorder events within a day.
+- Drag-to-reorder events within a day. *(Discussed during implementation and
+  deferred: the drag mechanics are cheap — dnd-kit is already wired and `events`
+  is a stored ordered array — but it conflicts with auto-sort-by-time, which is
+  the real decision. Revisit if needed.)*
 - The dream itinerary (`dream_itinerary_days`) — keeps its single `sub`.
 - Dropping the now-unused `sub` column.

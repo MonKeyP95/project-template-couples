@@ -15,6 +15,7 @@ import {
   ITINERARY_TONES,
   rowToItineraryDay,
   type ItineraryDay,
+  type ItineraryEvent,
   type ItineraryTone,
 } from "@/lib/trips/itinerary-types"
 import {
@@ -987,7 +988,7 @@ export interface AddItineraryDayInput {
   /** Optional name for a multi-day block; only used when a span (2+ days) is created. */
   groupName?: string
   title: string
-  sub: string
+  events: ItineraryEvent[]
   tag: string
   tone: ItineraryTone
   /** Location to file the day(s) under; null/undefined = travel day. */
@@ -1072,7 +1073,9 @@ export async function addItineraryDay(
     }
   }
 
-  const sub = input.sub.trim()
+  const events = input.events
+    .map((e) => ({ time: e.time.trim(), text: e.text.trim() }))
+    .filter((e) => e.text.length > 0)
 
   // A multi-day span shares one group_id so the UI can mark "added together".
   const groupId = dates.length > 1 ? crypto.randomUUID() : null
@@ -1083,7 +1086,7 @@ export async function addItineraryDay(
     trip_id: input.tripId,
     day_date,
     title,
-    sub,
+    events,
     tag,
     tone: input.tone,
     group_id: groupId,
@@ -1095,7 +1098,7 @@ export async function addItineraryDay(
   const { data, error } = await supabase
     .from("itinerary_days")
     .insert(rows)
-    .select("id, day_date, title, sub, tag, tone, group_id, group_name, location_id")
+    .select("id, day_date, title, events, tag, tone, group_id, group_name, location_id")
 
   if (error) {
     if (error.code === "23505") {
@@ -1126,13 +1129,17 @@ export async function insertItineraryDayWithShift(
   const endDate = input.endDate?.trim() || input.dayDate
   const count = enumerateDates(input.dayDate, endDate).length
 
+  const events = input.events
+    .map((e) => ({ time: e.time.trim(), text: e.text.trim() }))
+    .filter((e) => e.text.length > 0)
+
   const supabase = await createClient()
   const { error } = await supabase.rpc("shift_and_insert_itinerary", {
     p_trip_id: input.tripId,
     p_from_date: input.dayDate,
     p_count: count,
     p_title: input.title.trim(),
-    p_sub: input.sub.trim(),
+    p_events: events,
     p_tag: input.tag.trim(),
     p_tone: input.tone,
     p_location_id: input.locationId ?? null,
@@ -1149,7 +1156,7 @@ export interface UpdateItineraryDayInput {
   tripSlug: string
   dayDate: string
   title: string
-  sub: string
+  events: ItineraryEvent[]
   tag: string
   tone: ItineraryTone
   /** When provided, moves the day to this location (null = travel day). */
@@ -1175,19 +1182,21 @@ export async function updateItineraryDay(
   if (!ITINERARY_TONES.includes(input.tone)) return { error: "Invalid tone." }
 
   const supabase = await createClient()
-  const sub = input.sub.trim()
+  const events = input.events
+    .map((e) => ({ time: e.time.trim(), text: e.text.trim() }))
+    .filter((e) => e.text.length > 0)
 
   const patch: {
     day_date: string
     title: string
-    sub: string
+    events: ItineraryEvent[]
     tag: string
     tone: ItineraryTone
     location_id?: string | null
   } = {
     day_date: input.dayDate,
     title,
-    sub,
+    events,
     tag,
     tone: input.tone,
   }
