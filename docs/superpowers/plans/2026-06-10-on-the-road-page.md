@@ -16,7 +16,7 @@
 - **Migrations are applied by hand.** SQL files are pasted into the Supabase SQL editor; committing/restarting does nothing to the DB. The migration task includes that manual step explicitly.
 - **"Today" is the UTC date** `new Date().toISOString().slice(0, 10)`, matching `list-queries.ts` / `home/page.tsx`. Stay consistent so trip-state detection and this page agree.
 - **Dates display day-before-month** (`en-GB`). Reuse `formatShortDate` (produces "12 Jun"); never `en-US`.
-- **Design decision to flag at review:** the spec says the user should "auto-land" on this page during a trip. The app currently has **no persistent nav bar**, and force-redirecting `/home` → `/on-the-road` would make Home unreachable. This plan instead adds a prominent entry **banner on Home** (Task 10) plus a back link on the page, and the route self-guards. A forced redirect can come later once a real nav exists.
+- **Persistent navigation (Tasks 10–13).** The trip page's inline `DesktopLeftRail` is extracted into a shared `LeftRail` (desktop) plus a `MobileTopNav` (mobile slim top bar) and shown on Home / On the road / Trip. Destinations: Home, On the road (only when a trip is active), and the current/active trip. This is why the route only needs to self-guard — navigation to it is always available from the rail/top bar. The trip page keeps its existing bottom tab bar as *sub*-navigation; the mobile global nav is a top bar so the two never stack.
 
 ---
 
@@ -30,7 +30,10 @@
 - **Create:** `src/app/on-the-road/quick-expense.tsx` — client; amount + category + name; calls `logExpense` with `dayDate = today`.
 - **Create:** `src/app/on-the-road/quick-note.tsx` — client; one-line jot; calls `addNote` with `dayDate = today`.
 - **Create:** `src/app/on-the-road/looking-ahead-panel.tsx` — presentational; renders the look-ahead result.
-- **Modify:** `src/app/home/page.tsx` — entry banner to `/on-the-road` when a trip is active.
+- **Create:** `src/components/app-nav.tsx` — shared `LeftRail` (desktop) + `MobileTopNav` (mobile) + `buildNavDestinations` pure helper.
+- **Modify:** `src/app/trips/[slug]/page.tsx` — use shared `LeftRail` (remove inline `DesktopLeftRail`); add `MobileTopNav`.
+- **Modify:** `src/app/on-the-road/page.tsx` — wrap in the rail layout + `MobileTopNav`.
+- **Modify:** `src/app/home/page.tsx` — add `LeftRail` (desktop) + `MobileTopNav` (mobile).
 - **Modify:** `docs/TODO.md`, `docs/DECISIONS.md` — record the work.
 
 ---
@@ -927,47 +930,389 @@ git commit -m "feat(on-the-road): looking-ahead panel (tomorrow + next move)"
 
 ---
 
-## Task 10: Home entry banner
+## Task 10: Shared navigation module
 
 **Files:**
-- Modify: `src/app/home/page.tsx`
+- Create: `src/components/app-nav.tsx`
 
-Surface the page from Home when a trip is active (the "auto-land" stand-in until a persistent nav exists).
+Extracts the trip rail into a reusable `LeftRail` (desktop) + `MobileTopNav` (mobile slim top bar), both fed by one pure `buildNavDestinations` helper.
 
-- [ ] **Step 1: Add the banner above the hero section**
-
-In `src/app/home/page.tsx`, inside the `{youOnly ? (...) : ( <> ... )}` branch, immediately before the `{hero ? (` section, add:
+- [ ] **Step 1: Write the module**
 
 ```tsx
-          {buckets.now[0] ? (
-            <Link
-              href="/on-the-road"
-              className="mb-3 flex items-center justify-between rounded-[12px] border border-border bg-card px-4 py-3.5 shadow-sm transition-shadow md:hover:shadow-md"
-            >
-              <span className="font-mono text-[11px] uppercase tracking-[0.18em] text-foreground">
-                {`On the road · ${buckets.now[0].name}`}
-              </span>
-              <Chevron />
-            </Link>
-          ) : null}
+import Link from "next/link"
+
+import { Avatar, Chevron, Coord, Label } from "@/components/together"
+import { ThemeToggle } from "@/components/theme-toggle"
+import type { CurrentWorkspace } from "@/lib/workspace/queries"
+
+export type NavKey = "home" | "on-the-road" | "trip"
+
+export interface NavDestination {
+  key: NavKey
+  label: string
+  href: string
+  italic?: boolean
+}
+
+/**
+ * Builds the Navigate list. Home is always present; On the road only during an
+ * active trip; the trip item points to the viewed/active trip when there is one.
+ */
+export function buildNavDestinations(opts: {
+  onTheRoad: boolean
+  tripSlug: string | null
+}): NavDestination[] {
+  const items: NavDestination[] = [
+    { key: "home", label: "Home", href: "/home" },
+  ]
+  if (opts.onTheRoad) {
+    items.push({
+      key: "on-the-road",
+      label: "On the road",
+      href: "/on-the-road",
+    })
+  }
+  if (opts.tripSlug) {
+    items.push({
+      key: "trip",
+      label: "Trip",
+      href: `/trips/${opts.tripSlug}`,
+      italic: true,
+    })
+  }
+  return items
+}
+
+export function LeftRail({
+  workspace,
+  initialDark,
+  destinations,
+  current,
+}: {
+  workspace: CurrentWorkspace
+  initialDark: boolean
+  destinations: NavDestination[]
+  current: NavKey
+}) {
+  const estYear = new Date(workspace.createdAt).getFullYear()
+  return (
+    <aside className="hidden lg:flex lg:w-[220px] lg:flex-shrink-0 lg:flex-col lg:gap-9 lg:border-r lg:border-border lg:bg-card lg:px-6 lg:py-8">
+      <div>
+        <Label>Together</Label>
+        <div className="t-display mt-2 text-[28px] leading-[0.95] text-foreground">
+          {workspace.members.map((m, i) => (
+            <span key={m.user_id}>
+              {i > 0 ? (
+                <span className="text-muted-foreground"> &amp; </span>
+              ) : null}
+              <em>{m.display_name}</em>
+            </span>
+          ))}
+        </div>
+        <Coord>workspace · est. {estYear}</Coord>
+      </div>
+
+      <div>
+        <Label className="mb-2.5 block">Navigate</Label>
+        <nav className="flex flex-col gap-0.5">
+          {destinations.map((d) =>
+            d.key === current ? (
+              <div
+                key={d.key}
+                className="flex items-center justify-between rounded-md bg-sea-tint px-2.5 py-2 text-[13.5px] text-foreground"
+              >
+                <span className={d.italic ? "font-serif italic" : undefined}>
+                  {d.label}
+                </span>
+                <Chevron />
+              </div>
+            ) : (
+              <Link
+                key={d.key}
+                href={d.href}
+                className="flex items-center justify-between rounded-md px-2.5 py-2 text-[13.5px] text-muted-foreground transition-colors hover:bg-sea-tint hover:text-foreground"
+              >
+                <span className={d.italic ? "font-serif italic" : undefined}>
+                  {d.label}
+                </span>
+                <Chevron />
+              </Link>
+            ),
+          )}
+        </nav>
+      </div>
+
+      <div className="mt-auto">
+        <Label className="mb-2.5 block">Members</Label>
+        <div className="flex flex-col gap-2">
+          {workspace.members.map((m, i) => (
+            <div key={m.user_id} className="flex items-center gap-2.5">
+              <Avatar
+                name={m.display_name}
+                size={24}
+                tone={i === 0 ? "sea" : "clay"}
+              />
+              <div className="font-serif text-[13px] italic text-foreground">
+                {m.display_name}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="flex items-center justify-between border-t border-border pt-5">
+        <Label>Appearance</Label>
+        <ThemeToggle initialDark={initialDark} />
+      </div>
+    </aside>
+  )
+}
+
+export function MobileTopNav({
+  destinations,
+  current,
+}: {
+  destinations: NavDestination[]
+  current: NavKey
+}) {
+  return (
+    <nav className="sticky top-0 z-20 flex items-center gap-1 border-b border-border bg-card/95 px-4 py-2 backdrop-blur lg:hidden">
+      {destinations.map((d) =>
+        d.key === current ? (
+          <span
+            key={d.key}
+            className="rounded-full bg-sea-tint px-3 py-1.5 font-mono text-[10px] uppercase tracking-[0.18em] text-foreground"
+          >
+            {d.label}
+          </span>
+        ) : (
+          <Link
+            key={d.key}
+            href={d.href}
+            className="rounded-full px-3 py-1.5 font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground hover:text-foreground"
+          >
+            {d.label}
+          </Link>
+        ),
+      )}
+    </nav>
+  )
+}
 ```
 
-(`Link` and `Chevron` are already imported in this file.)
+- [ ] **Step 2: Verify lint + build**
 
-- [ ] **Step 2: Verify lint + build, then look**
-
-Run: `pnpm lint` then `pnpm build` (clean). On `/home` during an active trip, the banner appears at the top of the trips area and links to `/on-the-road`; with no active trip it is absent.
+Run: `pnpm lint` then `pnpm build`
+Expected: both clean. (The exports are unused until the next tasks wire them in; that is fine — they are module exports, not local variables, so lint does not flag them.)
 
 - [ ] **Step 3: Commit**
 
 ```bash
-git add src/app/home/page.tsx
-git commit -m "feat(home): on-the-road entry banner during an active trip"
+git add src/components/app-nav.tsx
+git commit -m "feat(nav): shared LeftRail + MobileTopNav + destination builder"
 ```
 
 ---
 
-## Task 11: Docs
+## Task 11: Trip page uses the shared rail
+
+**Files:**
+- Modify: `src/app/trips/[slug]/page.tsx`
+
+Swap the inline `DesktopLeftRail` for the shared `LeftRail`, add `MobileTopNav`, and delete the now-dead inline rail.
+
+- [ ] **Step 1: Add imports**
+
+At the top of `src/app/trips/[slug]/page.tsx` add:
+
+```tsx
+import { listTripsForWorkspace } from "@/lib/trips/list-queries"
+import { LeftRail, MobileTopNav, buildNavDestinations } from "@/components/app-nav"
+```
+
+- [ ] **Step 2: Build the destinations near the end of the data loading**
+
+After `const dark = await isDarkTheme()` (around line 179), add:
+
+```tsx
+  const navTrips = await listTripsForWorkspace(workspace.id)
+  const navDestinations = buildNavDestinations({
+    onTheRoad: navTrips.now.length > 0,
+    tripSlug: header.slug,
+  })
+```
+
+- [ ] **Step 3: Render the shared rail + mobile top bar**
+
+In the returned JSX, replace this line:
+
+```tsx
+      <DesktopLeftRail workspace={workspace} initialDark={dark} />
+```
+
+with:
+
+```tsx
+      <MobileTopNav destinations={navDestinations} current="trip" />
+      <LeftRail
+        workspace={workspace}
+        initialDark={dark}
+        destinations={navDestinations}
+        current="trip"
+      />
+```
+
+(`MobileTopNav` is `lg:hidden`, so it does not disturb the `lg:flex` row; on mobile it sits as a sticky bar above the trip header.)
+
+- [ ] **Step 4: Delete the inline `DesktopLeftRail`**
+
+Remove the entire `function DesktopLeftRail(...) { ... }` definition (it is no longer referenced). Then run `pnpm lint` and remove any import it left unused — in particular `ThemeToggle` (now only used by the shared rail). Keep `Avatar`, `Coord`, `Chevron`, `Label` if other functions in the file still use them.
+
+- [ ] **Step 5: Verify lint + build, then look**
+
+Run: `pnpm lint` then `pnpm build` (clean). Open a trip on desktop — the left rail looks unchanged but its Navigate list now shows Home / On the road (if a trip is active) / Trip with Trip highlighted. On mobile, the slim top bar appears above the trip header and the existing bottom tab bar is untouched.
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add src/app/trips/[slug]/page.tsx
+git commit -m "refactor(trip): use shared LeftRail + add MobileTopNav"
+```
+
+---
+
+## Task 12: On the Road page gets the nav
+
+**Files:**
+- Modify: `src/app/on-the-road/page.tsx`
+
+Wrap the page in the rail layout and drop the now-redundant inline "home" link.
+
+- [ ] **Step 1: Add imports**
+
+```tsx
+import { isDarkTheme } from "@/lib/theme"
+import { LeftRail, MobileTopNav, buildNavDestinations } from "@/components/app-nav"
+```
+
+- [ ] **Step 2: Compute `dark` + destinations after `tone`**
+
+```tsx
+  const dark = await isDarkTheme()
+  const navDestinations = buildNavDestinations({
+    onTheRoad: true,
+    tripSlug: trip.slug,
+  })
+```
+
+- [ ] **Step 3: Replace the outer wrapper and header**
+
+Replace the opening `<main ...>` and its `<header>` block:
+
+```tsx
+    <main className="mx-auto min-h-screen w-full max-w-[440px] px-5 pt-12 pb-16 md:max-w-[560px] md:px-8">
+      <header className="mb-6 flex items-center justify-between">
+        <Label>{`On the road · ${trip.name}`}</Label>
+        <a
+          href="/home"
+          className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground hover:text-foreground"
+        >
+          home
+        </a>
+      </header>
+```
+
+with:
+
+```tsx
+    <main className="relative mx-auto min-h-screen w-full max-w-[440px] pb-16 lg:flex lg:max-w-none lg:items-stretch lg:pb-0">
+      <MobileTopNav destinations={navDestinations} current="on-the-road" />
+      <LeftRail
+        workspace={workspace}
+        initialDark={dark}
+        destinations={navDestinations}
+        current="on-the-road"
+      />
+      <div className="px-5 pt-6 pb-16 lg:min-w-0 lg:flex-1 lg:px-8 lg:py-8">
+        <Label className="mb-4 block">{`On the road · ${trip.name}`}</Label>
+```
+
+Then add one extra closing `</div>` immediately before the closing `</main>` to close this content wrapper. (The day-header / today / quick-expense / quick-note / looking-ahead sections built in Tasks 4–9 stay exactly as they are, now nested inside this `<div>`.)
+
+- [ ] **Step 4: Verify lint + build, then look**
+
+Run: `pnpm lint` then `pnpm build` (clean). On `/on-the-road`: desktop shows the left rail with "On the road" highlighted; mobile shows the slim top bar; all the day sections render inside the content column.
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add src/app/on-the-road/page.tsx
+git commit -m "feat(on-the-road): wrap page in shared rail + mobile top nav"
+```
+
+---
+
+## Task 13: Home page gets the nav
+
+**Files:**
+- Modify: `src/app/home/page.tsx`
+
+Add the rail on desktop and the top bar on mobile. `dark` and `workspace` are already loaded in this file.
+
+- [ ] **Step 1: Add imports**
+
+```tsx
+import { LeftRail, MobileTopNav, buildNavDestinations } from "@/components/app-nav"
+```
+
+- [ ] **Step 2: Build destinations after `buckets`**
+
+```tsx
+  const navDestinations = buildNavDestinations({
+    onTheRoad: buckets.now.length > 0,
+    tripSlug: hero?.slug ?? null,
+  })
+```
+
+(`hero` is defined just below `buckets`; move this line to after `hero` is computed.)
+
+- [ ] **Step 3: Wrap the page in the rail layout**
+
+Change the opening `<main className="mx-auto min-h-screen w-full max-w-[440px] px-5 pt-14 pb-10 md:max-w-[1200px] md:px-12 md:pt-12 md:pb-16">` to nest inside a flex container with the rail. Replace that opening tag with:
+
+```tsx
+    <div className="relative mx-auto min-h-screen w-full max-w-[440px] lg:flex lg:max-w-none lg:items-stretch">
+      {workspace ? (
+        <>
+          <MobileTopNav destinations={navDestinations} current="home" />
+          <LeftRail
+            workspace={workspace}
+            initialDark={dark}
+            destinations={navDestinations}
+            current="home"
+          />
+        </>
+      ) : null}
+      <main className="w-full px-5 pt-14 pb-10 lg:min-w-0 lg:flex-1 lg:px-12 lg:pt-12 lg:pb-16">
+```
+
+Then change the page's final closing `</main>` to `</main>\n    </div>` (close the new flex container).
+
+- [ ] **Step 4: Verify lint + build, then look**
+
+Run: `pnpm lint` then `pnpm build` (clean). On `/home`: desktop shows the rail on the left with Home highlighted (the main column sits to its right); mobile shows the slim top bar. The existing Home content (hero, trips, dreams, past) is intact. If the desktop main column feels too wide/narrow next to the rail, adjust its `lg:` max-width — purely visual.
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add src/app/home/page.tsx
+git commit -m "feat(home): shared LeftRail + MobileTopNav"
+```
+
+---
+
+## Task 14: Docs
 
 **Files:**
 - Modify: `docs/TODO.md`
@@ -975,25 +1320,25 @@ git commit -m "feat(home): on-the-road entry banner during an active trip"
 
 - [ ] **Step 1: Update `docs/TODO.md`**
 
-Add a short entry under the current phase recording that the On the Road page shipped (route `/on-the-road`, active-trip only, today's plan + quick expense + today's spend + quick note + look-ahead, `trip_notes.day_date` migration).
+Add a short entry under the current phase recording that the On the Road page shipped (route `/on-the-road`, active-trip only, today's plan + quick expense + today's spend + quick note + look-ahead, `trip_notes.day_date` migration) and that the trip rail was extracted into a shared `LeftRail` + `MobileTopNav` shown on Home / On the road / Trip.
 
 - [ ] **Step 2: Append a row to `docs/DECISIONS.md`**
 
-Record the non-obvious choice: *On the Road is gated to the active ("now") trip and reached via a Home banner + self-guarding route rather than a forced redirect, because the app has no persistent nav and redirecting Home would make it unreachable.*
+Record the non-obvious choice: *On the Road is gated to the active ("now") trip with a self-guarding route; it is reached through the persistent shared nav (`LeftRail` on desktop, `MobileTopNav` on mobile) rather than a forced redirect. The mobile global nav is a slim top bar so it never stacks with the trip page's existing bottom tab bar.*
 
 - [ ] **Step 3: Commit**
 
 ```bash
 git add docs/TODO.md docs/DECISIONS.md
-git commit -m "docs: record On the Road page + day_date decision"
+git commit -m "docs: record On the Road page + shared nav decisions"
 ```
 
 ---
 
 ## Self-review checklist (done while writing)
 
-- **Spec coverage:** activation rule (Task 4 guard + Task 10 banner), day header + weather (Tasks 4–5), today's plan (Task 5), quick add expense (Task 6), today's spend (Task 7), quick note jot (Tasks 1–2, 8), look-ahead with tomorrow's first-event-with-time + next move + collapse (Tasks 3, 9), single additive migration (Task 1), route `/on-the-road` (Task 4). All covered.
+- **Spec coverage:** activation rule (Task 4 guard), day header + weather (Tasks 4–5), today's plan (Task 5), quick add expense (Task 6), today's spend (Task 7), quick note jot (Tasks 1–2, 8), look-ahead with tomorrow's first-event-with-time + next move + collapse (Tasks 3, 9), single additive migration (Task 1), route `/on-the-road` (Task 4), persistent navigation — shared `LeftRail` + `MobileTopNav` on Home / On the road / Trip with Home + On the road + current-trip destinations (Tasks 10–13). All covered.
 - **Auto-advance:** handled by `TodayNextEvent` (falls back to "last" once events pass) and the date being the real UTC day; no extra task needed.
-- **Type consistency:** `LookingAhead`, `computeLookingAhead`, `getNotesForDay`, `AddNoteInput.dayDate`, `QuickExpenseProps.spentTodayCents` are defined where first used and consumed with the same names.
+- **Type consistency:** `LookingAhead`, `computeLookingAhead`, `getNotesForDay`, `AddNoteInput.dayDate`, `QuickExpenseProps.spentTodayCents`, `NavDestination` / `buildNavDestinations` / `LeftRail` / `MobileTopNav` are defined where first used and consumed with the same names.
 - **No placeholders:** every code step is complete.
 

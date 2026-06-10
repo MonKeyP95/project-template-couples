@@ -17,8 +17,8 @@ When a trip is active, this becomes the app's home base; you only dip back into 
 
 The page **only wakes up during an active trip** — a trip whose date range contains today (the existing `state === "now"` notion).
 
-- Active trip exists: the route renders, the nav item is shown, and the user auto-lands here instead of Home.
-- No active trip: the route redirects to Home and the nav item is absent.
+- Active trip exists: the route renders and the persistent nav surfaces an "On the road" destination.
+- No active trip: the route redirects to Home and the "On the road" destination is absent from the nav.
 
 This keeps the page from ever being empty or awkward. It is a mode that wakes during a trip, not a permanent always-present destination.
 
@@ -26,7 +26,20 @@ This keeps the page from ever being empty or awkward. It is a mode that wakes du
 
 - New route: `/on-the-road`.
 - Active-trip detection reuses the existing `state === "now"` logic already used on Home.
-- Nav shows the item and auto-lands the user here only when a trip is active; otherwise the item is hidden and the route redirects to Home.
+- The route self-guards: it renders only when a trip is active, and redirects to `/home` otherwise.
+- Reaching the page is handled by the persistent navigation below (an "On the road" destination that appears only when a trip is active), not a forced redirect from Home.
+
+## Persistent navigation
+
+The trip view's desktop left column (`DesktopLeftRail` — workspace names, a Navigate list, Members, theme toggle) is extracted into a shared component and shown on **all three** top-level surfaces (Home, On the road, Trip) so the user can navigate anywhere from anywhere.
+
+- **Desktop (`lg:` and up):** a shared `LeftRail` aside, replacing the trip page's inline `DesktopLeftRail`.
+- **Mobile (below `lg:`):** a slim sticky **top bar** with the same destinations. It lives in the header zone every page already has, so it never collides with the trip page's existing bottom tab bar (which stays as the trip's *sub*-navigation). One global nav, no stacked bottom bars.
+- **Navigate destinations** (same list both breakpoints, driven by one pure helper):
+  - **Home** — always.
+  - **On the road** — only when a trip is active.
+  - **Current trip** — the trip being viewed, or the active trip when on Home / On the road.
+  - The destination matching the current page is highlighted.
 
 ## Auto-advance behaviour
 
