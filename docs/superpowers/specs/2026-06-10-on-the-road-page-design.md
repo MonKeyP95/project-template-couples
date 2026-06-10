@@ -24,7 +24,7 @@ This keeps the page from ever being empty or awkward. It is a mode that wakes du
 
 ## Routing & nav
 
-- New route, working name `/now`.
+- New route: `/on-the-road`.
 - Active-trip detection reuses the existing `state === "now"` logic already used on Home.
 - Nav shows the item and auto-lands the user here only when a trip is active; otherwise the item is hidden and the route redirects to Home.
 
