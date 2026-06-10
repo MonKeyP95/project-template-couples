@@ -72,7 +72,9 @@ begin
       public.is_workspace_member(workspace_id) and created_by = auth.uid()
     );
   create policy checklists_update on public.checklists
-    for update to authenticated using (public.is_workspace_member(workspace_id));
+    for update to authenticated
+    using (public.is_workspace_member(workspace_id))
+    with check (public.is_workspace_member(workspace_id));
   create policy checklists_delete on public.checklists
     for delete to authenticated using (public.is_workspace_member(workspace_id));
 
@@ -81,7 +83,9 @@ begin
   create policy checklist_categories_insert on public.checklist_categories
     for insert to authenticated with check (public.is_checklist_workspace_member(checklist_id));
   create policy checklist_categories_update on public.checklist_categories
-    for update to authenticated using (public.is_checklist_workspace_member(checklist_id));
+    for update to authenticated
+    using (public.is_checklist_workspace_member(checklist_id))
+    with check (public.is_checklist_workspace_member(checklist_id));
   create policy checklist_categories_delete on public.checklist_categories
     for delete to authenticated using (public.is_checklist_workspace_member(checklist_id));
 
@@ -92,7 +96,9 @@ begin
       public.is_checklist_workspace_member(checklist_id) and added_by = auth.uid()
     );
   create policy checklist_items_update on public.checklist_items
-    for update to authenticated using (public.is_checklist_workspace_member(checklist_id));
+    for update to authenticated
+    using (public.is_checklist_workspace_member(checklist_id))
+    with check (public.is_checklist_workspace_member(checklist_id));
   create policy checklist_items_delete on public.checklist_items
     for delete to authenticated using (public.is_checklist_workspace_member(checklist_id));
 exception
