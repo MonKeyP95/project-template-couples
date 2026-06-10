@@ -21,6 +21,19 @@ function iconFor(code: number) {
   return CloudIcon
 }
 
+/** A weather-reflective color (oklch) for a WMO code, applied to the icon. */
+function colorFor(code: number): string {
+  if ((code >= 71 && code <= 77) || code === 85 || code === 86)
+    return "oklch(0.78 0.07 220)" // snow — icy blue
+  if (code >= 95) return "oklch(0.56 0.14 285)" // storm — indigo
+  if ((code >= 51 && code <= 67) || (code >= 80 && code <= 82))
+    return "oklch(0.60 0.13 240)" // rain — blue
+  if (code === 0) return "oklch(0.80 0.14 85)" // clear — gold
+  if (code === 1 || code === 2) return "oklch(0.74 0.10 75)" // mostly clear — warm
+  if (code === 45 || code === 48) return "oklch(0.66 0.02 240)" // fog — gray
+  return "oklch(0.62 0.035 240)" // cloudy — slate
+}
+
 /** Short human label for a WMO weather code. */
 function labelFor(code: number): string {
   if (code === 0) return "Clear"
@@ -58,8 +71,9 @@ export function WeatherCard({
       >
         <span className="flex items-center gap-2">
           {React.createElement(iconFor(weather.code), {
-            className: "h-4 w-4 text-muted-foreground",
+            className: "h-4 w-4",
             strokeWidth: 2,
+            color: colorFor(weather.code),
           })}
           <span className="text-[13px] text-foreground">{labelFor(weather.code)}</span>
           <span className="t-num text-[13px] text-muted-foreground">
@@ -89,8 +103,9 @@ export function WeatherCard({
                     {h.time}
                   </span>
                   {React.createElement(iconFor(h.code), {
-                    className: "h-3.5 w-3.5 text-muted-foreground",
+                    className: "h-3.5 w-3.5",
                     strokeWidth: 2,
+                    color: colorFor(h.code),
                   })}
                   <span className="t-num text-[11px] text-foreground">
                     {Math.round(h.tempC)}°
