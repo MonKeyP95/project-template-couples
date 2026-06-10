@@ -59,6 +59,7 @@ interface RealtimeRow {
   trip_id: string
   day_date: string
   title: string
+  sub: string | null
   events: unknown
   tag: string
   tone: string
@@ -107,6 +108,16 @@ function sortEvents<T extends { time: string }>(list: T[]): T[] {
 
 function toEventDrafts(events: ItineraryEvent[]): EventDraft[] {
   return events.map((e) => newEventDraft(e.time, e.text))
+}
+
+/** One-line summary for a collapsed day: the typed sub, else a cheap derived
+ * hint from the events (first event text, or "N events"), else "". */
+function daySummary(day: ItineraryDay): string {
+  if (day.sub.trim()) return day.sub
+  const evs = sortEvents(day.events)
+  if (evs.length === 0) return ""
+  if (evs.length === 1) return evs[0].text
+  return `${evs.length} events`
 }
 
 /** Collapse sorted days into maximal runs of consecutive same-group_id days. */
@@ -259,6 +270,16 @@ export function ItineraryTab({
     React.useState(initialLocations)
   const [collapsed, setCollapsed] = React.useState<Set<string>>(new Set())
   const [expandedRuns, setExpandedRuns] = React.useState<Set<string>>(new Set())
+  const [expandedDays, setExpandedDays] = React.useState<Set<string>>(new Set())
+
+  function toggleDay(id: string) {
+    setExpandedDays((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
 
   if (initialLocations !== lastInitialLocations) {
     setLastInitialLocations(initialLocations)
@@ -548,6 +569,8 @@ export function ItineraryTab({
                     editingId={editingId}
                     setEditingId={setEditingId}
                     locations={locations}
+                    expandedDays={expandedDays}
+                    toggleDay={toggleDay}
                   />
                 </div>
               )
@@ -814,6 +837,8 @@ export function ItineraryTab({
                             editingId={editingId}
                             setEditingId={setEditingId}
                             locations={locations}
+                            expandedDays={expandedDays}
+                            toggleDay={toggleDay}
                           />
                         )
                       })
@@ -867,6 +892,8 @@ function DaySegmentView({
   editingId,
   setEditingId,
   locations,
+  expandedDays,
+  toggleDay,
 }: {
   seg: DaySegment
   tripId: string
@@ -875,12 +902,16 @@ function DaySegmentView({
   editingId: string | null
   setEditingId: (id: string | null) => void
   locations: ItineraryLocation[]
+  expandedDays: Set<string>
+  toggleDay: (id: string) => void
 }) {
   const cards = seg.days.map((day) => (
     <DayCard
       key={day.id}
       day={day}
       tripSlug={tripSlug}
+      expanded={expandedDays.has(day.id)}
+      onToggle={() => toggleDay(day.id)}
       isLast={day.id === lastDayId}
       isEditing={editingId === day.id}
       onStartEdit={() => setEditingId(day.id)}
@@ -957,6 +988,8 @@ interface DayCardProps {
   tripSlug: string
   isLast: boolean
   isEditing: boolean
+  expanded: boolean
+  onToggle: () => void
   onStartEdit: () => void
   onStopEdit: () => void
   dragHandle?: React.ReactNode
@@ -968,6 +1001,8 @@ function DayCard({
   tripSlug,
   isLast,
   isEditing,
+  expanded,
+  onToggle,
   onStartEdit,
   onStopEdit,
   dragHandle,
@@ -988,6 +1023,8 @@ function DayCard({
       day={day}
       tripSlug={tripSlug}
       isLast={isLast}
+      expanded={expanded}
+      onToggle={onToggle}
       onStartEdit={onStartEdit}
       dragHandle={dragHandle}
     />
@@ -998,12 +1035,16 @@ function DayView({
   day,
   tripSlug,
   isLast,
+  expanded,
+  onToggle,
   onStartEdit,
   dragHandle,
 }: {
   day: ItineraryDay
   tripSlug: string
   isLast: boolean
+  expanded: boolean
+  onToggle: () => void
   onStartEdit: () => void
   dragHandle?: React.ReactNode
 }) {
@@ -1035,25 +1076,40 @@ function DayView({
             day {Number(day.d)}
           </span>
         </div>
-        <div className="t-display mb-1 text-[22px] leading-tight text-foreground">
+        <button
+          type="button"
+          onClick={onToggle}
+          aria-expanded={expanded}
+          className="t-display mb-1 block w-full text-left text-[22px] leading-tight text-foreground"
+        >
           {day.title}
-        </div>
-        {day.events.length > 0 ? (
-          <div className="space-y-0.5">
-            {sortEvents(day.events).map((ev, i) => (
-              <div
-                key={i}
-                className="flex gap-1.5 text-[12.5px] leading-snug text-muted-foreground"
-              >
-                {ev.time ? (
-                  <span className="t-num shrink-0 text-foreground/70">
-                    {ev.time}
-                  </span>
-                ) : null}
-                <span>{ev.text}</span>
-              </div>
-            ))}
-          </div>
+        </button>
+        {expanded ? (
+          day.events.length > 0 ? (
+            <div className="space-y-0.5">
+              {sortEvents(day.events).map((ev, i) => (
+                <div
+                  key={i}
+                  className="flex gap-1.5 text-[12.5px] leading-snug text-muted-foreground"
+                >
+                  {ev.time ? (
+                    <span className="t-num shrink-0 text-foreground/70">
+                      {ev.time}
+                    </span>
+                  ) : null}
+                  <span>{ev.text}</span>
+                </div>
+              ))}
+            </div>
+          ) : null
+        ) : daySummary(day) ? (
+          <button
+            type="button"
+            onClick={onToggle}
+            className="block w-full text-left text-[12.5px] leading-snug text-muted-foreground"
+          >
+            {daySummary(day)}
+          </button>
         ) : null}
         <div className="mt-2 flex items-center justify-end gap-1">
           <button
@@ -1103,6 +1159,7 @@ function DayEditor({
   const [dayDate, setDayDate] = React.useState(day.dayDate)
   const [tag, setTag] = React.useState(day.tag)
   const [title, setTitle] = React.useState(day.title)
+  const [sub, setSub] = React.useState(day.sub)
   const [events, setEvents] = React.useState<EventDraft[]>(() =>
     toEventDrafts(day.events),
   )
@@ -1123,6 +1180,7 @@ function DayEditor({
         tripSlug,
         dayDate,
         title,
+        sub,
         events: events.map((e) => ({ time: e.time, text: e.text })),
         tag,
         tone,
@@ -1145,6 +1203,8 @@ function DayEditor({
       setTag={setTag}
       title={title}
       setTitle={setTitle}
+      sub={sub}
+      setSub={setSub}
       events={events}
       setEvents={setEvents}
       tone={tone}
@@ -1181,6 +1241,7 @@ function AddDayRow({
   const [groupName, setGroupName] = React.useState("")
   const [tag, setTag] = React.useState("")
   const [title, setTitle] = React.useState("")
+  const [sub, setSub] = React.useState("")
   const [events, setEvents] = React.useState<EventDraft[]>([])
   const [tone, setTone] = React.useState<ItineraryTone>("sea")
   const [error, setError] = React.useState<string | null>(null)
@@ -1193,6 +1254,7 @@ function AddDayRow({
     setGroupName("")
     setTag("")
     setTitle("")
+    setSub("")
     setEvents([])
     setTone("sea")
     setError(null)
@@ -1210,6 +1272,7 @@ function AddDayRow({
         endDate,
         groupName,
         title,
+        sub,
         events: events.map((e) => ({ time: e.time, text: e.text })),
         tag,
         tone,
@@ -1254,6 +1317,8 @@ function AddDayRow({
       setTag={setTag}
       title={title}
       setTitle={setTitle}
+      sub={sub}
+      setSub={setSub}
       events={events}
       setEvents={setEvents}
       tone={tone}
@@ -1279,6 +1344,8 @@ function DayForm({
   setTag,
   title,
   setTitle,
+  sub,
+  setSub,
   events,
   setEvents,
   tone,
@@ -1305,6 +1372,8 @@ function DayForm({
   setTag: (s: string) => void
   title: string
   setTitle: (s: string) => void
+  sub: string
+  setSub: (s: string) => void
   events: EventDraft[]
   setEvents: (e: EventDraft[]) => void
   tone: ItineraryTone
@@ -1413,6 +1482,20 @@ function DayForm({
           onChange={(e) => setTitle(e.target.value)}
           disabled={isPending}
           className="mt-1 w-full border-0 border-b border-rule bg-transparent py-1.5 text-[16px] text-foreground focus:border-clay focus:outline-none disabled:opacity-50"
+        />
+      </label>
+
+      <label className="mt-3 block">
+        <span className="block font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
+          Summary
+        </span>
+        <input
+          type="text"
+          value={sub}
+          onChange={(e) => setSub(e.target.value)}
+          placeholder="One-line overview of the day"
+          disabled={isPending}
+          className="mt-1 w-full border-0 border-b border-rule bg-transparent py-1.5 text-[14px] text-foreground placeholder:text-muted-foreground focus:border-clay focus:outline-none disabled:opacity-50"
         />
       </label>
 
