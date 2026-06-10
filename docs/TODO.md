@@ -1,6 +1,8 @@
 # TODO.md
 
 ## Current Phase
+**Phases 1–4.6 complete; itinerary work (locations, spans, events, during-trip mode, home today signal) all shipped through 2026-06-10. Next is Phase 5 — AI assistant** (Anthropic Claude via `lib/ai/claude.ts`, not yet wired; the moss-bordered `SuggestionCard` is its placeholder). The completed-task log below stays as history.
+
 **Phase 4.6 — Itinerary Editing (dated trips): code shipped 2026-05-28 (pending Supabase migration paste to enable Realtime).** The itinerary timeline is now fully editable inline: `+ add day` opens a five-field form (date / tag / title / sub / tone pill picker) with the date pre-filled to the next available slot; `✎` on a day card swaps it for the same form pre-populated; `×` deletes with native confirm. Three Server Actions mirror the `addNote` / `updateNote` / `deleteNote` shape; `23505` collisions on `(trip_id, day_date)` translate to "Another day already uses that date." Realtime channel on `itinerary_days` keeps the two devices in sync. Dreams unchanged — Slice B (numbered days for dreams) and Slice C (drag-to-reschedule) carried below. **Migration applied + verified in-app 2026-05-30** (`20260528000004_phase_4_6_itinerary_realtime.sql`).
 
 **Phase 4.5 — Trip Notes: shipped 2026-05-28.** New Notes tab on `/trips/[slug]` lets any workspace member jot, edit, and delete free-text notes for a trip. Backed by a `trip_notes` table (FK cascade, RLS via `is_trip_workspace_member`). Three Server Actions (`addNote` / `updateNote` / `deleteNote`). Per-trip-only scope; workspace-level `/notes` deferred per the spec.
@@ -82,6 +84,9 @@ Working from `design_handoff_together_app/README.md` (hi-fi handoff for Phase 3 
 ## Backlog (post-Lombok-trip, not yet phased)
 
 Items surfaced by the 2026-05-28 doc audit — referenced in `VISION.md` / `FEATURES.md` / `PLAN.md` / `design_handoff_together_app/README.md` but not in any phase. Pick up after the Lombok trip when real-use signal tells us which actually matter. Trip notes are intentionally **not** listed here — they're scheduled as Phase 4.5.
+
+### Maps / visualization
+- **Visited-countries map.** Color in each country a couple has taken a trip to. Not a tweak: the current `WorldMapBg` is anonymous land outlines (`fill:none`, no per-country paths), so it needs a country-keyed map asset (static SVG with ISO `id`s, or `react-simple-maps` + a world atlas) plus a `country` text → ISO-code lookup (the `trips.country` field is free text). Decide scope first — colored map behind everything is busy once countries light up; a dedicated "places you've been" map on `/home` is likely the better home. Listed under FEATURES "Later".
 
 ### Profile + workspace
 - **Profile avatar uploads.** Phase 2 shipped with `avatar is initials only (image upload deferred)`; `PLAN.md:22` lists it as a Phase 4 candidate. Shape: Supabase Storage bucket (`avatars/<user_id>.jpg`), `<input type="file">` on `/profile`, server action uploads + writes `profiles.avatar_url`. The existing `Avatar` primitive in `src/components/together/` swaps from initials to an `<img>` when `avatar_url` is set; `PairAvatar` follows automatically.
