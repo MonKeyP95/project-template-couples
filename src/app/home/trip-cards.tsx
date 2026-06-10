@@ -119,7 +119,11 @@ export async function HeroCard({
       className="block overflow-hidden rounded-[14px] border border-border bg-card shadow-md transition-shadow md:hover:shadow-lg"
     >
       <div
-        className={`relative h-[132px] overflow-hidden ${surface[tone]} md:aspect-[16/10] md:h-auto`}
+        className={`relative overflow-hidden ${surface[tone]} md:h-auto ${
+          today
+            ? "h-[104px] md:aspect-[2/1]"
+            : "h-[132px] md:aspect-[16/10]"
+        }`}
       >
         <TopoBg tone={tone} opacity={0.16} />
         <div className="relative flex h-full flex-col justify-between p-4 md:p-5">
@@ -134,7 +138,11 @@ export async function HeroCard({
           </div>
           <div>
             <div className="flex items-baseline gap-3">
-              <div className="t-display text-[38px] leading-none text-foreground md:text-[44px]">
+              <div
+                className={`t-display leading-none text-foreground ${
+                  today ? "text-[32px] md:text-[36px]" : "text-[38px] md:text-[44px]"
+                }`}
+              >
                 <em>{trip.name}</em>
               </div>
               {trip.startDate ? (
@@ -152,14 +160,14 @@ export async function HeroCard({
           </div>
         </div>
       </div>
-      <div className="px-4 py-3 md:px-5 md:py-3.5">
+      <div className={`px-4 md:px-5 ${today ? "py-4 md:py-5" : "py-3 md:py-3.5"}`}>
         {today ? (
-          <div className="mb-2.5">
-            <div className="t-display text-[17px] leading-tight text-foreground">
+          <div className="mb-3">
+            <div className="t-display text-[24px] leading-tight text-foreground md:text-[28px]">
               {today.title}
             </div>
             {daySummary(today) ? (
-              <div className="mt-0.5 text-[12px] leading-snug text-muted-foreground">
+              <div className="mt-1 text-[13px] leading-snug text-muted-foreground">
                 {daySummary(today)}
               </div>
             ) : null}

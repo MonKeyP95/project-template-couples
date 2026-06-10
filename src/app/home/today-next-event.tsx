@@ -53,7 +53,7 @@ export function TodayNextEvent({ events }: { events: ItineraryEvent[] }) {
   const label = upcoming ? "next" : "last"
 
   return (
-    <div className="mt-0.5 font-mono text-[11px] tracking-[0.04em] text-muted-foreground">
+    <div className="mt-1.5 font-mono text-[12.5px] tracking-[0.04em] text-muted-foreground">
       <span className="uppercase tracking-[0.14em] text-foreground/70">
         {label}
       </span>{" "}
