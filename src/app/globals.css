@@ -73,28 +73,28 @@
    Extended palette adds sea/sand/clay/moss/dusk + tints used per page. */
 :root {
   color-scheme: light;
-  --background: oklch(0.95 0.022 232);
+  --background: oklch(0.955 0.012 78);
   --foreground: oklch(0.24 0.02 232);
-  --card: oklch(0.98 0.01 232);
+  --card: oklch(0.965 0.02 232);
   --card-foreground: oklch(0.24 0.02 232);
-  --popover: oklch(0.98 0.01 232);
+  --popover: oklch(0.965 0.02 232);
   --popover-foreground: oklch(0.24 0.02 232);
 
   --primary: oklch(0.42 0.08 218);
-  --primary-foreground: oklch(0.98 0.01 232);
+  --primary-foreground: oklch(0.985 0.006 78);
 
   --secondary: oklch(0.93 0.025 210);
   --secondary-foreground: oklch(0.24 0.02 232);
 
-  --muted: oklch(0.93 0.018 232);
+  --muted: oklch(0.93 0.014 78);
   --muted-foreground: oklch(0.42 0.02 232);
 
   --accent: oklch(0.93 0.025 210);
   --accent-foreground: oklch(0.24 0.02 232);
 
   --destructive: oklch(0.60 0.21 25);
-  --border: oklch(0.87 0.016 232);
-  --input: oklch(0.87 0.016 232);
+  --border: oklch(0.86 0.014 78);
+  --input: oklch(0.86 0.014 78);
   --ring: oklch(0.42 0.08 218);
 
   --sea: oklch(0.42 0.08 218);
@@ -127,13 +127,13 @@
 
   --radius: 0.625rem;
 
-  --sidebar: oklch(0.98 0.01 232);
+  --sidebar: oklch(0.965 0.02 232);
   --sidebar-foreground: oklch(0.24 0.02 232);
   --sidebar-primary: oklch(0.42 0.08 218);
-  --sidebar-primary-foreground: oklch(0.98 0.01 232);
+  --sidebar-primary-foreground: oklch(0.985 0.006 78);
   --sidebar-accent: oklch(0.93 0.025 210);
   --sidebar-accent-foreground: oklch(0.24 0.02 232);
-  --sidebar-border: oklch(0.87 0.016 232);
+  --sidebar-border: oklch(0.86 0.014 78);
   --sidebar-ring: oklch(0.42 0.08 218);
 }
 
