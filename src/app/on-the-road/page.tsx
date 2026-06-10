@@ -23,6 +23,7 @@ import { computeLookingAhead } from "@/lib/trips/looking-ahead"
 import { QuickExpense } from "./quick-expense"
 import { QuickNote } from "./quick-note"
 import { LookingAheadPanel } from "./looking-ahead-panel"
+import { AddTodayEvent } from "./add-today-event"
 
 const WEEKDAY_FMT = new Intl.DateTimeFormat("en-GB", {
   weekday: "short",
@@ -118,6 +119,12 @@ export default async function OnTheRoadPage() {
             Nothing planned for today.
           </div>
         )}
+        <AddTodayEvent
+          tripId={trip.id}
+          tripSlug={trip.slug}
+          dayDate={today}
+          dayId={todayDay?.id ?? null}
+        />
       </section>
 
       <QuickExpense

@@ -26,6 +26,7 @@ import {
   rowToLocation,
   type ItineraryLocation,
 } from "@/lib/trips/location-types"
+import { slugToTone } from "@/lib/trips/slug-tone"
 
 export interface ToggleResult {
   error?: string
@@ -1123,6 +1124,85 @@ export async function addItineraryDay(
 
   revalidatePath(`/trips/${input.tripSlug}`)
   return { day: rowToItineraryDay(data[0]) }
+}
+
+export interface AddTodayEventInput {
+  tripId: string
+  tripSlug: string
+  dayDate: string
+  /** Existing day to append to; null = create a minimal day for `dayDate`. */
+  dayId: string | null
+  time: string
+  text: string
+}
+
+/** Ascending by time; untimed events sort last. Matches the itinerary tab. */
+function sortDayEvents(a: ItineraryEvent, b: ItineraryEvent): number {
+  if (!a.time && !b.time) return 0
+  if (!a.time) return 1
+  if (!b.time) return -1
+  return a.time < b.time ? -1 : a.time > b.time ? 1 : 0
+}
+
+/**
+ * Appends one event to a day's `events`, re-sorted by time. Used by the On the
+ * Road page's quick "add event" on today. When the day doesn't exist yet
+ * (`dayId` null) it creates a minimal day for that date carrying the event.
+ */
+export async function addTodayEvent(
+  input: AddTodayEventInput,
+): Promise<{ error?: string }> {
+  const text = input.text.trim()
+  if (!text) return { error: "Event text required." }
+  const newEvent: ItineraryEvent = { time: input.time.trim(), text }
+
+  const supabase = await createClient()
+  const { data: userData, error: userError } = await supabase.auth.getUser()
+  if (userError || !userData.user) return { error: "Not signed in." }
+
+  if (input.dayId) {
+    const { data: row, error: loadError } = await supabase
+      .from("itinerary_days")
+      .select("events")
+      .eq("id", input.dayId)
+      .maybeSingle()
+    if (loadError) return { error: loadError.message }
+    if (!row) return { error: "Day not found." }
+
+    const existing = Array.isArray(row.events)
+      ? (row.events as ItineraryEvent[])
+      : []
+    const events = [...existing, newEvent]
+      .map((e) => ({ time: (e.time ?? "").trim(), text: (e.text ?? "").trim() }))
+      .filter((e) => e.text.length > 0)
+      .sort(sortDayEvents)
+
+    const { error } = await supabase
+      .from("itinerary_days")
+      .update({ events })
+      .eq("id", input.dayId)
+    if (error) return { error: error.message }
+  } else {
+    if (!DATE_RE.test(input.dayDate)) return { error: "Invalid date." }
+    const { error } = await supabase.from("itinerary_days").insert({
+      trip_id: input.tripId,
+      day_date: input.dayDate,
+      title: "Today",
+      tag: "DAY",
+      tone: slugToTone(input.tripSlug),
+      events: [newEvent],
+      created_by: userData.user.id,
+    })
+    if (error) {
+      if (error.code === "23505") {
+        return { error: "Another day already uses that date." }
+      }
+      return { error: error.message }
+    }
+  }
+
+  revalidatePath(`/trips/${input.tripSlug}`)
+  return {}
 }
 
 /**
