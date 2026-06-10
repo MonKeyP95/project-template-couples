@@ -268,8 +268,10 @@ export default async function HomePage() {
       </Link>
 
       <footer className="mt-12 flex items-center justify-center gap-5 md:mt-16">
-        <ThemeToggle initialDark={dark} />
-        <span className="text-rule">·</span>
+        <span className="flex items-center gap-5 lg:hidden">
+          <ThemeToggle initialDark={dark} />
+          <span className="text-rule">·</span>
+        </span>
         <form action="/api/signout" method="post">
           <button
             type="submit"

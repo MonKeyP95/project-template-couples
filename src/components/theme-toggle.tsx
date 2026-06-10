@@ -8,9 +8,9 @@ const THEME_COOKIE = "theme"
 const ONE_YEAR_SECONDS = 60 * 60 * 24 * 365
 
 /**
- * Flips light/dark by toggling `.dark` on <html> for instant feedback and
- * writing the `theme` cookie so the next server render matches. `initialDark`
- * comes from the same cookie the root layout reads, so hydration is stable.
+ * Light/dark switch. Toggles `.dark` on <html> for instant feedback and writes
+ * the `theme` cookie so the next server render matches. `initialDark` comes from
+ * the same cookie the root layout reads, so hydration is stable.
  */
 export function ThemeToggle({ initialDark }: { initialDark: boolean }) {
   const [dark, setDark] = React.useState(initialDark)
@@ -25,11 +25,19 @@ export function ThemeToggle({ initialDark }: { initialDark: boolean }) {
   return (
     <button
       type="button"
+      role="switch"
+      aria-checked={dark}
+      aria-label="Dark mode"
       onClick={toggle}
-      aria-pressed={dark}
-      className="font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground hover:text-foreground"
+      className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors ${
+        dark ? "bg-sea" : "bg-border"
+      }`}
     >
-      {dark ? "use light theme" : "use dark theme"}
+      <span
+        className={`inline-block h-3.5 w-3.5 rounded-full bg-white shadow-sm transition-transform ${
+          dark ? "translate-x-[19px]" : "translate-x-[3px]"
+        }`}
+      />
     </button>
   )
 }
