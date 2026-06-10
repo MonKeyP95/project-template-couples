@@ -23,6 +23,7 @@ export interface ItineraryDay {
   /** Short month ("Jun"); uppercase at the view. */
   mon: string
   title: string
+  sub: string
   events: ItineraryEvent[]
   tag: string
   tone: ItineraryTone
@@ -38,6 +39,7 @@ export interface ItineraryRow {
   id: string
   day_date: string
   title: string
+  sub?: string | null
   /** Raw jsonb from the DB; parsed by rowToItineraryDay. */
   events?: unknown
   tag: string
@@ -97,6 +99,7 @@ export function rowToItineraryDay(row: ItineraryRow): ItineraryDay {
     dom: DOM_FMT.format(utc),
     mon: MON_FMT.format(utc),
     title: row.title,
+    sub: row.sub ?? "",
     events: parseEvents(row.events),
     tag: row.tag,
     tone: row.tone as ItineraryTone,
@@ -146,4 +149,16 @@ export function dateRange(start: string, end: string): string[] {
     d.setUTCDate(d.getUTCDate() + 1)
   }
   return out
+}
+
+export type DayZone = "past" | "today" | "future"
+
+/** Zone a day by its date vs today (ISO yyyy-mm-dd string compare). */
+export function dayZone(dayDate: string, today: string): DayZone {
+  return dayDate < today ? "past" : dayDate > today ? "future" : "today"
+}
+
+/** True when today falls within [start, end] (inclusive). */
+export function tripActive(today: string, start: string, end: string): boolean {
+  return today >= start && today <= end
 }

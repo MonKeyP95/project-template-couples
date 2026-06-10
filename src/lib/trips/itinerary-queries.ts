@@ -12,7 +12,7 @@ export async function getItineraryDays(
   const supabase = await createClient()
   const { data } = await supabase
     .from("itinerary_days")
-    .select("id, day_date, title, events, tag, tone, group_id, group_name, location_id")
+    .select("id, day_date, title, sub, events, tag, tone, group_id, group_name, location_id")
     .eq("trip_id", tripId)
     .order("day_date", { ascending: true })
 

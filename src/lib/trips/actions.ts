@@ -988,6 +988,7 @@ export interface AddItineraryDayInput {
   /** Optional name for a multi-day block; only used when a span (2+ days) is created. */
   groupName?: string
   title: string
+  sub: string
   events: ItineraryEvent[]
   tag: string
   tone: ItineraryTone
@@ -1073,6 +1074,7 @@ export async function addItineraryDay(
     }
   }
 
+  const sub = input.sub.trim()
   const events = input.events
     .map((e) => ({ time: e.time.trim(), text: e.text.trim() }))
     .filter((e) => e.text.length > 0)
@@ -1086,6 +1088,7 @@ export async function addItineraryDay(
     trip_id: input.tripId,
     day_date,
     title,
+    sub,
     events,
     tag,
     tone: input.tone,
@@ -1098,7 +1101,7 @@ export async function addItineraryDay(
   const { data, error } = await supabase
     .from("itinerary_days")
     .insert(rows)
-    .select("id, day_date, title, events, tag, tone, group_id, group_name, location_id")
+    .select("id, day_date, title, sub, events, tag, tone, group_id, group_name, location_id")
 
   if (error) {
     if (error.code === "23505") {
@@ -1139,6 +1142,7 @@ export async function insertItineraryDayWithShift(
     p_from_date: input.dayDate,
     p_count: count,
     p_title: input.title.trim(),
+    p_sub: input.sub.trim(),
     p_events: events,
     p_tag: input.tag.trim(),
     p_tone: input.tone,
@@ -1156,6 +1160,7 @@ export interface UpdateItineraryDayInput {
   tripSlug: string
   dayDate: string
   title: string
+  sub: string
   events: ItineraryEvent[]
   tag: string
   tone: ItineraryTone
@@ -1182,6 +1187,7 @@ export async function updateItineraryDay(
   if (!ITINERARY_TONES.includes(input.tone)) return { error: "Invalid tone." }
 
   const supabase = await createClient()
+  const sub = input.sub.trim()
   const events = input.events
     .map((e) => ({ time: e.time.trim(), text: e.text.trim() }))
     .filter((e) => e.text.length > 0)
@@ -1189,6 +1195,7 @@ export async function updateItineraryDay(
   const patch: {
     day_date: string
     title: string
+    sub: string
     events: ItineraryEvent[]
     tag: string
     tone: ItineraryTone
@@ -1196,6 +1203,7 @@ export async function updateItineraryDay(
   } = {
     day_date: input.dayDate,
     title,
+    sub,
     events,
     tag,
     tone: input.tone,

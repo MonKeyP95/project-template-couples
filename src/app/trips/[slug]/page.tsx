@@ -212,6 +212,8 @@ export default async function TripPage({
               tripId={header.id}
               tripSlug={header.slug}
               tripStartDate={header.startDate}
+              tripEndDate={header.endDate ?? header.startDate}
+              today={new Date().toISOString().slice(0, 10)}
               initialItems={datedItinerary ?? []}
               initialLocations={locations ?? []}
             />
