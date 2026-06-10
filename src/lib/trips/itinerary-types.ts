@@ -150,3 +150,15 @@ export function dateRange(start: string, end: string): string[] {
   }
   return out
 }
+
+export type DayZone = "past" | "today" | "future"
+
+/** Zone a day by its date vs today (ISO yyyy-mm-dd string compare). */
+export function dayZone(dayDate: string, today: string): DayZone {
+  return dayDate < today ? "past" : dayDate > today ? "future" : "today"
+}
+
+/** True when today falls within [start, end] (inclusive). */
+export function tripActive(today: string, start: string, end: string): boolean {
+  return today >= start && today <= end
+}

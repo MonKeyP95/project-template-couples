@@ -54,14 +54,20 @@ Senggigi   14–16 Jun           (future location — collapsed) >
 [ + add day   + add location ]  (receded to bottom, muted)
 ```
 
-- **Past bar** — only locations whose *every* day is before today collapse into
-  this bar. It is collapsed by default; tapping opens it to reveal those
-  completed locations, still as location groups you can drill into. Nothing is
-  deleted. Loose past days never go here — only whole completed locations (per
-  the "locations are the backbone" rule).
+- **Past bar** — everything before today that isn't inside the current location
+  folds into one collapsible bar at the top: whole completed locations **and**
+  location-less ("loose") past days. Collapsed by default; the label counts days
+  (`Past · N days`) since it mixes places and loose days. Opening it reveals the
+  hidden items in chronological order, dimmed; completed locations stay drillable.
+  Nothing is deleted. *(Refines the original "only whole completed locations" /
+  "loose past days stay inline" call: during testing, location-less past days
+  were the common case and needed folding too.)*
 - **Current location** — the location whose span contains/straddles today. It
-  stays whole and open. Inside it, past days dim inline (per-day), today's day is
-  expanded and prominent, later days in the same location show as summaries.
+  stays whole and open. Its own past days fold into a small inner **"N earlier
+  days"** bar at the top of its day list (collapsed by default, dimmed when
+  opened); today's day is expanded and prominent; later days show as summaries.
+  *(Added during testing — inline dimming wasn't enough; the past days needed to
+  collapse, mirroring the top Past bar one level down.)*
 - **Future locations** — all-after-today locations render as collapsed groups
   with day summaries; tap to peek ahead.
 - **Planning affordances** (`+ add day`, `+ add location`) recede to the bottom,

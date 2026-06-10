@@ -27,7 +27,9 @@ import {
   dateRange,
   formatShortDate,
   rowToItineraryDay,
+  tripActive,
   withOrdinals,
+  type DayZone,
   type ItineraryDay,
   type ItineraryEvent,
   type ItineraryTone,
@@ -241,16 +243,62 @@ function buildTimeline(
     .map((x) => x.item)
 }
 
+/** Zone a location group: past if its whole span is before today, future if
+ * wholly after, else current (contains/straddles today, or undated). */
+function groupZone(group: DayGroup, today: string): DayZone {
+  const dates = group.days.map((d) => d.dayDate)
+  const lows = [group.start, ...dates].filter((v): v is string => Boolean(v))
+  const highs = [group.end, ...dates].filter((v): v is string => Boolean(v))
+  if (highs.length && highs.reduce((a, b) => (a > b ? a : b)) < today) return "past"
+  if (lows.length && lows.reduce((a, b) => (a < b ? a : b)) > today) return "future"
+  return "today"
+}
+
+/** During an active trip, today's day(s) start expanded; otherwise none do. */
+function defaultExpandedDays(
+  days: ItineraryDay[],
+  today: string,
+  start: string,
+  end: string,
+): Set<string> {
+  const s = new Set<string>()
+  if (!tripActive(today, start, end)) return s
+  for (const d of days) if (d.dayDate === today) s.add(d.id)
+  return s
+}
+
+/** During an active trip, future location groups start collapsed (past ones go
+ * into the Past bar, current stays open). Outside a trip, nothing is collapsed. */
+function defaultCollapsed(
+  locations: ItineraryLocation[],
+  days: ItineraryDay[],
+  today: string,
+  start: string,
+  end: string,
+): Set<string> {
+  const s = new Set<string>()
+  if (!tripActive(today, start, end)) return s
+  for (const item of buildTimeline(locations, days)) {
+    if (item.kind !== "location") continue
+    if (groupZone(item.group, today) === "future") s.add(item.group.key)
+  }
+  return s
+}
+
 export function ItineraryTab({
   tripId,
   tripSlug,
   tripStartDate,
+  tripEndDate,
+  today,
   initialItems,
   initialLocations,
 }: {
   tripId: string
   tripSlug: string
   tripStartDate: string
+  tripEndDate: string
+  today: string
   initialItems: ItineraryDay[]
   initialLocations: ItineraryLocation[]
 }) {
@@ -268,9 +316,24 @@ export function ItineraryTab({
   )
   const [lastInitialLocations, setLastInitialLocations] =
     React.useState(initialLocations)
-  const [collapsed, setCollapsed] = React.useState<Set<string>>(new Set())
+  const [collapsed, setCollapsed] = React.useState<Set<string>>(() =>
+    defaultCollapsed(initialLocations, initialItems, today, tripStartDate, tripEndDate),
+  )
   const [expandedRuns, setExpandedRuns] = React.useState<Set<string>>(new Set())
-  const [expandedDays, setExpandedDays] = React.useState<Set<string>>(new Set())
+  const [expandedDays, setExpandedDays] = React.useState<Set<string>>(() =>
+    defaultExpandedDays(initialItems, today, tripStartDate, tripEndDate),
+  )
+  const [pastBarOpen, setPastBarOpen] = React.useState(false)
+  const [earlierOpen, setEarlierOpen] = React.useState<Set<string>>(new Set())
+
+  function toggleEarlier(key: string) {
+    setEarlierOpen((prev) => {
+      const next = new Set(prev)
+      if (next.has(key)) next.delete(key)
+      else next.add(key)
+      return next
+    })
+  }
 
   function toggleDay(id: string) {
     setExpandedDays((prev) => {
@@ -379,6 +442,24 @@ export function ItineraryTab({
 
   const timeline = buildTimeline(locations, days)
 
+  const active = tripActive(today, tripStartDate, tripEndDate)
+  const itemIsPast = (it: TimelineItem) =>
+    it.kind === "location"
+      ? groupZone(it.group, today) === "past"
+      : it.seg.days[it.seg.days.length - 1].dayDate < today
+  const pastDayTotal = active
+    ? timeline.reduce(
+        (n, it) =>
+          itemIsPast(it)
+            ? n +
+              (it.kind === "location"
+                ? it.group.days.length
+                : it.seg.days.length)
+            : n,
+        0,
+      )
+    : 0
+
   const [addDayFor, setAddDayFor] = React.useState<string | null>(null)
   const [addDayDate, setAddDayDate] = React.useState("")
   const [addingLocation, setAddingLocation] = React.useState(false)
@@ -476,6 +557,57 @@ export function ItineraryTab({
     })
   }
 
+  const planningBlock = (
+    <div className={`space-y-2 ${active ? "pt-4 opacity-70" : "pb-4"}`}>
+      <AddDayRow
+        key={`add-loose-${addDayFor === LOOSE_KEY ? addDayDate : ""}`}
+        tripId={tripId}
+        tripSlug={tripSlug}
+        defaultDate={
+          addDayFor === LOOSE_KEY && addDayDate ? addDayDate : defaultDate
+        }
+        locationId={null}
+        open={addDayFor === LOOSE_KEY}
+        onClose={() => setAddDayFor(null)}
+      />
+      {addDayFor === LOOSE_KEY ? null : (
+        <button
+          type="button"
+          onClick={() => {
+            setAddDayDate("")
+            setAddDayFor(LOOSE_KEY)
+          }}
+          className="block w-full rounded-lg border border-dashed border-rule py-3 font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground hover:border-foreground hover:text-foreground"
+        >
+          + day
+        </button>
+      )}
+      {addingLocation ? (
+        <form onSubmit={submitNewLocation}>
+          <input
+            type="text"
+            autoFocus
+            value={newLocName}
+            onChange={(e) => setNewLocName(e.target.value)}
+            onBlur={() => {
+              if (!newLocName.trim()) setAddingLocation(false)
+            }}
+            placeholder="Location name"
+            className="block w-full rounded-lg border border-clay bg-transparent px-3 py-2.5 font-mono text-[12px] text-foreground placeholder:text-muted-foreground focus:outline-none"
+          />
+        </form>
+      ) : (
+        <button
+          type="button"
+          onClick={() => setAddingLocation(true)}
+          className="block w-full rounded-lg border border-dashed border-rule py-3 font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground hover:border-foreground hover:text-foreground"
+        >
+          + location
+        </button>
+      )}
+    </div>
+  )
+
   return (
     <section>
       <div className="flex items-baseline justify-between px-5 pt-5 lg:px-10 lg:pt-6">
@@ -500,62 +632,32 @@ export function ItineraryTab({
       </div>
 
       <div className="px-5 pt-4 pb-6 lg:px-10">
-        <div className="space-y-2 pb-4">
-          <AddDayRow
-            key={`add-loose-${addDayFor === LOOSE_KEY ? addDayDate : ""}`}
-            tripId={tripId}
-            tripSlug={tripSlug}
-            defaultDate={
-              addDayFor === LOOSE_KEY && addDayDate ? addDayDate : defaultDate
-            }
-            locationId={null}
-            open={addDayFor === LOOSE_KEY}
-            onClose={() => setAddDayFor(null)}
-          />
-          {addDayFor === LOOSE_KEY ? null : (
-            <button
-              type="button"
-              onClick={() => {
-                setAddDayDate("")
-                setAddDayFor(LOOSE_KEY)
-              }}
-              className="block w-full rounded-lg border border-dashed border-rule py-3 font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground hover:border-foreground hover:text-foreground"
-            >
-              + day
-            </button>
-          )}
-          {addingLocation ? (
-            <form onSubmit={submitNewLocation}>
-              <input
-                type="text"
-                autoFocus
-                value={newLocName}
-                onChange={(e) => setNewLocName(e.target.value)}
-                onBlur={() => {
-                  if (!newLocName.trim()) setAddingLocation(false)
-                }}
-                placeholder="Location name"
-                className="block w-full rounded-lg border border-clay bg-transparent px-3 py-2.5 font-mono text-[12px] text-foreground placeholder:text-muted-foreground focus:outline-none"
-              />
-            </form>
-          ) : (
-            <button
-              type="button"
-              onClick={() => setAddingLocation(true)}
-              className="block w-full rounded-lg border border-dashed border-rule py-3 font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground hover:border-foreground hover:text-foreground"
-            >
-              + location
-            </button>
-          )}
-        </div>
+        {active ? null : planningBlock}
 
         {timeline.length === 0 ? (
           <p className="font-serif text-[15px] italic text-muted-foreground">
             Nothing planned yet — add a day, or a location to group them.
           </p>
         ) : (
-          timeline.map((item) => {
+          <>
+            {pastDayTotal > 0 ? (
+              <button
+                type="button"
+                onClick={() => setPastBarOpen((v) => !v)}
+                aria-expanded={pastBarOpen}
+                className="flex w-full items-center gap-3 border-t border-rule py-3 text-left opacity-60 first:border-t-0"
+              >
+                <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+                  Past · {pastDayTotal} {pastDayTotal === 1 ? "day" : "days"}
+                </span>
+                <span className="ml-auto font-mono text-[13px] leading-none text-muted-foreground">
+                  {pastBarOpen ? "⌄" : "›"}
+                </span>
+              </button>
+            ) : null}
+            {timeline.map((item) => {
             if (item.kind === "loose") {
+              if (itemIsPast(item) && !pastBarOpen) return null
               return (
                 <div
                   key={item.seg.groupId ?? item.seg.days[0].id}
@@ -571,11 +673,14 @@ export function ItineraryTab({
                     locations={locations}
                     expandedDays={expandedDays}
                     toggleDay={toggleDay}
+                    dimBefore={active ? today : null}
                   />
                 </div>
               )
             }
             const group = item.group
+            const groupPast = active && groupZone(group, today) === "past"
+            if (groupPast && !pastBarOpen) return null
             const open = !collapsed.has(group.key)
             const isLoc = true
             const count = group.days.length
@@ -593,7 +698,9 @@ export function ItineraryTab({
             return (
               <div
                 key={group.key}
-                className="border-t border-rule first:border-t-0"
+                className={`border-t border-rule first:border-t-0 ${
+                  groupPast ? "opacity-60" : ""
+                }`}
               >
                 <div className="flex items-center gap-3 py-3">
                   <span className="w-7 flex-shrink-0 font-mono text-[18px] leading-none text-muted-foreground">
@@ -777,7 +884,7 @@ export function ItineraryTab({
                         setAddDayFor(group.key)
                       }
 
-                      return rows.map((row) => {
+                      const renderRow = (row: Row) => {
                         if (row.kind === "emptyRun") {
                           const { dates } = row
                           if (dates.length === 1) {
@@ -839,9 +946,51 @@ export function ItineraryTab({
                             locations={locations}
                             expandedDays={expandedDays}
                             toggleDay={toggleDay}
+                            dimBefore={active ? today : null}
                           />
                         )
-                      })
+                      }
+
+                      const isCurrentLoc =
+                        active && groupZone(group, today) === "today"
+                      if (!isCurrentLoc) return rows.map(renderRow)
+
+                      const rowEnd = (row: Row) =>
+                        row.kind === "emptyRun"
+                          ? row.dates[row.dates.length - 1]
+                          : row.seg.days[row.seg.days.length - 1].dayDate
+                      const pastRows = rows.filter((r) => rowEnd(r) < today)
+                      const liveRows = rows.filter((r) => rowEnd(r) >= today)
+                      const pastDayCount = pastRows.reduce(
+                        (n, r) => (r.kind === "seg" ? n + r.seg.days.length : n),
+                        0,
+                      )
+                      const earlierExpanded = earlierOpen.has(group.key)
+
+                      return (
+                        <>
+                          {pastDayCount > 0 ? (
+                            <div className="my-1">
+                              <button
+                                type="button"
+                                onClick={() => toggleEarlier(group.key)}
+                                aria-expanded={earlierExpanded}
+                                className="flex w-full items-center gap-3 rounded-lg border border-dashed border-rule/70 px-3 py-2 text-left opacity-70 transition-colors hover:border-foreground"
+                              >
+                                <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
+                                  {pastDayCount} earlier{" "}
+                                  {pastDayCount === 1 ? "day" : "days"}
+                                </span>
+                                <span className="ml-auto font-mono text-[13px] leading-none text-muted-foreground">
+                                  {earlierExpanded ? "⌄" : "›"}
+                                </span>
+                              </button>
+                              {earlierExpanded ? pastRows.map(renderRow) : null}
+                            </div>
+                          ) : null}
+                          {liveRows.map(renderRow)}
+                        </>
+                      )
                     })()}
 
                     <div className="pt-2">
@@ -877,8 +1026,10 @@ export function ItineraryTab({
                 ) : null}
               </div>
             )
-          })
+            })}
+          </>
         )}
+        {active ? planningBlock : null}
       </div>
     </section>
   )
@@ -894,6 +1045,7 @@ function DaySegmentView({
   locations,
   expandedDays,
   toggleDay,
+  dimBefore,
 }: {
   seg: DaySegment
   tripId: string
@@ -904,6 +1056,7 @@ function DaySegmentView({
   locations: ItineraryLocation[]
   expandedDays: Set<string>
   toggleDay: (id: string) => void
+  dimBefore: string | null
 }) {
   const cards = seg.days.map((day) => (
     <DayCard
@@ -912,6 +1065,7 @@ function DaySegmentView({
       tripSlug={tripSlug}
       expanded={expandedDays.has(day.id)}
       onToggle={() => toggleDay(day.id)}
+      dimBefore={dimBefore}
       isLast={day.id === lastDayId}
       isEditing={editingId === day.id}
       onStartEdit={() => setEditingId(day.id)}
@@ -990,6 +1144,7 @@ interface DayCardProps {
   isEditing: boolean
   expanded: boolean
   onToggle: () => void
+  dimBefore: string | null
   onStartEdit: () => void
   onStopEdit: () => void
   dragHandle?: React.ReactNode
@@ -1003,6 +1158,7 @@ function DayCard({
   isEditing,
   expanded,
   onToggle,
+  dimBefore,
   onStartEdit,
   onStopEdit,
   dragHandle,
@@ -1025,6 +1181,7 @@ function DayCard({
       isLast={isLast}
       expanded={expanded}
       onToggle={onToggle}
+      dimBefore={dimBefore}
       onStartEdit={onStartEdit}
       dragHandle={dragHandle}
     />
@@ -1037,6 +1194,7 @@ function DayView({
   isLast,
   expanded,
   onToggle,
+  dimBefore,
   onStartEdit,
   dragHandle,
 }: {
@@ -1045,6 +1203,7 @@ function DayView({
   isLast: boolean
   expanded: boolean
   onToggle: () => void
+  dimBefore: string | null
   onStartEdit: () => void
   dragHandle?: React.ReactNode
 }) {
@@ -1065,7 +1224,9 @@ function DayView({
         ) : null}
       </div>
       <div
-        className={`flex-1 rounded-lg border border-border bg-card px-3.5 py-3 border-l-[3px] ${itineraryBorder[day.tone]}`}
+        className={`flex-1 rounded-lg border border-border bg-card px-3.5 py-3 border-l-[3px] ${itineraryBorder[day.tone]} ${
+          dimBefore && day.dayDate < dimBefore ? "opacity-60" : ""
+        }`}
       >
         <div className="mb-1.5 flex items-center justify-between">
           <div className="flex items-center gap-1.5">
