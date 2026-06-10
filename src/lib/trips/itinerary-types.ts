@@ -1,6 +1,12 @@
 export const ITINERARY_TONES = ["sea", "clay", "moss", "sand"] as const
 export type ItineraryTone = (typeof ITINERARY_TONES)[number]
 
+export interface ItineraryEvent {
+  /** Free "HH:MM"-style label; "" when untimed. Cosmetic, no parsing. */
+  time: string
+  text: string
+}
+
 export interface ItineraryDay {
   /** Row id — needed by edit/delete UI. */
   id: string
@@ -17,7 +23,7 @@ export interface ItineraryDay {
   /** Short month ("Jun"); uppercase at the view. */
   mon: string
   title: string
-  sub: string
+  events: ItineraryEvent[]
   tag: string
   tone: ItineraryTone
   /** Shared id for days added as one multi-day span; null when ungrouped. */
@@ -32,7 +38,8 @@ export interface ItineraryRow {
   id: string
   day_date: string
   title: string
-  sub: string | null
+  /** Raw jsonb from the DB; parsed by rowToItineraryDay. */
+  events?: unknown
   tag: string
   tone: string
   group_id?: string | null
@@ -65,6 +72,19 @@ function toUtc(dayDate: string): Date {
   return new Date(`${dayDate}T00:00:00Z`)
 }
 
+/** Parse the raw jsonb `events` array into clean ItineraryEvent[]. Tolerates
+ * null/malformed values and drops events with empty text. */
+function parseEvents(raw: unknown): ItineraryEvent[] {
+  if (!Array.isArray(raw)) return []
+  return raw
+    .filter((e): e is Record<string, unknown> => typeof e === "object" && e !== null)
+    .map((e) => ({
+      time: typeof e.time === "string" ? e.time : "",
+      text: typeof e.text === "string" ? e.text : "",
+    }))
+    .filter((e) => e.text.length > 0)
+}
+
 /** Single row → ItineraryDay. `d` is a placeholder; pass through `withOrdinals` to set correctly. */
 export function rowToItineraryDay(row: ItineraryRow): ItineraryDay {
   const utc = toUtc(row.day_date)
@@ -77,7 +97,7 @@ export function rowToItineraryDay(row: ItineraryRow): ItineraryDay {
     dom: DOM_FMT.format(utc),
     mon: MON_FMT.format(utc),
     title: row.title,
-    sub: row.sub ?? "",
+    events: parseEvents(row.events),
     tag: row.tag,
     tone: row.tone as ItineraryTone,
     groupId: row.group_id ?? null,
