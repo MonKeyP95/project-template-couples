@@ -63,7 +63,7 @@ export function QuickNote({ tripId, tripSlug, today, notes }: QuickNoteProps) {
         <div className="mt-2 font-mono text-[10px] text-clay">{error}</div>
       ) : null}
       {notes.length > 0 ? (
-        <ul className="mt-3 flex flex-col gap-1.5">
+        <ul className="mt-3 flex flex-col gap-0.5">
           {notes.map((n) => (
             <li key={n.id} className="text-[13px] leading-snug text-foreground">
               {n.body}

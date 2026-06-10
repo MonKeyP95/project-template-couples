@@ -57,7 +57,7 @@ export function TodayUpcoming({ events }: { events: ItineraryEvent[] }) {
   }
 
   return (
-    <ul className="mt-2 flex flex-col gap-1.5">
+    <ul className="mt-2 flex flex-col gap-0.5">
       {upcoming.map((e, i) => (
         <li
           key={`${e.time}-${e.text}-${i}`}
