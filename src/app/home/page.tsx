@@ -13,6 +13,7 @@ import {
 import { createClient } from "@/lib/supabase/server"
 import { isDarkTheme } from "@/lib/theme"
 import { getItineraryLocations } from "@/lib/trips/location-queries"
+import { getTodayForTrip } from "@/lib/trips/itinerary-queries"
 import { listTripsForWorkspace } from "@/lib/trips/list-queries"
 import {
   getCurrentWorkspace,
@@ -69,6 +70,10 @@ export default async function HomePage() {
   const heroLocations = hero
     ? (await getItineraryLocations(hero.id)).map((l) => l.name)
     : []
+  const heroToday =
+    hero && hero.state === "now"
+      ? await getTodayForTrip(hero.id, new Date().toISOString().slice(0, 10))
+      : null
   const trips = [
     ...buckets.now.slice(buckets.now[0] ? 1 : 0),
     ...buckets.upcoming.slice(hero && !buckets.now[0] ? 1 : 0),
@@ -182,7 +187,7 @@ export default async function HomePage() {
                 ) : null}
               </div>
               <div className="md:grid md:grid-cols-2 md:gap-5">
-                <HeroCard trip={hero} />
+                <HeroCard trip={hero} today={heroToday} />
                 <div className="hidden md:block">
                   <TripRoutePanel slug={hero.slug} locations={heroLocations} />
                 </div>

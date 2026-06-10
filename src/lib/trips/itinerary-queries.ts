@@ -18,3 +18,18 @@ export async function getItineraryDays(
 
   return withOrdinals((data ?? []).map(rowToItineraryDay))
 }
+
+export async function getTodayForTrip(
+  tripId: string,
+  today: string,
+): Promise<ItineraryDay | null> {
+  const supabase = await createClient()
+  const { data } = await supabase
+    .from("itinerary_days")
+    .select("id, day_date, title, sub, events, tag, tone, group_id, group_name, location_id")
+    .eq("trip_id", tripId)
+    .eq("day_date", today)
+    .maybeSingle()
+
+  return data ? rowToItineraryDay(data) : null
+}
