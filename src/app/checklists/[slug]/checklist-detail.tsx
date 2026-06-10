@@ -22,6 +22,10 @@ import {
   type ChecklistItem,
 } from "@/lib/checklists/types"
 
+/** Implicit bucket for items added directly with no chosen category. Rendered
+ * without a header, so a brand-new checklist works as a flat list right away. */
+const UNCATEGORIZED = "General"
+
 interface RealtimeRow {
   id: string
   checklist_id: string
@@ -192,6 +196,10 @@ export function ChecklistDetail({
   }
 
   const groups = groupChecklistItems(categories, items)
+  const uncategorized = groups.find(
+    (g) => g.categoryId === null && g.category === UNCATEGORIZED,
+  )
+  const namedGroups = groups.filter((g) => g !== uncategorized)
   const total = items.length
   const done = items.filter((i) => i.done).length
   const pct = total === 0 ? 0 : Math.round((done / total) * 100)
@@ -231,7 +239,21 @@ export function ChecklistDetail({
       </div>
 
       <div className="border-t border-border bg-background">
-        {groups.map((g) => (
+        <CategoryGroup
+          checklistId={checklistId}
+          categoryId={null}
+          category={UNCATEGORIZED}
+          items={uncategorized?.items ?? []}
+          editingId={editingId}
+          onToggle={toggle}
+          onStartEdit={setEditingId}
+          onStopEdit={() => setEditingId(null)}
+          onUpdate={update}
+          onDelete={remove}
+          onDeleteCategory={removeCategory}
+          hideHeader
+        />
+        {namedGroups.map((g) => (
           <CategoryGroup
             key={g.categoryId ?? `orphan:${g.category}`}
             checklistId={checklistId}
@@ -344,6 +366,8 @@ interface CategoryGroupProps {
   onUpdate: (id: string, label: string) => Promise<{ error?: string }>
   onDelete: (id: string) => void
   onDeleteCategory: (id: string, name: string, count: number) => void
+  /** Hide the category header row (for the implicit uncategorized bucket). */
+  hideHeader?: boolean
 }
 
 function CategoryGroup({
@@ -358,28 +382,31 @@ function CategoryGroup({
   onUpdate,
   onDelete,
   onDeleteCategory,
+  hideHeader,
 }: CategoryGroupProps) {
   const done = items.filter((i) => i.done).length
   return (
     <div className="border-b border-border px-5 pt-4 pb-1.5">
-      <div className="mb-0.5 flex items-center justify-between">
-        <Label>{category}</Label>
-        <div className="flex items-center gap-2">
-          <span className="font-mono text-[10px] text-muted-foreground">
-            {done} / {items.length}
-          </span>
-          {categoryId ? (
-            <button
-              type="button"
-              onClick={() => onDeleteCategory(categoryId, category, items.length)}
-              aria-label="Delete category"
-              className="border-0 bg-transparent px-1 font-mono text-[12px] text-muted-foreground hover:text-clay"
-            >
-              ×
-            </button>
-          ) : null}
+      {hideHeader ? null : (
+        <div className="mb-0.5 flex items-center justify-between">
+          <Label>{category}</Label>
+          <div className="flex items-center gap-2">
+            <span className="font-mono text-[10px] text-muted-foreground">
+              {done} / {items.length}
+            </span>
+            {categoryId ? (
+              <button
+                type="button"
+                onClick={() => onDeleteCategory(categoryId, category, items.length)}
+                aria-label="Delete category"
+                className="border-0 bg-transparent px-1 font-mono text-[12px] text-muted-foreground hover:text-clay"
+              >
+                ×
+              </button>
+            ) : null}
+          </div>
         </div>
-      </div>
+      )}
       {items.map((item) => (
         <ItemRow
           key={item.id}
@@ -392,7 +419,11 @@ function CategoryGroup({
           onDelete={() => onDelete(item.id)}
         />
       ))}
-      <AddItemRow checklistId={checklistId} category={category} />
+      <AddItemRow
+        checklistId={checklistId}
+        category={category}
+        placeholder={hideHeader ? "Add an item…" : undefined}
+      />
     </div>
   )
 }
@@ -521,9 +552,11 @@ function ItemEditor({
 function AddItemRow({
   checklistId,
   category,
+  placeholder,
 }: {
   checklistId: string
   category: string
+  placeholder?: string
 }) {
   const [expanded, setExpanded] = React.useState(false)
   const [value, setValue] = React.useState("")
@@ -580,7 +613,7 @@ function AddItemRow({
           onKeyDown={(e) => {
             if (e.key === "Escape") reset()
           }}
-          placeholder={`Add to ${category.toLowerCase()}…`}
+          placeholder={placeholder ?? `Add to ${category.toLowerCase()}…`}
           disabled={pending}
           className="flex-1 border-0 border-b border-rule bg-transparent py-1 text-[14px] text-foreground placeholder:text-muted-foreground focus:border-sea focus:outline-none disabled:opacity-50"
         />
