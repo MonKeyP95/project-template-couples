@@ -1,28 +1,29 @@
 # FEATURES.md
 
-## MVP (Phase 1–2, do these first)
+## Done (shipped)
 
+**MVP (Phases 1–3)**
 1. **Auth + pairing** — sign up, log in, invite partner/family member, share a workspace
 2. **Trip** — create a trip (name, dates, destination, members)
-3. **Shared trip todo / packing list** — add, check off, see each other's edits
+3. **Shared trip todo / packing list** — add, check off, see each other's edits (Realtime)
 
-That's it. Three things. Ship them, use them on a real trip, then expand.
-
-## Next (after MVP works for one real trip)
-
-- Trip budget + expense splitting (who paid, who owes)
-- Itinerary days (events, places, times)
+**Beyond MVP (Phases 4–4.6)**
+- Trip budget + expense splitting (who paid, who owes; settle-up with partial/overpay)
+- Itinerary — location-organized planner: dated locations, buffer slots, gap-aware confirm-and-push
 - Trip notes and restaurant ideas
-- Dream destinations board (future trip wishlist)
+- Dream destinations board (dateless dreams that promote to dated trips)
+- Dark mode
+
+## Next (current focus)
+
+- AI assistant — itinerary drafting, restaurant suggestions, hidden gems (Phase 5)
 
 ## Later
 
-- AI assistant — itinerary drafting, restaurant suggestions, hidden gems
 - Google Calendar sync (push trip events out)
 - Google Maps integration (places, routes)
 - Restaurant booking integration
 - Reminders & notifications
-- Dark mode
 - Photo / memory sharing per trip
 - Visited-countries map — color in each country a couple has taken a trip to (needs a country-keyed map asset + `country` text → ISO-code lookup; the current background map is anonymous outlines, so it's a swap not a tweak)
 
