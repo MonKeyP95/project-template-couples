@@ -64,7 +64,7 @@ export function QuickExpense({
   return (
     <section className="mt-4 rounded-[14px] border border-border bg-card p-5">
       <div className="flex items-baseline justify-between">
-        <Label>Quick expense</Label>
+        <Label>Expense</Label>
         <span className="t-num text-[13px] text-muted-foreground">
           €{(spentTodayCents / 100).toFixed(2)} today
         </span>

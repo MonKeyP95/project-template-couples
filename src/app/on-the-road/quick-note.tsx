@@ -42,7 +42,7 @@ export function QuickNote({ tripId, tripSlug, today, notes }: QuickNoteProps) {
 
   return (
     <section className="mt-4 rounded-[14px] border border-border bg-card p-5">
-      <Label>Jot</Label>
+      <Label>Note</Label>
       <form onSubmit={submit} className="mt-3 flex gap-2">
         <input
           value={body}
