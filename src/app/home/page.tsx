@@ -205,7 +205,7 @@ export default async function HomePage() {
               </div>
               <div className="md:grid md:grid-cols-2 md:gap-5">
                 <HeroCard trip={hero} today={heroToday} />
-                <div className="hidden md:block">
+                <div className="hidden md:block md:h-full">
                   <TripRoutePanel slug={hero.slug} locations={heroLocations} />
                 </div>
               </div>

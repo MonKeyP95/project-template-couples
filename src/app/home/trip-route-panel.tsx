@@ -56,8 +56,8 @@ export function TripRoutePanel({
   const hasRoute = locations.length > 0
   const pts = routePoints(Math.max(locations.length, 1), seedFromSlug(slug))
   return (
-    <div className="overflow-hidden rounded-[14px] border border-border bg-card shadow-md">
-      <div className={`relative aspect-[16/10] overflow-hidden ${surface[tone]}`}>
+    <div className="flex h-full flex-col overflow-hidden rounded-[14px] border border-border bg-card shadow-md">
+      <div className={`relative min-h-0 flex-1 overflow-hidden ${surface[tone]}`}>
         <TopoBg tone={tone} opacity={0.16} />
         <svg
           viewBox={`0 0 ${VIEW_W} ${VIEW_H}`}
