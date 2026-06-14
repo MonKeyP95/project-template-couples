@@ -19,6 +19,7 @@ import {
 import { getNotesForDay } from "@/lib/trips/note-queries"
 import { computeLookingAhead } from "@/lib/trips/looking-ahead"
 
+import { RealtimeRefresh } from "@/components/realtime-refresh"
 import { QuickExpense } from "./quick-expense"
 import { QuickNote } from "./quick-note"
 import { LookingAheadPanel } from "./looking-ahead-panel"
@@ -79,6 +80,10 @@ export default async function OnTheRoadPage() {
 
   return (
     <main className="relative mx-auto min-h-screen w-full max-w-[440px] pb-16 lg:flex lg:max-w-none lg:items-stretch lg:pb-0">
+      <RealtimeRefresh
+        tripId={trip.id}
+        tables={["expenses", "trip_notes", "itinerary_days"]}
+      />
       <MobileTopNav destinations={navDestinations} current="on-the-road" />
       <LeftRail
         workspace={workspace}
