@@ -49,3 +49,6 @@ next-env.d.ts
 
 # Brainstorming visual companion
 .superpowers/
+
+# Claude Code local project data (memory, etc.)
+.claude/
