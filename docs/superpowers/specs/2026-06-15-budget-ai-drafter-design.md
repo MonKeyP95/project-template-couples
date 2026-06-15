@@ -7,49 +7,46 @@ Status: approved (design)
 
 A mock AI assistant on the Budget (planning) side that helps a couple build and
 understand their trip budget through a short guided interview, rather than a
-single number. It reads the trip's itinerary, pre-fills what it can infer, asks
-only the genuine unknowns, and assembles a total. "Mock" means no API calls — the
-interview steps, questions, and suggested amounts are derived deterministically
-from the itinerary. The point of the slice is to build the whole interaction
-surface and the seam, so swapping in real Claude later is one file.
+single number. It walks the budget categories, pre-fills a suggested figure
+where it can, and lets the user break any category into detailed line items.
+"Mock" means no API calls — the steps, questions, and suggestions are derived
+deterministically from the trip. The point of the slice is to build the whole
+interaction surface and the seam, so swapping in real Claude later is one file.
 
-This is the first concrete piece of Phase 5. It does not install the Anthropic
-SDK and adds no tables.
+First concrete piece of Phase 5. No Anthropic SDK, no new tables.
 
 ## Conceptual model
 
 The app separates **Budget** (planning, before the trip) from **Expense**
-(reality, on the road). This assistant is a planning tool: it lives on the Budget
-side and helps build the plan. There is deliberately **no planned-vs-actual**
-comparison — that is statistics, not planning.
+(reality, on the road). This assistant is a planning tool. There is deliberately
+**no planned-vs-actual** comparison — that is statistics, not planning.
 
-The itinerary's day-groups (called "locations") are flat **places/cities**
-(Tel Aviv, Haifa, Rome). There is no country/region level; "flat cities" was
-chosen over a region hierarchy. Two grains exist and differ:
-- The assistant **asks** at the place level (2 weeks in Tel Aviv earns its own
-  question, distinct from 5 nights in Haifa).
-- Money **rolls up** to a single trip total. A country subtotal (e.g. "Israel
-  EUR X") is explicitly out of scope; revisit as a separate itinerary-grouping
-  feature only if missed.
+The interview is **category-centric**: the steps are Accommodation, Transport,
+Food & drink, Activities, and Anything else. Each category is a header with an
+add-list of detailed items; every item is **subject + when + cost** (e.g.
+"Sea hotel · 3 days · 350", "Beach hotel · 12 Jan · 200"). Itinerary locations
+are not walked as separate steps — the per-item `when` captures dates/places.
+Money rolls up to a single trip total; nothing is persisted per category or item.
 
 ## Scope
 
 In scope:
 - A "Plan a budget" button in the Budget view that opens a stepped interview.
-- One step per itinerary place (lodging + activities), then trip-wide steps
-  (transport, food, other), then an editable summary.
-- Suggested amounts seeded from itinerary facts (nights, members).
-- Apply sets the master planned budget to the total.
+- Five category steps, each an add-list of `subject / when / cost` rows.
+- A seeded suggestion row for the estimable categories (accommodation,
+  transport, food); activities + other start empty.
+- Blank-cost rows estimated by the assistant; explicit 0 allowed and kept.
+- An editable summary, then Apply sets the master planned budget to the total.
 - A pure module returning the interview, at the eventual Claude seam.
 
 Explicitly deferred:
-- Per-place or per-category budget persistence (the assistant writes only the
+- Per-category / per-item budget persistence (the assistant writes only the
   master total).
-- Country/region rollups and subtotals.
 - Planned-vs-actual / spend analytics.
-- Reading already-logged expenses or itinerary event text to seed answers (the
-  mock uses only places + nights + members; this is where Claude gets smarter).
 - Real Claude calls (Anthropic SDK, `lib/ai/claude.ts`).
+- Reading logged expenses or itinerary text to seed items (where Claude gets
+  smarter — the mock seeds only from duration + members).
+- A real date picker for `when` (free text for now: "3 days", "12 Jan").
 
 ## The seam
 
@@ -58,110 +55,97 @@ not a number — that is what real Claude makes adaptive later.
 
 ```ts
 export interface BudgetPlanInput {
-  tripName: string
-  totalDays: number // whole-trip nights, drives trip-wide suggestions
+  totalDays: number // whole-trip nights; drives the seeded suggestions
   memberCount: number
-  locations: { id: string; name: string; nights: number }[] // flat cities, in order
   context?: string // reserved for Claude (trip notes). Unused by the mock.
 }
 
-export interface BudgetField {
-  key: string // unique within a step, e.g. "lodging"
-  label: string // "Accommodation"
-  suggestedCents: number | null // seed; null = blank field the user fills
+export interface SeedItem {
+  subject: string
+  when: string
+  suggestedCents: number | null // null = blank (user fills / assistant estimates)
 }
 
 export interface BudgetStep {
-  key: string // unique step id, e.g. "loc:<id>" or "transport"
-  title: string // "Tel Aviv" or "Getting around"
-  subtitle: string | null // "14 nights" or null
+  key: string // "accommodation" | "transport" | "food" | "activities" | "other"
+  title: string
   question: string
   hint: string | null
-  fields: BudgetField[]
-  addList?: boolean // free-form add-list step (user adds named rows), e.g. activities
+  addNoun: string // "accommodation" -> "+ add accommodation"
+  seed: SeedItem[]
 }
 
 export function planBudgetSteps(input: BudgetPlanInput): BudgetStep[]
+export function estimateItemCents(): number
 ```
 
 Mock logic (deterministic, no randomness, no async, no network):
 - Constants: `LODGING_PER_NIGHT_CENTS = 11000`, `TRANSPORT_PER_PERSON_CENTS =
-  15000`, `FOOD_PER_PERSON_DAY_CENTS = 2500`, `ACTIVITY_ESTIMATE_CENTS = 5000`.
-- `memberCount` floors at 1; each location's `nights` floors at 1.
-- One step per location (in input order): title = name, subtitle =
-  "`<nights>` night(s)", a single `lodging` field (suggested `nights *
-  LODGING_PER_NIGHT_CENTS`). No per-location activity prompts (too noisy).
-- No-locations default: when the trip has no locations, the whole trip is treated
-  as one place named after the trip (`tripName`, nights = `totalDays`), so the
-  same place step still asks lodging. Only for the interview — nothing is
-  persisted per place.
-- Trip-wide steps, always appended in order:
-  - Transport: one field suggested `TRANSPORT_PER_PERSON_CENTS * memberCount`.
-  - Food & drink: one field suggested `FOOD_PER_PERSON_DAY_CENTS * memberCount *
-    max(totalDays, 1)`.
-  - Activities (`addList: true`): "Is there a specific activity you'd like to
-    do?"; user adds their own named rows. No presets.
-  - Other (`addList: true`): "Anything else to budget for?" (insurance, gifts,
-    buffer); user adds named rows.
-- Estimate for blank add-list costs: `estimateActivityCents()` (flat
-  `ACTIVITY_ESTIMATE_CENTS` in the mock; Claude later assesses from the label).
-  Applied by the UI when leaving an add-list step to any named row left without a
-  cost. An explicit `0` (e.g. staying with friends, borrowed car) is valid and
-  kept as-is — only a truly blank cost is estimated.
-- A trip with no locations yields one trip-named place step (lodging +
-  activities) plus the three trip-wide steps, so the assistant still works
-  (e.g. a trip with dates but no places yet).
+  15000`, `FOOD_PER_PERSON_DAY_CENTS = 2500`, `ITEM_ESTIMATE_CENTS = 5000`.
+- `memberCount` and `totalDays` floor at 1.
+- Five steps, in order:
+  - Accommodation: seed one row `when = "<n> nights"`, cost `totalDays *
+    LODGING_PER_NIGHT_CENTS`.
+  - Transport: seed one row, cost `TRANSPORT_PER_PERSON_CENTS * memberCount`.
+  - Food & drink: seed one row `when = "<n> days"`, cost
+    `FOOD_PER_PERSON_DAY_CENTS * memberCount * totalDays`.
+  - Activities: no seed (empty add-list).
+  - Anything else (`other`): no seed.
+- `estimateItemCents()` is the assistant's guess for a row left without a cost:
+  flat `ITEM_ESTIMATE_CENTS` in the mock; real Claude later assesses from the
+  row's subject. An explicit 0 (e.g. staying with friends, borrowed car) is kept
+  as-is and never estimated.
 
 ### Migration to real Claude (later, not now)
 
-`planBudgetSteps` becomes `async`, reads `context`, and calls the LLM client.
-Call sites change from `planBudgetSteps(input)` to `await planBudgetSteps(input)`.
-The input/output types are unchanged. That is the whole migration.
+`planBudgetSteps` becomes `async`, reads `context`, and calls the LLM client;
+`estimateItemCents` likewise becomes a real assessment from the subject. Call
+sites add `await`. The input/output types are unchanged. That is the whole
+migration.
 
 ## UI
 
-Client component `src/app/trips/[slug]/budget-drafter.tsx` (replaces the prior
-one-number drafter on this branch).
+Client component `src/app/trips/[slug]/budget-drafter.tsx`.
 
 Placement: in `budget-tab.tsx`, the `"budget"` view, just above
 `BudgetByLocation`. Not in the expense / saved / settle views.
 
-Props (all already available in `BudgetTab`): `tripId`, `tripSlug`, `tripName`,
-`tripDays`, `locations: ItineraryLocation[]`, `itineraryDays: DayLocation[]`,
-`memberCount`.
+Props: `tripId`, `tripSlug`, `tripDays`, `locations`, `itineraryDays`,
+`memberCount`. (`locations`/`itineraryDays` are used only to derive `totalDays`
+and to decide whether to show the button.)
 
 Behavior:
 1. Collapsed: a "Plan a budget" button, shown whenever the trip has a duration
    signal (date span, itinerary day rows, or locations); hidden only for a bare
    dateless dream with none of those.
-2. On click: compute `nights` per location (count of itinerary days mapped to it
-   via `dayLocationMap`, floored at 1) and `totalDays` (`tripDays`, else
-   itinerary day count). Call `planBudgetSteps`. Seed a value map from each
-   field's `suggestedCents` (formatted whole euros, or "" when null). Start at
-   step 0.
-3. Stepping: show the current step's title/subtitle/question/hint and its
-   field(s) as euro number inputs. The Activities step (`addList`) shows added
-   rows + a single "+ add activity" button instead of fields. "back" (disabled on
-   first step) and "next"; "next" on the last step goes to the summary.
-4. Summary: list every field and every added activity row grouped by step title,
-   each editable, with a live total (sum of all field amounts + activity rows).
-   Apply / Dismiss.
-5. Apply: `updateTripBudget({ tripId, tripSlug, plannedBudgetCents: total })`
-   inside a transition. On error, surface inline. No per-location writes.
-6. Dismiss / back-out closes without writing.
+2. On click: `totalDays = tripDays || itinerary day count`. Call
+   `planBudgetSteps`. Seed each step's rows from its `seed` (cost prefilled when
+   suggested). Start at step 0.
+3. Stepping: each step shows its title + question + hint, the list of item rows,
+   and a "+ add `<noun>`" button. Each row has three inputs: subject ("What"),
+   when ("3 days, 12 Jan"), and a euro cost, plus a remove (×). "back" (disabled
+   on first step) and "next"; "next" on the last step goes to the summary.
+4. Leaving a step (`next`/`review`): drop rows that are entirely blank; for a row
+   with a subject or when but no cost, fill `estimateItemCents()`. An explicit 0
+   stays 0.
+5. Summary: every row across all steps, labelled `subject` (falling back to the
+   category title) with its `when` shown muted, cost editable, live total.
+6. Apply: `updateTripBudget({ tripId, tripSlug, plannedBudgetCents: total })`
+   inside a transition. On error, surface inline. No per-category writes.
+7. Cancel / dismiss closes without writing.
 
-State note: wizard state (step index, value map) lives in the component as plain
-`useState`; values are seeded once on open, not via `useEffect`, to avoid the
-React 19 set-state-in-effect lint.
+State note: wizard state (step index, rows per step) lives in `useState`; rows
+are seeded once on open (not via `useEffect`), avoiding the React 19
+set-state-in-effect lint. Row ids come from a `useRef` counter.
 
 ## Data flow
 
 ```
 BudgetTab (budget view)
   -> BudgetDrafter (client)
-       reads: locations + itineraryDays -> nights per place; tripDays; members
+       totalDays from tripDays / itinerary day count; memberCount
        planBudgetSteps(input): pure -> BudgetStep[]
-       wizard (local state: step index + value map)  ->  summary
+       wizard (local state: step index + rows per step)  ->  summary
        Apply -> updateTripBudget(total)
        (server action revalidates; budget surface re-renders)
 ```
@@ -172,15 +156,16 @@ and enforces RLS.
 ## Testing
 
 No test framework in this repo; do not invent one. Verification is `pnpm lint` +
-`pnpm build` passing, plus a manual check: on a trip with two places (e.g. a
-two-city itinerary), the assistant steps through each place then the trip-wide
-questions, the summary total updates as values change, and Apply sets the master
-budget. On a trip with dates but no places, the assistant asks about one place
-named after the trip (lodging + activities) followed by the trip-wide steps.
+`pnpm build` passing, plus a manual check: the assistant steps through the five
+categories; accommodation/transport/food come pre-filled with a suggestion;
+adding a second accommodation row (subject + date + cost) works; an activity
+added with no cost is estimated on next; an explicit 0 is kept; the summary lists
+every row with its date and a live total; Apply sets the master budget.
 
 ## Files
 
-- Rewrite: `src/lib/ai/budget-planner.ts` (interview seam + mock).
-- Rewrite: `src/app/trips/[slug]/budget-drafter.tsx` (button + wizard + summary).
-- Already wired: `budget-tab.tsx` renders `BudgetDrafter` and passes the props.
-- Edit: `docs/TODO.md`, `docs/DECISIONS.md`.
+- `src/lib/ai/budget-planner.ts` — interview seam + mock + `estimateItemCents`.
+- `src/app/trips/[slug]/budget-drafter.tsx` — button + wizard + per-row add-list
+  + summary.
+- `budget-tab.tsx` renders `BudgetDrafter` and passes the props.
+- `docs/TODO.md`, `docs/DECISIONS.md` record the slice.
