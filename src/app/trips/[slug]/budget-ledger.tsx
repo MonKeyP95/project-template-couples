@@ -36,7 +36,7 @@ export function Ledger({
   itineraryDays: DayLocation[]
   categories: ExpenseCategoryRow[]
 }) {
-  const [expanded, setExpanded] = React.useState(false)
+  const [expanded, setExpanded] = React.useState(true)
   const dayMap = dayLocationMap(itineraryDays)
   const locationsById = Object.fromEntries(locations.map((l) => [l.id, l.name]))
   const hasLocations = locations.length > 0
@@ -55,7 +55,7 @@ export function Ledger({
       >
         <Label>Ledger · {expenses.length}</Label>
         <span className="font-mono text-[10px] text-muted-foreground">
-          {expanded ? "most recent" : "show"}
+          {expanded ? "hide" : "show"}
         </span>
       </button>
       {expanded ? (

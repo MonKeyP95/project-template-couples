@@ -2,7 +2,7 @@
 
 import * as React from "react"
 
-import { CheckRow, Coord, Label, SuggestionCard, TopoBg } from "@/components/together"
+import { CheckRow, Coord, Label, SegBtn, SuggestionCard, TopoBg } from "@/components/together"
 import {
   DndContext,
   PointerSensor,
@@ -327,32 +327,6 @@ export function PackingTab({
         />
       </div>
     </section>
-  )
-}
-
-function SegBtn({
-  active,
-  onClick,
-  children,
-}: {
-  active: boolean
-  onClick: () => void
-  children: React.ReactNode
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-pressed={active}
-      className={
-        "rounded-full border px-3 py-1 font-mono text-[10px] uppercase tracking-[0.14em] transition-colors " +
-        (active
-          ? "border-clay bg-clay text-background"
-          : "border-rule bg-transparent text-muted-foreground hover:text-foreground")
-      }
-    >
-      {children}
-    </button>
   )
 }
 
