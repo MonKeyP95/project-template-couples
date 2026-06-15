@@ -11,6 +11,8 @@ export interface SuggestionCardProps {
   expandable?: boolean
   applyLabel?: string
   dismissLabel?: string
+  onApply?: () => void
+  onDismiss?: () => void
   className?: string
 }
 
@@ -24,6 +26,8 @@ export function SuggestionCard({
   expandable = false,
   applyLabel,
   dismissLabel,
+  onApply,
+  onDismiss,
   className,
 }: SuggestionCardProps) {
   const hasActions = Boolean(applyLabel || dismissLabel)
@@ -46,6 +50,7 @@ export function SuggestionCard({
           {applyLabel ? (
             <button
               type="button"
+              onClick={onApply}
               className="rounded-md border-0 bg-foreground px-3 py-1.5 font-mono text-[9.5px] uppercase tracking-[0.2em] text-background"
             >
               {applyLabel}
@@ -54,6 +59,7 @@ export function SuggestionCard({
           {dismissLabel ? (
             <button
               type="button"
+              onClick={onDismiss}
               className="rounded-md border border-border bg-transparent px-3 py-1.5 font-mono text-[9.5px] uppercase tracking-[0.2em] text-muted-foreground"
             >
               {dismissLabel}
