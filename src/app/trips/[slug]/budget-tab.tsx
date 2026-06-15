@@ -16,6 +16,7 @@ import {
 import { type ItineraryLocation } from "@/lib/trips/location-types"
 
 import { BudgetByLocation } from "./budget-by-location"
+import { BudgetDrafter } from "./budget-drafter"
 import { SavedFigure, SpentFigure } from "./budget-figures"
 import { Ledger } from "./budget-ledger"
 import { LogExpenseRow } from "./log-expense-row"
@@ -104,6 +105,13 @@ export function BudgetTab({
             currentUserId={currentUserId}
             tripId={tripId}
             tripSlug={tripSlug}
+          />
+          <BudgetDrafter
+            tripId={tripId}
+            tripSlug={tripSlug}
+            locations={locations}
+            itineraryDays={itineraryDays}
+            memberCount={Object.keys(members).length}
           />
           <BudgetByLocation
             tripId={tripId}
