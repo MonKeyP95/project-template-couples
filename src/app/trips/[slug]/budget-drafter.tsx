@@ -3,11 +3,8 @@
 import * as React from "react"
 
 import { Label } from "@/components/together"
-import {
-  draftBudget,
-  type BudgetDraftLine,
-} from "@/lib/ai/budget-planner"
-import { setLocationBudget, updateTripBudget } from "@/lib/trips/actions"
+import { planBudgetSteps, type BudgetStep } from "@/lib/ai/budget-planner"
+import { updateTripBudget } from "@/lib/trips/actions"
 import {
   dayLocationMap,
   type DayLocation,
@@ -18,21 +15,14 @@ function fmt(cents: number): string {
   return (cents / 100).toFixed(0)
 }
 
-interface DraftLineState {
-  locationId: string
-  name: string
-  value: string
+function fieldId(stepKey: string, fieldKey: string): string {
+  return `${stepKey}::${fieldKey}`
 }
 
-interface DraftState {
-  total: string
-  lines: DraftLineState[]
-  rationale: string
-}
-
-/** True when the only line is the whole-trip envelope (no real locations yet). */
-function isSynthetic(draft: DraftState): boolean {
-  return draft.lines.length === 1 && draft.lines[0].locationId === ""
+interface Session {
+  steps: BudgetStep[]
+  /** fieldId -> euro string. */
+  values: Record<string, string>
 }
 
 export interface BudgetDrafterProps {
@@ -55,96 +45,73 @@ export function BudgetDrafter({
   itineraryDays,
   memberCount,
 }: BudgetDrafterProps) {
-  const [draft, setDraft] = React.useState<DraftState | null>(null)
+  const [session, setSession] = React.useState<Session | null>(null)
+  const [stepIndex, setStepIndex] = React.useState(0)
   const [error, setError] = React.useState<string | null>(null)
   const [isPending, startTransition] = React.useTransition()
 
-  // Draft from whatever the itinerary has: a date span, day rows, or locations.
-  // Only a trip with none of those (a bare dateless dream) has nothing to draft.
+  // Work from whatever the itinerary has: a date span, day rows, or locations.
+  // Only a bare dateless dream with none of those has nothing to plan.
   const totalDays = tripDays > 0 ? tripDays : itineraryDays.length
   if (totalDays === 0 && locations.length === 0) return null
 
   function open() {
     const dayMap = dayLocationMap(itineraryDays)
-    const daysByLoc: Record<string, number> = {}
+    const nightsByLoc: Record<string, number> = {}
     for (const locId of Object.values(dayMap)) {
-      daysByLoc[locId] = (daysByLoc[locId] ?? 0) + 1
+      nightsByLoc[locId] = (nightsByLoc[locId] ?? 0) + 1
     }
-    const result = draftBudget({
-      totalDays,
+    const steps = planBudgetSteps({
       tripName,
+      totalDays,
+      memberCount,
       locations: locations.map((l) => ({
         id: l.id,
         name: l.name,
-        days: daysByLoc[l.id] ?? 0,
+        nights: nightsByLoc[l.id] ?? 0,
       })),
-      memberCount,
     })
+    const values: Record<string, string> = {}
+    for (const step of steps) {
+      for (const f of step.fields) {
+        values[fieldId(step.key, f.key)] =
+          f.suggestedCents != null ? fmt(f.suggestedCents) : ""
+      }
+    }
     setError(null)
-    setDraft({
-      total: fmt(result.totalCents),
-      rationale: result.rationale,
-      lines: result.perLocation.map((l: BudgetDraftLine) => ({
-        locationId: l.locationId,
-        name: l.name,
-        value: fmt(l.cents),
-      })),
-    })
+    setStepIndex(0)
+    setSession({ steps, values })
   }
 
-  function setTotal(value: string) {
-    setDraft((d) => (d ? { ...d, total: value } : d))
+  function setValue(id: string, value: string) {
+    setSession((s) => (s ? { ...s, values: { ...s.values, [id]: value } } : s))
   }
 
-  function setLine(locationId: string, value: string) {
-    setDraft((d) =>
-      d
-        ? {
-            ...d,
-            lines: d.lines.map((l) =>
-              l.locationId === locationId ? { ...l, value } : l,
-            ),
-          }
-        : d,
-    )
+  function totalCents(s: Session): number {
+    return Object.values(s.values).reduce((sum, v) => {
+      const n = Number(v)
+      return sum + (Number.isFinite(n) && n > 0 ? Math.round(n * 100) : 0)
+    }, 0)
   }
 
   function apply() {
-    if (!draft || isPending) return
-    const synthetic = isSynthetic(draft)
+    if (!session || isPending) return
+    const total = totalCents(session)
     startTransition(async () => {
-      const totalCents = synthetic
-        ? Math.round(Number(draft.lines[0].value) * 100)
-        : Math.round(Number(draft.total) * 100)
-      const r1 = await updateTripBudget({
+      const r = await updateTripBudget({
         tripId,
         tripSlug,
-        plannedBudgetCents: totalCents,
+        plannedBudgetCents: total,
       })
-      if (r1.error) {
-        setError(r1.error)
+      if (r.error) {
+        setError(r.error)
         return
       }
-      // A synthetic trip line has no location row to write; only the total lands.
-      for (const line of draft.lines) {
-        if (!line.locationId) continue
-        const cents = Math.round(Number(line.value) * 100)
-        if (cents <= 0) continue
-        const r = await setLocationBudget({
-          locationId: line.locationId,
-          tripSlug,
-          budgetCents: cents,
-        })
-        if (r.error) {
-          setError(r.error)
-          return
-        }
-      }
-      setDraft(null)
+      setSession(null)
     })
   }
 
-  if (!draft) {
+  if (!session) {
     return (
       <div className="border-t border-border bg-background px-5 pt-4 pb-2">
         <button
@@ -152,69 +119,136 @@ export function BudgetDrafter({
           onClick={open}
           className="rounded-full border border-border bg-transparent px-3 py-1.5 font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground hover:text-foreground"
         >
-          Draft a budget
+          Plan a budget
         </button>
       </div>
     )
   }
 
-  const synthetic = isSynthetic(draft)
+  const onSummary = stepIndex >= session.steps.length
 
   return (
     <div className="border-t border-border bg-background px-5 pt-4 pb-2">
       <div className="rounded-lg border border-border bg-card px-3.5 py-3">
-        <Label>Drafted budget</Label>
-        <div className="mt-1 font-mono text-[10px] tracking-[0.06em] text-muted-foreground">
-          {draft.rationale}
+        {onSummary
+          ? renderSummary()
+          : renderStep(session.steps[stepIndex])}
+      </div>
+    </div>
+  )
+
+  function renderStep(step: BudgetStep) {
+    const isLast = stepIndex === session!.steps.length - 1
+    return (
+      <>
+        <div className="flex items-center justify-between">
+          <Label>/ assistant</Label>
+          <span className="font-mono text-[9px] uppercase tracking-[0.16em] text-muted-foreground">
+            step {stepIndex + 1} of {session!.steps.length}
+          </span>
         </div>
 
-        {synthetic ? (
-          <div className="mt-3 flex items-center justify-between gap-3">
-            <span className="font-serif text-[14px] italic text-foreground">
-              {draft.lines[0].name}
+        <div className="mt-2 flex items-baseline gap-2">
+          <span className="font-serif text-[15px] italic text-foreground">
+            {step.title}
+          </span>
+          {step.subtitle ? (
+            <span className="font-mono text-[9px] uppercase tracking-[0.14em] text-muted-foreground">
+              {step.subtitle}
             </span>
-            <span className="inline-flex items-baseline gap-1">
-              <span className="font-mono text-[12px] text-muted-foreground">€</span>
-              <input
-                type="number"
-                inputMode="numeric"
-                min={0}
-                value={draft.lines[0].value}
-                onChange={(e) => setLine("", e.target.value)}
-                disabled={isPending}
-                className="t-num w-24 border-0 border-b border-border bg-transparent text-right text-[15px] text-foreground outline-none focus:border-foreground"
-              />
-            </span>
+          ) : null}
+        </div>
+        <div className="mt-1 text-[13px] text-foreground">{step.question}</div>
+        {step.hint ? (
+          <div className="mt-1 font-mono text-[10px] leading-snug tracking-[0.06em] text-muted-foreground">
+            {step.hint}
           </div>
-        ) : (
-          <>
-            <div className="mt-3 flex items-center justify-between gap-3">
-              <span className="font-serif text-[14px] italic text-foreground">
-                Total
-              </span>
-              <span className="inline-flex items-baseline gap-1">
-                <span className="font-mono text-[12px] text-muted-foreground">
-                  €
-                </span>
-                <input
-                  type="number"
-                  inputMode="numeric"
-                  min={0}
-                  value={draft.total}
-                  onChange={(e) => setTotal(e.target.value)}
-                  disabled={isPending}
-                  className="t-num w-24 border-0 border-b border-border bg-transparent text-right text-[15px] text-foreground outline-none focus:border-foreground"
-                />
-              </span>
-            </div>
+        ) : null}
 
-            <div className="mt-2 border-t border-rule">
-              {draft.lines.map((line) => (
+        <div className="mt-3 space-y-2">
+          {step.fields.map((f) => {
+            const id = fieldId(step.key, f.key)
+            return (
+              <div key={id} className="flex items-center justify-between gap-3">
+                <span className="text-[13px] text-foreground">{f.label}</span>
+                <span className="inline-flex items-baseline gap-1">
+                  <span className="font-mono text-[12px] text-muted-foreground">
+                    €
+                  </span>
+                  <input
+                    type="number"
+                    inputMode="numeric"
+                    min={0}
+                    placeholder="0"
+                    value={session!.values[id] ?? ""}
+                    onChange={(e) => setValue(id, e.target.value)}
+                    disabled={isPending}
+                    className="t-num w-24 border-0 border-b border-border bg-transparent text-right text-[14px] text-foreground outline-none focus:border-foreground"
+                  />
+                </span>
+              </div>
+            )
+          })}
+        </div>
+
+        <div className="mt-4 flex items-center justify-between">
+          <button
+            type="button"
+            onClick={() => setStepIndex((i) => Math.max(0, i - 1))}
+            disabled={stepIndex === 0}
+            className="border-0 bg-transparent p-0 font-mono text-[10px] uppercase tracking-[0.2em] text-muted-foreground hover:text-foreground disabled:opacity-30"
+          >
+            back
+          </button>
+          <div className="flex items-center gap-1.5">
+            <button
+              type="button"
+              onClick={() => setSession(null)}
+              className="border border-border bg-transparent px-3 py-1.5 font-mono text-[9.5px] uppercase tracking-[0.2em] text-muted-foreground rounded-md"
+            >
+              cancel
+            </button>
+            <button
+              type="button"
+              onClick={() => setStepIndex((i) => i + 1)}
+              className="rounded-md border-0 bg-foreground px-3 py-1.5 font-mono text-[9.5px] uppercase tracking-[0.2em] text-background"
+            >
+              {isLast ? "review" : "next"}
+            </button>
+          </div>
+        </div>
+      </>
+    )
+  }
+
+  function renderSummary() {
+    return (
+      <>
+        <div className="flex items-center justify-between">
+          <Label>Your budget</Label>
+          <button
+            type="button"
+            onClick={() => setStepIndex(session!.steps.length - 1)}
+            disabled={isPending}
+            className="border-0 bg-transparent p-0 font-mono text-[9px] uppercase tracking-[0.16em] text-muted-foreground hover:text-foreground"
+          >
+            back
+          </button>
+        </div>
+
+        <div className="mt-2 border-t border-rule">
+          {session!.steps.flatMap((step) =>
+            step.fields.map((f) => {
+              const id = fieldId(step.key, f.key)
+              const label = step.key.startsWith("loc:")
+                ? `${step.title} · ${f.label}`
+                : f.label
+              return (
                 <div
-                  key={line.locationId}
+                  key={id}
                   className="flex items-center justify-between gap-3 border-t border-rule py-2 first:border-t-0"
                 >
-                  <span className="text-[13px] text-foreground">{line.name}</span>
+                  <span className="text-[13px] text-foreground">{label}</span>
                   <span className="inline-flex items-baseline gap-1">
                     <span className="font-mono text-[12px] text-muted-foreground">
                       €
@@ -223,20 +257,29 @@ export function BudgetDrafter({
                       type="number"
                       inputMode="numeric"
                       min={0}
-                      value={line.value}
-                      onChange={(e) => setLine(line.locationId, e.target.value)}
+                      placeholder="0"
+                      value={session!.values[id] ?? ""}
+                      onChange={(e) => setValue(id, e.target.value)}
                       disabled={isPending}
                       className="t-num w-20 border-0 border-b border-border bg-transparent text-right text-[13px] text-foreground outline-none focus:border-foreground"
                     />
                   </span>
                 </div>
-              ))}
-            </div>
-          </>
-        )}
+              )
+            }),
+          )}
+        </div>
 
+        <div className="mt-3 flex items-center justify-between border-t border-border pt-3">
+          <span className="font-serif text-[15px] italic text-foreground">
+            Total
+          </span>
+          <span className="t-num text-[18px] text-foreground">
+            €{fmt(totalCents(session!))}
+          </span>
+        </div>
         <div className="mt-2 font-mono text-[9px] uppercase tracking-[0.16em] text-muted-foreground">
-          Applying replaces any existing budgets.
+          Applying sets your trip budget.
         </div>
 
         <div className="mt-3 flex items-center gap-1.5">
@@ -250,7 +293,7 @@ export function BudgetDrafter({
           </button>
           <button
             type="button"
-            onClick={() => setDraft(null)}
+            onClick={() => setSession(null)}
             disabled={isPending}
             className="rounded-md border border-border bg-transparent px-3 py-1.5 font-mono text-[9.5px] uppercase tracking-[0.2em] text-muted-foreground"
           >
@@ -260,7 +303,7 @@ export function BudgetDrafter({
             <span className="font-mono text-[9px] text-clay">{error}</span>
           ) : null}
         </div>
-      </div>
-    </div>
-  )
+      </>
+    )
+  }
 }

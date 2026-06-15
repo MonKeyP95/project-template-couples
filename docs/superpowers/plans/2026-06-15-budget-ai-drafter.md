@@ -1,3 +1,10 @@
+> **Superseded 2026-06-15.** This plan described the original one-shot
+> `draftBudget` number. During brainstorming the design evolved into a guided
+> interview (`planBudgetSteps` -> `BudgetStep[]`, a stepped wizard ending in an
+> editable summary). The shipped code and the current design follow the rewritten
+> spec `docs/superpowers/specs/2026-06-15-budget-ai-drafter-design.md`; the tasks
+> below are kept only as history.
+
 # Mock Budget-Planning Assistant Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.

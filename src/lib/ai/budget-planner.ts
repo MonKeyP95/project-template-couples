@@ -1,66 +1,98 @@
 /**
- * Slice 1 mock for the budget-planning assistant. Pure, deterministic, no
- * network. This is the seam where real Claude lands later: keep the input and
- * output types stable, then make draftBudget async and call the LLM client.
- * The `context` field is reserved for that (trip notes) and is unused here.
+ * Mock for the guided budget assistant. Pure, deterministic, no network. This
+ * is the seam where real Claude lands later: keep the input and output types
+ * stable, then make planBudgetSteps async and generate the interview from the
+ * LLM client. The `context` field is reserved for that (trip notes), unused here.
+ *
+ * It returns an interview (steps with fields + suggestions), not a number. The
+ * UI walks the steps and sums the answers into the trip total.
  */
 
-export interface BudgetDraftInput {
-  /** Whole-trip duration in days; drives the total even when locations are partial or absent. */
-  totalDays: number
-  /** Trip name, used as the single envelope when there are no locations yet. */
+export interface BudgetPlanInput {
   tripName: string
-  locations: { id: string; name: string; days: number }[]
+  /** Whole-trip nights; drives the trip-wide suggestions. */
+  totalDays: number
   memberCount: number
+  /** Flat cities/places in itinerary order. */
+  locations: { id: string; name: string; nights: number }[]
   context?: string
 }
 
-export interface BudgetDraftLine {
-  locationId: string
-  name: string
-  cents: number
+export interface BudgetField {
+  key: string
+  label: string
+  /** Seed amount; null means a blank field the user fills in. */
+  suggestedCents: number | null
 }
 
-export interface BudgetDraft {
-  totalCents: number
-  perLocation: BudgetDraftLine[]
-  rationale: string
+export interface BudgetStep {
+  key: string
+  title: string
+  subtitle: string | null
+  question: string
+  hint: string | null
+  fields: BudgetField[]
 }
 
-const DAILY_PER_PERSON_CENTS = 11000
+const LODGING_PER_NIGHT_CENTS = 11000
+const TRANSPORT_PER_PERSON_CENTS = 15000
+const FOOD_PER_PERSON_DAY_CENTS = 2500
 
-export function draftBudget(input: BudgetDraftInput): BudgetDraft {
+function euros(cents: number): string {
+  return (cents / 100).toFixed(0)
+}
+
+export function planBudgetSteps(input: BudgetPlanInput): BudgetStep[] {
   const memberCount = Math.max(1, input.memberCount)
-  const dailyShare = DAILY_PER_PERSON_CENTS * memberCount
+  const totalDays = Math.max(1, input.totalDays)
 
-  // Each location gets its own true share (days x daily). A dateless location
-  // still counts as one day. The split can cover only part of the trip; the
-  // uncovered nights simply stay unallocated, which Budget-by-location shows.
-  const locations = input.locations.map((l) => ({
-    ...l,
-    days: Math.max(1, l.days),
-  }))
+  const locationSteps: BudgetStep[] = input.locations.map((loc) => {
+    const nights = Math.max(1, loc.nights)
+    const lodging = nights * LODGING_PER_NIGHT_CENTS
+    return {
+      key: `loc:${loc.id}`,
+      title: loc.name,
+      subtitle: `${nights} ${nights === 1 ? "night" : "nights"}`,
+      question: `How much for ${loc.name}?`,
+      hint: `Somewhere to stay runs about EUR ${euros(LODGING_PER_NIGHT_CENTS)}/night, so ~EUR ${euros(lodging)} here. Add anything you'll do in town too.`,
+      fields: [
+        { key: "lodging", label: "Accommodation", suggestedCents: lodging },
+        { key: "activities", label: "Activities", suggestedCents: null },
+      ],
+    }
+  })
 
-  // Total reflects the whole trip; never less than what the locations claim.
-  const locDays = locations.reduce((sum, l) => sum + l.days, 0)
-  const totalDays = Math.max(input.totalDays, locDays)
-  const totalCents = totalDays * dailyShare
+  const transport = TRANSPORT_PER_PERSON_CENTS * memberCount
+  const food = FOOD_PER_PERSON_DAY_CENTS * memberCount * totalDays
 
-  // With no real locations, treat the whole trip as one envelope named after it.
-  // Its synthetic line carries an empty locationId, so apply only sets the
-  // master total (there is no location row to write).
-  const perLocation: BudgetDraftLine[] =
-    locations.length > 0
-      ? locations.map((l) => ({
-          locationId: l.id,
-          name: l.name,
-          cents: l.days * dailyShare,
-        }))
-      : [{ locationId: "", name: input.tripName, cents: totalCents }]
+  const tripWideSteps: BudgetStep[] = [
+    {
+      key: "transport",
+      title: "Getting around",
+      subtitle: null,
+      question: "Flights and transport for the trip?",
+      hint: `Roughly EUR ${euros(TRANSPORT_PER_PERSON_CENTS)} each for ${memberCount} of you.`,
+      fields: [
+        { key: "transport", label: "Transport", suggestedCents: transport },
+      ],
+    },
+    {
+      key: "food",
+      title: "Food & drink",
+      subtitle: null,
+      question: "Eating out and groceries?",
+      hint: `About EUR ${euros(FOOD_PER_PERSON_DAY_CENTS)} each a day over ${totalDays} ${totalDays === 1 ? "day" : "days"}.`,
+      fields: [{ key: "food", label: "Food & drink", suggestedCents: food }],
+    },
+    {
+      key: "other",
+      title: "Anything else",
+      subtitle: null,
+      question: "Insurance, gifts, a buffer?",
+      hint: null,
+      fields: [{ key: "other", label: "Other", suggestedCents: null }],
+    },
+  ]
 
-  const perDay = DAILY_PER_PERSON_CENTS / 100
-  const nights = totalDays === 1 ? "night" : "nights"
-  const rationale = `${totalDays} ${nights} x EUR ${perDay}/person/day x ${memberCount}`
-
-  return { totalCents, perLocation, rationale }
+  return [...locationSteps, ...tripWideSteps]
 }
