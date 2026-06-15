@@ -1,10 +1,26 @@
 import Link from "next/link"
+import { LogOut } from "lucide-react"
 
 import { Avatar, Chevron, Coord, Label } from "@/components/together"
 import { ThemeToggle } from "@/components/theme-toggle"
 import type { CurrentWorkspace } from "@/lib/workspace/queries"
 
 export type NavKey = "home" | "on-the-road" | "checklists" | "trip"
+
+/** Posts to the existing /api/signout route, then redirects to the landing page. */
+export function SignOutButton({ className }: { className?: string }) {
+  return (
+    <form action="/api/signout" method="post">
+      <button
+        type="submit"
+        aria-label="Sign out"
+        className={className}
+      >
+        <LogOut className="size-4" strokeWidth={1.75} />
+      </button>
+    </form>
+  )
+}
 
 export interface NavDestination {
   key: NavKey
@@ -123,6 +139,11 @@ export function LeftRail({
         <Label>Appearance</Label>
         <ThemeToggle initialDark={initialDark} />
       </div>
+
+      <div className="flex items-center justify-between">
+        <Label>Sign out</Label>
+        <SignOutButton className="text-muted-foreground transition-colors hover:text-foreground" />
+      </div>
     </aside>
   )
 }
@@ -154,6 +175,7 @@ export function MobileTopNav({
           </Link>
         ),
       )}
+      <SignOutButton className="ml-auto flex items-center px-2 py-1.5 text-muted-foreground hover:text-foreground" />
     </nav>
   )
 }
