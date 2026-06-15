@@ -25,12 +25,6 @@ export interface BudgetField {
   suggestedCents: number | null
 }
 
-/** A tap-to-add named activity with a rough cost, shown on place steps. */
-export interface ActivitySuggestion {
-  label: string
-  cents: number
-}
-
 export interface BudgetStep {
   key: string
   title: string
@@ -38,23 +32,13 @@ export interface BudgetStep {
   question: string
   hint: string | null
   fields: BudgetField[]
-  /** When present, the step shows an add-activities list seeded by these. */
-  activitySuggestions?: ActivitySuggestion[]
+  /** When true, the step is a free-form add-list (user adds named rows). */
+  addList?: boolean
 }
 
 const LODGING_PER_NIGHT_CENTS = 11000
 const TRANSPORT_PER_PERSON_CENTS = 15000
 const FOOD_PER_PERSON_DAY_CENTS = 2500
-
-// Canned palette for the mock. Real Claude later picks ones that fit the
-// destination/itinerary; the user can always add their own.
-const ACTIVITY_SUGGESTIONS: ActivitySuggestion[] = [
-  { label: "Surfing lesson", cents: 6000 },
-  { label: "Diving", cents: 12000 },
-  { label: "Boat trip", cents: 4500 },
-  { label: "Guided hike", cents: 5000 },
-  { label: "Entry fees", cents: 2500 },
-]
 
 function euros(cents: number): string {
   return (cents / 100).toFixed(0)
@@ -65,7 +49,7 @@ export function planBudgetSteps(input: BudgetPlanInput): BudgetStep[] {
   const totalDays = Math.max(1, input.totalDays)
 
   // With no locations, the whole trip is one place named after the trip, so
-  // lodging and activities are still asked (just once, for the trip).
+  // lodging is still asked (just once, for the trip).
   const places =
     input.locations.length > 0
       ? input.locations
@@ -79,11 +63,10 @@ export function planBudgetSteps(input: BudgetPlanInput): BudgetStep[] {
       title: loc.name,
       subtitle: `${nights} ${nights === 1 ? "night" : "nights"}`,
       question: `How much for ${loc.name}?`,
-      hint: `Somewhere to stay runs about EUR ${euros(LODGING_PER_NIGHT_CENTS)}/night, so ~EUR ${euros(lodging)} here. Add anything you'll do too.`,
+      hint: `Somewhere to stay runs about EUR ${euros(LODGING_PER_NIGHT_CENTS)}/night, so ~EUR ${euros(lodging)} here.`,
       fields: [
         { key: "lodging", label: "Accommodation", suggestedCents: lodging },
       ],
-      activitySuggestions: ACTIVITY_SUGGESTIONS,
     }
   })
 
@@ -108,6 +91,15 @@ export function planBudgetSteps(input: BudgetPlanInput): BudgetStep[] {
       question: "Eating out and groceries?",
       hint: `About EUR ${euros(FOOD_PER_PERSON_DAY_CENTS)} each a day over ${totalDays} ${totalDays === 1 ? "day" : "days"}.`,
       fields: [{ key: "food", label: "Food & drink", suggestedCents: food }],
+    },
+    {
+      key: "activities",
+      title: "Activities",
+      subtitle: null,
+      question: "Is there a specific activity you'd like to do?",
+      hint: "Surfing, diving, a tour... add each with a rough cost. Skip if none.",
+      fields: [],
+      addList: true,
     },
     {
       key: "other",

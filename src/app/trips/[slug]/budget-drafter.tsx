@@ -203,12 +203,8 @@ export function BudgetDrafter({
   function renderActivities(step: BudgetStep) {
     const rows = session!.activities[step.key] ?? []
     return (
-      <div className="mt-3 border-t border-rule pt-2.5">
-        <div className="font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
-          Activities
-        </div>
-
-        <div className="mt-1.5 space-y-1.5">
+      <div className="mt-3">
+        <div className="space-y-1.5">
           {rows.map((row) => (
             <div key={row.id} className="flex items-center gap-2">
               <input
@@ -251,25 +247,14 @@ export function BudgetDrafter({
           ))}
         </div>
 
-        <div className="mt-2 flex flex-wrap gap-1.5">
-          {(step.activitySuggestions ?? []).map((s) => (
-            <button
-              key={s.label}
-              type="button"
-              onClick={() => addActivity(step.key, s.label, fmt(s.cents))}
-              disabled={isPending}
-              className="rounded-full border border-border bg-transparent px-2.5 py-1 font-mono text-[9.5px] uppercase tracking-[0.12em] text-muted-foreground hover:text-foreground"
-            >
-              + {s.label} €{fmt(s.cents)}
-            </button>
-          ))}
+        <div className="mt-2">
           <button
             type="button"
             onClick={() => addActivity(step.key, "", "")}
             disabled={isPending}
             className="rounded-full border border-dashed border-border bg-transparent px-2.5 py-1 font-mono text-[9.5px] uppercase tracking-[0.12em] text-muted-foreground hover:text-foreground"
           >
-            + your own
+            + add activity
           </button>
         </div>
       </div>
@@ -330,7 +315,7 @@ export function BudgetDrafter({
           })}
         </div>
 
-        {step.activitySuggestions ? renderActivities(step) : null}
+        {step.addList ? renderActivities(step) : null}
 
         <div className="mt-4 flex items-center justify-between">
           <button
