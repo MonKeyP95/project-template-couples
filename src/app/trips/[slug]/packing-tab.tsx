@@ -97,7 +97,7 @@ export function PackingTab({
     React.useState<PackingCategory[]>(initialCategories)
   const [lastCategories, setLastCategories] = React.useState(initialCategories)
   const [editingId, setEditingId] = React.useState<string | null>(null)
-  const [view, setView] = React.useState<View>("shared")
+  const [view, setView] = React.useState<View>("mine")
   const [partnerUnlocked, setPartnerUnlocked] = React.useState(false)
 
   // Sync local state when the server re-fetches (RefreshOnVisible after the tab
