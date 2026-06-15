@@ -2,10 +2,7 @@
 
 import * as React from "react"
 
-import { Label } from "@/components/together"
 import { partialSettleUp, settleUp } from "@/lib/trips/actions"
-
-import type { MemberToneEntry } from "./packing-tab"
 
 function fmt(cents: number): string {
   return (cents / 100).toFixed(2)
@@ -49,9 +46,9 @@ export function SettleUpButtons({
         <form action={settleUp.bind(null, tripId, tripSlug)}>
           <button
             type="submit"
-            className="rounded-full border-0 bg-foreground px-3.5 py-2 font-mono text-[10px] uppercase tracking-[0.2em] text-background"
+            className="rounded-full border-0 bg-foreground px-3.5 py-2 font-mono text-[10px] uppercase tracking-[0.15em] text-background"
           >
-            settle
+            settle up
           </button>
         </form>
         {showInput ? (
@@ -82,7 +79,7 @@ export function SettleUpButtons({
               setShowInput(true)
               setError(null)
             }}
-            className="rounded-full border border-border bg-card px-3.5 py-2 font-mono text-[10px] uppercase tracking-[0.2em] text-muted-foreground hover:text-foreground"
+            className="rounded-full border border-border bg-card px-3.5 py-2 font-mono text-[10px] uppercase tracking-[0.15em] text-muted-foreground hover:text-foreground"
           >
             partial
           </button>
@@ -91,63 +88,6 @@ export function SettleUpButtons({
       {error ? (
         <div className="font-mono text-[10px] text-clay">{error}</div>
       ) : null}
-    </div>
-  )
-}
-
-export interface SettleUpCardProps {
-  isSettled: boolean
-  netBalanceCents: number
-  creditor: MemberToneEntry | null
-  debtor: MemberToneEntry | null
-  tripId: string
-  tripSlug: string
-}
-
-export function SettleUpCard({
-  isSettled,
-  netBalanceCents,
-  creditor,
-  debtor,
-  tripId,
-  tripSlug,
-}: SettleUpCardProps) {
-  const canSettle = !isSettled && creditor && debtor
-  const owedCents = Math.abs(netBalanceCents)
-
-  return (
-    <div className="px-5 py-3.5">
-      <div className="rounded-lg border border-border bg-card px-4 py-3.5">
-        <div className="flex items-center justify-between gap-3">
-          <div>
-            <Label className="mb-1">Settle-up</Label>
-            {canSettle ? (
-              <div className="text-[14px] leading-snug text-foreground">
-                <span className="font-serif italic">{debtor.displayName}</span>{" "}
-                owes{" "}
-                <span className="font-serif italic">
-                  {creditor.displayName}
-                </span>
-                <span className="t-num ml-1.5 text-foreground">
-                  €{fmt(owedCents)}
-                </span>
-              </div>
-            ) : (
-              <div className="font-serif text-[14px] italic text-moss">
-                All square.
-              </div>
-            )}
-          </div>
-
-          {canSettle ? (
-            <SettleUpButtons
-              owedCents={owedCents}
-              tripId={tripId}
-              tripSlug={tripSlug}
-            />
-          ) : null}
-        </div>
-      </div>
     </div>
   )
 }
