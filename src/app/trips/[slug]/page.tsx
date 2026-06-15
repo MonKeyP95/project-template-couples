@@ -148,6 +148,9 @@ export default async function TripPage({
 
   const memberTones = memberToneMap(workspace)
   const memberIds = workspace.members.map((m) => m.user_id)
+  const partnerId =
+    workspace.members.find((m) => m.user_id !== userData.user!.id)?.user_id ??
+    null
 
   // Right rail needs packing + budget counts always, so load both at the page
   // level and share the result with the active tab below.
@@ -174,8 +177,11 @@ export default async function TripPage({
     ])
 
   const budgetSummary = summarizeBudget(expenses, memberIds)
-  const packingTotal = packingItems.length
-  const packingDone = packingItems.filter((i) => i.done).length
+  const myPackingItems = packingItems.filter(
+    (i) => i.ownerId === null || i.ownerId === userData.user!.id,
+  )
+  const packingTotal = myPackingItems.length
+  const packingDone = myPackingItems.filter((i) => i.done).length
   const dark = await isDarkTheme()
   const navTrips = await listTripsForWorkspace(workspace.id)
   const navDestinations = buildNavDestinations({
@@ -224,6 +230,8 @@ export default async function TripPage({
           <PackingTab
             tripId={header.id}
             tripSlug={header.slug}
+            currentUserId={userData.user.id}
+            partnerId={partnerId}
             initialItems={packingItems}
             initialCategories={packingCategories}
             members={memberTones}
