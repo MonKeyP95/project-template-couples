@@ -9,6 +9,7 @@ import {
   type ExpenseCategoryRow,
 } from "@/lib/trips/expense-types"
 import { getCurrentWorkspace } from "@/lib/workspace/queries"
+import { listChecklists } from "@/lib/checklists/queries"
 import type { PackingCategory } from "@/lib/trips/packing-types"
 import { rowToNote, type TripNote } from "@/lib/trips/note-queries"
 import {
@@ -85,6 +86,14 @@ export async function getImportableTrips(
     .order("start_date", { ascending: true, nullsFirst: false })
 
   return (data ?? []).map((r) => ({ id: r.id, name: r.name }))
+}
+
+/** The current workspace's checklists, as packing import sources. */
+export async function getImportableChecklists(): Promise<ImportableTrip[]> {
+  const workspace = await getCurrentWorkspace()
+  if (!workspace) return []
+  const lists = await listChecklists(workspace.id)
+  return lists.map((c) => ({ id: c.id, name: c.name }))
 }
 
 /**
@@ -1414,11 +1423,15 @@ export async function addPackingCategory(
   }
 }
 
-/** Copy another trip's packing list into this one. Merge: same-name categories
- * are reused (items link by name); items come in unpacked. Additive. */
+/** Copy another trip's packing into this one. `sourceOwner`/`targetOwner` select
+ * the source and destination scope (null = shared, a user id = that person's
+ * personal list). Merge: same-name categories in the target scope are reused
+ * (items link by name); items come in unpacked. Additive. */
 export async function copyPackingFromTrip(
   targetTripId: string,
   sourceTripId: string,
+  sourceOwner: string | null,
+  targetOwner: string | null,
   tripSlug: string,
 ): Promise<CopyResult> {
   const supabase = await createClient()
@@ -1426,24 +1439,31 @@ export async function copyPackingFromTrip(
   if (userError || !userData.user) return { error: "Not signed in." }
   const userId = userData.user.id
 
+  const srcCatQuery = supabase
+    .from("packing_categories")
+    .select("name, sort_order")
+    .eq("trip_id", sourceTripId)
+    .order("sort_order", { ascending: true })
+  const srcItemQuery = supabase
+    .from("packing_items")
+    .select("category, label")
+    .eq("trip_id", sourceTripId)
+    .order("created_at", { ascending: true })
+  const tgtCatQuery = supabase
+    .from("packing_categories")
+    .select("name, sort_order")
+    .eq("trip_id", targetTripId)
+
   const [srcCats, srcItems, tgtCats] = await Promise.all([
-    supabase
-      .from("packing_categories")
-      .select("name, sort_order")
-      .eq("trip_id", sourceTripId)
-      .is("owner_id", null)
-      .order("sort_order", { ascending: true }),
-    supabase
-      .from("packing_items")
-      .select("category, label")
-      .eq("trip_id", sourceTripId)
-      .is("owner_id", null)
-      .order("created_at", { ascending: true }),
-    supabase
-      .from("packing_categories")
-      .select("name, sort_order")
-      .eq("trip_id", targetTripId)
-      .is("owner_id", null),
+    sourceOwner === null
+      ? srcCatQuery.is("owner_id", null)
+      : srcCatQuery.eq("owner_id", sourceOwner),
+    sourceOwner === null
+      ? srcItemQuery.is("owner_id", null)
+      : srcItemQuery.eq("owner_id", sourceOwner),
+    targetOwner === null
+      ? tgtCatQuery.is("owner_id", null)
+      : tgtCatQuery.eq("owner_id", targetOwner),
   ])
 
   const existing = new Set((tgtCats.data ?? []).map((c) => c.name))
@@ -1457,6 +1477,7 @@ export async function copyPackingFromTrip(
       name: c.name,
       sort_order: nextOrder++,
       created_by: userId,
+      owner_id: targetOwner,
     }))
   if (newCats.length) {
     const { error } = await supabase.from("packing_categories").insert(newCats)
@@ -1468,6 +1489,75 @@ export async function copyPackingFromTrip(
     category: it.category,
     label: it.label,
     added_by: userId,
+    owner_id: targetOwner,
+  }))
+  if (newItems.length) {
+    const { error } = await supabase.from("packing_items").insert(newItems)
+    if (error) return { error: error.message }
+  }
+
+  revalidatePath(`/trips/${tripSlug}`)
+  return { copied: newItems.length }
+}
+
+/** Copy a workspace checklist's items into this trip's packing under `owner`
+ * (null = shared, a user id = personal). Merge by category name; unpacked. */
+export async function copyChecklistToPacking(
+  targetTripId: string,
+  checklistId: string,
+  owner: string | null,
+  tripSlug: string,
+): Promise<CopyResult> {
+  const supabase = await createClient()
+  const { data: userData, error: userError } = await supabase.auth.getUser()
+  if (userError || !userData.user) return { error: "Not signed in." }
+  const userId = userData.user.id
+
+  const tgtCatQuery = supabase
+    .from("packing_categories")
+    .select("name, sort_order")
+    .eq("trip_id", targetTripId)
+
+  const [srcCats, srcItems, tgtCats] = await Promise.all([
+    supabase
+      .from("checklist_categories")
+      .select("name, sort_order")
+      .eq("checklist_id", checklistId)
+      .order("sort_order", { ascending: true }),
+    supabase
+      .from("checklist_items")
+      .select("category, label")
+      .eq("checklist_id", checklistId)
+      .order("created_at", { ascending: true }),
+    owner === null
+      ? tgtCatQuery.is("owner_id", null)
+      : tgtCatQuery.eq("owner_id", owner),
+  ])
+
+  const existing = new Set((tgtCats.data ?? []).map((c) => c.name))
+  let nextOrder =
+    (tgtCats.data ?? []).reduce((m, c) => Math.max(m, c.sort_order), -1) + 1
+
+  const newCats = (srcCats.data ?? [])
+    .filter((c) => !existing.has(c.name))
+    .map((c) => ({
+      trip_id: targetTripId,
+      name: c.name,
+      sort_order: nextOrder++,
+      created_by: userId,
+      owner_id: owner,
+    }))
+  if (newCats.length) {
+    const { error } = await supabase.from("packing_categories").insert(newCats)
+    if (error) return { error: error.message }
+  }
+
+  const newItems = (srcItems.data ?? []).map((it) => ({
+    trip_id: targetTripId,
+    category: it.category,
+    label: it.label,
+    added_by: userId,
+    owner_id: owner,
   }))
   if (newItems.length) {
     const { error } = await supabase.from("packing_items").insert(newItems)

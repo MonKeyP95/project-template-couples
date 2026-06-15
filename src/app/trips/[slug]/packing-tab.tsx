@@ -22,14 +22,14 @@ import { createClient } from "@/lib/supabase/client"
 import {
   addPackingCategory,
   addPackingItem,
-  copyPackingFromTrip,
   deletePackingCategory,
   deletePackingItem,
   reorderPackingCategories,
   togglePackingItem,
   updatePackingItem,
 } from "@/lib/trips/actions"
-import { ImportFromTripControl } from "./import-from-trip"
+import { Download } from "lucide-react"
+import { ImportItemsDialog } from "./import-items-dialog"
 import {
   groupPackingItems,
   partitionByOwner,
@@ -99,6 +99,7 @@ export function PackingTab({
   const [editingId, setEditingId] = React.useState<string | null>(null)
   const [view, setView] = React.useState<View>("mine")
   const [partnerUnlocked, setPartnerUnlocked] = React.useState(false)
+  const [importOpen, setImportOpen] = React.useState(false)
 
   // Sync local state when the server re-fetches (RefreshOnVisible after the tab
   // returns from background, where Realtime may have missed events).
@@ -273,7 +274,7 @@ export function PackingTab({
           <Label>Packing</Label>
           {daysOutLabel ? <Coord>{daysOutLabel}</Coord> : null}
         </div>
-        <div className="relative mt-3 flex gap-1.5">
+        <div className="relative mt-3 flex flex-wrap items-center gap-1.5">
           <SegBtn active={view === "mine"} onClick={() => setView("mine")}>
             My list
           </SegBtn>
@@ -285,8 +286,25 @@ export function PackingTab({
               {partnerName}&rsquo;s list
             </SegBtn>
           ) : null}
+          <button
+            type="button"
+            onClick={() => setImportOpen(true)}
+            className="ml-auto flex items-center gap-1 rounded-full border border-rule px-3 py-1 font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground hover:border-foreground hover:text-foreground"
+          >
+            <Download className="h-3 w-3" />
+            Import items
+          </button>
         </div>
       </div>
+
+      <ImportItemsDialog
+        open={importOpen}
+        onOpenChange={setImportOpen}
+        tripId={tripId}
+        tripSlug={tripSlug}
+        currentUserId={currentUserId}
+        defaultTarget={view === "mine" ? "mine" : "shared"}
+      />
 
       <div className="border-t border-border bg-background">
         <PackingList
@@ -306,7 +324,6 @@ export function PackingTab({
           onAddCategory={addCategory}
           onRemoveCategory={removeCategory}
           onReorder={reorder}
-          onCopyShared={(src) => copyPackingFromTrip(tripId, src, tripSlug)}
         />
       </div>
     </section>
@@ -360,7 +377,6 @@ interface PackingListProps {
     owner: string | null,
   ) => void
   onReorder: (owner: string | null, orderedIds: string[]) => void
-  onCopyShared: (sourceTripId: string) => Promise<{ error?: string }>
 }
 
 function PackingList({
@@ -379,7 +395,6 @@ function PackingList({
   onAddCategory,
   onRemoveCategory,
   onReorder,
-  onCopyShared,
 }: PackingListProps) {
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
@@ -492,15 +507,6 @@ function PackingList({
         <AddCategoryRow onAdd={(name) => onAddCategory(name, owner)} />
       </div>
 
-      {owner === null ? (
-        <div className="px-5 pt-2">
-          <ImportFromTripControl
-            tripId={tripId}
-            label="Copy packing from another trip"
-            onCopy={onCopyShared}
-          />
-        </div>
-      ) : null}
 
       <div className="px-5 pt-4 pb-6">
         <SuggestionCard label="/ suggested for Rinjani" expandable>
