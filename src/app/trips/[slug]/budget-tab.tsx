@@ -15,6 +15,8 @@ import {
 } from "@/lib/trips/location-budget-types"
 import { type ItineraryLocation } from "@/lib/trips/location-types"
 
+import { AiSuggestion } from "@/components/ai-suggestion"
+
 import { BudgetByLocation } from "./budget-by-location"
 import { BudgetDrafter } from "./budget-drafter"
 import { SavedFigure, SpentFigure } from "./budget-figures"
@@ -108,6 +110,9 @@ export function BudgetTab({
             tripId={tripId}
             tripSlug={tripSlug}
           />
+          <div className="px-5 pt-4">
+            <AiSuggestion surface="budget" />
+          </div>
           <BudgetDrafter
             tripId={tripId}
             tripSlug={tripSlug}

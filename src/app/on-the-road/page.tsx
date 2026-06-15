@@ -19,6 +19,7 @@ import {
 import { getNotesForDay } from "@/lib/trips/note-queries"
 import { computeLookingAhead } from "@/lib/trips/looking-ahead"
 
+import { AiSuggestion } from "@/components/ai-suggestion"
 import { RealtimeRefresh } from "@/components/realtime-refresh"
 import { QuickExpense } from "./quick-expense"
 import { QuickNote } from "./quick-note"
@@ -93,6 +94,7 @@ export default async function OnTheRoadPage() {
       />
       <div className="px-5 pt-6 pb-16 lg:min-w-0 lg:flex-1 lg:px-8 lg:py-8">
         <Label className="mb-4 block">{`On the road · ${trip.name}`}</Label>
+        <AiSuggestion surface="road" className="mb-4 block" />
 
       <section className="relative overflow-hidden rounded-[14px] border border-border bg-card p-5">
         <TopoBg tone={tone} opacity={0.12} />

@@ -12,6 +12,8 @@ import {
   buildNavDestinations,
 } from "@/components/app-nav"
 
+import { AiSuggestion } from "@/components/ai-suggestion"
+
 import { ChecklistsOverview } from "./checklists-overview"
 
 export default async function ChecklistsPage() {
@@ -44,6 +46,7 @@ export default async function ChecklistsPage() {
       />
       <main className="w-full px-5 pt-14 pb-16 lg:min-w-0 lg:flex-1 lg:px-12 lg:pt-12">
         <Label className="mb-4 block">Checklists</Label>
+        <AiSuggestion surface="checklists" className="mb-4 block" />
         <ChecklistsOverview initial={checklists} />
       </main>
     </div>
