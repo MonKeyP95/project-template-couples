@@ -86,25 +86,28 @@ export function planBudgetSteps(input: BudgetPlanInput): BudgetStep[]
 
 Mock logic (deterministic, no randomness, no async, no network):
 - Constants: `LODGING_PER_NIGHT_CENTS = 11000`, `TRANSPORT_PER_PERSON_CENTS =
-  15000`, `FOOD_PER_PERSON_DAY_CENTS = 2500`.
+  15000`, `FOOD_PER_PERSON_DAY_CENTS = 2500`, `ACTIVITY_ESTIMATE_CENTS = 5000`.
 - `memberCount` floors at 1; each location's `nights` floors at 1.
 - One step per location (in input order): title = name, subtitle =
   "`<nights>` night(s)", a single `lodging` field (suggested `nights *
   LODGING_PER_NIGHT_CENTS`). No per-location activity prompts (too noisy).
-- A single trip-wide **Activities** step (`addList: true`) after transport and
-  food: it asks "Is there a specific activity you'd like to do?" and the user
-  adds their own named rows (label + cost, editable, removable). No preset
-  suggestions — kept deliberately minimal.
 - No-locations default: when the trip has no locations, the whole trip is treated
   as one place named after the trip (`tripName`, nights = `totalDays`), so the
-  same per-location step still asks lodging + activities. This is the only place
-  the trip name becomes a "location," and only for the interview — nothing is
+  same place step still asks lodging. Only for the interview — nothing is
   persisted per place.
-- Trip-wide steps, always appended:
+- Trip-wide steps, always appended in order:
   - Transport: one field suggested `TRANSPORT_PER_PERSON_CENTS * memberCount`.
   - Food & drink: one field suggested `FOOD_PER_PERSON_DAY_CENTS * memberCount *
     max(totalDays, 1)`.
-  - Other: one field suggested null.
+  - Activities (`addList: true`): "Is there a specific activity you'd like to
+    do?"; user adds their own named rows. No presets.
+  - Other (`addList: true`): "Anything else to budget for?" (insurance, gifts,
+    buffer); user adds named rows.
+- Estimate for blank add-list costs: `estimateActivityCents()` (flat
+  `ACTIVITY_ESTIMATE_CENTS` in the mock; Claude later assesses from the label).
+  Applied by the UI when leaving an add-list step to any named row left without a
+  cost. An explicit `0` (e.g. staying with friends, borrowed car) is valid and
+  kept as-is — only a truly blank cost is estimated.
 - A trip with no locations yields one trip-named place step (lodging +
   activities) plus the three trip-wide steps, so the assistant still works
   (e.g. a trip with dates but no places yet).

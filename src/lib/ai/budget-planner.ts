@@ -39,9 +39,19 @@ export interface BudgetStep {
 const LODGING_PER_NIGHT_CENTS = 11000
 const TRANSPORT_PER_PERSON_CENTS = 15000
 const FOOD_PER_PERSON_DAY_CENTS = 2500
+const ACTIVITY_ESTIMATE_CENTS = 5000
 
 function euros(cents: number): string {
   return (cents / 100).toFixed(0)
+}
+
+/**
+ * The assistant's guess for an add-list row left without a cost. Mock returns a
+ * flat figure; real Claude later assesses it from the row's label. A row with an
+ * explicit 0 (e.g. staying with friends) is kept as-is and not estimated.
+ */
+export function estimateActivityCents(): number {
+  return ACTIVITY_ESTIMATE_CENTS
 }
 
 export function planBudgetSteps(input: BudgetPlanInput): BudgetStep[] {
@@ -105,9 +115,10 @@ export function planBudgetSteps(input: BudgetPlanInput): BudgetStep[] {
       key: "other",
       title: "Anything else",
       subtitle: null,
-      question: "Insurance, gifts, a buffer?",
-      hint: null,
-      fields: [{ key: "other", label: "Other", suggestedCents: null }],
+      question: "Anything else to budget for?",
+      hint: "Insurance, gifts, a buffer... add each with a label and cost. Skip if none.",
+      fields: [],
+      addList: true,
     },
   ]
 

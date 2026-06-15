@@ -3,7 +3,11 @@
 import * as React from "react"
 
 import { Label } from "@/components/together"
-import { planBudgetSteps, type BudgetStep } from "@/lib/ai/budget-planner"
+import {
+  estimateActivityCents,
+  planBudgetSteps,
+  type BudgetStep,
+} from "@/lib/ai/budget-planner"
 import { updateTripBudget } from "@/lib/trips/actions"
 import {
   dayLocationMap,
@@ -134,6 +138,29 @@ export function BudgetDrafter({
     )
   }
 
+  // Leaving an add-list step: drop fully-empty rows, and for a named row with no
+  // cost let the assistant estimate it (an explicit 0 is kept as-is).
+  function normalizeAddList(stepKey: string) {
+    setSession((s) => {
+      if (!s) return s
+      const rows = (s.activities[stepKey] ?? [])
+        .filter((r) => r.label.trim() !== "" || r.value.trim() !== "")
+        .map((r) =>
+          r.label.trim() !== "" && r.value.trim() === ""
+            ? { ...r, value: fmt(estimateActivityCents()) }
+            : r,
+        )
+      return { ...s, activities: { ...s.activities, [stepKey]: rows } }
+    })
+  }
+
+  function goNext() {
+    if (!session) return
+    const step = session.steps[stepIndex]
+    if (step?.addList) normalizeAddList(step.key)
+    setStepIndex((i) => i + 1)
+  }
+
   function removeActivity(stepKey: string, id: string) {
     setSession((s) =>
       s
@@ -202,6 +229,9 @@ export function BudgetDrafter({
 
   function renderActivities(step: BudgetStep) {
     const rows = session!.activities[step.key] ?? []
+    const isOther = step.key === "other"
+    const namePlaceholder = isOther ? "What for?" : "Activity"
+    const addLabel = isOther ? "+ add item" : "+ add activity"
     return (
       <div className="mt-3">
         <div className="space-y-1.5">
@@ -210,7 +240,7 @@ export function BudgetDrafter({
               <input
                 type="text"
                 value={row.label}
-                placeholder="Activity"
+                placeholder={namePlaceholder}
                 onChange={(e) =>
                   patchActivity(step.key, row.id, { label: e.target.value })
                 }
@@ -254,7 +284,7 @@ export function BudgetDrafter({
             disabled={isPending}
             className="rounded-full border border-dashed border-border bg-transparent px-2.5 py-1 font-mono text-[9.5px] uppercase tracking-[0.12em] text-muted-foreground hover:text-foreground"
           >
-            + add activity
+            {addLabel}
           </button>
         </div>
       </div>
@@ -336,7 +366,7 @@ export function BudgetDrafter({
             </button>
             <button
               type="button"
-              onClick={() => setStepIndex((i) => i + 1)}
+              onClick={goNext}
               className="rounded-md border-0 bg-foreground px-3 py-1.5 font-mono text-[9.5px] uppercase tracking-[0.2em] text-background"
             >
               {isLast ? "review" : "next"}
