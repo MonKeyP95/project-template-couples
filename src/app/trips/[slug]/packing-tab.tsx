@@ -2,14 +2,7 @@
 
 import * as React from "react"
 
-import {
-  Bar,
-  CheckRow,
-  Coord,
-  Label,
-  SuggestionCard,
-  TopoBg,
-} from "@/components/together"
+import { CheckRow, Coord, Label, SuggestionCard, TopoBg } from "@/components/together"
 import {
   DndContext,
   PointerSensor,
@@ -39,6 +32,8 @@ import {
 import { ImportFromTripControl } from "./import-from-trip"
 import {
   groupPackingItems,
+  partitionByOwner,
+  type OwnerScope,
   type PackingCategory,
   type PackingItem,
 } from "@/lib/trips/packing-types"
@@ -52,6 +47,8 @@ export interface MemberToneEntry {
 export interface PackingTabProps {
   tripId: string
   tripSlug: string
+  currentUserId: string
+  partnerId: string | null
   initialItems: PackingItem[]
   initialCategories: PackingCategory[]
   members: Record<string, MemberToneEntry>
@@ -65,6 +62,7 @@ interface RealtimeRow {
   label: string
   done: boolean
   added_by: string
+  owner_id: string | null
   created_at: string
 }
 
@@ -76,13 +74,18 @@ function fromRow(row: RealtimeRow): PackingItem {
     label: row.label,
     done: row.done,
     addedBy: row.added_by,
+    ownerId: row.owner_id,
     createdAt: row.created_at,
   }
 }
 
+type View = "mine" | "shared" | "partner"
+
 export function PackingTab({
   tripId,
   tripSlug,
+  currentUserId,
+  partnerId,
   initialItems,
   initialCategories,
   members,
@@ -94,9 +97,11 @@ export function PackingTab({
     React.useState<PackingCategory[]>(initialCategories)
   const [lastCategories, setLastCategories] = React.useState(initialCategories)
   const [editingId, setEditingId] = React.useState<string | null>(null)
+  const [view, setView] = React.useState<View>("shared")
+  const [partnerUnlocked, setPartnerUnlocked] = React.useState(false)
 
-  // Sync local state when the server re-fetches (e.g. RefreshOnVisible after
-  // the tab returns from background, where Realtime may have missed events).
+  // Sync local state when the server re-fetches (RefreshOnVisible after the tab
+  // returns from background, where Realtime may have missed events).
   if (initialItems !== lastInitial) {
     setLastInitial(initialItems)
     setItems(initialItems)
@@ -119,12 +124,9 @@ export function PackingTab({
           filter: `trip_id=eq.${tripId}`,
         },
         (payload) => {
-          console.log("[packing realtime]", payload.eventType, payload)
           if (payload.eventType === "UPDATE") {
             const next = fromRow(payload.new as RealtimeRow)
-            setItems((prev) =>
-              prev.map((i) => (i.id === next.id ? next : i)),
-            )
+            setItems((prev) => prev.map((i) => (i.id === next.id ? next : i)))
           } else if (payload.eventType === "INSERT") {
             const next = fromRow(payload.new as RealtimeRow)
             setItems((prev) =>
@@ -132,15 +134,11 @@ export function PackingTab({
             )
           } else if (payload.eventType === "DELETE") {
             const old = payload.old as { id?: string }
-            if (old.id) {
-              setItems((prev) => prev.filter((i) => i.id !== old.id))
-            }
+            if (old.id) setItems((prev) => prev.filter((i) => i.id !== old.id))
           }
         },
       )
-      .subscribe((status, err) => {
-        console.log("[packing realtime] channel status:", status, err ?? "")
-      })
+      .subscribe()
 
     return () => {
       supabase.removeChannel(channel)
@@ -151,11 +149,7 @@ export function PackingTab({
     const current = items.find((i) => i.id === id)
     if (!current) return
     const next = !current.done
-
-    setItems((prev) =>
-      prev.map((i) => (i.id === id ? { ...i, done: next } : i)),
-    )
-
+    setItems((prev) => prev.map((i) => (i.id === id ? { ...i, done: next } : i)))
     const result = await togglePackingItem(id, next)
     if (result.error) {
       setItems((prev) =>
@@ -168,11 +162,9 @@ export function PackingTab({
     const current = items.find((i) => i.id === id)
     if (!current) return {}
     const trimmed = label.trim()
-
     setItems((prev) =>
       prev.map((i) => (i.id === id ? { ...i, label: trimmed } : i)),
     )
-
     const result = await updatePackingItem(id, trimmed)
     if (result.error) {
       setItems((prev) =>
@@ -186,13 +178,15 @@ export function PackingTab({
     if (!window.confirm("Remove this item?")) return
     const snapshot = items
     setItems((prev) => prev.filter((i) => i.id !== id))
-
     const result = await deletePackingItem(id)
     if (result.error) setItems(snapshot)
   }
 
-  async function addCategory(name: string): Promise<{ error?: string }> {
-    const result = await addPackingCategory(tripId, tripSlug, name)
+  async function addCategory(
+    name: string,
+    owner: string | null,
+  ): Promise<{ error?: string }> {
+    const result = await addPackingCategory(tripId, tripSlug, name, owner)
     if (result.error) return { error: result.error }
     if (result.category) {
       const created = result.category
@@ -205,6 +199,7 @@ export function PackingTab({
     categoryId: string,
     name: string,
     count: number,
+    owner: string | null,
   ) {
     const msg =
       count > 0
@@ -215,7 +210,9 @@ export function PackingTab({
     const catSnapshot = categories
     const itemSnapshot = items
     setCategories((prev) => prev.filter((c) => c.id !== categoryId))
-    setItems((prev) => prev.filter((i) => i.category !== name))
+    setItems((prev) =>
+      prev.filter((i) => !(i.category === name && i.ownerId === owner)),
+    )
 
     const result = await deletePackingCategory(categoryId, tripSlug)
     if (result.error) {
@@ -224,143 +221,301 @@ export function PackingTab({
     }
   }
 
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
-  )
-  // Stable id keeps dnd-kit's aria-describedby deterministic across SSR/CSR
-  // (its fallback id counter diverges between the long-lived server and a fresh
-  // client load, causing a hydration mismatch).
-  const dndId = React.useId()
   const [, startReorder] = React.useTransition()
 
-  function onDragEnd(e: DragEndEvent) {
-    const { active, over } = e
-    if (!over || active.id === over.id) return
-    const oldIndex = categories.findIndex((c) => c.id === active.id)
-    const newIndex = categories.findIndex((c) => c.id === over.id)
-    if (oldIndex === -1 || newIndex === -1) return
-
+  function reorder(owner: string | null, orderedIds: string[]) {
     const snapshot = categories
-    const reordered = arrayMove(categories, oldIndex, newIndex)
-    setCategories(reordered)
+    const orderMap = new Map(orderedIds.map((id, i) => [id, i]))
+    const reorderedScope = categories
+      .filter((c) => c.ownerId === owner)
+      .sort((a, b) => (orderMap.get(a.id) ?? 0) - (orderMap.get(b.id) ?? 0))
+    let k = 0
+    const next = categories.map((c) =>
+      c.ownerId === owner ? reorderedScope[k++] : c,
+    )
+    setCategories(next)
     startReorder(async () => {
-      const result = await reorderPackingCategories(
-        tripSlug,
-        reordered.map((c) => c.id),
-      )
+      const result = await reorderPackingCategories(tripSlug, orderedIds)
       if (result.error) setCategories(snapshot)
     })
   }
 
-  const groups = groupPackingItems(categories, items)
-  const sortableGroups = groups.filter((g) => g.categoryId)
-  const orphanGroups = groups.filter((g) => !g.categoryId)
-  const total = items.length
-  const done = items.filter((i) => i.done).length
-  const pct = total === 0 ? 0 : Math.round((done / total) * 100)
+  const parts = partitionByOwner(categories, items, currentUserId, partnerId)
+  const partnerName = partnerId ? members[partnerId]?.displayName ?? "Partner" : null
   const daysOutLabel = daysOut == null ? null : `${Math.max(0, daysOut)} days out`
+
+  function openPartner() {
+    if (!partnerName) return
+    if (partnerUnlocked) {
+      setView("partner")
+      return
+    }
+    if (window.confirm(`This is ${partnerName}'s list — open it?`)) {
+      setPartnerUnlocked(true)
+      setView("partner")
+    }
+  }
+
+  const active: { scope: OwnerScope; owner: string | null; readOnly: boolean } =
+    view === "mine"
+      ? { scope: parts.mine, owner: currentUserId, readOnly: false }
+      : view === "partner"
+        ? { scope: parts.partner, owner: partnerId, readOnly: true }
+        : { scope: parts.shared, owner: null, readOnly: false }
 
   return (
     <section>
       <div className="relative overflow-hidden bg-clay-tint px-5 pt-6 pb-4">
         <TopoBg tone="clay" opacity={0.1} />
         <div className="relative flex items-start justify-between">
-          <div>
-            <Label>Packing</Label>
-            <div className="t-display mt-1 text-[36px] text-foreground">
-              <span className="t-num">{done}</span>
-              <span className="text-muted-foreground">/{total}</span>
-            </div>
-          </div>
-          <div className="text-right">
-            {daysOutLabel ? <Coord>{daysOutLabel}</Coord> : null}
-            <div className="mt-1 font-mono text-[11px] tracking-[0.06em] text-clay">
-              {pct}% ready
-            </div>
-          </div>
+          <Label>Packing</Label>
+          {daysOutLabel ? <Coord>{daysOutLabel}</Coord> : null}
         </div>
-        <div className="relative mt-3.5">
-          <Bar pct={pct} tone="clay" />
+        <div className="relative mt-3 flex gap-1.5">
+          <SegBtn active={view === "mine"} onClick={() => setView("mine")}>
+            My list
+          </SegBtn>
+          <SegBtn active={view === "shared"} onClick={() => setView("shared")}>
+            Shared
+          </SegBtn>
+          {partnerName ? (
+            <SegBtn active={view === "partner"} onClick={openPartner}>
+              {partnerName}&rsquo;s list
+            </SegBtn>
+          ) : null}
         </div>
       </div>
 
       <div className="border-t border-border bg-background">
-        <DndContext
-          id={dndId}
-          sensors={sensors}
-          collisionDetection={closestCenter}
-          onDragEnd={onDragEnd}
-        >
-          <SortableContext
-            items={sortableGroups.map((g) => g.categoryId as string)}
-            strategy={verticalListSortingStrategy}
-          >
-            {sortableGroups.map((g) => (
-              <SortableCategoryGroup
-                key={g.categoryId as string}
-                id={g.categoryId as string}
-                tripId={tripId}
-                categoryId={g.categoryId}
-                category={g.category}
-                items={g.items}
-                members={members}
-                editingId={editingId}
-                onToggle={toggle}
-                onStartEdit={setEditingId}
-                onStopEdit={() => setEditingId(null)}
-                onUpdate={update}
-                onDelete={remove}
-                onDeleteCategory={removeCategory}
-              />
-            ))}
-          </SortableContext>
-        </DndContext>
-
-        {orphanGroups.map((g) => (
-          <CategoryGroup
-            key={`orphan:${g.category}`}
-            tripId={tripId}
-            categoryId={null}
-            category={g.category}
-            items={g.items}
-            members={members}
-            editingId={editingId}
-            onToggle={toggle}
-            onStartEdit={setEditingId}
-            onStopEdit={() => setEditingId(null)}
-            onUpdate={update}
-            onDelete={remove}
-            onDeleteCategory={removeCategory}
-          />
-        ))}
-
-        <div className="px-5 pt-4">
-          <AddCategoryRow onAdd={addCategory} />
-        </div>
-
-        <div className="px-5 pt-2">
-          <ImportFromTripControl
-            tripId={tripId}
-            label="Copy packing from another trip"
-            onCopy={(src) => copyPackingFromTrip(tripId, src, tripSlug)}
-          />
-        </div>
-
-        <div className="px-5 pt-4 pb-6">
-          <SuggestionCard label="/ suggested for Rinjani" expandable>
-            Nights drop to 4°C at the crater.{" "}
-            <span className="font-serif italic text-foreground">
-              Consider a packable down layer + thermal liner.
-            </span>
-          </SuggestionCard>
-        </div>
+        <PackingList
+          key={view}
+          tripId={tripId}
+          owner={active.owner}
+          readOnly={active.readOnly}
+          categories={active.scope.categories}
+          items={active.scope.items}
+          members={members}
+          editingId={editingId}
+          onToggle={toggle}
+          onStartEdit={setEditingId}
+          onStopEdit={() => setEditingId(null)}
+          onUpdate={update}
+          onDelete={remove}
+          onAddCategory={addCategory}
+          onRemoveCategory={removeCategory}
+          onReorder={reorder}
+          onCopyShared={(src) => copyPackingFromTrip(tripId, src, tripSlug)}
+        />
       </div>
     </section>
   )
 }
 
+function SegBtn({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean
+  onClick: () => void
+  children: React.ReactNode
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      className={
+        "rounded-full border px-3 py-1 font-mono text-[10px] uppercase tracking-[0.14em] transition-colors " +
+        (active
+          ? "border-clay bg-clay text-background"
+          : "border-rule bg-transparent text-muted-foreground hover:text-foreground")
+      }
+    >
+      {children}
+    </button>
+  )
+}
+
+interface PackingListProps {
+  tripId: string
+  owner: string | null
+  readOnly: boolean
+  categories: PackingCategory[]
+  items: PackingItem[]
+  members: Record<string, MemberToneEntry>
+  editingId: string | null
+  onToggle: (id: string) => void
+  onStartEdit: (id: string) => void
+  onStopEdit: () => void
+  onUpdate: (id: string, label: string) => Promise<{ error?: string }>
+  onDelete: (id: string) => void
+  onAddCategory: (name: string, owner: string | null) => Promise<{ error?: string }>
+  onRemoveCategory: (
+    id: string,
+    name: string,
+    count: number,
+    owner: string | null,
+  ) => void
+  onReorder: (owner: string | null, orderedIds: string[]) => void
+  onCopyShared: (sourceTripId: string) => Promise<{ error?: string }>
+}
+
+function PackingList({
+  tripId,
+  owner,
+  readOnly,
+  categories,
+  items,
+  members,
+  editingId,
+  onToggle,
+  onStartEdit,
+  onStopEdit,
+  onUpdate,
+  onDelete,
+  onAddCategory,
+  onRemoveCategory,
+  onReorder,
+  onCopyShared,
+}: PackingListProps) {
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+  )
+  const dndId = React.useId()
+
+  const groups = groupPackingItems(categories, items)
+  const sortableGroups = groups.filter((g) => g.categoryId)
+  const orphanGroups = groups.filter((g) => !g.categoryId)
+
+  function onDragEnd(e: DragEndEvent) {
+    const { active, over } = e
+    if (!over || active.id === over.id) return
+    const ids = sortableGroups.map((g) => g.categoryId as string)
+    const oldIndex = ids.indexOf(active.id as string)
+    const newIndex = ids.indexOf(over.id as string)
+    if (oldIndex === -1 || newIndex === -1) return
+    onReorder(owner, arrayMove(ids, oldIndex, newIndex))
+  }
+
+  if (readOnly) {
+    if (groups.length === 0) {
+      return (
+        <div className="px-5 py-10 text-center font-mono text-[11px] uppercase tracking-[0.15em] text-muted-foreground">
+          Nothing here yet
+        </div>
+      )
+    }
+    return (
+      <>
+        {groups.map((g) => (
+          <CategoryGroup
+            key={g.categoryId ?? `orphan:${g.category}`}
+            tripId={tripId}
+            owner={owner}
+            readOnly
+            categoryId={g.categoryId}
+            category={g.category}
+            items={g.items}
+            members={members}
+            editingId={editingId}
+            onToggle={onToggle}
+            onStartEdit={onStartEdit}
+            onStopEdit={onStopEdit}
+            onUpdate={onUpdate}
+            onDelete={onDelete}
+            onDeleteCategory={onRemoveCategory}
+          />
+        ))}
+      </>
+    )
+  }
+
+  return (
+    <>
+      <DndContext
+        id={dndId}
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        onDragEnd={onDragEnd}
+      >
+        <SortableContext
+          items={sortableGroups.map((g) => g.categoryId as string)}
+          strategy={verticalListSortingStrategy}
+        >
+          {sortableGroups.map((g) => (
+            <SortableCategoryGroup
+              key={g.categoryId as string}
+              id={g.categoryId as string}
+              tripId={tripId}
+              owner={owner}
+              readOnly={false}
+              categoryId={g.categoryId}
+              category={g.category}
+              items={g.items}
+              members={members}
+              editingId={editingId}
+              onToggle={onToggle}
+              onStartEdit={onStartEdit}
+              onStopEdit={onStopEdit}
+              onUpdate={onUpdate}
+              onDelete={onDelete}
+              onDeleteCategory={onRemoveCategory}
+            />
+          ))}
+        </SortableContext>
+      </DndContext>
+
+      {orphanGroups.map((g) => (
+        <CategoryGroup
+          key={`orphan:${g.category}`}
+          tripId={tripId}
+          owner={owner}
+          readOnly={false}
+          categoryId={null}
+          category={g.category}
+          items={g.items}
+          members={members}
+          editingId={editingId}
+          onToggle={onToggle}
+          onStartEdit={onStartEdit}
+          onStopEdit={onStopEdit}
+          onUpdate={onUpdate}
+          onDelete={onDelete}
+          onDeleteCategory={onRemoveCategory}
+        />
+      ))}
+
+      <div className="px-5 pt-4">
+        <AddCategoryRow onAdd={(name) => onAddCategory(name, owner)} />
+      </div>
+
+      {owner === null ? (
+        <div className="px-5 pt-2">
+          <ImportFromTripControl
+            tripId={tripId}
+            label="Copy packing from another trip"
+            onCopy={onCopyShared}
+          />
+        </div>
+      ) : null}
+
+      <div className="px-5 pt-4 pb-6">
+        <SuggestionCard label="/ suggested for Rinjani" expandable>
+          Nights drop to 4°C at the crater.{" "}
+          <span className="font-serif italic text-foreground">
+            Consider a packable down layer + thermal liner.
+          </span>
+        </SuggestionCard>
+      </div>
+    </>
+  )
+}
+
 interface CategoryGroupProps {
   tripId: string
+  owner: string | null
+  readOnly: boolean
   categoryId: string | null
   category: string
   items: PackingItem[]
@@ -371,12 +526,19 @@ interface CategoryGroupProps {
   onStopEdit: () => void
   onUpdate: (id: string, label: string) => Promise<{ error?: string }>
   onDelete: (id: string) => void
-  onDeleteCategory: (id: string, name: string, count: number) => void
+  onDeleteCategory: (
+    id: string,
+    name: string,
+    count: number,
+    owner: string | null,
+  ) => void
   dragHandle?: React.ReactNode
 }
 
 function CategoryGroup({
   tripId,
+  owner,
+  readOnly,
   categoryId,
   category,
   items,
@@ -402,10 +564,12 @@ function CategoryGroup({
           <span className="font-mono text-[10px] text-muted-foreground">
             {done} / {items.length}
           </span>
-          {categoryId ? (
+          {categoryId && !readOnly ? (
             <button
               type="button"
-              onClick={() => onDeleteCategory(categoryId, category, items.length)}
+              onClick={() =>
+                onDeleteCategory(categoryId, category, items.length, owner)
+              }
               aria-label="Delete category"
               className="border-0 bg-transparent px-1 font-mono text-[12px] text-muted-foreground hover:text-clay"
             >
@@ -419,6 +583,7 @@ function CategoryGroup({
           key={item.id}
           item={item}
           member={members[item.addedBy]}
+          readOnly={readOnly}
           isEditing={editingId === item.id}
           onToggle={() => onToggle(item.id)}
           onStartEdit={() => onStartEdit(item.id)}
@@ -427,7 +592,9 @@ function CategoryGroup({
           onDelete={() => onDelete(item.id)}
         />
       ))}
-      <AddItemRow tripId={tripId} category={category} />
+      {readOnly ? null : (
+        <AddItemRow tripId={tripId} owner={owner} category={category} />
+      )}
     </div>
   )
 }
@@ -473,6 +640,7 @@ function SortableCategoryGroup({
 function ItemRow({
   item,
   member,
+  readOnly,
   isEditing,
   onToggle,
   onStartEdit,
@@ -482,6 +650,7 @@ function ItemRow({
 }: {
   item: PackingItem
   member?: MemberToneEntry
+  readOnly: boolean
   isEditing: boolean
   onToggle: () => void
   onStartEdit: () => void
@@ -489,7 +658,7 @@ function ItemRow({
   onUpdate: (id: string, label: string) => Promise<{ error?: string }>
   onDelete: () => void
 }) {
-  if (isEditing) {
+  if (isEditing && !readOnly) {
     return <ItemEditor item={item} onUpdate={onUpdate} onDone={onStopEdit} />
   }
   return (
@@ -501,24 +670,28 @@ function ItemRow({
         who={member?.initial}
         whoTone={member?.tone ?? "sea"}
         tone="clay"
-        onToggle={onToggle}
+        onToggle={readOnly ? undefined : onToggle}
       />
-      <button
-        type="button"
-        onClick={onStartEdit}
-        aria-label="Edit item"
-        className="border-0 bg-transparent px-1.5 py-1 font-mono text-[11px] text-muted-foreground hover:text-foreground"
-      >
-        ✎
-      </button>
-      <button
-        type="button"
-        onClick={onDelete}
-        aria-label="Delete item"
-        className="border-0 bg-transparent px-1.5 py-1 font-mono text-[12px] text-muted-foreground hover:text-clay"
-      >
-        ×
-      </button>
+      {readOnly ? null : (
+        <>
+          <button
+            type="button"
+            onClick={onStartEdit}
+            aria-label="Edit item"
+            className="border-0 bg-transparent px-1.5 py-1 font-mono text-[11px] text-muted-foreground hover:text-foreground"
+          >
+            ✎
+          </button>
+          <button
+            type="button"
+            onClick={onDelete}
+            aria-label="Delete item"
+            className="border-0 bg-transparent px-1.5 py-1 font-mono text-[12px] text-muted-foreground hover:text-clay"
+          >
+            ×
+          </button>
+        </>
+      )}
     </div>
   )
 }
@@ -597,9 +770,11 @@ function ItemEditor({
 
 function AddItemRow({
   tripId,
+  owner,
   category,
 }: {
   tripId: string
+  owner: string | null
   category: string
 }) {
   const [expanded, setExpanded] = React.useState(false)
@@ -624,7 +799,7 @@ function AddItemRow({
     if (!label || pending) return
     setPending(true)
     setError(null)
-    const result = await addPackingItem(tripId, category, label)
+    const result = await addPackingItem(tripId, category, label, owner)
     setPending(false)
     if (result.error) {
       setError(result.error)
