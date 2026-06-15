@@ -25,6 +25,12 @@ export interface BudgetField {
   suggestedCents: number | null
 }
 
+/** A tap-to-add named activity with a rough cost, shown on place steps. */
+export interface ActivitySuggestion {
+  label: string
+  cents: number
+}
+
 export interface BudgetStep {
   key: string
   title: string
@@ -32,11 +38,23 @@ export interface BudgetStep {
   question: string
   hint: string | null
   fields: BudgetField[]
+  /** When present, the step shows an add-activities list seeded by these. */
+  activitySuggestions?: ActivitySuggestion[]
 }
 
 const LODGING_PER_NIGHT_CENTS = 11000
 const TRANSPORT_PER_PERSON_CENTS = 15000
 const FOOD_PER_PERSON_DAY_CENTS = 2500
+
+// Canned palette for the mock. Real Claude later picks ones that fit the
+// destination/itinerary; the user can always add their own.
+const ACTIVITY_SUGGESTIONS: ActivitySuggestion[] = [
+  { label: "Surfing lesson", cents: 6000 },
+  { label: "Diving", cents: 12000 },
+  { label: "Boat trip", cents: 4500 },
+  { label: "Guided hike", cents: 5000 },
+  { label: "Entry fees", cents: 2500 },
+]
 
 function euros(cents: number): string {
   return (cents / 100).toFixed(0)
@@ -64,8 +82,8 @@ export function planBudgetSteps(input: BudgetPlanInput): BudgetStep[] {
       hint: `Somewhere to stay runs about EUR ${euros(LODGING_PER_NIGHT_CENTS)}/night, so ~EUR ${euros(lodging)} here. Add anything you'll do too.`,
       fields: [
         { key: "lodging", label: "Accommodation", suggestedCents: lodging },
-        { key: "activities", label: "Activities", suggestedCents: null },
       ],
+      activitySuggestions: ACTIVITY_SUGGESTIONS,
     }
   })
 

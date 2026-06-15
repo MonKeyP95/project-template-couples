@@ -71,6 +71,8 @@ export interface BudgetField {
   suggestedCents: number | null // seed; null = blank field the user fills
 }
 
+export interface ActivitySuggestion { label: string; cents: number } // tap-to-add
+
 export interface BudgetStep {
   key: string // unique step id, e.g. "loc:<id>" or "transport"
   title: string // "Tel Aviv" or "Getting around"
@@ -78,6 +80,7 @@ export interface BudgetStep {
   question: string
   hint: string | null
   fields: BudgetField[]
+  activitySuggestions?: ActivitySuggestion[] // place steps show an add-activities list
 }
 
 export function planBudgetSteps(input: BudgetPlanInput): BudgetStep[]
@@ -88,8 +91,12 @@ Mock logic (deterministic, no randomness, no async, no network):
   15000`, `FOOD_PER_PERSON_DAY_CENTS = 2500`.
 - `memberCount` floors at 1; each location's `nights` floors at 1.
 - One step per location (in input order): title = name, subtitle =
-  "`<nights>` night(s)", fields = `lodging` (suggested `nights *
-  LODGING_PER_NIGHT_CENTS`) and `activities` (suggested null).
+  "`<nights>` night(s)", a `lodging` field (suggested `nights *
+  LODGING_PER_NIGHT_CENTS`), plus `activitySuggestions` (a canned palette:
+  Surfing/Diving/Boat trip/Guided hike/Entry fees). Activities are an add-list,
+  not a single field: the user taps a suggestion to add a named row (label +
+  cost, both editable) or adds a custom blank row, and removes rows. Real Claude
+  later supplies a destination-aware palette through the same field.
 - No-locations default: when the trip has no locations, the whole trip is treated
   as one place named after the trip (`tripName`, nights = `totalDays`), so the
   same per-location step still asks lodging + activities. This is the only place
@@ -132,10 +139,12 @@ Behavior:
    field's `suggestedCents` (formatted whole euros, or "" when null). Start at
    step 0.
 3. Stepping: show the current step's title/subtitle/question/hint and its
-   field(s) as euro number inputs. "back" (disabled on first step) and "next".
-   "next" on the last step goes to the summary.
-4. Summary: list every field grouped by step title, each editable, with a live
-   total (sum of all field values). Apply / Dismiss.
+   field(s) as euro number inputs. Place steps also show the activities add-list
+   (suggestion chips + added rows + "your own"). "back" (disabled on first step)
+   and "next"; "next" on the last step goes to the summary.
+4. Summary: list every field and every added activity row grouped by step title,
+   each editable, with a live total (sum of all field amounts + activity rows).
+   Apply / Dismiss.
 5. Apply: `updateTripBudget({ tripId, tripSlug, plannedBudgetCents: total })`
    inside a transition. On error, surface inline. No per-location writes.
 6. Dismiss / back-out closes without writing.
