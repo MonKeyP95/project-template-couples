@@ -241,7 +241,9 @@ export function PackingTab({
   }
 
   const parts = partitionByOwner(categories, items, currentUserId, partnerId)
-  const partnerName = partnerId ? members[partnerId]?.displayName ?? "Partner" : null
+  const partnerName = partnerId
+    ? (members[partnerId]?.displayName ?? "Partner").split(" ")[0]
+    : null
   const daysOutLabel = daysOut == null ? null : `${Math.max(0, daysOut)} days out`
 
   function openPartner() {
