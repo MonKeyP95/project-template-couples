@@ -5,6 +5,7 @@ export interface PackingItem {
   label: string
   done: boolean
   addedBy: string
+  ownerId: string | null
   createdAt: string
 }
 
@@ -13,6 +14,7 @@ export interface PackingCategory {
   tripId: string
   name: string
   sortOrder: number
+  ownerId: string | null
 }
 
 export interface PackingGroup {
@@ -52,4 +54,31 @@ export function groupPackingItems(
     }
   }
   return groups
+}
+
+export interface OwnerScope {
+  categories: PackingCategory[]
+  items: PackingItem[]
+}
+
+/**
+ * Splits the trip's packing rows into the three views by owner. `null` owner is
+ * shared; `meId` is the current user's personal list; `partnerId` (when present)
+ * is the partner's. Pure — the client derives the three scopes on each render.
+ */
+export function partitionByOwner(
+  categories: PackingCategory[],
+  items: PackingItem[],
+  meId: string,
+  partnerId: string | null,
+): { shared: OwnerScope; mine: OwnerScope; partner: OwnerScope } {
+  const pick = (owner: string | null): OwnerScope => ({
+    categories: categories.filter((c) => c.ownerId === owner),
+    items: items.filter((i) => i.ownerId === owner),
+  })
+  return {
+    shared: pick(null),
+    mine: pick(meId),
+    partner: partnerId ? pick(partnerId) : { categories: [], items: [] },
+  }
 }

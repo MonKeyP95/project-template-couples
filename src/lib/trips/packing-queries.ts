@@ -7,7 +7,7 @@ export async function getPackingItems(
   const supabase = await createClient()
   const { data } = await supabase
     .from("packing_items")
-    .select("id, trip_id, category, label, done, added_by, created_at")
+    .select("id, trip_id, category, label, done, added_by, owner_id, created_at")
     .eq("trip_id", tripId)
     .order("created_at", { ascending: true })
 
@@ -18,6 +18,7 @@ export async function getPackingItems(
     label: row.label,
     done: row.done,
     addedBy: row.added_by,
+    ownerId: row.owner_id,
     createdAt: row.created_at,
   }))
 }
@@ -28,7 +29,7 @@ export async function getPackingCategories(
   const supabase = await createClient()
   const { data } = await supabase
     .from("packing_categories")
-    .select("id, trip_id, name, sort_order")
+    .select("id, trip_id, name, sort_order, owner_id")
     .eq("trip_id", tripId)
     .order("sort_order", { ascending: true })
 
@@ -37,5 +38,6 @@ export async function getPackingCategories(
     tripId: row.trip_id,
     name: row.name,
     sortOrder: row.sort_order,
+    ownerId: row.owner_id,
   }))
 }
