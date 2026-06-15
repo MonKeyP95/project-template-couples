@@ -1,4 +1,4 @@
-# Packing imports: from checklists and from any trip scope — design
+# Packing "Import items" dialog — design
 
 **Date:** 2026-06-15
 **Status:** Approved, ready for implementation plan
@@ -12,37 +12,44 @@ Two gaps in the packing tab's "bring items in" story:
    way to pull a checklist's items into the trip's packing — you'd retype them.
 2. **Import asymmetry from the semi-private work.** "Copy packing from another trip" only
    appears on the **Shared** list and only ever copies the *source trip's shared* packing.
-   The new My list / Partner views have no import at all.
+   The My list / Partner views have no import at all.
 
-We considered surfacing checklists as a fourth packing switcher segment (My / Shared /
-Partner / Checklists) and rejected it: checklists are workspace-scoped and reusable (a
-*library of named lists*), while the packing segments are this-trip and each a *single
-list*. Mixing them conflates scopes, breaks the "one tap, one list" segment metaphor, and
-lets a tap inside the packing tab silently mutate a shared workspace template. The bridge
-the checklists feature was designed for is a copy: `checklist_items` already share the
-`category` + `label` + `done` shape of `packing_items`.
+Rejected alternatives: a fourth packing switcher segment for checklists (conflates the
+this-trip single-list segments with a workspace-level library of lists, and risks editing
+a shared template from the packing tab); and per-view dashed import buttons (the in-list
+"copy from another trip" / "add from checklist" bars felt scattered).
 
-We also considered merging both imports into one combined control and rejected that too —
-the user prefers **two distinct, clearly-labelled buttons**. So the fix is: show both
-import buttons on My + Shared, and give the trip-copy a source-scope choice.
+**Chosen approach:** one global **"Import items"** button in the packing switcher row that
+opens a modal dialog. The dialog picks a source (another trip, or a checklist) and a
+target list (My or Shared), then copies. This retires every in-list import bar.
+
+The bridge is a copy: `checklist_items` already share the `category` + `label` + `done`
+shape of `packing_items`, and another trip's packing is the same table.
 
 ## What it does
 
-On the packing tab's **My list** and **Shared** views (not the read-only Partner view),
-two dashed buttons sit beside the add-category control:
+The packing switcher row keeps `My list · Shared · Partner's list` on the left and adds a
+visually distinct **"Import items"** button (ghost style, download icon, pushed right with
+`ml-auto`) — an action, not a fourth view toggle. It is always visible, including when the
+read-only Partner view is active.
 
-- **Add from checklist** — pick a checklist → its items copy into the list you're on.
-- **Copy from another trip** — pick a trip **and** toggle its **Shared / My list** as the
-  source → those items copy into the list you're on.
+Tapping it opens a modal dialog (built on the existing `@/components/ui/dialog`):
+
+- **Step 1 — choose source:** two buttons, **From a trip** and **From a checklist**.
+- **Step 2a — from a trip:** a **"To: ( My list )( Shared )"** target toggle, a trip
+  dropdown, and a **"From: ( Shared )( My list )"** source toggle, plus **Import** / a
+  back affordance to step 1.
+- **Step 2b — from a checklist:** the same **"To: ( My list )( Shared )"** target toggle
+  and a checklist dropdown, plus **Import** / back.
 
 All copies are one-time and **additive**: items arrive **unpacked** (`done = false`),
-merged into the target scope's same-name categories, source templates/trips untouched.
-"My list" as a source means *your own* personal items in that other trip
+merged into the target scope's same-name categories; source templates/trips are untouched.
+"My list" as a trip source means *your own* personal items in that other trip
 (`owner_id = you`); the partner's personal items are never an import source.
 
-The target scope is always the view you triggered the import from. So trip-copy supports
-all four scope combinations (Shared→Shared, Shared→My, My→Shared, My→My); the source
-toggle **defaults to Shared**.
+**Defaults:** the **To** toggle pre-selects the list that was active when the dialog
+opened — `My list` if the active view is My, otherwise `Shared` (so Partner-active →
+Shared). The trip **From** toggle defaults to **Shared**.
 
 ## Server actions
 
@@ -55,9 +62,8 @@ export async function getImportableChecklists(): Promise<ImportableTrip[]>
 ```
 
 Returns the current workspace's checklists as `{ id, name }[]` (reuses the existing
-`ImportableTrip` shape so the generic picker stays one type). Resolves the workspace via
-`getCurrentWorkspace()` and maps `listChecklists(workspace.id)`. Returns `[]` when there
-is no workspace or no checklists.
+`ImportableTrip` shape). Resolves the workspace via `getCurrentWorkspace()` and maps
+`listChecklists(workspace.id)`. Returns `[]` when there is no workspace or no checklists.
 
 ### `copyChecklistToPacking(targetTripId, checklistId, owner, tripSlug)` (new)
 
@@ -70,8 +76,8 @@ export async function copyChecklistToPacking(
 ): Promise<CopyResult>
 ```
 
-Mirrors the (revised) `copyPackingFromTrip`, with a checklist as the source and `owner`
-as the target scope:
+Mirrors the revised `copyPackingFromTrip`, with a checklist as the source and `owner` the
+target scope:
 
 1. Auth via `getUser()`; `{ error: "Not signed in." }` if absent.
 2. Read in parallel: source `checklist_categories` (`name, sort_order`, ordered) and
@@ -86,16 +92,8 @@ as the target scope:
 
 ### `copyPackingFromTrip` — gains source + target scope (changed)
 
-Current signature copies the source's shared list into the target's shared list:
-
 ```ts
-// before
-copyPackingFromTrip(targetTripId, sourceTripId, tripSlug)
-```
-
-New signature adds both scopes:
-
-```ts
+// before: copyPackingFromTrip(targetTripId, sourceTripId, tripSlug)
 export async function copyPackingFromTrip(
   targetTripId: string,
   sourceTripId: string,
@@ -107,98 +105,88 @@ export async function copyPackingFromTrip(
 
 - Source `packing_categories` / `packing_items` reads gain an owner filter on
   `sourceOwner` (`.is("owner_id", null)` for Shared, `.eq("owner_id", sourceOwner)` for
-  My — where `sourceOwner` is the current user's id).
+  My, where `sourceOwner` is the current user's id).
 - Target existing-category read and both inserts use `targetOwner` (categories
   `owner_id = targetOwner` / `created_by = me`; items `owner_id = targetOwner` /
   `added_by = me`, `done` reset). Category merge is within the target scope.
-- The sole caller is `packing-tab.tsx`; its call site is updated (below).
+- The sole caller becomes the new import dialog (below); the old `packing-tab.tsx`
+  call site is removed.
 
 ### RLS / migration
 
 No new policies, no migration. Reading a checklist is gated by
 `is_checklist_workspace_member`; reading another trip's packing (shared or your own items)
-is gated by `is_trip_workspace_member` (importable trips are same-workspace siblings, so
-the current user is a member). Packing inserts are gated by the existing
-`owner_id is null or owner_id = auth.uid()` check — `targetOwner` is only ever `null`
-(Shared) or the current user (My list), both allowed.
+is gated by `is_trip_workspace_member` (importable trips are same-workspace siblings).
+Packing inserts are gated by the existing `owner_id is null or owner_id = auth.uid()`
+check — `targetOwner` is only ever `null` (Shared) or the current user (My), both allowed.
+Additive, no item-level dedup (matches today's import).
 
-Additive, no item-level dedup (same as today's import): copying twice duplicates items,
-which is acceptable.
+## UI component — `ImportItemsDialog`
 
-## UI components
-
-### Generic picker (checklist + Notes)
-
-`ImportFromTripControl` (`src/app/trips/[slug]/import-from-trip.tsx`) is a dashed button
-that opens to a single `Select` + "copy". Extract its generic core into a reusable
-control and keep `ImportFromTripControl` as a thin wrapper so its callers don't change.
-
-New `src/app/trips/[slug]/import-picker.tsx` (markup/styles lifted verbatim):
+New `src/app/trips/[slug]/import-items-dialog.tsx`, a packing-specific client component.
+It is self-contained: it calls the server actions directly (no prop-drilled callbacks).
 
 ```ts
-export function ImportPickerControl({
-  label,
-  emptyText,
-  load,
-  onCopy,
-}: {
-  label: string
-  emptyText: string
-  load: () => Promise<ImportableTrip[]>
-  onCopy: (id: string) => Promise<{ error?: string }>
-})
-```
-
-`ImportFromTripControl` becomes a wrapper supplying
-`load={() => getImportableTrips(tripId)}` and
-`emptyText="No other trips to copy from."`, keeping its `{ tripId, label, onCopy }` API.
-**The Notes tab (`notes-tab.tsx`) is therefore not touched.** The packing **checklist**
-button uses `ImportPickerControl` directly with `load={getImportableChecklists}`,
-`label="Add from checklist"`, `emptyText="No checklists to copy from."`.
-
-### Packing trip-copy control (new, has the source toggle)
-
-Packing's "copy from another trip" needs a source-scope toggle that the generic picker and
-the Notes use-case don't, so it is its own control rather than bloating the generic one.
-
-New `src/app/trips/[slug]/copy-packing-from-trip.tsx`:
-
-```ts
-export function CopyPackingFromTripControl({
+export function ImportItemsDialog({
+  open,
+  onOpenChange,
   tripId,
-  onCopy,
+  tripSlug,
+  currentUserId,
+  defaultTarget, // "mine" | "shared"
 }: {
+  open: boolean
+  onOpenChange: (open: boolean) => void
   tripId: string
-  // sourceMine=false -> source Shared; true -> source My list
-  onCopy: (sourceTripId: string, sourceMine: boolean) => Promise<{ error?: string }>
+  tripSlug: string
+  currentUserId: string
+  defaultTarget: "mine" | "shared"
 })
 ```
 
-Same open/close + `useTransition` + trip `Select` + error line as the generic picker,
-plus a small segmented **"From: ( Shared )( My list )"** toggle (state `sourceMine`,
-defaulting to `false` = Shared). Copy calls `onCopy(selectedTripId, sourceMine)`. Loads
-trips via `getImportableTrips(tripId)`; empty text "No other trips to copy from.".
+Structure: a controlled `<Dialog open onOpenChange>` whose `DialogContent` renders an inner
+`ImportItemsBody` **only while open and keyed on each open** (`key={open ? "open" :
+"closed"}`), so the body's local state resets per open via `useState` initializers — no
+`useEffect`-to-reset (respects the project's `react-hooks/set-state-in-effect` rule).
+
+`ImportItemsBody` holds:
+- `step: "choose" | "trip" | "checklist"` (initial `"choose"`).
+- `target: "mine" | "shared"` (initial `defaultTarget`).
+- trip flow: lazily-loaded `trips` (`getImportableTrips(tripId)`), `selectedTrip`,
+  `sourceMine: boolean` (initial `false`).
+- checklist flow: lazily-loaded `checklists` (`getImportableChecklists()`),
+  `selectedChecklist`.
+- `pending`, `error`.
+
+Behaviour:
+- Step 1 shows two buttons; choosing one sets `step` and triggers that flow's `load` in a
+  `useTransition`. Each step-2 screen has a "back" control returning to `"choose"`.
+- The **To** and **From** toggles are small segmented controls (same look as the packing
+  `SegBtn`). Empty source lists show "No other trips to copy from." / "No checklists to
+  copy from." in place of the dropdown.
+- Import maps toggles to owners and calls the action:
+  - trip: `copyPackingFromTrip(tripId, selectedTrip, sourceMine ? currentUserId : null,
+    target === "mine" ? currentUserId : null, tripSlug)`.
+  - checklist: `copyChecklistToPacking(tripId, selectedChecklist, target === "mine" ?
+    currentUserId : null, tripSlug)`.
+  - On success: `onOpenChange(false)`. On `{ error }`: show it inline, stay open.
+
+The `Select` dropdowns reuse `@/components/ui/select` exactly as `import-from-trip.tsx`
+does today.
 
 ### Wiring in `packing-tab.tsx`
 
-`PackingList` renders both controls inside its `!readOnly` branch (My + Shared, never
-Partner), replacing the current `owner === null`-only import block. It gains two props:
+- Add `importOpen` state and an **"Import items"** button at the end of the switcher row
+  (`ml-auto`, ghost styling, lucide `Download` icon).
+- Render `<ImportItemsDialog open={importOpen} onOpenChange={setImportOpen} tripId={tripId}
+  tripSlug={tripSlug} currentUserId={currentUserId} defaultTarget={view === "mine" ?
+  "mine" : "shared"} />` once, at the section level (outside `PackingList`).
+- **Remove** the old in-`PackingList` import block: the `ImportFromTripControl` usage
+  (Shared view), the `onCopyShared` prop, and the `copyPackingFromTrip` import in
+  `packing-tab.tsx`. `PackingList` no longer renders any import control.
 
-```ts
-onAddFromChecklist: (checklistId: string, owner: string | null) => Promise<{ error?: string }>
-onCopyPacking: (sourceTripId: string, sourceMine: boolean, targetOwner: string | null) => Promise<{ error?: string }>
-```
-
-`PackingList` passes its own `owner` as the target:
-- checklist: `onCopy={(id) => onAddFromChecklist(id, owner)}`.
-- trip: `onCopy={(id, mine) => onCopyPacking(id, mine, owner)}`.
-
-`PackingTab` wires them to the actions, mapping `sourceMine` to an owner id:
-- `onAddFromChecklist = (checklistId, owner) => copyChecklistToPacking(tripId, checklistId, owner, tripSlug)`
-- `onCopyPacking = (sourceTripId, sourceMine, targetOwner) => copyPackingFromTrip(tripId, sourceTripId, sourceMine ? currentUserId : null, targetOwner, tripSlug)`
-
-The old single `onCopyShared` prop and its `ImportFromTripControl` usage in `PackingList`
-are removed (superseded by `CopyPackingFromTripControl`).
+`import-from-trip.tsx` is left **unchanged** — the Notes tab still uses it for "Copy notes
+from another trip". No generic extraction is needed.
 
 ## Realtime & data flow
 
@@ -209,23 +197,19 @@ No new channel, no schema change.
 
 ## Files touched
 
-- `src/app/trips/[slug]/import-picker.tsx` — **new.** Generic `ImportPickerControl`.
-- `src/app/trips/[slug]/import-from-trip.tsx` — slim to a wrapper over
-  `ImportPickerControl` (API unchanged; Notes + any other caller untouched).
-- `src/app/trips/[slug]/copy-packing-from-trip.tsx` — **new.** Trip-copy control with the
-  Shared/My source toggle.
+- `src/app/trips/[slug]/import-items-dialog.tsx` — **new.** The two-step import dialog.
 - `src/lib/trips/actions.ts` — add `getImportableChecklists` + `copyChecklistToPacking`;
   extend `copyPackingFromTrip` with `sourceOwner` + `targetOwner`.
-- `src/app/trips/[slug]/packing-tab.tsx` — render both import controls on My + Shared;
-  thread `onAddFromChecklist` + `onCopyPacking`; drop `onCopyShared`.
+- `src/app/trips/[slug]/packing-tab.tsx` — add the "Import items" button + dialog; remove
+  the in-view import control, `onCopyShared`, and the now-unused `copyPackingFromTrip`
+  import.
 - `docs/TODO.md`, `docs/DECISIONS.md` — log on completion.
 
 ## Out of scope (v1)
 
 - Selecting individual items to copy (whole-source copy only).
-- Importing into the Partner list (read-only view).
-- Partner's personal items as an import source.
+- Importing into the Partner list (read-only) or using the partner's items as a source.
 - Any reverse "packing → checklist" flow.
 - Item-level dedup on repeat copies.
-- A fourth packing switcher segment for checklists, or one merged import control (both
-  explicitly rejected — see Problem).
+- A fourth packing switcher segment, or per-view import bars (both explicitly rejected —
+  see Problem).
