@@ -20,7 +20,7 @@ import { SavedFigure, SpentFigure } from "./budget-figures"
 import { Ledger } from "./budget-ledger"
 import { LogExpenseRow } from "./log-expense-row"
 import type { MemberToneEntry } from "./packing-tab"
-import { SettleUpButtons, SettleUpCard } from "./settle-up-card"
+import { SettleUpButtons } from "./settle-up-card"
 
 function fmt(cents: number): string {
   return (cents / 100).toFixed(2)
@@ -65,9 +65,6 @@ export function BudgetTab({
 }: BudgetTabProps) {
   const [view, setView] = React.useState<View>("budget")
   const totalCents = summary.expenseTotalCents
-  const isSettled = summary.netBalanceCents === 0
-  const creditor = summary.creditorUserId ? members[summary.creditorUserId] : null
-  const debtor = summary.debtorUserId ? members[summary.debtorUserId] : null
 
   return (
     <section>
@@ -194,13 +191,12 @@ export function BudgetTab({
 
       {view === "settle" ? (
         <>
-          <SettleUpCard
-            isSettled={isSettled}
-            netBalanceCents={summary.netBalanceCents}
-            creditor={creditor}
-            debtor={debtor}
+          <CompactSettle
+            summary={summary}
+            currentUserId={currentUserId}
             tripId={tripId}
             tripSlug={tripSlug}
+            alwaysShow
           />
           <SplitBreakdown members={members} paidByUser={summary.expensePaidByUser} />
           <SettlementHistory expenses={expenses} members={members} />
@@ -251,26 +247,31 @@ function CompactSettle({
   currentUserId,
   tripId,
   tripSlug,
+  alwaysShow = false,
 }: {
   summary: BudgetSummary
   currentUserId: string
   tripId: string
   tripSlug: string
+  alwaysShow?: boolean
 }) {
   const owedCents = Math.abs(summary.netBalanceCents)
-  const canSettle =
-    summary.netBalanceCents !== 0 &&
-    !!summary.creditorUserId &&
-    !!summary.debtorUserId
-  if (!canSettle) return null
+  const isSquare = owedCents === 0
+  if (isSquare && !alwaysShow) return null
 
   const youPay = summary.debtorUserId === currentUserId
   const youGet = summary.creditorUserId === currentUserId
-  const label = youPay ? "you pay" : youGet ? "you're owed" : "owed"
+  const label = isSquare
+    ? "all square"
+    : youPay
+      ? "you pay"
+      : youGet
+        ? "you're owed"
+        : "owed"
 
   return (
     <div className="border-b border-border px-5 py-3">
-      <div className="flex items-center justify-between gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
         <SettleUpButtons owedCents={owedCents} tripId={tripId} tripSlug={tripSlug} />
         <div className="text-right">
           <div className="font-mono text-[9px] uppercase tracking-[0.18em] text-muted-foreground">
