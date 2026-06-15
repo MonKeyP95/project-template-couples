@@ -97,6 +97,7 @@ export async function addPackingItem(
   tripId: string,
   category: string,
   label: string,
+  owner: string | null,
 ): Promise<AddPackingItemResult> {
   const trimmed = label.trim()
   if (!trimmed) return { error: "Label required." }
@@ -110,6 +111,7 @@ export async function addPackingItem(
     category,
     label: trimmed,
     added_by: userData.user.id,
+    owner_id: owner,
   })
 
   if (error) return { error: error.message }
@@ -1360,6 +1362,7 @@ export async function addPackingCategory(
   tripId: string,
   tripSlug: string,
   name: string,
+  owner: string | null,
 ): Promise<AddPackingCategoryResult> {
   const trimmed = name.trim()
   if (!trimmed) return { error: "Name required." }
@@ -1368,13 +1371,16 @@ export async function addPackingCategory(
   const { data: userData, error: userError } = await supabase.auth.getUser()
   if (userError || !userData.user) return { error: "Not signed in." }
 
-  const { data: maxRow } = await supabase
+  const maxQuery = supabase
     .from("packing_categories")
     .select("sort_order")
     .eq("trip_id", tripId)
     .order("sort_order", { ascending: false })
     .limit(1)
-    .maybeSingle()
+  const { data: maxRow } = await (owner === null
+    ? maxQuery.is("owner_id", null)
+    : maxQuery.eq("owner_id", owner)
+  ).maybeSingle()
   const nextOrder = (maxRow?.sort_order ?? -1) + 1
 
   const { data, error } = await supabase
@@ -1384,8 +1390,9 @@ export async function addPackingCategory(
       name: trimmed,
       sort_order: nextOrder,
       created_by: userData.user.id,
+      owner_id: owner,
     })
-    .select("id, trip_id, name, sort_order")
+    .select("id, trip_id, name, sort_order, owner_id")
     .single()
 
   if (error) {
@@ -1402,6 +1409,7 @@ export async function addPackingCategory(
       tripId: data.trip_id,
       name: data.name,
       sortOrder: data.sort_order,
+      ownerId: data.owner_id,
     },
   }
 }
@@ -1423,16 +1431,19 @@ export async function copyPackingFromTrip(
       .from("packing_categories")
       .select("name, sort_order")
       .eq("trip_id", sourceTripId)
+      .is("owner_id", null)
       .order("sort_order", { ascending: true }),
     supabase
       .from("packing_items")
       .select("category, label")
       .eq("trip_id", sourceTripId)
+      .is("owner_id", null)
       .order("created_at", { ascending: true }),
     supabase
       .from("packing_categories")
       .select("name, sort_order")
-      .eq("trip_id", targetTripId),
+      .eq("trip_id", targetTripId)
+      .is("owner_id", null),
   ])
 
   const existing = new Set((tgtCats.data ?? []).map((c) => c.name))
@@ -1484,17 +1495,20 @@ export async function deletePackingCategory(
 
   const { data: cat, error: catError } = await supabase
     .from("packing_categories")
-    .select("trip_id, name")
+    .select("trip_id, name, owner_id")
     .eq("id", categoryId)
     .maybeSingle()
   if (catError) return { error: catError.message }
   if (!cat) return {}
 
-  const { error: itemsError } = await supabase
+  const itemsDelete = supabase
     .from("packing_items")
     .delete()
     .eq("trip_id", cat.trip_id)
     .eq("category", cat.name)
+  const { error: itemsError } = await (cat.owner_id === null
+    ? itemsDelete.is("owner_id", null)
+    : itemsDelete.eq("owner_id", cat.owner_id))
   if (itemsError) return { error: itemsError.message }
 
   const { error } = await supabase
