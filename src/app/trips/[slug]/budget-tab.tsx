@@ -89,41 +89,19 @@ export function BudgetTab({
               Settle up
             </SegBtn>
           </div>
-          {view === "budget" ? (
+        </div>
+      </div>
+
+      {view === "budget" ? (
+        <>
+          <div className="border-b border-border px-5 pt-4 pb-4">
             <SpentFigure
               tripId={tripId}
               tripSlug={tripSlug}
               spentCents={totalCents}
               plannedBudgetCents={plannedBudgetCents}
             />
-          ) : null}
-          {view === "expense" ? (
-            <div className="mt-2 flex items-baseline gap-1">
-              <span className="t-display text-[22px] text-muted-foreground">€</span>
-              <span className="t-display t-num text-[42px] leading-none text-foreground">
-                {fmt(totalCents)}
-              </span>
-              <span className="ml-1.5 font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
-                spent
-              </span>
-            </div>
-          ) : null}
-          {view === "saved" ? (
-            <SavedFigure
-              tripId={tripId}
-              tripSlug={tripSlug}
-              plannedBudgetCents={plannedBudgetCents}
-              savedCents={savedCents}
-              contributions={savingsContributions}
-              perUser={savedPerUser}
-              members={members}
-            />
-          ) : null}
-        </div>
-      </div>
-
-      {view === "budget" ? (
-        <>
+          </div>
           <CompactSettle
             summary={summary}
             currentUserId={currentUserId}
@@ -146,6 +124,17 @@ export function BudgetTab({
 
       {view === "expense" ? (
         <>
+          <div className="border-b border-border px-5 pt-4 pb-4">
+            <div className="flex items-baseline gap-1">
+              <span className="t-display text-[22px] text-muted-foreground">€</span>
+              <span className="t-display t-num text-[42px] leading-none text-foreground">
+                {fmt(totalCents)}
+              </span>
+              <span className="ml-1.5 font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+                spent
+              </span>
+            </div>
+          </div>
           <CompactSettle
             summary={summary}
             currentUserId={currentUserId}
@@ -170,6 +159,20 @@ export function BudgetTab({
             categories={expenseCategories}
           />
         </>
+      ) : null}
+
+      {view === "saved" ? (
+        <div className="px-5 pt-4 pb-4">
+          <SavedFigure
+            tripId={tripId}
+            tripSlug={tripSlug}
+            plannedBudgetCents={plannedBudgetCents}
+            savedCents={savedCents}
+            contributions={savingsContributions}
+            perUser={savedPerUser}
+            members={members}
+          />
+        </div>
       ) : null}
 
       {view === "settle" ? (
