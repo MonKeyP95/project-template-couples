@@ -37,11 +37,15 @@ In scope:
   transport, food); activities + other start empty.
 - Blank-cost rows estimated by the assistant; explicit 0 allowed and kept.
 - An editable summary, then Apply sets the master planned budget to the total.
+- The plan's line items are saved in the browser (localStorage, per trip) on
+  Apply, so the assistant reopens as "Edit budget" with your entries restored.
 - A pure module returning the interview, at the eventual Claude seam.
 
 Explicitly deferred:
-- Per-category / per-item budget persistence (the assistant writes only the
-  master total).
+- Server-side / shared persistence of the plan items. The only server write is
+  the master total via `updateTripBudget`; the per-item plan lives in
+  localStorage on the device (not shared with the partner, lost on another
+  device). Promote to a shared store if/when that limitation bites.
 - Planned-vs-actual / spend analytics.
 - Real Claude calls (Anthropic SDK, `lib/ai/claude.ts`).
 - Reading logged expenses or itinerary text to seed items (where Claude gets
@@ -115,11 +119,13 @@ Props: `tripId`, `tripSlug`, `tripDays`, `locations`, `itineraryDays`,
 and to decide whether to show the button.)
 
 Behavior:
-1. Collapsed: a "Plan a budget" button, shown whenever the trip has a duration
-   signal (date span, itinerary day rows, or locations); hidden only for a bare
-   dateless dream with none of those.
+1. Collapsed: a single button, shown whenever the trip has a duration signal
+   (date span, itinerary day rows, or locations); hidden only for a bare dateless
+   dream. Labelled "Edit budget" when a budget is already set
+   (`plannedBudgetCents > 0`), else "Plan a budget".
 2. On click: `totalDays = tripDays || itinerary day count`. Call
-   `planBudgetSteps`. Seed each step's rows from its `seed` (cost prefilled when
+   `planBudgetSteps`. For each step, load the saved rows from localStorage when
+   present; otherwise seed from the step's `seed` (cost prefilled when
    suggested). Start at step 0.
 3. Stepping: each step shows its title + question + hint, the list of item rows,
    and a "+ add `<noun>`" button. Each row has three inputs: subject ("What"),
@@ -131,7 +137,9 @@ Behavior:
 5. Summary: every row across all steps, labelled `subject` (falling back to the
    category title) with its `when` shown muted, cost editable, live total.
 6. Apply: `updateTripBudget({ tripId, tripSlug, plannedBudgetCents: total })`
-   inside a transition. On error, surface inline. No per-category writes.
+   inside a transition. On success, save the plan's rows to localStorage (per
+   trip) so a later "Edit budget" restores them. On error, surface inline. No
+   per-category server writes.
 7. Cancel / dismiss closes without writing.
 
 State note: wizard state (step index, rows per step) lives in `useState`; rows

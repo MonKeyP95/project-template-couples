@@ -205,18 +205,6 @@ function LocationView({
           locationsById={locationsById}
         />
       ))}
-
-      {summary.unassignedSpentCents > 0 ? (
-        <UnassignedRow
-          tripSlug={tripSlug}
-          spentCents={summary.unassignedSpentCents}
-          expenses={expenses}
-          members={members}
-          categories={categories}
-          locations={locations}
-          dayMap={dayMap}
-        />
-      ) : null}
     </div>
   )
 }
@@ -401,56 +389,6 @@ function LocationActivity({
           />
         ),
       )}
-    </div>
-  )
-}
-
-function UnassignedRow({
-  tripSlug,
-  spentCents,
-  expenses,
-  members,
-  categories,
-  locations,
-  dayMap,
-}: {
-  tripSlug: string
-  spentCents: number
-  expenses: Expense[]
-  members: Record<string, MemberToneEntry>
-  categories: ExpenseCategoryRow[]
-  locations: ItineraryLocation[]
-  dayMap: Record<string, string>
-}) {
-  const [expanded, setExpanded] = React.useState(false)
-  return (
-    <div className="border-t border-border py-3">
-      <button
-        type="button"
-        onClick={() => setExpanded((v) => !v)}
-        aria-expanded={expanded}
-        className="flex w-full items-baseline justify-between border-0 bg-transparent p-0 text-left"
-      >
-        <span className="font-serif text-[14px] italic text-muted-foreground">
-          Unassigned
-        </span>
-        <span className="t-num text-[13px] text-foreground">
-          €{fmt(spentCents)}
-        </span>
-      </button>
-      {expanded ? (
-        <LocationActivity
-          tripSlug={tripSlug}
-          locationId={null}
-          expenses={expenses}
-          moves={[]}
-          members={members}
-          categories={categories}
-          locations={locations}
-          dayMap={dayMap}
-          locationsById={{}}
-        />
-      ) : null}
     </div>
   )
 }
