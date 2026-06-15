@@ -151,6 +151,11 @@ Small UI changes + one bugfix, all verified in-browser (Playwright, light + dark
 
 - [x] **HeroCard schematic route panel (desktop)** — Done 2026-06-09. On desktop (`md:` and up) a schematic route panel sits beside the hero card at the same footprint — it draws the hero trip's itinerary location names as a deterministic decorative line (no real map tiles, no coordinates). Built from the hero trip's ordered `itinerary_locations` rows (names only). When the trip has no locations a quiet `// map` placeholder renders instead. Desktop-only; mobile layout unchanged.
 
+## UI declutter + sign-out — 2026-06-15
+- [x] **Trip tabs: reorder + default to Budget, drop count badges** — Done 2026-06-15 (PR #35, merged). Trip page tab order is now **Budget → Itinerary → Packing → Notes**, with **Budget** the default landing tab (it carries the bare `/trips/[slug]` URL; the other tabs use `?tab=`). Removed the per-tab count badges (`· N days`, `· N`, `· €X`) from the desktop tab bar — the `DesktopTabs` `counts` prop and `labelFor` helper are gone; the underlying counts still feed the right-rail summary cards. `page.tsx` only.
+- [x] **Home: remove desktop stats row** — Done 2026-06-15 (PR #35, merged). Dropped the desktop `Upcoming / Dreams / Members / est. year` stat row and its unused `StatItem` component from `/home`. The mobile member-names · est-year line under the divider is unchanged.
+- [x] **Sign-out button in nav** — Done 2026-06-15 (PR #36, merged). New `SignOutButton` (`app-nav.tsx`) posts to the existing `/api/signout` route, wired into both `LeftRail` (labeled "Sign out" row, desktop) and `MobileTopNav` (right-aligned icon). Icon from `lucide-react`. No migration.
+
 ## Working rules
 - One task per session. Finish, validate, then move on.
 - After completing a task, check it off here and add a row to `DECISIONS.md` if anything non-obvious was chosen.
