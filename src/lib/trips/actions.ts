@@ -1038,6 +1038,34 @@ function enumerateDates(start: string, end: string): string[] {
   return dates
 }
 
+/** Trip's start_date (yyyy-mm-dd), or null for a dateless dream. */
+async function tripStartDate(tripId: string): Promise<string | null> {
+  const supabase = await createClient()
+  const { data } = await supabase
+    .from("trips")
+    .select("start_date")
+    .eq("id", tripId)
+    .maybeSingle()
+  return data?.start_date ?? null
+}
+
+/**
+ * Grows trips.end_date to `date` when it currently falls short (forward-only,
+ * mirroring the push/span RPCs) so the header always covers planned content.
+ * No-op for a dateless dream (null end_date).
+ */
+async function growTripEndDate(tripId: string, date: string): Promise<void> {
+  const supabase = await createClient()
+  const { data } = await supabase
+    .from("trips")
+    .select("end_date")
+    .eq("id", tripId)
+    .maybeSingle()
+  if (data?.end_date && date > data.end_date) {
+    await supabase.from("trips").update({ end_date: date }).eq("id", tripId)
+  }
+}
+
 /**
  * Inserts one or more itinerary days. With no endDate (or one equal to
  * dayDate) it creates a single day; a later endDate creates one identical,
@@ -1063,6 +1091,13 @@ export async function addItineraryDay(
   const dates = enumerateDates(input.dayDate, endDate)
   if (dates.length > MAX_RANGE_DAYS) {
     return { error: `Range can span at most ${MAX_RANGE_DAYS} days.` }
+  }
+
+  // Lower bound: a day can't precede the trip's first day. end_date is
+  // intentionally elastic (push/span features grow it), so only start is a floor.
+  const start = await tripStartDate(input.tripId)
+  if (start && input.dayDate < start) {
+    return { error: `That date is before the trip starts (${start}).` }
   }
 
   const supabase = await createClient()
@@ -1133,6 +1168,7 @@ export async function addItineraryDay(
     return { error: error.message }
   }
 
+  await growTripEndDate(input.tripId, endDate)
   revalidatePath(`/trips/${input.tripSlug}`)
   return { day: rowToItineraryDay(data[0]) }
 }
@@ -1288,6 +1324,19 @@ export async function updateItineraryDay(
     .map((e) => ({ time: e.time.trim(), text: e.text.trim() }))
     .filter((e) => e.text.length > 0)
 
+  // Lower bound (mirrors addItineraryDay): can't move a day before trip start.
+  const { data: dayRow } = await supabase
+    .from("itinerary_days")
+    .select("trip_id")
+    .eq("id", input.dayId)
+    .maybeSingle()
+  if (dayRow) {
+    const start = await tripStartDate(dayRow.trip_id)
+    if (start && input.dayDate < start) {
+      return { error: `That date is before the trip starts (${start}).` }
+    }
+  }
+
   const patch: {
     day_date: string
     title: string
@@ -1318,6 +1367,7 @@ export async function updateItineraryDay(
     return { error: error.message }
   }
 
+  if (dayRow) await growTripEndDate(dayRow.trip_id, input.dayDate)
   revalidatePath(`/trips/${input.tripSlug}`)
   return {}
 }
@@ -1989,6 +2039,7 @@ export async function renameItineraryLocation(
 
   if (error) return { error: error.message }
 
+  if (span) await growTripEndDate(tripId, span.endDate)
   revalidatePath(`/trips/${tripSlug}`)
   return {}
 }
