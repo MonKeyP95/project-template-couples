@@ -209,7 +209,11 @@ export function BudgetTab({
             tripSlug={tripSlug}
             alwaysShow
           />
-          <SplitBreakdown members={members} paidByUser={summary.expensePaidByUser} />
+          <SplitBreakdown
+            members={members}
+            paidByUser={summary.expensePaidByUser}
+            settlementsByUser={summary.settlementsByUser}
+          />
           <SettlementHistory expenses={expenses} members={members} />
         </>
       ) : null}
@@ -220,34 +224,61 @@ export function BudgetTab({
 function SplitBreakdown({
   members,
   paidByUser,
+  settlementsByUser,
 }: {
   members: Record<string, MemberToneEntry>
   paidByUser: Record<string, number>
+  settlementsByUser: Record<string, number>
 }) {
   const entries = Object.entries(members)
   if (entries.length !== 2) return null
   return (
     <div className="px-5 pb-3 pt-3">
       <div className="grid grid-cols-2 gap-2.5">
-        {entries.map(([userId, member]) => (
-          <div
-            key={userId}
-            className="rounded-lg border border-border bg-card px-3.5 py-3"
-          >
-            <div className="flex items-center gap-2">
-              <Avatar name={member.initial} size={18} tone={member.tone} />
-              <span className="font-serif text-[14px] italic text-foreground">
-                {member.displayName}
-              </span>
+        {entries.map(([userId, member]) => {
+          const otherId = entries.find(([id]) => id !== userId)?.[0] ?? ""
+          const sent = settlementsByUser[userId] ?? 0
+          const received = settlementsByUser[otherId] ?? 0
+          return (
+            <div
+              key={userId}
+              className="rounded-lg border border-border bg-card px-3.5 py-3"
+            >
+              <div className="flex items-center gap-2">
+                <Avatar name={member.initial} size={18} tone={member.tone} />
+                <span className="font-serif text-[14px] italic text-foreground">
+                  {member.displayName}
+                </span>
+              </div>
+              <div className="mt-1.5 font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+                paid
+              </div>
+              <div className="t-num mt-0.5 text-[22px] text-foreground">
+                €{fmt(paidByUser[userId] ?? 0)}
+              </div>
+              {sent > 0 ? (
+                <div className="mt-2 flex items-baseline justify-between border-t border-rule pt-2">
+                  <span className="font-mono text-[9px] uppercase tracking-[0.16em] text-moss">
+                    settled
+                  </span>
+                  <span className="t-num text-[13px] text-foreground">
+                    €{fmt(sent)}
+                  </span>
+                </div>
+              ) : null}
+              {received > 0 ? (
+                <div className="mt-2 flex items-baseline justify-between border-t border-rule pt-2">
+                  <span className="font-mono text-[9px] uppercase tracking-[0.16em] text-muted-foreground">
+                    received
+                  </span>
+                  <span className="t-num text-[13px] text-foreground">
+                    €{fmt(received)}
+                  </span>
+                </div>
+              ) : null}
             </div>
-            <div className="mt-1.5 font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
-              paid
-            </div>
-            <div className="t-num mt-0.5 text-[22px] text-foreground">
-              €{fmt(paidByUser[userId] ?? 0)}
-            </div>
-          </div>
-        ))}
+          )
+        })}
       </div>
     </div>
   )
