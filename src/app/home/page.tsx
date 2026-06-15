@@ -169,20 +169,6 @@ export default async function HomePage() {
         </Coord>
       </section>
 
-      <section className="mb-3 hidden flex-wrap items-baseline gap-7 md:flex">
-        <StatItem n={activeCount} label="Upcoming" />
-        <StatItem n={buckets.dreams.length} label="Dreams" />
-        <StatItem
-          n={memberCount}
-          label={memberCount === 1 ? "Member" : "Members"}
-        />
-        {estYear ? (
-          <span className="ml-auto font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
-            est. {estYear}
-          </span>
-        ) : null}
-      </section>
-
       {youOnly ? (
         <section className="mt-10 md:mt-12 md:max-w-[540px]">
           <InviteCard />
@@ -267,34 +253,10 @@ export default async function HomePage() {
         <Chevron />
       </Link>
 
-      <footer className="mt-12 flex items-center justify-center gap-5 md:mt-16">
-        <span className="flex items-center gap-5 lg:hidden">
-          <ThemeToggle initialDark={dark} />
-          <span className="text-rule">·</span>
-        </span>
-        <form action="/api/signout" method="post">
-          <button
-            type="submit"
-            className="font-mono text-[10px] uppercase tracking-[0.25em] text-muted-foreground hover:text-foreground"
-          >
-            Sign out
-          </button>
-        </form>
+      <footer className="mt-12 flex items-center justify-center gap-5 md:mt-16 lg:hidden">
+        <ThemeToggle initialDark={dark} />
       </footer>
       </main>
-    </div>
-  )
-}
-
-function StatItem({ n, label }: { n: number; label: string }) {
-  return (
-    <div className="flex items-baseline gap-2">
-      <span className="t-num text-[18px] text-foreground">
-        {String(n).padStart(2, "0")}
-      </span>
-      <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
-        {label}
-      </span>
     </div>
   )
 }
