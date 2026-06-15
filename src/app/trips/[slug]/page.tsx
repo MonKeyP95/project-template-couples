@@ -48,9 +48,9 @@ import {
 type TabId = "itinerary" | "packing" | "budget" | "notes"
 
 const TABS: { id: TabId; label: string }[] = [
+  { id: "budget", label: "Budget" },
   { id: "itinerary", label: "Itinerary" },
   { id: "packing", label: "Packing" },
-  { id: "budget", label: "Budget" },
   { id: "notes", label: "Notes" },
 ]
 
@@ -144,7 +144,7 @@ export default async function TripPage({
   if (!header) notFound()
 
   const detail = getTripDetailBySlug(slug)
-  const activeTab: TabId = isTab(tab) ? tab : "itinerary"
+  const activeTab: TabId = isTab(tab) ? tab : "budget"
 
   const memberTones = memberToneMap(workspace)
   const memberIds = workspace.members.map((m) => m.user_id)
@@ -196,16 +196,7 @@ export default async function TripPage({
 
       <div className="lg:min-w-0 lg:flex-1">
         <TripHeaderView header={header} workspace={workspace} />
-        <DesktopTabs
-          slug={header.slug}
-          active={activeTab}
-          counts={{
-            itinerary: (datedItinerary ?? dreamItinerary)?.length ?? null,
-            packing: packingTotal,
-            budget: budgetSummary.expenseTotalCents,
-            notes: notes?.length ?? null,
-          }}
-        />
+        <DesktopTabs slug={header.slug} active={activeTab} />
         {activeTab === "itinerary" && detail && header.startDate ? (
           <div className="lg:hidden">
             <WeatherStrip detail={detail} />
@@ -396,7 +387,7 @@ function BottomNav({ slug, active }: { slug: string; active: TabId }) {
           {TABS.map((t) => {
             const isActive = t.id === active
             const href =
-              t.id === "itinerary"
+              t.id === "budget"
                 ? `/trips/${slug}`
                 : `/trips/${slug}?tab=${t.id}`
             return (
@@ -420,37 +411,13 @@ function BottomNav({ slug, active }: { slug: string; active: TabId }) {
   )
 }
 
-function DesktopTabs({
-  slug,
-  active,
-  counts,
-}: {
-  slug: string
-  active: TabId
-  counts: {
-    itinerary: number | null
-    packing: number
-    budget: number
-    notes: number | null
-  }
-}) {
-  const labelFor = (t: TabId) => {
-    if (t === "itinerary") {
-      return counts.itinerary != null ? `${counts.itinerary} days` : null
-    }
-    if (t === "packing") return `${counts.packing}`
-    if (t === "notes") {
-      return counts.notes != null ? `${counts.notes}` : null
-    }
-    return `€${(counts.budget / 100).toFixed(0)}`
-  }
+function DesktopTabs({ slug, active }: { slug: string; active: TabId }) {
   return (
     <div className="hidden border-b border-border lg:flex lg:gap-7 lg:px-10 lg:pt-3">
       {TABS.map((t) => {
         const isActive = t.id === active
         const href =
-          t.id === "itinerary" ? `/trips/${slug}` : `/trips/${slug}?tab=${t.id}`
-        const count = labelFor(t.id)
+          t.id === "budget" ? `/trips/${slug}` : `/trips/${slug}?tab=${t.id}`
         return (
           <Link
             key={t.id}
@@ -465,11 +432,6 @@ function DesktopTabs({
             <span className="font-mono text-[11px] uppercase tracking-[0.22em]">
               {t.label}
             </span>
-            {count ? (
-              <span className="font-mono text-[10px] tracking-[0.06em] text-muted-foreground">
-                · {count}
-              </span>
-            ) : null}
           </Link>
         )
       })}
