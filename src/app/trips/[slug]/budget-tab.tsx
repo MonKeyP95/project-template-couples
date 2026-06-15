@@ -33,6 +33,7 @@ export interface BudgetTabProps {
   tripId: string
   tripSlug: string
   tripName: string
+  tripDays: number
   expenses: Expense[]
   expenseCategories: ExpenseCategoryRow[]
   summary: BudgetSummary
@@ -51,6 +52,7 @@ export function BudgetTab({
   tripId,
   tripSlug,
   tripName,
+  tripDays,
   expenses,
   expenseCategories,
   summary,
@@ -109,6 +111,7 @@ export function BudgetTab({
           <BudgetDrafter
             tripId={tripId}
             tripSlug={tripSlug}
+            tripDays={tripDays}
             locations={locations}
             itineraryDays={itineraryDays}
             memberCount={Object.keys(members).length}

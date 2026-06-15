@@ -6,6 +6,8 @@
  */
 
 export interface BudgetDraftInput {
+  /** Whole-trip duration in days; drives the total even when locations are partial or absent. */
+  totalDays: number
   locations: { id: string; name: string; days: number }[]
   memberCount: number
   context?: string
@@ -27,31 +29,25 @@ const DAILY_PER_PERSON_CENTS = 11000
 
 export function draftBudget(input: BudgetDraftInput): BudgetDraft {
   const memberCount = Math.max(1, input.memberCount)
-  // A dateless location still gets a share: floor its day count at 1.
+  const dailyShare = DAILY_PER_PERSON_CENTS * memberCount
+
+  // Each location gets its own true share (days x daily). A dateless location
+  // still counts as one day. The split can cover only part of the trip; the
+  // uncovered nights simply stay unallocated, which Budget-by-location shows.
   const locations = input.locations.map((l) => ({
     ...l,
     days: Math.max(1, l.days),
   }))
-  const totalDays = locations.reduce((sum, l) => sum + l.days, 0)
-  const totalCents = totalDays * DAILY_PER_PERSON_CENTS * memberCount
-
   const perLocation: BudgetDraftLine[] = locations.map((l) => ({
     locationId: l.id,
     name: l.name,
-    cents: Math.floor((totalCents * l.days) / totalDays),
+    cents: l.days * dailyShare,
   }))
 
-  // Rounding remainder lands on the location with the most days, so the split
-  // always sums to exactly totalCents.
-  const allocated = perLocation.reduce((sum, l) => sum + l.cents, 0)
-  const remainder = totalCents - allocated
-  if (remainder > 0 && perLocation.length > 0) {
-    let maxIdx = 0
-    for (let i = 1; i < locations.length; i++) {
-      if (locations[i].days > locations[maxIdx].days) maxIdx = i
-    }
-    perLocation[maxIdx].cents += remainder
-  }
+  // Total reflects the whole trip; never less than what the locations claim.
+  const locDays = locations.reduce((sum, l) => sum + l.days, 0)
+  const totalDays = Math.max(input.totalDays, locDays)
+  const totalCents = totalDays * dailyShare
 
   const perDay = DAILY_PER_PERSON_CENTS / 100
   const nights = totalDays === 1 ? "night" : "nights"

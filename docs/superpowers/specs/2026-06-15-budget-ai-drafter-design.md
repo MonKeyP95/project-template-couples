@@ -36,6 +36,7 @@ A single pure module: `src/lib/ai/budget-planner.ts`.
 
 ```ts
 export interface BudgetDraftInput {
+  totalDays: number // whole-trip duration; drives the total even when locations are partial/absent
   locations: { id: string; name: string; days: number }[]
   memberCount: number
   context?: string // reserved for Slice 2 / Claude (trip notes). Unused by the mock.
@@ -52,19 +53,25 @@ export function draftBudget(input: BudgetDraftInput): BudgetDraft
 
 Mock logic (deterministic, no randomness, no async, no network):
 - `DAILY_PER_PERSON_CENTS` constant (start at 11000 = EUR 110).
-- `totalDays` = sum of `location.days`.
-- `totalCents = totalDays * DAILY_PER_PERSON_CENTS * memberCount`.
-- Each location's share is proportional to its `days`; integer-cent rounding
-  remainder lands on the location with the most days, so the split always sums
-  to exactly `totalCents`.
+- `dailyShare = DAILY_PER_PERSON_CENTS * memberCount`.
+- Each location gets its own true share: `days * dailyShare`. The split may cover
+  only part of the trip; uncovered nights stay unallocated (which the existing
+  Budget-by-location surface already shows). No remainder redistribution needed
+  since every share is an exact integer-cent product.
+- `totalCents = max(totalDays, sum of location days) * dailyShare` — the total
+  reflects the whole trip and is never less than what the locations claim.
 - `rationale` is a short human string built from the inputs.
 
 Edge cases:
-- No locations: the drafter is not useful (a total with no split). Decision: the
-  UI hides the button entirely when `locations.length === 0`, so `draftBudget`
-  is never called with an empty `locations` array in practice.
+- No locations: the drafter still works — it proposes just the total (no
+  per-location rows) and the preview notes that adding locations enables a split.
+  This is the common case for a freshly created trip and must not be hidden.
 - Location with 0 days (dateless): treat as 1 day so it still gets a share.
 - `memberCount` falls back to 1 if the members map is empty.
+- Duration source: `totalDays` is the trip's date-span day count; the drafter
+  falls back to the itinerary day-row count when the span is absent. Only a bare
+  dateless dream with no day rows and no locations has nothing to draft, and only
+  then is the button hidden.
 
 ### Migration to real Claude (later, not now)
 
@@ -88,8 +95,9 @@ Props (all already available in `BudgetTab`):
 
 Behavior:
 1. Collapsed state: a single "Draft a budget" button styled in the existing
-   budget design language (mono uppercase, `sea` tone), hidden when
-   `locations.length === 0`.
+   budget design language (mono uppercase, `sea` tone), shown whenever the trip
+   has a duration signal (date span, itinerary day rows, or locations); hidden
+   only for a bare dateless dream with none of those.
 2. On click: compute `days` per location from `itineraryDays` (count of days
    mapped to each location id via the existing `dayLocationMap`), call
    `draftBudget`, and open an inline editable preview.

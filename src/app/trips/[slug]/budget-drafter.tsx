@@ -33,6 +33,8 @@ interface DraftState {
 export interface BudgetDrafterProps {
   tripId: string
   tripSlug: string
+  /** Whole-trip duration in days, from the trip's date span (0 for a dateless dream). */
+  tripDays: number
   locations: ItineraryLocation[]
   itineraryDays: DayLocation[]
   memberCount: number
@@ -41,6 +43,7 @@ export interface BudgetDrafterProps {
 export function BudgetDrafter({
   tripId,
   tripSlug,
+  tripDays,
   locations,
   itineraryDays,
   memberCount,
@@ -49,7 +52,10 @@ export function BudgetDrafter({
   const [error, setError] = React.useState<string | null>(null)
   const [isPending, startTransition] = React.useTransition()
 
-  if (locations.length === 0) return null
+  // Draft from whatever the itinerary has: a date span, day rows, or locations.
+  // Only a trip with none of those (a bare dateless dream) has nothing to draft.
+  const totalDays = tripDays > 0 ? tripDays : itineraryDays.length
+  if (totalDays === 0 && locations.length === 0) return null
 
   function open() {
     const dayMap = dayLocationMap(itineraryDays)
@@ -58,6 +64,7 @@ export function BudgetDrafter({
       daysByLoc[locId] = (daysByLoc[locId] ?? 0) + 1
     }
     const result = draftBudget({
+      totalDays,
       locations: locations.map((l) => ({
         id: l.id,
         name: l.name,
@@ -164,30 +171,36 @@ export function BudgetDrafter({
           </span>
         </div>
 
-        <div className="mt-2 border-t border-rule">
-          {draft.lines.map((line) => (
-            <div
-              key={line.locationId}
-              className="flex items-center justify-between gap-3 border-t border-rule py-2 first:border-t-0"
-            >
-              <span className="text-[13px] text-foreground">{line.name}</span>
-              <span className="inline-flex items-baseline gap-1">
-                <span className="font-mono text-[12px] text-muted-foreground">
-                  €
+        {draft.lines.length > 0 ? (
+          <div className="mt-2 border-t border-rule">
+            {draft.lines.map((line) => (
+              <div
+                key={line.locationId}
+                className="flex items-center justify-between gap-3 border-t border-rule py-2 first:border-t-0"
+              >
+                <span className="text-[13px] text-foreground">{line.name}</span>
+                <span className="inline-flex items-baseline gap-1">
+                  <span className="font-mono text-[12px] text-muted-foreground">
+                    €
+                  </span>
+                  <input
+                    type="number"
+                    inputMode="numeric"
+                    min={0}
+                    value={line.value}
+                    onChange={(e) => setLine(line.locationId, e.target.value)}
+                    disabled={isPending}
+                    className="t-num w-20 border-0 border-b border-border bg-transparent text-right text-[13px] text-foreground outline-none focus:border-foreground"
+                  />
                 </span>
-                <input
-                  type="number"
-                  inputMode="numeric"
-                  min={0}
-                  value={line.value}
-                  onChange={(e) => setLine(line.locationId, e.target.value)}
-                  disabled={isPending}
-                  className="t-num w-20 border-0 border-b border-border bg-transparent text-right text-[13px] text-foreground outline-none focus:border-foreground"
-                />
-              </span>
-            </div>
-          ))}
-        </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="mt-2 font-mono text-[10px] tracking-[0.06em] text-muted-foreground">
+            Add locations in the itinerary to split this across places.
+          </div>
+        )}
 
         <div className="mt-2 font-mono text-[9px] uppercase tracking-[0.16em] text-muted-foreground">
           Applying replaces any existing budgets.
