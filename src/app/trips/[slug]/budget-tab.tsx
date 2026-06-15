@@ -119,6 +119,23 @@ export function BudgetTab({
             moves={moves}
             categories={expenseCategories}
           />
+          <LogExpenseRow
+            tripId={tripId}
+            tripSlug={tripSlug}
+            currentUserId={currentUserId}
+            members={members}
+            locations={locations}
+            categories={expenseCategories}
+          />
+          <Ledger
+            expenses={expenses}
+            moves={moves}
+            members={members}
+            tripSlug={tripSlug}
+            locations={locations}
+            itineraryDays={itineraryDays}
+            categories={expenseCategories}
+          />
         </>
       ) : null}
 
