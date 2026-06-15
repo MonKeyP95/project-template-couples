@@ -203,7 +203,7 @@ export function SavedFigure({
   perUser,
   members,
 }: SavedFigureProps) {
-  const [expanded, setExpanded] = React.useState(false)
+  const [expanded, setExpanded] = React.useState(true)
   const hasPlanned = plannedBudgetCents > 0
   const savedToGo = Math.max(0, plannedBudgetCents - savedCents)
   const savedPct = hasPlanned
