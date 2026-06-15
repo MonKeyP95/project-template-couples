@@ -34,11 +34,40 @@ interface Session {
   items: Record<string, ItemRow[]>
 }
 
+/** Plain (id-less) rows persisted per trip, so the plan can be reopened to edit. */
+type SavedItems = Record<string, { subject: string; when: string; value: string }[]>
+
+function planKey(tripId: string): string {
+  return `together:budget-plan:${tripId}`
+}
+
+function loadSavedItems(tripId: string): SavedItems | null {
+  try {
+    const raw = window.localStorage.getItem(planKey(tripId))
+    return raw ? (JSON.parse(raw) as SavedItems) : null
+  } catch {
+    return null
+  }
+}
+
+function saveItems(tripId: string, items: Record<string, ItemRow[]>) {
+  try {
+    const plain: SavedItems = {}
+    for (const [k, rows] of Object.entries(items)) {
+      plain[k] = rows.map(({ subject, when, value }) => ({ subject, when, value }))
+    }
+    window.localStorage.setItem(planKey(tripId), JSON.stringify(plain))
+  } catch {
+    // storage unavailable (private mode / disabled) — saving is best-effort.
+  }
+}
+
 export interface BudgetDrafterProps {
   tripId: string
   tripSlug: string
   /** Whole-trip duration in days, from the trip's date span (0 for a dateless dream). */
   tripDays: number
+  plannedBudgetCents: number
   locations: ItineraryLocation[]
   itineraryDays: DayLocation[]
   memberCount: number
@@ -48,6 +77,7 @@ export function BudgetDrafter({
   tripId,
   tripSlug,
   tripDays,
+  plannedBudgetCents,
   locations,
   itineraryDays,
   memberCount,
@@ -67,15 +97,21 @@ export function BudgetDrafter({
 
   function open() {
     const steps = planBudgetSteps({ totalDays, memberCount })
+    // Reopen with the previously saved plan when there is one, so editing
+    // resumes from your entries; otherwise seed from the assistant's defaults.
+    const saved = loadSavedItems(tripId)
     const items: Record<string, ItemRow[]> = {}
     for (const step of steps) {
-      items[step.key] = step.seed.map((s) =>
-        newRow(
-          s.subject,
-          s.when,
-          s.suggestedCents != null ? fmt(s.suggestedCents) : "",
-        ),
-      )
+      const savedRows = saved?.[step.key]
+      items[step.key] = savedRows
+        ? savedRows.map((r) => newRow(r.subject, r.when, r.value))
+        : step.seed.map((s) =>
+            newRow(
+              s.subject,
+              s.when,
+              s.suggestedCents != null ? fmt(s.suggestedCents) : "",
+            ),
+          )
     }
     setError(null)
     setStepIndex(0)
@@ -172,6 +208,7 @@ export function BudgetDrafter({
         setError(r.error)
         return
       }
+      saveItems(tripId, session.items)
       setSession(null)
     })
   }
@@ -184,7 +221,7 @@ export function BudgetDrafter({
           onClick={open}
           className="rounded-full border border-border bg-transparent px-3 py-1.5 font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground hover:text-foreground"
         >
-          Plan a budget
+          {plannedBudgetCents > 0 ? "Edit budget" : "Plan a budget"}
         </button>
       </div>
     )

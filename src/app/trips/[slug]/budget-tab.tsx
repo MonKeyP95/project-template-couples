@@ -112,6 +112,7 @@ export function BudgetTab({
             tripId={tripId}
             tripSlug={tripSlug}
             tripDays={tripDays}
+            plannedBudgetCents={plannedBudgetCents}
             locations={locations}
             itineraryDays={itineraryDays}
             memberCount={Object.keys(members).length}
