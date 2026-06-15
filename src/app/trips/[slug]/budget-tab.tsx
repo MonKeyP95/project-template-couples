@@ -20,13 +20,13 @@ import { SavedFigure, SpentFigure } from "./budget-figures"
 import { Ledger } from "./budget-ledger"
 import { LogExpenseRow } from "./log-expense-row"
 import type { MemberToneEntry } from "./packing-tab"
-import { SettleUpCard } from "./settle-up-card"
+import { SettleUpButtons, SettleUpCard } from "./settle-up-card"
 
 function fmt(cents: number): string {
   return (cents / 100).toFixed(2)
 }
 
-type View = "budget" | "saved" | "settle"
+type View = "budget" | "expense" | "saved" | "settle"
 
 export interface BudgetTabProps {
   tripId: string
@@ -79,6 +79,9 @@ export function BudgetTab({
             <SegBtn tone="sea" active={view === "budget"} onClick={() => setView("budget")}>
               Budget
             </SegBtn>
+            <SegBtn tone="sea" active={view === "expense"} onClick={() => setView("expense")}>
+              Expense
+            </SegBtn>
             <SegBtn tone="sea" active={view === "saved"} onClick={() => setView("saved")}>
               Saved
             </SegBtn>
@@ -93,6 +96,17 @@ export function BudgetTab({
               spentCents={totalCents}
               plannedBudgetCents={plannedBudgetCents}
             />
+          ) : null}
+          {view === "expense" ? (
+            <div className="mt-2 flex items-baseline gap-1">
+              <span className="t-display text-[22px] text-muted-foreground">€</span>
+              <span className="t-display t-num text-[42px] leading-none text-foreground">
+                {fmt(totalCents)}
+              </span>
+              <span className="ml-1.5 font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+                spent
+              </span>
+            </div>
           ) : null}
           {view === "saved" ? (
             <SavedFigure
@@ -110,13 +124,11 @@ export function BudgetTab({
 
       {view === "budget" ? (
         <>
-          <LogExpenseRow
+          <CompactSettle
+            summary={summary}
+            currentUserId={currentUserId}
             tripId={tripId}
             tripSlug={tripSlug}
-            currentUserId={currentUserId}
-            members={members}
-            locations={locations}
-            categories={expenseCategories}
           />
           <BudgetByLocation
             tripId={tripId}
@@ -127,6 +139,25 @@ export function BudgetTab({
             itineraryDays={itineraryDays}
             members={members}
             moves={moves}
+            categories={expenseCategories}
+          />
+        </>
+      ) : null}
+
+      {view === "expense" ? (
+        <>
+          <CompactSettle
+            summary={summary}
+            currentUserId={currentUserId}
+            tripId={tripId}
+            tripSlug={tripSlug}
+          />
+          <LogExpenseRow
+            tripId={tripId}
+            tripSlug={tripSlug}
+            currentUserId={currentUserId}
+            members={members}
+            locations={locations}
             categories={expenseCategories}
           />
           <Ledger
@@ -152,6 +183,7 @@ export function BudgetTab({
             tripSlug={tripSlug}
           />
           <SplitBreakdown members={members} paidByUser={summary.expensePaidByUser} />
+          <SettlementHistory expenses={expenses} members={members} />
         </>
       ) : null}
     </section>
@@ -190,6 +222,100 @@ function SplitBreakdown({
           </div>
         ))}
       </div>
+    </div>
+  )
+}
+
+function CompactSettle({
+  summary,
+  currentUserId,
+  tripId,
+  tripSlug,
+}: {
+  summary: BudgetSummary
+  currentUserId: string
+  tripId: string
+  tripSlug: string
+}) {
+  const owedCents = Math.abs(summary.netBalanceCents)
+  const canSettle =
+    summary.netBalanceCents !== 0 &&
+    !!summary.creditorUserId &&
+    !!summary.debtorUserId
+  if (!canSettle) return null
+
+  const youPay = summary.debtorUserId === currentUserId
+  const youGet = summary.creditorUserId === currentUserId
+  const label = youPay ? "you pay" : youGet ? "you're owed" : "owed"
+
+  return (
+    <div className="border-b border-border px-5 py-3">
+      <div className="flex items-center justify-between gap-3">
+        <SettleUpButtons owedCents={owedCents} tripId={tripId} tripSlug={tripSlug} />
+        <div className="text-right">
+          <div className="font-mono text-[9px] uppercase tracking-[0.18em] text-muted-foreground">
+            {label}
+          </div>
+          <div className="t-num text-[18px] text-foreground">€{fmt(owedCents)}</div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+const HISTORY_DATE = new Intl.DateTimeFormat("en-GB", {
+  day: "2-digit",
+  month: "short",
+  timeZone: "UTC",
+})
+
+function SettlementHistory({
+  expenses,
+  members,
+}: {
+  expenses: Expense[]
+  members: Record<string, MemberToneEntry>
+}) {
+  const settlements = expenses
+    .filter((e) => e.isSettlement)
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+
+  return (
+    <div className="px-5 pb-5 pt-1">
+      <Label>Settlement history</Label>
+      {settlements.length === 0 ? (
+        <div className="mt-2 font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+          No settlements yet
+        </div>
+      ) : (
+        <div className="mt-2">
+          {settlements.map((s) => (
+            <div
+              key={s.id}
+              className="flex items-center justify-between gap-3 border-t border-border py-2.5"
+            >
+              <div className="flex items-center gap-2">
+                <Avatar
+                  name={members[s.paidBy]?.initial ?? "?"}
+                  size={16}
+                  tone={members[s.paidBy]?.tone ?? "sea"}
+                />
+                <span className="text-[13px] text-foreground">
+                  {members[s.paidBy]?.displayName ?? "Someone"} paid
+                </span>
+              </div>
+              <div className="flex items-center gap-3">
+                <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
+                  {HISTORY_DATE.format(new Date(s.createdAt))}
+                </span>
+                <span className="t-num text-[14px] text-foreground">
+                  €{fmt(s.amountCents)}
+                </span>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
