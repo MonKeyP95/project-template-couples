@@ -54,18 +54,22 @@ export function draftBudget(input: BudgetDraftInput): BudgetDraft
 Mock logic (deterministic, no randomness, no async, no network):
 - `DAILY_PER_PERSON_CENTS` constant (start at 11000 = EUR 110).
 - `dailyShare = DAILY_PER_PERSON_CENTS * memberCount`.
-- Each location gets its own true share: `days * dailyShare`. The split may cover
-  only part of the trip; uncovered nights stay unallocated (which the existing
-  Budget-by-location surface already shows). No remainder redistribution needed
-  since every share is an exact integer-cent product.
 - `totalCents = max(totalDays, sum of location days) * dailyShare` — the total
   reflects the whole trip and is never less than what the locations claim.
+- With real locations: each gets its own true share `days * dailyShare`. The
+  split may cover only part of the trip; uncovered nights stay unallocated (which
+  the existing Budget-by-location surface already shows). No remainder
+  redistribution needed since every share is an exact integer-cent product.
+- With no locations: the whole trip is one synthetic envelope named after the
+  trip (`tripName`), carrying the full `totalCents` and an empty `locationId`.
 - `rationale` is a short human string built from the inputs.
 
 Edge cases:
-- No locations: the drafter still works — it proposes just the total (no
-  per-location rows) and the preview notes that adding locations enables a split.
-  This is the common case for a freshly created trip and must not be hidden.
+- No locations: the drafter shows a single editable row labelled with the trip
+  name (the synthetic envelope) equal to the total. Apply only sets the master
+  budget — there is no location row to write, so `setLocationBudget` is skipped
+  for the empty `locationId`. This is the common case for a freshly created trip
+  and must not be hidden.
 - Location with 0 days (dateless): treat as 1 day so it still gets a share.
 - `memberCount` falls back to 1 if the members map is empty.
 - Duration source: `totalDays` is the trip's date-span day count; the drafter

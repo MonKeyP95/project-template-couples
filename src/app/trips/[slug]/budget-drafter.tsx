@@ -30,9 +30,15 @@ interface DraftState {
   rationale: string
 }
 
+/** True when the only line is the whole-trip envelope (no real locations yet). */
+function isSynthetic(draft: DraftState): boolean {
+  return draft.lines.length === 1 && draft.lines[0].locationId === ""
+}
+
 export interface BudgetDrafterProps {
   tripId: string
   tripSlug: string
+  tripName: string
   /** Whole-trip duration in days, from the trip's date span (0 for a dateless dream). */
   tripDays: number
   locations: ItineraryLocation[]
@@ -43,6 +49,7 @@ export interface BudgetDrafterProps {
 export function BudgetDrafter({
   tripId,
   tripSlug,
+  tripName,
   tripDays,
   locations,
   itineraryDays,
@@ -65,6 +72,7 @@ export function BudgetDrafter({
     }
     const result = draftBudget({
       totalDays,
+      tripName,
       locations: locations.map((l) => ({
         id: l.id,
         name: l.name,
@@ -103,8 +111,11 @@ export function BudgetDrafter({
 
   function apply() {
     if (!draft || isPending) return
+    const synthetic = isSynthetic(draft)
     startTransition(async () => {
-      const totalCents = Math.round(Number(draft.total) * 100)
+      const totalCents = synthetic
+        ? Math.round(Number(draft.lines[0].value) * 100)
+        : Math.round(Number(draft.total) * 100)
       const r1 = await updateTripBudget({
         tripId,
         tripSlug,
@@ -114,7 +125,9 @@ export function BudgetDrafter({
         setError(r1.error)
         return
       }
+      // A synthetic trip line has no location row to write; only the total lands.
       for (const line of draft.lines) {
+        if (!line.locationId) continue
         const cents = Math.round(Number(line.value) * 100)
         if (cents <= 0) continue
         const r = await setLocationBudget({
@@ -145,6 +158,8 @@ export function BudgetDrafter({
     )
   }
 
+  const synthetic = isSynthetic(draft)
+
   return (
     <div className="border-t border-border bg-background px-5 pt-4 pb-2">
       <div className="rounded-lg border border-border bg-card px-3.5 py-3">
@@ -153,53 +168,71 @@ export function BudgetDrafter({
           {draft.rationale}
         </div>
 
-        <div className="mt-3 flex items-center justify-between gap-3">
-          <span className="font-serif text-[14px] italic text-foreground">
-            Total
-          </span>
-          <span className="inline-flex items-baseline gap-1">
-            <span className="font-mono text-[12px] text-muted-foreground">€</span>
-            <input
-              type="number"
-              inputMode="numeric"
-              min={0}
-              value={draft.total}
-              onChange={(e) => setTotal(e.target.value)}
-              disabled={isPending}
-              className="t-num w-24 border-0 border-b border-border bg-transparent text-right text-[15px] text-foreground outline-none focus:border-foreground"
-            />
-          </span>
-        </div>
-
-        {draft.lines.length > 0 ? (
-          <div className="mt-2 border-t border-rule">
-            {draft.lines.map((line) => (
-              <div
-                key={line.locationId}
-                className="flex items-center justify-between gap-3 border-t border-rule py-2 first:border-t-0"
-              >
-                <span className="text-[13px] text-foreground">{line.name}</span>
-                <span className="inline-flex items-baseline gap-1">
-                  <span className="font-mono text-[12px] text-muted-foreground">
-                    €
-                  </span>
-                  <input
-                    type="number"
-                    inputMode="numeric"
-                    min={0}
-                    value={line.value}
-                    onChange={(e) => setLine(line.locationId, e.target.value)}
-                    disabled={isPending}
-                    className="t-num w-20 border-0 border-b border-border bg-transparent text-right text-[13px] text-foreground outline-none focus:border-foreground"
-                  />
-                </span>
-              </div>
-            ))}
+        {synthetic ? (
+          <div className="mt-3 flex items-center justify-between gap-3">
+            <span className="font-serif text-[14px] italic text-foreground">
+              {draft.lines[0].name}
+            </span>
+            <span className="inline-flex items-baseline gap-1">
+              <span className="font-mono text-[12px] text-muted-foreground">€</span>
+              <input
+                type="number"
+                inputMode="numeric"
+                min={0}
+                value={draft.lines[0].value}
+                onChange={(e) => setLine("", e.target.value)}
+                disabled={isPending}
+                className="t-num w-24 border-0 border-b border-border bg-transparent text-right text-[15px] text-foreground outline-none focus:border-foreground"
+              />
+            </span>
           </div>
         ) : (
-          <div className="mt-2 font-mono text-[10px] tracking-[0.06em] text-muted-foreground">
-            Add locations in the itinerary to split this across places.
-          </div>
+          <>
+            <div className="mt-3 flex items-center justify-between gap-3">
+              <span className="font-serif text-[14px] italic text-foreground">
+                Total
+              </span>
+              <span className="inline-flex items-baseline gap-1">
+                <span className="font-mono text-[12px] text-muted-foreground">
+                  €
+                </span>
+                <input
+                  type="number"
+                  inputMode="numeric"
+                  min={0}
+                  value={draft.total}
+                  onChange={(e) => setTotal(e.target.value)}
+                  disabled={isPending}
+                  className="t-num w-24 border-0 border-b border-border bg-transparent text-right text-[15px] text-foreground outline-none focus:border-foreground"
+                />
+              </span>
+            </div>
+
+            <div className="mt-2 border-t border-rule">
+              {draft.lines.map((line) => (
+                <div
+                  key={line.locationId}
+                  className="flex items-center justify-between gap-3 border-t border-rule py-2 first:border-t-0"
+                >
+                  <span className="text-[13px] text-foreground">{line.name}</span>
+                  <span className="inline-flex items-baseline gap-1">
+                    <span className="font-mono text-[12px] text-muted-foreground">
+                      €
+                    </span>
+                    <input
+                      type="number"
+                      inputMode="numeric"
+                      min={0}
+                      value={line.value}
+                      onChange={(e) => setLine(line.locationId, e.target.value)}
+                      disabled={isPending}
+                      className="t-num w-20 border-0 border-b border-border bg-transparent text-right text-[13px] text-foreground outline-none focus:border-foreground"
+                    />
+                  </span>
+                </div>
+              ))}
+            </div>
+          </>
         )}
 
         <div className="mt-2 font-mono text-[9px] uppercase tracking-[0.16em] text-muted-foreground">

@@ -8,6 +8,8 @@
 export interface BudgetDraftInput {
   /** Whole-trip duration in days; drives the total even when locations are partial or absent. */
   totalDays: number
+  /** Trip name, used as the single envelope when there are no locations yet. */
+  tripName: string
   locations: { id: string; name: string; days: number }[]
   memberCount: number
   context?: string
@@ -38,16 +40,23 @@ export function draftBudget(input: BudgetDraftInput): BudgetDraft {
     ...l,
     days: Math.max(1, l.days),
   }))
-  const perLocation: BudgetDraftLine[] = locations.map((l) => ({
-    locationId: l.id,
-    name: l.name,
-    cents: l.days * dailyShare,
-  }))
 
   // Total reflects the whole trip; never less than what the locations claim.
   const locDays = locations.reduce((sum, l) => sum + l.days, 0)
   const totalDays = Math.max(input.totalDays, locDays)
   const totalCents = totalDays * dailyShare
+
+  // With no real locations, treat the whole trip as one envelope named after it.
+  // Its synthetic line carries an empty locationId, so apply only sets the
+  // master total (there is no location row to write).
+  const perLocation: BudgetDraftLine[] =
+    locations.length > 0
+      ? locations.map((l) => ({
+          locationId: l.id,
+          name: l.name,
+          cents: l.days * dailyShare,
+        }))
+      : [{ locationId: "", name: input.tripName, cents: totalCents }]
 
   const perDay = DAILY_PER_PERSON_CENTS / 100
   const nights = totalDays === 1 ? "night" : "nights"
