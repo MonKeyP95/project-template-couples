@@ -4,6 +4,7 @@
 
 | Decision | Why | Date |
 |---|---|---|
+| **Budget tab reorganized into a `Budget` / `Saved` / `Settle up` pill bar** (matching packing); `SegBtn` lifted into the shared `together` library with a `tone` prop; `BudgetFigures` split into `SpentFigure` + `SavedFigure` | One long scroll mixed three concerns; segmenting matches packing's mental model and lets each figure render under its own pill. Lifting `SegBtn` avoids a copy-paste between the two tabs. Pure presentation — no data/query/migration change. | 2026-06-15 |
 | Position as a **couples/families travel app**, not a generic household organizer | Crowded space (Cozi/FamCal) when generic; clear differentiator when trip-centric. Personal use case is travel. | 2026-05-25 |
 | Product name: **Together** | Picked one name and stuck with it; previously inconsistent ("LifeTogether" vs. "Together"). | 2026-05-25 |
 | Model shared surface as **workspace with members + roles**, not strict 2-person "couple" | Same schema scales from couple → family → small group without rewrite. MVP just hides the multi-member UI. | 2026-05-25 |
