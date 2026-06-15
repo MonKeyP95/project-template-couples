@@ -7,7 +7,7 @@ import {
   deleteSavingsContribution,
   updateTripBudget,
 } from "@/lib/trips/actions"
-import { Avatar, Bar, Label } from "@/components/together"
+import { Avatar, Bar } from "@/components/together"
 import { type SavingsContribution } from "@/lib/trips/savings-types"
 import type { MemberToneEntry } from "./packing-tab"
 
@@ -123,42 +123,27 @@ function AmountField({
   )
 }
 
-export interface BudgetFiguresProps {
+export interface SpentFigureProps {
   tripId: string
   tripSlug: string
   spentCents: number
   plannedBudgetCents: number
-  savedCents: number
-  contributions: SavingsContribution[]
-  perUser: Record<string, number>
-  members: Record<string, MemberToneEntry>
 }
 
-export function BudgetFigures({
+export function SpentFigure({
   tripId,
   tripSlug,
   spentCents,
   plannedBudgetCents,
-  savedCents,
-  contributions,
-  perUser,
-  members,
-}: BudgetFiguresProps) {
-  const [expanded, setExpanded] = React.useState(false)
+}: SpentFigureProps) {
   const hasPlanned = plannedBudgetCents > 0
   const leftCents = Math.max(0, plannedBudgetCents - spentCents)
   const spentPct = hasPlanned
     ? Math.min(100, Math.round((spentCents / plannedBudgetCents) * 100))
     : 0
-  const savedToGo = Math.max(0, plannedBudgetCents - savedCents)
-  const savedPct = hasPlanned
-    ? Math.min(100, Math.round((savedCents / plannedBudgetCents) * 100))
-    : 0
 
   const savePlanned = (cents: number) =>
     updateTripBudget({ tripId, tripSlug, plannedBudgetCents: cents })
-  const saveSaved = (cents: number) =>
-    addSavingsContribution({ tripId, tripSlug, amountCents: cents })
 
   return (
     <>
@@ -195,61 +180,92 @@ export function BudgetFigures({
           </div>
         </>
       ) : null}
-
-      <div className="mt-5">
-        <Label>Saved so far</Label>
-        <div className="mt-1.5 flex items-baseline gap-1">
-          <span className="t-display text-[18px] text-muted-foreground">€</span>
-          <button
-            type="button"
-            onClick={() => setExpanded((v) => !v)}
-            aria-expanded={expanded}
-            className="t-display t-num border-0 bg-transparent p-0 text-[28px] leading-none text-foreground"
-          >
-            {fmt(savedCents)}
-          </button>
-          <AmountField
-            additive
-            valueCents={savedCents}
-            onSave={saveSaved}
-            trigger={
-              savedCents > 0 ? (
-                hasPlanned ? (
-                  <span className="t-display text-[18px] text-muted-foreground">
-                    {" "}/ €{fmt(plannedBudgetCents)}
-                  </span>
-                ) : (
-                  <span className="t-display text-[18px] text-muted-foreground" />
-                )
-              ) : (
-                <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
-                  + set savings
-                </span>
-              )
-            }
-          />
-        </div>
-        {hasPlanned && savedCents > 0 ? (
-          <>
-            <div className="mt-3">
-              <Bar pct={savedPct} tone="moss" />
-            </div>
-            <div className="mt-1.5 flex justify-between font-mono text-[10px] tracking-[0.06em] text-muted-foreground">
-              <span>{savedPct}% saved</span>
-              <span>€{fmt(savedToGo)} to go</span>
-            </div>
-          </>
-        ) : null}
-        {expanded ? (
-          <SavingsDetails
-            contributions={contributions}
-            perUser={perUser}
-            members={members}
-            tripSlug={tripSlug}
-          />
-        ) : null}
-      </div>
     </>
+  )
+}
+
+export interface SavedFigureProps {
+  tripId: string
+  tripSlug: string
+  plannedBudgetCents: number
+  savedCents: number
+  contributions: SavingsContribution[]
+  perUser: Record<string, number>
+  members: Record<string, MemberToneEntry>
+}
+
+export function SavedFigure({
+  tripId,
+  tripSlug,
+  plannedBudgetCents,
+  savedCents,
+  contributions,
+  perUser,
+  members,
+}: SavedFigureProps) {
+  const [expanded, setExpanded] = React.useState(false)
+  const hasPlanned = plannedBudgetCents > 0
+  const savedToGo = Math.max(0, plannedBudgetCents - savedCents)
+  const savedPct = hasPlanned
+    ? Math.min(100, Math.round((savedCents / plannedBudgetCents) * 100))
+    : 0
+
+  const saveSaved = (cents: number) =>
+    addSavingsContribution({ tripId, tripSlug, amountCents: cents })
+
+  return (
+    <div className="mt-2">
+      <div className="flex items-baseline gap-1">
+        <span className="t-display text-[18px] text-muted-foreground">€</span>
+        <button
+          type="button"
+          onClick={() => setExpanded((v) => !v)}
+          aria-expanded={expanded}
+          className="t-display t-num border-0 bg-transparent p-0 text-[28px] leading-none text-foreground"
+        >
+          {fmt(savedCents)}
+        </button>
+        <AmountField
+          additive
+          valueCents={savedCents}
+          onSave={saveSaved}
+          trigger={
+            savedCents > 0 ? (
+              hasPlanned ? (
+                <span className="t-display text-[18px] text-muted-foreground">
+                  {" "}/ €{fmt(plannedBudgetCents)}
+                </span>
+              ) : (
+                <span className="t-display text-[18px] text-muted-foreground" />
+              )
+            ) : (
+              <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+                + set savings
+              </span>
+            )
+          }
+        />
+      </div>
+      {hasPlanned && savedCents > 0 ? (
+        <>
+          <div className="mt-3">
+            <Bar pct={savedPct} tone="moss" />
+          </div>
+          <div className="mt-1.5 flex justify-between font-mono text-[10px] tracking-[0.06em] text-muted-foreground">
+            <span>{savedPct}% saved</span>
+            <span>€{fmt(savedToGo)} to go</span>
+          </div>
+        </>
+      ) : null}
+      {expanded ? (
+        <SavingsDetails
+          contributions={contributions}
+          perUser={perUser}
+          members={members}
+          tripSlug={tripSlug}
+        />
+      ) : null}
+    </div>
   )
 }
 

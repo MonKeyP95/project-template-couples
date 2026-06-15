@@ -1,4 +1,8 @@
-import { Avatar, Label, TopoBg } from "@/components/together"
+"use client"
+
+import * as React from "react"
+
+import { Avatar, Label, SegBtn, TopoBg } from "@/components/together"
 import {
   type BudgetSummary,
   type Expense,
@@ -12,7 +16,7 @@ import {
 import { type ItineraryLocation } from "@/lib/trips/location-types"
 
 import { BudgetByLocation } from "./budget-by-location"
-import { BudgetFigures } from "./budget-figures"
+import { SavedFigure, SpentFigure } from "./budget-figures"
 import { Ledger } from "./budget-ledger"
 import { LogExpenseRow } from "./log-expense-row"
 import type { MemberToneEntry } from "./packing-tab"
@@ -21,6 +25,8 @@ import { SettleUpCard } from "./settle-up-card"
 function fmt(cents: number): string {
   return (cents / 100).toFixed(2)
 }
+
+type View = "budget" | "saved" | "settle"
 
 export interface BudgetTabProps {
   tripId: string
@@ -57,6 +63,7 @@ export function BudgetTab({
   moves,
   currentUserId,
 }: BudgetTabProps) {
+  const [view, setView] = React.useState<View>("budget")
   const totalCents = summary.expenseTotalCents
   const isSettled = summary.netBalanceCents === 0
   const creditor = summary.creditorUserId ? members[summary.creditorUserId] : null
@@ -64,96 +71,90 @@ export function BudgetTab({
 
   return (
     <section>
-      <BudgetHeader
-        tripId={tripId}
-        tripSlug={tripSlug}
-        tripName={tripName}
-        spentCents={totalCents}
-        plannedBudgetCents={plannedBudgetCents}
-        savedCents={savedCents}
-        savingsContributions={savingsContributions}
-        savedPerUser={savedPerUser}
-        members={members}
-      />
-      <LogExpenseRow
-        tripId={tripId}
-        tripSlug={tripSlug}
-        currentUserId={currentUserId}
-        members={members}
-        locations={locations}
-        categories={expenseCategories}
-      />
-      <SettleUpCard
-        isSettled={isSettled}
-        netBalanceCents={summary.netBalanceCents}
-        creditor={creditor}
-        debtor={debtor}
-        tripId={tripId}
-        tripSlug={tripSlug}
-      />
-      <SplitBreakdown members={members} paidByUser={summary.expensePaidByUser} />
-      <BudgetByLocation
-        tripId={tripId}
-        tripSlug={tripSlug}
-        masterBudgetCents={plannedBudgetCents}
-        locations={locations}
-        expenses={expenses}
-        itineraryDays={itineraryDays}
-        members={members}
-        moves={moves}
-        categories={expenseCategories}
-      />
-      <Ledger
-        expenses={expenses}
-        moves={moves}
-        members={members}
-        tripSlug={tripSlug}
-        locations={locations}
-        itineraryDays={itineraryDays}
-        categories={expenseCategories}
-      />
-    </section>
-  )
-}
-
-function BudgetHeader({
-  tripId,
-  tripSlug,
-  tripName,
-  spentCents,
-  plannedBudgetCents,
-  savedCents,
-  savingsContributions,
-  savedPerUser,
-  members,
-}: {
-  tripId: string
-  tripSlug: string
-  tripName: string
-  spentCents: number
-  plannedBudgetCents: number
-  savedCents: number
-  savingsContributions: SavingsContribution[]
-  savedPerUser: Record<string, number>
-  members: Record<string, MemberToneEntry>
-}) {
-  return (
-    <div className="relative overflow-hidden bg-dusk-tint px-5 pt-6 pb-4">
-      <TopoBg tone="sea" opacity={0.1} />
-      <div className="relative">
-        <Label>Budget · {tripName}</Label>
-        <BudgetFigures
-          tripId={tripId}
-          tripSlug={tripSlug}
-          spentCents={spentCents}
-          plannedBudgetCents={plannedBudgetCents}
-          savedCents={savedCents}
-          contributions={savingsContributions}
-          perUser={savedPerUser}
-          members={members}
-        />
+      <div className="relative overflow-hidden bg-dusk-tint px-5 pt-6 pb-4">
+        <TopoBg tone="sea" opacity={0.1} />
+        <div className="relative">
+          <Label>Budget · {tripName}</Label>
+          <div className="mt-3 flex flex-wrap items-center gap-1.5">
+            <SegBtn tone="sea" active={view === "budget"} onClick={() => setView("budget")}>
+              Budget
+            </SegBtn>
+            <SegBtn tone="sea" active={view === "saved"} onClick={() => setView("saved")}>
+              Saved
+            </SegBtn>
+            <SegBtn tone="sea" active={view === "settle"} onClick={() => setView("settle")}>
+              Settle up
+            </SegBtn>
+          </div>
+          {view === "budget" ? (
+            <SpentFigure
+              tripId={tripId}
+              tripSlug={tripSlug}
+              spentCents={totalCents}
+              plannedBudgetCents={plannedBudgetCents}
+            />
+          ) : null}
+          {view === "saved" ? (
+            <SavedFigure
+              tripId={tripId}
+              tripSlug={tripSlug}
+              plannedBudgetCents={plannedBudgetCents}
+              savedCents={savedCents}
+              contributions={savingsContributions}
+              perUser={savedPerUser}
+              members={members}
+            />
+          ) : null}
+        </div>
       </div>
-    </div>
+
+      {view === "budget" ? (
+        <>
+          <LogExpenseRow
+            tripId={tripId}
+            tripSlug={tripSlug}
+            currentUserId={currentUserId}
+            members={members}
+            locations={locations}
+            categories={expenseCategories}
+          />
+          <BudgetByLocation
+            tripId={tripId}
+            tripSlug={tripSlug}
+            masterBudgetCents={plannedBudgetCents}
+            locations={locations}
+            expenses={expenses}
+            itineraryDays={itineraryDays}
+            members={members}
+            moves={moves}
+            categories={expenseCategories}
+          />
+          <Ledger
+            expenses={expenses}
+            moves={moves}
+            members={members}
+            tripSlug={tripSlug}
+            locations={locations}
+            itineraryDays={itineraryDays}
+            categories={expenseCategories}
+          />
+        </>
+      ) : null}
+
+      {view === "settle" ? (
+        <>
+          <SettleUpCard
+            isSettled={isSettled}
+            netBalanceCents={summary.netBalanceCents}
+            creditor={creditor}
+            debtor={debtor}
+            tripId={tripId}
+            tripSlug={tripSlug}
+          />
+          <SplitBreakdown members={members} paidByUser={summary.expensePaidByUser} />
+        </>
+      ) : null}
+    </section>
   )
 }
 
@@ -167,7 +168,7 @@ function SplitBreakdown({
   const entries = Object.entries(members)
   if (entries.length !== 2) return null
   return (
-    <div className="px-5 pb-3">
+    <div className="px-5 pb-3 pt-3">
       <div className="grid grid-cols-2 gap-2.5">
         {entries.map(([userId, member]) => (
           <div
@@ -192,5 +193,3 @@ function SplitBreakdown({
     </div>
   )
 }
-
-
