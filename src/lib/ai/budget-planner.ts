@@ -46,7 +46,14 @@ export function planBudgetSteps(input: BudgetPlanInput): BudgetStep[] {
   const memberCount = Math.max(1, input.memberCount)
   const totalDays = Math.max(1, input.totalDays)
 
-  const locationSteps: BudgetStep[] = input.locations.map((loc) => {
+  // With no locations, the whole trip is one place named after the trip, so
+  // lodging and activities are still asked (just once, for the trip).
+  const places =
+    input.locations.length > 0
+      ? input.locations
+      : [{ id: "", name: input.tripName, nights: totalDays }]
+
+  const locationSteps: BudgetStep[] = places.map((loc) => {
     const nights = Math.max(1, loc.nights)
     const lodging = nights * LODGING_PER_NIGHT_CENTS
     return {
@@ -54,7 +61,7 @@ export function planBudgetSteps(input: BudgetPlanInput): BudgetStep[] {
       title: loc.name,
       subtitle: `${nights} ${nights === 1 ? "night" : "nights"}`,
       question: `How much for ${loc.name}?`,
-      hint: `Somewhere to stay runs about EUR ${euros(LODGING_PER_NIGHT_CENTS)}/night, so ~EUR ${euros(lodging)} here. Add anything you'll do in town too.`,
+      hint: `Somewhere to stay runs about EUR ${euros(LODGING_PER_NIGHT_CENTS)}/night, so ~EUR ${euros(lodging)} here. Add anything you'll do too.`,
       fields: [
         { key: "lodging", label: "Accommodation", suggestedCents: lodging },
         { key: "activities", label: "Activities", suggestedCents: null },

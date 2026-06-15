@@ -90,13 +90,19 @@ Mock logic (deterministic, no randomness, no async, no network):
 - One step per location (in input order): title = name, subtitle =
   "`<nights>` night(s)", fields = `lodging` (suggested `nights *
   LODGING_PER_NIGHT_CENTS`) and `activities` (suggested null).
+- No-locations default: when the trip has no locations, the whole trip is treated
+  as one place named after the trip (`tripName`, nights = `totalDays`), so the
+  same per-location step still asks lodging + activities. This is the only place
+  the trip name becomes a "location," and only for the interview — nothing is
+  persisted per place.
 - Trip-wide steps, always appended:
   - Transport: one field suggested `TRANSPORT_PER_PERSON_CENTS * memberCount`.
   - Food & drink: one field suggested `FOOD_PER_PERSON_DAY_CENTS * memberCount *
     max(totalDays, 1)`.
   - Other: one field suggested null.
-- A trip with no locations yields only the three trip-wide steps, so the
-  assistant still works (e.g. a trip with dates but no places yet).
+- A trip with no locations yields one trip-named place step (lodging +
+  activities) plus the three trip-wide steps, so the assistant still works
+  (e.g. a trip with dates but no places yet).
 
 ### Migration to real Claude (later, not now)
 
@@ -159,8 +165,8 @@ No test framework in this repo; do not invent one. Verification is `pnpm lint` +
 `pnpm build` passing, plus a manual check: on a trip with two places (e.g. a
 two-city itinerary), the assistant steps through each place then the trip-wide
 questions, the summary total updates as values change, and Apply sets the master
-budget. On a trip with dates but no places, the assistant runs the three
-trip-wide steps.
+budget. On a trip with dates but no places, the assistant asks about one place
+named after the trip (lodging + activities) followed by the trip-wide steps.
 
 ## Files
 
