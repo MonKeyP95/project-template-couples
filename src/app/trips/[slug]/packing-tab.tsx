@@ -2,7 +2,8 @@
 
 import * as React from "react"
 
-import { CheckRow, Coord, Label, SegBtn, SuggestionCard, TopoBg } from "@/components/together"
+import { CheckRow, Coord, Label, SegBtn, TopoBg } from "@/components/together"
+import { AiSuggestion } from "@/components/ai-suggestion"
 import {
   DndContext,
   PointerSensor,
@@ -483,12 +484,7 @@ function PackingList({
 
 
       <div className="px-5 pt-4 pb-6">
-        <SuggestionCard label="/ suggested for Rinjani" expandable>
-          Nights drop to 4°C at the crater.{" "}
-          <span className="font-serif italic text-foreground">
-            Consider a packable down layer + thermal liner.
-          </span>
-        </SuggestionCard>
+        <AiSuggestion surface="packing" />
       </div>
     </>
   )

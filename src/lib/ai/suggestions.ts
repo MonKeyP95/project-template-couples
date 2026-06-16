@@ -7,7 +7,8 @@
 
 export type SurfaceKey =
   | "budget"
-  | "trip"
+  | "packing"
+  | "itinerary"
   | "notes"
   | "home"
   | "road"
@@ -23,9 +24,13 @@ const SUGGESTIONS: Record<SurfaceKey, Suggestion> = {
     label: "/ suggested",
     body: "Street food keeps daily costs low in much of Southeast Asia — you could trim the food estimate and pad activities.",
   },
-  trip: {
+  packing: {
+    label: "/ suggested",
+    body: "Crater nights get cold even in the tropics — a packable warm layer is easy to forget.",
+  },
+  itinerary: {
     label: "/ assistant",
-    body: "Popular treks and permits sell out in peak season — worth booking the big-ticket items early.",
+    body: "Popular treks and permits sell out in peak season — worth booking the big-ticket days early.",
   },
   notes: {
     label: "/ suggested",
