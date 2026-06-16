@@ -15,6 +15,7 @@ import { RefreshOnVisible } from "@/components/refresh-on-visible"
 import { TripCountdown } from "@/components/trip-countdown"
 import { createClient } from "@/lib/supabase/server"
 import { isDarkTheme } from "@/lib/theme"
+import { localToday } from "@/lib/time/local-today"
 import {
   getTripExpenses,
   getTripExpenseCategories,
@@ -233,7 +234,7 @@ export default async function TripPage({
               tripSlug={header.slug}
               tripStartDate={header.startDate}
               tripEndDate={header.endDate ?? header.startDate}
-              today={new Date().toISOString().slice(0, 10)}
+              today={await localToday()}
               initialItems={datedItinerary ?? []}
               initialLocations={locations ?? []}
             />

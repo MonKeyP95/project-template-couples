@@ -18,6 +18,7 @@ import {
 } from "@/lib/trips/expense-queries"
 import { getNotesForDay } from "@/lib/trips/note-queries"
 import { computeLookingAhead } from "@/lib/trips/looking-ahead"
+import { localToday } from "@/lib/time/local-today"
 
 import { AiSuggestion } from "@/components/ai-suggestion"
 import { RealtimeRefresh } from "@/components/realtime-refresh"
@@ -44,7 +45,7 @@ export default async function OnTheRoadPage() {
   const trip = buckets.now[0]
   if (!trip) redirect("/home")
 
-  const today = new Date().toISOString().slice(0, 10)
+  const today = await localToday()
   const todayDay = await getTodayForTrip(trip.id, today)
   const locations = await getItineraryLocations(trip.id)
   const tone = slugToTone(trip.slug)

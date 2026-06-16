@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
 
 import { createClient } from "@/lib/supabase/server"
+import { localToday } from "@/lib/time/local-today"
 import {
   EXPENSE_CATEGORIES,
   type ExpenseCategoryRow,
@@ -294,7 +295,7 @@ async function loadTripBalance(
   return { net, debtor: net > 0 ? b : a }
 }
 
-const TODAY = () => new Date().toISOString().slice(0, 10)
+const TODAY = () => localToday()
 
 /**
  * Records a settlement row that brings the trip's net balance to zero.
@@ -324,7 +325,7 @@ export async function settleUp(
     currency: "EUR",
     paid_by: debtor,
     category: "Settlement",
-    day_date: TODAY(),
+    day_date: await TODAY(),
     is_settlement: true,
   })
   if (insertError) throw new Error(insertError.message)
@@ -368,7 +369,7 @@ export async function partialSettleUp(
     currency: "EUR",
     paid_by: debtor,
     category: "Settlement",
-    day_date: TODAY(),
+    day_date: await TODAY(),
     is_settlement: true,
   })
   if (insertError) return { error: insertError.message }

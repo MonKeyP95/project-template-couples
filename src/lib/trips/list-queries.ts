@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server"
+import { localToday } from "@/lib/time/local-today"
 
 export type TripState = "now" | "upcoming" | "past" | "dream"
 
@@ -80,7 +81,7 @@ export async function listTripsForWorkspace(
     .returns<TripRow[]>()
 
   const rows = data ?? []
-  const today = new Date().toISOString().slice(0, 10)
+  const today = await localToday()
 
   const tripIds = rows.map((r) => r.id)
   const savedByTrip: Record<string, number> = {}
