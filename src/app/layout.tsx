@@ -7,6 +7,7 @@ import {
 import "./globals.css"
 
 import { WorldMapBg } from "@/components/together"
+import { TimezoneCookie } from "@/components/timezone-cookie"
 import { isDarkTheme } from "@/lib/theme"
 
 const sans = IBM_Plex_Sans({
@@ -53,6 +54,7 @@ export default async function RootLayout({
         className="min-h-full flex flex-col font-sans"
         suppressHydrationWarning
       >
+        <TimezoneCookie />
         <WorldMapBg className="fixed inset-0 -z-10 text-foreground/[0.07]" />
         {children}
       </body>

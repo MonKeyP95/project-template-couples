@@ -17,6 +17,7 @@ import { isDarkTheme } from "@/lib/theme"
 import { getItineraryLocations } from "@/lib/trips/location-queries"
 import { getTodayForTrip } from "@/lib/trips/itinerary-queries"
 import { listTripsForWorkspace } from "@/lib/trips/list-queries"
+import { localToday } from "@/lib/time/local-today"
 import {
   getCurrentWorkspace,
   type CurrentWorkspace,
@@ -78,7 +79,7 @@ export default async function HomePage() {
     : []
   const heroToday =
     hero && hero.state === "now"
-      ? await getTodayForTrip(hero.id, new Date().toISOString().slice(0, 10))
+      ? await getTodayForTrip(hero.id, await localToday())
       : null
   const trips = [
     ...buckets.now.slice(buckets.now[0] ? 1 : 0),

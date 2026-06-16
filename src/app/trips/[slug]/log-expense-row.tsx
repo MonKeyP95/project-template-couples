@@ -3,6 +3,7 @@
 import * as React from "react"
 
 import { logExpense } from "@/lib/trips/actions"
+import { deviceToday } from "@/lib/time/today"
 import {
   EXPENSE_CATEGORY_DEFAULT,
   type ExpenseCategoryRow,
@@ -21,10 +22,6 @@ export interface LogExpenseRowProps {
   categories: ExpenseCategoryRow[]
 }
 
-function todayIso(): string {
-  return new Date().toISOString().slice(0, 10)
-}
-
 export function LogExpenseRow({
   tripId,
   tripSlug,
@@ -33,7 +30,7 @@ export function LogExpenseRow({
   locations,
   categories,
 }: LogExpenseRowProps) {
-  const initialDay = React.useMemo(() => todayIso(), [])
+  const initialDay = React.useMemo(() => deviceToday(), [])
   const defaultCategory =
     categories.find((c) => c.name === EXPENSE_CATEGORY_DEFAULT)?.name ??
     categories[0]?.name ??
