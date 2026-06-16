@@ -35,6 +35,7 @@ import {
   type CurrentWorkspace,
 } from "@/lib/workspace/queries"
 import { LeftRail, MobileTopNav, buildNavDestinations } from "@/components/app-nav"
+import { AiSuggestion } from "@/components/ai-suggestion"
 
 import { BudgetTab } from "./budget-tab"
 import { ItineraryTab } from "./itinerary-tab"
@@ -215,6 +216,9 @@ export default async function TripPage({
       <div className="lg:min-w-0 lg:flex-1">
         <TripHeaderView header={header} workspace={workspace} />
         <DesktopTabs slug={header.slug} active={activeTab} />
+        <div className="px-5 pt-4 lg:px-10">
+          <AiSuggestion surface="trip" />
+        </div>
         {activeTab === "itinerary" && detail && header.startDate ? (
           <div className="lg:hidden">
             <WeatherStrip detail={detail} />

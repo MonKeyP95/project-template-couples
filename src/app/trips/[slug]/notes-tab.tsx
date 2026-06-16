@@ -16,6 +16,7 @@ import {
   deleteNote,
   updateNote,
 } from "@/lib/trips/actions"
+import { AiSuggestion } from "@/components/ai-suggestion"
 import { ImportFromTripControl } from "./import-from-trip"
 import type { TripNote } from "@/lib/trips/note-queries"
 import type { ItineraryLocation } from "@/lib/trips/location-types"
@@ -120,6 +121,7 @@ export function NotesTab({
 
   return (
     <section className="px-5 pt-5 lg:px-10 lg:pt-6">
+      <AiSuggestion surface="notes" className="mb-4 block" />
       <div className="flex items-baseline justify-between">
         <Label>Notes</Label>
         <span className="font-mono text-[10px] tracking-[0.06em] text-muted-foreground">
