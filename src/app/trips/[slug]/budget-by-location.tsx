@@ -163,9 +163,7 @@ function LocationView({
   if (locations.length === 0) {
     return (
       <div className="py-4 font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
-        {summary.unassignedSpentCents > 0
-          ? `Unassigned · €${fmt(summary.unassignedSpentCents)}`
-          : "Add locations in the itinerary to budget by place"}
+        Add locations in the itinerary to budget by place
       </div>
     )
   }
