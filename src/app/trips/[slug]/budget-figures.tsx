@@ -192,6 +192,7 @@ export interface SavedFigureProps {
   contributions: SavingsContribution[]
   perUser: Record<string, number>
   members: Record<string, MemberToneEntry>
+  currentUserId: string
 }
 
 export function SavedFigure({
@@ -202,6 +203,7 @@ export function SavedFigure({
   contributions,
   perUser,
   members,
+  currentUserId,
 }: SavedFigureProps) {
   const [expanded, setExpanded] = React.useState(true)
   const hasPlanned = plannedBudgetCents > 0
@@ -262,7 +264,9 @@ export function SavedFigure({
           contributions={contributions}
           perUser={perUser}
           members={members}
+          tripId={tripId}
           tripSlug={tripSlug}
+          currentUserId={currentUserId}
         />
       ) : null}
     </div>
@@ -286,12 +290,16 @@ function SavingsDetails({
   contributions,
   perUser,
   members,
+  tripId,
   tripSlug,
+  currentUserId,
 }: {
   contributions: SavingsContribution[]
   perUser: Record<string, number>
   members: Record<string, MemberToneEntry>
+  tripId: string
   tripSlug: string
+  currentUserId: string
 }) {
   const memberEntries = Object.entries(members)
   return (
@@ -299,23 +307,15 @@ function SavingsDetails({
       {memberEntries.length === 2 ? (
         <div className="grid grid-cols-2 gap-2.5">
           {memberEntries.map(([userId, member]) => (
-            <div
+            <MemberSavedBox
               key={userId}
-              className="rounded-lg border border-border bg-card px-3.5 py-3"
-            >
-              <div className="flex items-center gap-2">
-                <Avatar name={member.initial} size={18} tone={member.tone} />
-                <span className="font-serif text-[14px] italic text-foreground">
-                  {member.displayName}
-                </span>
-              </div>
-              <div className="mt-1.5 font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
-                saved
-              </div>
-              <div className="t-num mt-0.5 text-[22px] text-foreground">
-                €{fmt(perUser[userId] ?? 0)}
-              </div>
-            </div>
+              tripId={tripId}
+              tripSlug={tripSlug}
+              userId={userId}
+              member={member}
+              savedCents={perUser[userId] ?? 0}
+              isSelf={userId === currentUserId}
+            />
           ))}
         </div>
       ) : null}
@@ -337,6 +337,177 @@ function SavingsDetails({
         )}
       </div>
     </div>
+  )
+}
+
+/** Per-member saved card. Press anywhere on the card to log a contribution
+ * credited to that member; the amount turns into an inline "+€ … add" field. */
+function MemberSavedBox({
+  tripId,
+  tripSlug,
+  userId,
+  member,
+  savedCents,
+  isSelf,
+}: {
+  tripId: string
+  tripSlug: string
+  userId: string
+  member: MemberToneEntry
+  savedCents: number
+  /** When false, adding (crediting someone else) asks for a confirm first. */
+  isSelf: boolean
+}) {
+  const [editing, setEditing] = React.useState(false)
+  const [confirming, setConfirming] = React.useState(false)
+  const [value, setValue] = React.useState("")
+  const [error, setError] = React.useState<string | null>(null)
+  const [isPending, startTransition] = React.useTransition()
+  const inputRef = React.useRef<HTMLInputElement>(null)
+
+  React.useEffect(() => {
+    if (editing && !confirming) inputRef.current?.focus()
+  }, [editing, confirming])
+
+  function commit(cents: number) {
+    startTransition(async () => {
+      const result = await addSavingsContribution({
+        tripId,
+        tripSlug,
+        amountCents: cents,
+        userId,
+      })
+      if (result.error) {
+        setError(result.error)
+        return
+      }
+      setValue("")
+      setConfirming(false)
+      setEditing(false)
+    })
+  }
+
+  function submit(e: React.FormEvent) {
+    e.preventDefault()
+    if (isPending) return
+    const num = Number(value)
+    if (!Number.isFinite(num) || num <= 0) {
+      setError("Enter a valid amount.")
+      return
+    }
+    const cents = Math.round(num * 100)
+    // Crediting your partner's box is a deliberate action — confirm it first.
+    if (!isSelf) {
+      setError(null)
+      setConfirming(true)
+      return
+    }
+    commit(cents)
+  }
+
+  const header = (
+    <>
+      <div className="flex items-center gap-2">
+        <Avatar name={member.initial} size={18} tone={member.tone} />
+        <span className="font-serif text-[14px] italic text-foreground">
+          {member.displayName}
+        </span>
+      </div>
+      <div className="mt-1.5 font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+        saved
+      </div>
+    </>
+  )
+
+  if (confirming) {
+    return (
+      <div className="rounded-lg border border-foreground/30 bg-card px-3.5 py-3">
+        {header}
+        <div className="mt-1 text-[12px] leading-snug text-foreground">
+          Add €{Number(value).toFixed(0)} to {member.displayName}?
+        </div>
+        <div className="mt-2 flex items-center gap-1.5">
+          <button
+            type="button"
+            onClick={() => commit(Math.round(Number(value) * 100))}
+            disabled={isPending}
+            className="rounded-full border-0 bg-foreground px-2.5 py-1 font-mono text-[9px] uppercase tracking-[0.2em] text-background disabled:opacity-40"
+          >
+            {isPending ? "…" : "confirm"}
+          </button>
+          <button
+            type="button"
+            onClick={() => setConfirming(false)}
+            disabled={isPending}
+            className="border-0 bg-transparent p-0 font-mono text-[9px] uppercase tracking-[0.2em] text-muted-foreground hover:text-foreground"
+          >
+            cancel
+          </button>
+        </div>
+        {error ? (
+          <span className="mt-1 block font-mono text-[9px] text-clay">{error}</span>
+        ) : null}
+      </div>
+    )
+  }
+
+  if (editing) {
+    return (
+      <div className="rounded-lg border border-foreground/30 bg-card px-3.5 py-3">
+        {header}
+        <form
+          onSubmit={submit}
+          onKeyDown={(e) => {
+            if (e.key === "Escape") {
+              setValue("")
+              setEditing(false)
+            }
+          }}
+          className="mt-0.5 flex items-center gap-1.5"
+        >
+          <span className="t-display text-[18px] text-muted-foreground">+€</span>
+          <input
+            ref={inputRef}
+            type="number"
+            inputMode="numeric"
+            min={0}
+            value={value}
+            onChange={(e) => setValue(e.target.value)}
+            disabled={isPending}
+            className="t-num w-16 border-0 border-b border-border bg-transparent text-[18px] text-foreground outline-none focus:border-foreground"
+          />
+          <button
+            type="submit"
+            disabled={isPending}
+            className="rounded-full border-0 bg-foreground px-2.5 py-1 font-mono text-[9px] uppercase tracking-[0.2em] text-background disabled:opacity-40"
+          >
+            {isPending ? "…" : "add"}
+          </button>
+        </form>
+        {error ? (
+          <span className="mt-1 block font-mono text-[9px] text-clay">{error}</span>
+        ) : null}
+      </div>
+    )
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={() => {
+        setError(null)
+        setEditing(true)
+      }}
+      className="block w-full rounded-lg border border-border bg-card px-3.5 py-3 text-left transition-colors hover:border-foreground/30"
+    >
+      {header}
+      <span className="mt-0.5 flex items-baseline gap-1.5">
+        <span className="t-num text-[22px] text-foreground">€{fmt(savedCents)}</span>
+        <span className="font-mono text-[9px] uppercase tracking-[0.18em] text-muted-foreground">
+          + add
+        </span>
+      </span>
+    </button>
   )
 }
 

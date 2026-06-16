@@ -2126,6 +2126,8 @@ export interface AddSavingsContributionInput {
   tripId: string
   tripSlug: string
   amountCents: number
+  /** Member to credit. Defaults to the caller; RLS requires it be a trip member. */
+  userId?: string
 }
 
 export interface SavingsActionResult {
@@ -2133,8 +2135,8 @@ export interface SavingsActionResult {
 }
 
 /**
- * Logs one savings contribution credited to the current user. Each tap of
- * "+ add" inserts a row; the saved total is the sum of these rows.
+ * Logs one savings contribution, credited to input.userId or the caller. Each
+ * tap of "+ add" inserts a row; the saved total is the sum of these rows.
  */
 export async function addSavingsContribution(
   input: AddSavingsContributionInput,
@@ -2152,7 +2154,7 @@ export async function addSavingsContribution(
 
   const { error } = await supabase.from("trip_savings_contributions").insert({
     trip_id: input.tripId,
-    user_id: userData.user.id,
+    user_id: input.userId ?? userData.user.id,
     amount_cents: input.amountCents,
   })
 

@@ -63,6 +63,14 @@ function loadSavedItems(tripId: string): SavedItems | null {
   }
 }
 
+function clearSavedItems(tripId: string) {
+  try {
+    window.localStorage.removeItem(planKey(tripId))
+  } catch {
+    // storage unavailable — nothing to clear.
+  }
+}
+
 function saveItems(tripId: string, items: Record<string, ItemRow[]>) {
   try {
     const plain: SavedItems = {}
@@ -99,6 +107,7 @@ export function BudgetDrafter({
 }: BudgetDrafterProps) {
   const [session, setSession] = React.useState<Session | null>(null)
   const [stepIndex, setStepIndex] = React.useState(0)
+  const [confirmingDelete, setConfirmingDelete] = React.useState(false)
   const [error, setError] = React.useState<string | null>(null)
   const [isPending, startTransition] = React.useTransition()
   const itemSeq = React.useRef(0)
@@ -110,7 +119,7 @@ export function BudgetDrafter({
     return { id: `it-${itemSeq.current++}`, subject, when, value }
   }
 
-  function open() {
+  function open(fromScratch = false) {
     // Per-location nights + a human date label, from the itinerary days.
     const nightsByLoc: Record<string, number> = {}
     const datesByLoc: Record<string, string[]> = {}
@@ -134,7 +143,7 @@ export function BudgetDrafter({
       locations: locInput,
     })
 
-    const saved = loadSavedItems(tripId)
+    const saved = fromScratch ? null : loadSavedItems(tripId)
     const items: Record<string, ItemRow[]> = {}
     for (const step of steps) {
       for (const { bucketId, group } of stepBuckets(step)) {
@@ -254,16 +263,75 @@ export function BudgetDrafter({
     })
   }
 
+  function deleteBudget() {
+    if (isPending) return
+    setError(null)
+    startTransition(async () => {
+      const r = await updateTripBudget({ tripId, tripSlug, plannedBudgetCents: 0 })
+      if (r.error) {
+        setError(r.error)
+        return
+      }
+      clearSavedItems(tripId)
+      setConfirmingDelete(false)
+    })
+  }
+
   if (!session) {
     return (
-      <div className="border-t border-border bg-background px-5 pt-4 pb-2">
+      <div className="flex items-center justify-between border-t border-border bg-background px-5 pt-4 pb-2">
         <button
           type="button"
-          onClick={open}
+          onClick={() => open()}
           className="rounded-full border border-border bg-transparent px-3 py-1.5 font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground hover:text-foreground"
         >
           {plannedBudgetCents > 0 ? "Edit budget" : "Plan a budget"}
         </button>
+        {plannedBudgetCents > 0 ? (
+          confirmingDelete ? (
+            <span className="flex items-center gap-2">
+              <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
+                Delete budget?
+              </span>
+              <button
+                type="button"
+                onClick={deleteBudget}
+                disabled={isPending}
+                className="rounded-full border border-clay bg-transparent px-3 py-1.5 font-mono text-[10px] uppercase tracking-[0.18em] text-clay hover:bg-clay hover:text-background disabled:opacity-40"
+              >
+                {isPending ? "…" : "confirm"}
+              </button>
+              <button
+                type="button"
+                onClick={() => setConfirmingDelete(false)}
+                disabled={isPending}
+                className="border-0 bg-transparent p-0 font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground hover:text-foreground"
+              >
+                cancel
+              </button>
+              {error ? (
+                <span className="font-mono text-[9px] text-clay">{error}</span>
+              ) : null}
+            </span>
+          ) : (
+            <span className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => open(true)}
+                className="rounded-full border border-dashed border-border bg-transparent px-3 py-1.5 font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground hover:text-foreground"
+              >
+                Start over
+              </button>
+              <button
+                type="button"
+                onClick={() => setConfirmingDelete(true)}
+                className="border-0 bg-transparent p-0 font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground hover:text-clay"
+              >
+                Delete
+              </button>
+            </span>
+          )
+        ) : null}
       </div>
     )
   }

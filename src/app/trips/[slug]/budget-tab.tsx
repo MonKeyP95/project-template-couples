@@ -96,6 +96,14 @@ export function BudgetTab({
 
       {view === "budget" ? (
         <>
+          <LogExpenseRow
+            tripId={tripId}
+            tripSlug={tripSlug}
+            currentUserId={currentUserId}
+            members={members}
+            locations={locations}
+            categories={expenseCategories}
+          />
           <div className="border-b border-border px-5 pt-4 pb-4">
             <SpentFigure
               tripId={tripId}
@@ -110,9 +118,6 @@ export function BudgetTab({
             tripId={tripId}
             tripSlug={tripSlug}
           />
-          <div className="px-5 pt-4">
-            <AiSuggestion surface="budget" />
-          </div>
           <BudgetDrafter
             tripId={tripId}
             tripSlug={tripSlug}
@@ -123,6 +128,9 @@ export function BudgetTab({
             itineraryDays={itineraryDays}
             memberCount={Object.keys(members).length}
           />
+          <div className="px-5 pt-4">
+            <AiSuggestion surface="budget" />
+          </div>
           <BudgetByLocation
             tripId={tripId}
             tripSlug={tripSlug}
@@ -132,14 +140,6 @@ export function BudgetTab({
             itineraryDays={itineraryDays}
             members={members}
             moves={moves}
-            categories={expenseCategories}
-          />
-          <LogExpenseRow
-            tripId={tripId}
-            tripSlug={tripSlug}
-            currentUserId={currentUserId}
-            members={members}
-            locations={locations}
             categories={expenseCategories}
           />
           <Ledger
@@ -156,6 +156,14 @@ export function BudgetTab({
 
       {view === "expense" ? (
         <>
+          <LogExpenseRow
+            tripId={tripId}
+            tripSlug={tripSlug}
+            currentUserId={currentUserId}
+            members={members}
+            locations={locations}
+            categories={expenseCategories}
+          />
           <div className="border-b border-border px-5 pt-4 pb-4">
             <div className="flex items-baseline gap-1">
               <span className="t-display text-[22px] text-muted-foreground">€</span>
@@ -172,14 +180,6 @@ export function BudgetTab({
             currentUserId={currentUserId}
             tripId={tripId}
             tripSlug={tripSlug}
-          />
-          <LogExpenseRow
-            tripId={tripId}
-            tripSlug={tripSlug}
-            currentUserId={currentUserId}
-            members={members}
-            locations={locations}
-            categories={expenseCategories}
           />
           <Ledger
             expenses={expenses}
@@ -203,6 +203,7 @@ export function BudgetTab({
             contributions={savingsContributions}
             perUser={savedPerUser}
             members={members}
+            currentUserId={currentUserId}
           />
         </div>
       ) : null}
