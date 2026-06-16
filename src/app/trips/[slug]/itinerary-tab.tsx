@@ -606,6 +606,7 @@ export function ItineraryTab({
           + location
         </button>
       )}
+      <AiSuggestion surface="itinerary" />
     </div>
   )
 
@@ -616,10 +617,6 @@ export function ItineraryTab({
         <span className="font-mono text-[10px] tracking-[0.06em] text-muted-foreground">
           drafted by <span className="text-sea">● M+G</span>
         </span>
-      </div>
-
-      <div className="px-5 pt-4 lg:px-10">
-        <AiSuggestion surface="itinerary" />
       </div>
 
       <div className="px-5 pt-4 pb-6 lg:px-10">
