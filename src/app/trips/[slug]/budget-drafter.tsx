@@ -6,10 +6,14 @@ import { Label } from "@/components/together"
 import {
   estimateItemCents,
   planBudgetSteps,
+  type BudgetGroup,
   type BudgetStep,
 } from "@/lib/ai/budget-planner"
 import { updateTripBudget } from "@/lib/trips/actions"
-import { type DayLocation } from "@/lib/trips/location-budget-types"
+import {
+  locationDateLabel,
+  type DayLocation,
+} from "@/lib/trips/location-budget-types"
 import type { ItineraryLocation } from "@/lib/trips/location-types"
 
 function fmt(cents: number): string {
@@ -30,11 +34,20 @@ interface ItemRow {
 
 interface Session {
   steps: BudgetStep[]
-  /** stepKey -> detailed rows. */
+  /** bucket id -> rows. Bucket = step.key (flat) or `${step.key}:${group.key}`. */
   items: Record<string, ItemRow[]>
 }
 
-/** Plain (id-less) rows persisted per trip, so the plan can be reopened to edit. */
+/** The buckets a step holds: one per group, or a single one for a flat step. */
+function stepBuckets(
+  step: BudgetStep,
+): { bucketId: string; group: BudgetGroup | null }[] {
+  if (step.groups) {
+    return step.groups.map((g) => ({ bucketId: `${step.key}:${g.key}`, group: g }))
+  }
+  return [{ bucketId: step.key, group: null }]
+}
+
 type SavedItems = Record<string, { subject: string; when: string; value: string }[]>
 
 function planKey(tripId: string): string {
@@ -65,6 +78,7 @@ function saveItems(tripId: string, items: Record<string, ItemRow[]>) {
 export interface BudgetDrafterProps {
   tripId: string
   tripSlug: string
+  tripName: string
   /** Whole-trip duration in days, from the trip's date span (0 for a dateless dream). */
   tripDays: number
   plannedBudgetCents: number
@@ -76,6 +90,7 @@ export interface BudgetDrafterProps {
 export function BudgetDrafter({
   tripId,
   tripSlug,
+  tripName,
   tripDays,
   plannedBudgetCents,
   locations,
@@ -96,47 +111,70 @@ export function BudgetDrafter({
   }
 
   function open() {
-    const steps = planBudgetSteps({ totalDays, memberCount })
-    // Reopen with the previously saved plan when there is one, so editing
-    // resumes from your entries; otherwise seed from the assistant's defaults.
+    // Per-location nights + a human date label, from the itinerary days.
+    const nightsByLoc: Record<string, number> = {}
+    const datesByLoc: Record<string, string[]> = {}
+    for (const d of itineraryDays) {
+      if (d.locationId) {
+        nightsByLoc[d.locationId] = (nightsByLoc[d.locationId] ?? 0) + 1
+        ;(datesByLoc[d.locationId] ??= []).push(d.dayDate)
+      }
+    }
+    const locInput = locations.map((l) => ({
+      id: l.id,
+      name: l.name,
+      nights: nightsByLoc[l.id] ?? 0,
+      dateLabel: locationDateLabel(l.startDate, l.endDate, datesByLoc[l.id] ?? []),
+    }))
+
+    const steps = planBudgetSteps({
+      tripName,
+      totalDays,
+      memberCount,
+      locations: locInput,
+    })
+
     const saved = loadSavedItems(tripId)
     const items: Record<string, ItemRow[]> = {}
     for (const step of steps) {
-      const savedRows = saved?.[step.key]
-      items[step.key] = savedRows
-        ? savedRows.map((r) => newRow(r.subject, r.when, r.value))
-        : step.seed.map((s) =>
-            newRow(
-              s.subject,
-              s.when,
-              s.suggestedCents != null ? fmt(s.suggestedCents) : "",
-            ),
-          )
+      for (const { bucketId, group } of stepBuckets(step)) {
+        const seed = group ? group.seed : step.seed ?? []
+        const savedRows = saved?.[bucketId]
+        items[bucketId] = savedRows
+          ? savedRows.map((r) => newRow(r.subject, r.when, r.value))
+          : seed.map((s) =>
+              newRow(
+                s.subject,
+                s.when,
+                s.suggestedCents != null ? fmt(s.suggestedCents) : "",
+              ),
+            )
+      }
     }
     setError(null)
     setStepIndex(0)
     setSession({ steps, items })
   }
 
-  function addItem(stepKey: string) {
+  function addItem(bucketId: string) {
     setSession((s) =>
       s
         ? {
             ...s,
-            items: { ...s.items, [stepKey]: [...(s.items[stepKey] ?? []), newRow()] },
+            items: { ...s.items, [bucketId]: [...(s.items[bucketId] ?? []), newRow()] },
           }
         : s,
     )
   }
 
-  function patchItem(stepKey: string, id: string, patch: Partial<ItemRow>) {
+  function patchItem(bucketId: string, id: string, patch: Partial<ItemRow>) {
     setSession((s) =>
       s
         ? {
             ...s,
             items: {
               ...s.items,
-              [stepKey]: (s.items[stepKey] ?? []).map((r) =>
+              [bucketId]: (s.items[bucketId] ?? []).map((r) =>
                 r.id === id ? { ...r, ...patch } : r,
               ),
             },
@@ -145,45 +183,48 @@ export function BudgetDrafter({
     )
   }
 
-  function removeItem(stepKey: string, id: string) {
+  function removeItem(bucketId: string, id: string) {
     setSession((s) =>
       s
         ? {
             ...s,
             items: {
               ...s.items,
-              [stepKey]: (s.items[stepKey] ?? []).filter((r) => r.id !== id),
+              [bucketId]: (s.items[bucketId] ?? []).filter((r) => r.id !== id),
             },
           }
         : s,
     )
   }
 
-  // Leaving a step: drop empty rows, and for a row with a subject/when but no
-  // cost let the assistant estimate it (an explicit 0 is kept as-is).
-  function normalizeStep(stepKey: string) {
+  // Leaving a step: in each of its buckets drop empty rows, and for a row with a
+  // subject/when but no cost let the assistant estimate it (explicit 0 is kept).
+  function normalizeStep(step: BudgetStep) {
     setSession((s) => {
       if (!s) return s
-      const rows = (s.items[stepKey] ?? [])
-        .filter(
-          (r) =>
-            r.subject.trim() !== "" ||
-            r.when.trim() !== "" ||
-            r.value.trim() !== "",
-        )
-        .map((r) =>
-          (r.subject.trim() !== "" || r.when.trim() !== "") &&
-          r.value.trim() === ""
-            ? { ...r, value: fmt(estimateItemCents()) }
-            : r,
-        )
-      return { ...s, items: { ...s.items, [stepKey]: rows } }
+      const items = { ...s.items }
+      for (const { bucketId } of stepBuckets(step)) {
+        items[bucketId] = (s.items[bucketId] ?? [])
+          .filter(
+            (r) =>
+              r.subject.trim() !== "" ||
+              r.when.trim() !== "" ||
+              r.value.trim() !== "",
+          )
+          .map((r) =>
+            (r.subject.trim() !== "" || r.when.trim() !== "") &&
+            r.value.trim() === ""
+              ? { ...r, value: fmt(estimateItemCents()) }
+              : r,
+          )
+      }
+      return { ...s, items }
     })
   }
 
   function goNext() {
     if (!session) return
-    normalizeStep(session.steps[stepIndex].key)
+    normalizeStep(session.steps[stepIndex])
     setStepIndex((i) => i + 1)
   }
 
@@ -237,24 +278,21 @@ export function BudgetDrafter({
     </div>
   )
 
-  function renderRow(stepKey: string, row: ItemRow) {
+  function renderRow(bucketId: string, row: ItemRow) {
     return (
-      <div
-        key={row.id}
-        className="rounded-md border border-rule px-2.5 py-2"
-      >
+      <div key={row.id} className="rounded-md border border-rule px-2.5 py-2">
         <div className="flex items-center gap-2">
           <input
             type="text"
             value={row.subject}
             placeholder="What"
-            onChange={(e) => patchItem(stepKey, row.id, { subject: e.target.value })}
+            onChange={(e) => patchItem(bucketId, row.id, { subject: e.target.value })}
             disabled={isPending}
             className="min-w-0 flex-1 border-0 border-b border-border bg-transparent text-[13px] text-foreground outline-none focus:border-foreground"
           />
           <button
             type="button"
-            onClick={() => removeItem(stepKey, row.id)}
+            onClick={() => removeItem(bucketId, row.id)}
             disabled={isPending}
             aria-label="Remove"
             className="border-0 bg-transparent font-mono text-[13px] text-muted-foreground hover:text-foreground"
@@ -267,7 +305,7 @@ export function BudgetDrafter({
             type="text"
             value={row.when}
             placeholder="When (e.g. 3 days, 12 Jan)"
-            onChange={(e) => patchItem(stepKey, row.id, { when: e.target.value })}
+            onChange={(e) => patchItem(bucketId, row.id, { when: e.target.value })}
             disabled={isPending}
             className="min-w-0 flex-1 border-0 border-b border-border bg-transparent font-mono text-[11px] tracking-[0.04em] text-muted-foreground outline-none focus:border-foreground"
           />
@@ -279,7 +317,7 @@ export function BudgetDrafter({
               min={0}
               placeholder="0"
               value={row.value}
-              onChange={(e) => patchItem(stepKey, row.id, { value: e.target.value })}
+              onChange={(e) => patchItem(bucketId, row.id, { value: e.target.value })}
               disabled={isPending}
               className="t-num w-20 border-0 border-b border-border bg-transparent text-right text-[14px] text-foreground outline-none focus:border-foreground"
             />
@@ -289,9 +327,22 @@ export function BudgetDrafter({
     )
   }
 
+  function renderAddButton(bucketId: string, addNoun: string, here: boolean) {
+    return (
+      <button
+        type="button"
+        onClick={() => addItem(bucketId)}
+        disabled={isPending}
+        className="rounded-full border border-dashed border-border bg-transparent px-2.5 py-1 font-mono text-[9.5px] uppercase tracking-[0.12em] text-muted-foreground hover:text-foreground"
+      >
+        + add {addNoun}
+        {here ? " here" : ""}
+      </button>
+    )
+  }
+
   function renderStep(step: BudgetStep) {
     const isLast = stepIndex === session!.steps.length - 1
-    const rows = session!.items[step.key] ?? []
     return (
       <>
         <div className="flex items-center justify-between">
@@ -311,20 +362,43 @@ export function BudgetDrafter({
           </div>
         ) : null}
 
-        <div className="mt-3 space-y-2">
-          {rows.map((row) => renderRow(step.key, row))}
-        </div>
-
-        <div className="mt-2">
-          <button
-            type="button"
-            onClick={() => addItem(step.key)}
-            disabled={isPending}
-            className="rounded-full border border-dashed border-border bg-transparent px-2.5 py-1 font-mono text-[9.5px] uppercase tracking-[0.12em] text-muted-foreground hover:text-foreground"
-          >
-            + add {step.addNoun}
-          </button>
-        </div>
+        {step.groups ? (
+          <div className="mt-3 space-y-3">
+            {step.groups.map((g) => {
+              const bucketId = `${step.key}:${g.key}`
+              const rows = session!.items[bucketId] ?? []
+              return (
+                <div key={g.key}>
+                  <div className="flex items-baseline gap-2">
+                    <span className="font-serif text-[13px] italic text-foreground">
+                      {g.title}
+                    </span>
+                    {g.when ? (
+                      <span className="font-mono text-[9px] uppercase tracking-[0.14em] text-muted-foreground">
+                        {g.when}
+                      </span>
+                    ) : null}
+                  </div>
+                  <div className="mt-1.5 space-y-2">
+                    {rows.map((row) => renderRow(bucketId, row))}
+                  </div>
+                  <div className="mt-1.5">
+                    {renderAddButton(bucketId, step.addNoun, true)}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        ) : (
+          <>
+            <div className="mt-3 space-y-2">
+              {(session!.items[step.key] ?? []).map((row) =>
+                renderRow(step.key, row),
+              )}
+            </div>
+            <div className="mt-2">{renderAddButton(step.key, step.addNoun, false)}</div>
+          </>
+        )}
 
         <div className="mt-4 flex items-center justify-between">
           <button
@@ -365,14 +439,22 @@ export function BudgetDrafter({
       onChange: (v: string) => void
     }[] = []
     for (const step of session!.steps) {
-      for (const row of session!.items[step.key] ?? []) {
-        lines.push({
-          id: row.id,
-          primary: row.subject.trim() || step.title,
-          when: row.when,
-          value: row.value,
-          onChange: (v) => patchItem(step.key, row.id, { value: v }),
-        })
+      for (const { bucketId, group } of stepBuckets(step)) {
+        for (const row of session!.items[bucketId] ?? []) {
+          const subject = row.subject.trim()
+          const primary = group
+            ? subject
+              ? `${group.title} · ${subject}`
+              : group.title
+            : subject || step.title
+          lines.push({
+            id: row.id,
+            primary,
+            when: row.when,
+            value: row.value,
+            onChange: (v) => patchItem(bucketId, row.id, { value: v }),
+          })
+        }
       }
     }
 
@@ -402,9 +484,7 @@ export function BudgetDrafter({
                 className="flex items-center justify-between gap-3 border-t border-rule py-2 first:border-t-0"
               >
                 <span className="min-w-0">
-                  <span className="text-[13px] text-foreground">
-                    {line.primary}
-                  </span>
+                  <span className="text-[13px] text-foreground">{line.primary}</span>
                   {line.when ? (
                     <span className="ml-2 font-mono text-[10px] tracking-[0.04em] text-muted-foreground">
                       {line.when}
@@ -412,9 +492,7 @@ export function BudgetDrafter({
                   ) : null}
                 </span>
                 <span className="inline-flex items-baseline gap-1">
-                  <span className="font-mono text-[12px] text-muted-foreground">
-                    €
-                  </span>
+                  <span className="font-mono text-[12px] text-muted-foreground">€</span>
                   <input
                     type="number"
                     inputMode="numeric"
@@ -432,9 +510,7 @@ export function BudgetDrafter({
         </div>
 
         <div className="mt-3 flex items-center justify-between border-t border-border pt-3">
-          <span className="font-serif text-[15px] italic text-foreground">
-            Total
-          </span>
+          <span className="font-serif text-[15px] italic text-foreground">Total</span>
           <span className="t-num text-[18px] text-foreground">
             €{fmt(totalCents(session!))}
           </span>
