@@ -2,7 +2,8 @@
 
 import * as React from "react"
 
-import { Label, MonoBadge, SuggestionCard } from "@/components/together"
+import { Label, MonoBadge } from "@/components/together"
+import { AiSuggestion } from "@/components/ai-suggestion"
 import {
   Select,
   SelectContent,
@@ -618,17 +619,7 @@ export function ItineraryTab({
       </div>
 
       <div className="px-5 pt-4 lg:px-10">
-        <SuggestionCard
-          label="/ assistant"
-          applyLabel="apply"
-          dismissLabel="dismiss"
-        >
-          Day 05 has a 4-hour drive after the ferry. Want me to{" "}
-          <span className="font-serif italic text-foreground">
-            split it across two days
-          </span>{" "}
-          so you&apos;re not arriving in Senaru tired?
-        </SuggestionCard>
+        <AiSuggestion surface="itinerary" />
       </div>
 
       <div className="px-5 pt-4 pb-6 lg:px-10">
