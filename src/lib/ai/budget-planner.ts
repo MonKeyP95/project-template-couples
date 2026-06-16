@@ -4,23 +4,34 @@
  * make planBudgetSteps async and generate the interview from the LLM client.
  * The `context` field is reserved for that (trip notes), unused here.
  *
- * Every step is a category (Accommodation, Transport, ...). Each holds an
- * add-list of detailed items (subject + when + cost). The assistant pre-seeds a
- * suggested item where it can estimate; the user edits, adds, or removes rows.
+ * Steps are categories. Accommodation and Activities are *grouped by location*
+ * (one sub-group per itinerary place, holding several hotels / activities);
+ * Transport, Food and Other are flat trip-wide add-lists.
  */
 
 export interface BudgetPlanInput {
-  /** Whole-trip nights; drives the seeded suggestions. */
+  tripName: string
+  /** Whole-trip nights; drives the trip-wide suggestions and the no-location fallback. */
   totalDays: number
   memberCount: number
+  /** Itinerary places in order; empty for a location-less trip. */
+  locations: { id: string; name: string; nights: number; dateLabel: string | null }[]
   context?: string
 }
 
 export interface SeedItem {
   subject: string
   when: string
-  /** Seed cost; null = leave blank (user fills, or the assistant estimates). */
   suggestedCents: number | null
+}
+
+export interface BudgetGroup {
+  /** Location id, or "trip" for the no-location fallback. */
+  key: string
+  title: string
+  /** Date label / nights, shown in the group header. */
+  when: string
+  seed: SeedItem[]
 }
 
 export interface BudgetStep {
@@ -28,9 +39,10 @@ export interface BudgetStep {
   title: string
   question: string
   hint: string | null
-  /** Noun for the add button, e.g. "accommodation" -> "+ add accommodation". */
   addNoun: string
-  seed: SeedItem[]
+  /** A flat step has `seed`; a grouped (by-location) step has `groups`. */
+  seed?: SeedItem[]
+  groups?: BudgetGroup[]
 }
 
 const LODGING_PER_NIGHT_CENTS = 11000
@@ -55,20 +67,56 @@ export function planBudgetSteps(input: BudgetPlanInput): BudgetStep[] {
   const memberCount = Math.max(1, input.memberCount)
   const totalDays = Math.max(1, input.totalDays)
 
-  const lodging = totalDays * LODGING_PER_NIGHT_CENTS
+  // Places to group by: the itinerary locations, or one synthetic group named
+  // after the trip when there are none.
+  const places =
+    input.locations.length > 0
+      ? input.locations.map((l) => ({ ...l, nights: Math.max(1, l.nights) }))
+      : [
+          {
+            id: "trip",
+            name: input.tripName,
+            nights: totalDays,
+            dateLabel: null as string | null,
+          },
+        ]
+
+  function whenLabel(p: { nights: number; dateLabel: string | null }): string {
+    return p.dateLabel ?? `${p.nights} ${p.nights === 1 ? "night" : "nights"}`
+  }
+
+  const accommodationGroups: BudgetGroup[] = places.map((p) => ({
+    key: p.id,
+    title: p.name,
+    when: whenLabel(p),
+    seed: [
+      {
+        subject: "",
+        when: p.dateLabel ?? "",
+        suggestedCents: p.nights * LODGING_PER_NIGHT_CENTS,
+      },
+    ],
+  }))
+
+  const activityGroups: BudgetGroup[] = places.map((p) => ({
+    key: p.id,
+    title: p.name,
+    when: whenLabel(p),
+    seed: [],
+  }))
+
   const transport = TRANSPORT_PER_PERSON_CENTS * memberCount
   const food = FOOD_PER_PERSON_DAY_CENTS * memberCount * totalDays
-  const nights = `${totalDays} ${totalDays === 1 ? "night" : "nights"}`
   const days = `${totalDays} ${totalDays === 1 ? "day" : "days"}`
 
   return [
     {
       key: "accommodation",
       title: "Accommodation",
-      question: "Where are you staying?",
-      hint: `Roughly EUR ${euros(LODGING_PER_NIGHT_CENTS)}/night. Add each place with its dates and cost.`,
-      addNoun: "accommodation",
-      seed: [{ subject: "", when: nights, suggestedCents: lodging }],
+      question: "Where are you staying in each place?",
+      hint: `Roughly EUR ${euros(LODGING_PER_NIGHT_CENTS)}/night. Add each hotel with its cost.`,
+      addNoun: "hotel",
+      groups: accommodationGroups,
     },
     {
       key: "transport",
@@ -89,10 +137,10 @@ export function planBudgetSteps(input: BudgetPlanInput): BudgetStep[] {
     {
       key: "activities",
       title: "Activities",
-      question: "Anything you'd like to do?",
-      hint: "Surfing, diving, a tour... add each with its date and cost. Skip if none.",
+      question: "Anything you'd like to do in each place?",
+      hint: "Surfing, diving, a tour... add each with its cost. Skip if none.",
       addNoun: "activity",
-      seed: [],
+      groups: activityGroups,
     },
     {
       key: "other",

@@ -116,6 +116,7 @@ export function BudgetTab({
           <BudgetDrafter
             tripId={tripId}
             tripSlug={tripSlug}
+            tripName={tripName}
             tripDays={tripDays}
             plannedBudgetCents={plannedBudgetCents}
             locations={locations}

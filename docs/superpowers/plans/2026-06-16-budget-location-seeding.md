@@ -1,3 +1,204 @@
+# Budget location-aware seeding (Part A) Implementation Plan
+
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+
+**Goal:** Make the budget assistant's Accommodation and Activities steps group by itinerary location (header per place, multiple rows per place, location-seeded), while Transport/Food/Other stay flat.
+
+**Architecture:** `BudgetStep` gains an optional `groups: BudgetGroup[]` alongside flat `seed`; `planBudgetSteps` takes `locations` and builds grouped steps. The drafter keys rows per **bucket** (`step.key`, or `step.key:locationId` for grouped) and renders grouped steps as per-location sub-lists. Pure mock; no server/data change (the Activities category landed in Part B / PR #51).
+
+**Tech Stack:** React 19 client component, TypeScript; existing `dayLocationMap` + `locationDateLabel` helpers.
+
+**Testing note:** No test framework; `CLAUDE.md` says not to invent one. Gate per task is `pnpm lint` + `pnpm build`, plus the manual check in the last task.
+
+---
+
+### Task 1: Grouped steps in the seam
+
+**Files:**
+- Modify: `src/lib/ai/budget-planner.ts`
+
+- [ ] **Step 1: Replace the file contents**
+
+```ts
+/**
+ * Mock for the guided budget assistant. Pure, deterministic, no network. The
+ * seam where real Claude lands later: keep the input/output types stable, then
+ * make planBudgetSteps async and generate the interview from the LLM client.
+ * The `context` field is reserved for that (trip notes), unused here.
+ *
+ * Steps are categories. Accommodation and Activities are *grouped by location*
+ * (one sub-group per itinerary place, holding several hotels / activities);
+ * Transport, Food and Other are flat trip-wide add-lists.
+ */
+
+export interface BudgetPlanInput {
+  tripName: string
+  /** Whole-trip nights; drives the trip-wide suggestions and the no-location fallback. */
+  totalDays: number
+  memberCount: number
+  /** Itinerary places in order; empty for a location-less trip. */
+  locations: { id: string; name: string; nights: number; dateLabel: string | null }[]
+  context?: string
+}
+
+export interface SeedItem {
+  subject: string
+  when: string
+  suggestedCents: number | null
+}
+
+export interface BudgetGroup {
+  /** Location id, or "trip" for the no-location fallback. */
+  key: string
+  title: string
+  /** Date label / nights, shown in the group header. */
+  when: string
+  seed: SeedItem[]
+}
+
+export interface BudgetStep {
+  key: string
+  title: string
+  question: string
+  hint: string | null
+  addNoun: string
+  /** A flat step has `seed`; a grouped (by-location) step has `groups`. */
+  seed?: SeedItem[]
+  groups?: BudgetGroup[]
+}
+
+const LODGING_PER_NIGHT_CENTS = 11000
+const TRANSPORT_PER_PERSON_CENTS = 15000
+const FOOD_PER_PERSON_DAY_CENTS = 2500
+const ITEM_ESTIMATE_CENTS = 5000
+
+function euros(cents: number): string {
+  return (cents / 100).toFixed(0)
+}
+
+/**
+ * The assistant's guess for an item left without a cost. Mock returns a flat
+ * figure; real Claude later assesses it from the item's subject. An explicit 0
+ * (e.g. staying with friends) is kept as-is and never estimated.
+ */
+export function estimateItemCents(): number {
+  return ITEM_ESTIMATE_CENTS
+}
+
+export function planBudgetSteps(input: BudgetPlanInput): BudgetStep[] {
+  const memberCount = Math.max(1, input.memberCount)
+  const totalDays = Math.max(1, input.totalDays)
+
+  // Places to group by: the itinerary locations, or one synthetic group named
+  // after the trip when there are none.
+  const places =
+    input.locations.length > 0
+      ? input.locations.map((l) => ({ ...l, nights: Math.max(1, l.nights) }))
+      : [
+          {
+            id: "trip",
+            name: input.tripName,
+            nights: totalDays,
+            dateLabel: null as string | null,
+          },
+        ]
+
+  function whenLabel(p: { nights: number; dateLabel: string | null }): string {
+    return p.dateLabel ?? `${p.nights} ${p.nights === 1 ? "night" : "nights"}`
+  }
+
+  const accommodationGroups: BudgetGroup[] = places.map((p) => ({
+    key: p.id,
+    title: p.name,
+    when: whenLabel(p),
+    seed: [
+      {
+        subject: "",
+        when: p.dateLabel ?? "",
+        suggestedCents: p.nights * LODGING_PER_NIGHT_CENTS,
+      },
+    ],
+  }))
+
+  const activityGroups: BudgetGroup[] = places.map((p) => ({
+    key: p.id,
+    title: p.name,
+    when: whenLabel(p),
+    seed: [],
+  }))
+
+  const transport = TRANSPORT_PER_PERSON_CENTS * memberCount
+  const food = FOOD_PER_PERSON_DAY_CENTS * memberCount * totalDays
+  const days = `${totalDays} ${totalDays === 1 ? "day" : "days"}`
+
+  return [
+    {
+      key: "accommodation",
+      title: "Accommodation",
+      question: "Where are you staying in each place?",
+      hint: `Roughly EUR ${euros(LODGING_PER_NIGHT_CENTS)}/night. Add each hotel with its cost.`,
+      addNoun: "hotel",
+      groups: accommodationGroups,
+    },
+    {
+      key: "transport",
+      title: "Transport",
+      question: "Flights and getting around?",
+      hint: `Roughly EUR ${euros(TRANSPORT_PER_PERSON_CENTS)} each for ${memberCount}.`,
+      addNoun: "transport",
+      seed: [{ subject: "", when: "", suggestedCents: transport }],
+    },
+    {
+      key: "food",
+      title: "Food & drink",
+      question: "Eating out and groceries?",
+      hint: `About EUR ${euros(FOOD_PER_PERSON_DAY_CENTS)} each a day over ${days}.`,
+      addNoun: "food",
+      seed: [{ subject: "", when: days, suggestedCents: food }],
+    },
+    {
+      key: "activities",
+      title: "Activities",
+      question: "Anything you'd like to do in each place?",
+      hint: "Surfing, diving, a tour... add each with its cost. Skip if none.",
+      addNoun: "activity",
+      groups: activityGroups,
+    },
+    {
+      key: "other",
+      title: "Anything else",
+      question: "Anything else to budget for?",
+      hint: "Insurance, gifts, a buffer... add each with a label and cost. Skip if none.",
+      addNoun: "item",
+      seed: [],
+    },
+  ]
+}
+```
+
+- [ ] **Step 2: Verify it lints**
+
+Run: `pnpm lint`
+Expected: no errors for `src/lib/ai/budget-planner.ts`. (The drafter will not compile against the new shape until Task 2; run the full build at the end of Task 2.)
+
+- [ ] **Step 3: Commit**
+
+```bash
+git add src/lib/ai/budget-planner.ts
+git commit -m "feat(budget): grouped-by-location steps in the planner seam"
+```
+
+---
+
+### Task 2: Bucket-keyed drafter with grouped rendering
+
+**Files:**
+- Modify: `src/app/trips/[slug]/budget-drafter.tsx` (full rewrite)
+- Modify: `src/app/trips/[slug]/budget-tab.tsx` (pass `tripName`)
+
+- [ ] **Step 1: Replace `budget-drafter.tsx` with the bucket-keyed version**
+
+```tsx
 "use client"
 
 import * as React from "react"
@@ -544,3 +745,74 @@ export function BudgetDrafter({
     )
   }
 }
+```
+
+- [ ] **Step 2: Pass `tripName` from `budget-tab.tsx`**
+
+In `src/app/trips/[slug]/budget-tab.tsx`, the `<BudgetDrafter>` call, add the `tripName` prop (it's already a `BudgetTab` prop):
+
+```tsx
+          <BudgetDrafter
+            tripId={tripId}
+            tripSlug={tripSlug}
+            tripName={tripName}
+            tripDays={tripDays}
+            plannedBudgetCents={plannedBudgetCents}
+            locations={locations}
+            itineraryDays={itineraryDays}
+            memberCount={Object.keys(members).length}
+          />
+```
+
+- [ ] **Step 3: Verify lint + build**
+
+Run: `pnpm lint && pnpm build`
+Expected: both pass. (Turbopack `0xc0000142` on Windows is a known flake — delete `.next/` and rerun if hit.)
+
+- [ ] **Step 4: Commit**
+
+```bash
+git add "src/app/trips/[slug]/budget-drafter.tsx" "src/app/trips/[slug]/budget-tab.tsx"
+git commit -m "feat(budget): location-grouped accommodation + activities in the drafter"
+```
+
+---
+
+### Task 3: Manual verification + docs
+
+**Files:**
+- Modify: `docs/TODO.md`
+- Modify: `docs/DECISIONS.md`
+
+- [ ] **Step 1: Manual check**
+
+Run `pnpm dev`, open a trip with 2+ itinerary locations → Budget tab → "Plan a budget"/"Edit budget".
+Confirm:
+1. **Accommodation** shows one sub-group per place (header `place · dates`), each pre-seeded with one hotel row and a "+ add hotel here". Adding a second hotel keeps it under that place.
+2. **Transport** and **Food** are single trip-wide rows; **Other** is an empty flat add-list.
+3. **Activities** shows the same per-place groups, empty, each with "+ add activity here"; multiple activities per place work.
+4. The summary lists rows as `place · subject` for grouped ones; the total includes everything; **apply** sets the budget; reopening **Edit budget** restores rows into their places.
+5. A trip with **no locations** shows a single group named after the trip under Accommodation/Activities.
+
+- [ ] **Step 2: Update TODO.md**
+
+Add a line near the top recording Part A: Accommodation + Activities now group by itinerary location (per-place headers, multiple hotels/activities per place, location-seeded); Transport/Food/Other stay flat; rows keyed per bucket; localStorage restores rows into their place. Reference the spec `docs/superpowers/specs/2026-06-16-budget-location-hybrid-design.md` and plan `docs/superpowers/plans/2026-06-16-budget-location-seeding.md`.
+
+- [ ] **Step 3: Add a DECISIONS.md row**
+
+Append a row: budget assistant is a hybrid — Accommodation/Activities grouped by location (place-walk feel + multiple per place), other categories flat; restores the location smoothness without losing category correctness; still total-only mock behind `planBudgetSteps`.
+
+- [ ] **Step 4: Commit**
+
+```bash
+git add docs/TODO.md docs/DECISIONS.md
+git commit -m "docs: record budget location-aware seeding (Part A)"
+```
+
+---
+
+## Self-Review
+
+- **Spec coverage (Part A):** grouped steps in seam (Task 1), bucket-keyed drafter + grouped render + location-aware open() + tripName wiring + no-location fallback + localStorage per bucket (Task 2), manual check + docs (Task 3). Part B shipped separately (PR #51).
+- **Type consistency:** `BudgetGroup`/`BudgetStep.groups`/`SeedItem` from Task 1 are imported and used in Task 2; `stepBuckets` keys (`step.key` / `${step.key}:${group.key}`) are used identically in open/add/patch/remove/normalize/render/summary; `BudgetPlanInput` now requires `tripName` + `locations`, both supplied by the drafter; `BudgetDrafterProps` gains `tripName`, passed in Task 2 Step 2.
+- **No placeholders:** full file contents / exact edits in every code step. `open()` iterates `itineraryDays` directly (no `dayLocationMap`), so only `locationDateLabel` + `DayLocation` are imported — no unused import.
