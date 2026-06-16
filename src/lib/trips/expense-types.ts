@@ -98,6 +98,7 @@ export const EXPENSE_CATEGORIES = [
   "Food",
   "Transportation",
   "Accommodation",
+  "Activities",
   "Other",
 ] as const
 
