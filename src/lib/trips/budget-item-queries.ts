@@ -12,7 +12,7 @@ export async function getBudgetItems(tripId: string): Promise<BudgetItem[]> {
   const { data } = await supabase
     .from("trip_budget_items")
     .select(
-      "id, category, subject, when_label, amount_cents, location_id, sort_order",
+      "id, category, subject, when_label, amount_cents, location_id, when_start, when_end, sort_order",
     )
     .eq("trip_id", tripId)
     .order("category", { ascending: true })
