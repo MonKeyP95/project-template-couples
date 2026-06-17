@@ -291,6 +291,7 @@ function defaultCollapsed(
 export function ItineraryTab({
   tripId,
   tripSlug,
+  tripName,
   tripStartDate,
   tripEndDate,
   today,
@@ -300,6 +301,7 @@ export function ItineraryTab({
 }: {
   tripId: string
   tripSlug: string
+  tripName: string
   tripStartDate: string
   tripEndDate: string
   today: string
@@ -1047,15 +1049,27 @@ export function ItineraryTab({
           </>
         )}
         <div className="border-t border-rule pt-3">
-          <BudgetScopeEditor
-            tripId={tripId}
-            tripSlug={tripSlug}
-            locationId={null}
-            items={tripWideItems}
-            withDates
-            defaultCategory="Other"
-            label="Trip-wide"
-          />
+          {locations.length === 0 ? (
+            <BudgetScopeEditor
+              tripId={tripId}
+              tripSlug={tripSlug}
+              locationId={null}
+              items={tripWideItems}
+              withDates={false}
+              defaultCategory="Accommodation"
+              label={tripName}
+            />
+          ) : (
+            <BudgetScopeEditor
+              tripId={tripId}
+              tripSlug={tripSlug}
+              locationId={null}
+              items={tripWideItems}
+              withDates
+              defaultCategory="Other"
+              label="Trip-wide"
+            />
+          )}
           <div className="mt-3 flex items-baseline justify-between border-t border-rule pt-3">
             <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
               Planned total
