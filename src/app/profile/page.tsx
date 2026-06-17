@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/server"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { ThemeToggle } from "@/components/theme-toggle"
+import { AiToggle } from "@/components/ai-mode"
 import { isDarkTheme } from "@/lib/theme"
 
 export default async function ProfilePage() {
@@ -57,6 +58,13 @@ export default async function ProfilePage() {
         <div className="mt-8 flex items-center justify-between border-t border-border pt-6">
           <span className="text-sm text-muted-foreground">Appearance</span>
           <ThemeToggle initialDark={dark} />
+        </div>
+
+        <div className="mt-4 flex items-center justify-between border-t border-border pt-6">
+          <span className="text-sm text-muted-foreground">
+            AI assistant (off by default)
+          </span>
+          <AiToggle />
         </div>
 
         <Link
