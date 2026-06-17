@@ -7,6 +7,7 @@ import { createClient } from "@/lib/supabase/server"
 import { localToday } from "@/lib/time/local-today"
 import {
   EXPENSE_CATEGORIES,
+  type ExpenseCategory,
   type ExpenseCategoryRow,
 } from "@/lib/trips/expense-types"
 import { getCurrentWorkspace } from "@/lib/workspace/queries"
@@ -1916,6 +1917,84 @@ export async function updateTripBudget(
     .eq("id", input.tripId)
 
   if (error) return { error: error.message }
+
+  revalidatePath(`/trips/${input.tripSlug}`)
+  return {}
+}
+
+export interface SaveBudgetItemInput {
+  category: string
+  subject: string
+  whenLabel: string
+  amountCents: number
+  locationId: string | null
+}
+
+export interface SaveBudgetItemsInput {
+  tripId: string
+  tripSlug: string
+  items: SaveBudgetItemInput[]
+}
+
+/**
+ * Replace-all save of a trip's budget line items, then set the planned total
+ * to their sum. Any workspace member of the trip may edit (RLS-gated).
+ */
+export async function saveBudgetItems(
+  input: SaveBudgetItemsInput,
+): Promise<{ error?: string }> {
+  const perCategory: Record<string, number> = {}
+  const rows: {
+    trip_id: string
+    category: string
+    subject: string
+    when_label: string
+    amount_cents: number
+    location_id: string | null
+    sort_order: number
+  }[] = []
+
+  for (const it of input.items) {
+    if (!EXPENSE_CATEGORIES.includes(it.category as ExpenseCategory)) {
+      return { error: "Unknown budget category." }
+    }
+    if (!validCents(it.amountCents)) {
+      return { error: "Budget amount out of range." }
+    }
+    const order = perCategory[it.category] ?? 0
+    perCategory[it.category] = order + 1
+    rows.push({
+      trip_id: input.tripId,
+      category: it.category,
+      subject: it.subject.trim(),
+      when_label: it.whenLabel.trim(),
+      amount_cents: it.amountCents,
+      location_id: it.locationId,
+      sort_order: order,
+    })
+  }
+
+  const supabase = await createClient()
+
+  const { error: delErr } = await supabase
+    .from("trip_budget_items")
+    .delete()
+    .eq("trip_id", input.tripId)
+  if (delErr) return { error: delErr.message }
+
+  if (rows.length > 0) {
+    const { error: insErr } = await supabase
+      .from("trip_budget_items")
+      .insert(rows)
+    if (insErr) return { error: insErr.message }
+  }
+
+  const total = rows.reduce((sum, r) => sum + r.amount_cents, 0)
+  const { error: budErr } = await supabase
+    .from("trips")
+    .update({ planned_budget_cents: total })
+    .eq("id", input.tripId)
+  if (budErr) return { error: budErr.message }
 
   revalidatePath(`/trips/${input.tripSlug}`)
   return {}
