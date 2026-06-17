@@ -19,6 +19,8 @@ import { AiSuggestion } from "@/components/ai-suggestion"
 
 import { BudgetByLocation } from "./budget-by-location"
 import { BudgetDrafter } from "./budget-drafter"
+import { BudgetTotalField } from "./budget-total-field"
+import { useAiMode } from "@/components/ai-mode"
 import { SavedFigure, SpentFigure } from "./budget-figures"
 import { Ledger } from "./budget-ledger"
 import { LogExpenseRow } from "./log-expense-row"
@@ -69,6 +71,7 @@ export function BudgetTab({
   currentUserId,
 }: BudgetTabProps) {
   const [view, setView] = React.useState<View>("budget")
+  const { enabled: aiEnabled } = useAiMode()
   const totalCents = summary.expenseTotalCents
 
   return (
@@ -118,16 +121,24 @@ export function BudgetTab({
             tripId={tripId}
             tripSlug={tripSlug}
           />
-          <BudgetDrafter
-            tripId={tripId}
-            tripSlug={tripSlug}
-            tripName={tripName}
-            tripDays={tripDays}
-            plannedBudgetCents={plannedBudgetCents}
-            locations={locations}
-            itineraryDays={itineraryDays}
-            memberCount={Object.keys(members).length}
-          />
+          {aiEnabled ? (
+            <BudgetDrafter
+              tripId={tripId}
+              tripSlug={tripSlug}
+              tripName={tripName}
+              tripDays={tripDays}
+              plannedBudgetCents={plannedBudgetCents}
+              locations={locations}
+              itineraryDays={itineraryDays}
+              memberCount={Object.keys(members).length}
+            />
+          ) : (
+            <BudgetTotalField
+              tripId={tripId}
+              tripSlug={tripSlug}
+              plannedBudgetCents={plannedBudgetCents}
+            />
+          )}
           <div className="px-5 pt-4">
             <AiSuggestion surface="budget" />
           </div>

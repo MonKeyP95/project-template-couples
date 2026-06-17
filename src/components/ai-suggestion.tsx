@@ -3,6 +3,7 @@
 import * as React from "react"
 
 import { SuggestionCard } from "@/components/together"
+import { useAiMode } from "@/components/ai-mode"
 import { suggestionFor, type SurfaceKey } from "@/lib/ai/suggestions"
 
 export function AiSuggestion({
@@ -12,10 +13,11 @@ export function AiSuggestion({
   surface: SurfaceKey
   className?: string
 }) {
+  const { enabled } = useAiMode()
   const suggestion = React.useMemo(() => suggestionFor(surface), [surface])
   const [dismissed, setDismissed] = React.useState(false)
 
-  if (!suggestion || dismissed) return null
+  if (!enabled || !suggestion || dismissed) return null
 
   return (
     <SuggestionCard
