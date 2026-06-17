@@ -8,7 +8,7 @@ import "./globals.css"
 
 import { WorldMapBg } from "@/components/together"
 import { TimezoneCookie } from "@/components/timezone-cookie"
-import { AiModeProvider } from "@/components/ai-mode"
+import { AiModeProvider, AiFloatingToggle } from "@/components/ai-mode"
 import { isDarkTheme } from "@/lib/theme"
 import { isAiEnabled } from "@/lib/ai/ai-mode"
 
@@ -59,7 +59,10 @@ export default async function RootLayout({
       >
         <TimezoneCookie />
         <WorldMapBg className="fixed inset-0 -z-10 text-foreground/[0.07]" />
-        <AiModeProvider initialEnabled={aiEnabled}>{children}</AiModeProvider>
+        <AiModeProvider initialEnabled={aiEnabled}>
+          {children}
+          <AiFloatingToggle />
+        </AiModeProvider>
       </body>
     </html>
   )

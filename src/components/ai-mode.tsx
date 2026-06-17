@@ -36,6 +36,10 @@ export function useAiMode(): AiModeValue {
   return React.useContext(AiModeContext)
 }
 
+function persistAi(next: boolean) {
+  document.cookie = `${AI_COOKIE}=${next ? "on" : "off"}; path=/; max-age=${ONE_YEAR_SECONDS}; samesite=lax`
+}
+
 /** Per-person AI on/off switch. Off by default; writes the `ai` cookie. */
 export function AiToggle() {
   const { enabled, setEnabled } = useAiMode()
@@ -43,7 +47,7 @@ export function AiToggle() {
   function toggle() {
     const next = !enabled
     setEnabled(next)
-    document.cookie = `${AI_COOKIE}=${next ? "on" : "off"}; path=/; max-age=${ONE_YEAR_SECONDS}; samesite=lax`
+    persistAi(next)
   }
 
   return (
@@ -62,6 +66,39 @@ export function AiToggle() {
           enabled ? "translate-x-[19px]" : "translate-x-[3px]"
         }`}
       />
+    </button>
+  )
+}
+
+/** Always-visible AI on/off pill, fixed bottom-left on every page. */
+export function AiFloatingToggle() {
+  const { enabled, setEnabled } = useAiMode()
+
+  function toggle() {
+    const next = !enabled
+    setEnabled(next)
+    persistAi(next)
+  }
+
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={enabled}
+      aria-label="AI assistant"
+      onClick={toggle}
+      className={`fixed bottom-4 left-4 z-50 flex items-center gap-2 rounded-full border px-3 py-1.5 font-mono text-[10px] uppercase tracking-[0.18em] shadow-sm backdrop-blur transition-colors ${
+        enabled
+          ? "border-sea bg-sea/10 text-sea"
+          : "border-border bg-card/80 text-muted-foreground"
+      }`}
+    >
+      <span
+        className={`inline-block h-2 w-2 rounded-full ${
+          enabled ? "bg-sea" : "bg-muted-foreground/50"
+        }`}
+      />
+      AI {enabled ? "on" : "off"}
     </button>
   )
 }
