@@ -19,7 +19,6 @@ import { AiSuggestion } from "@/components/ai-suggestion"
 
 import { BudgetByLocation } from "./budget-by-location"
 import { BudgetDrafter } from "./budget-drafter"
-import { BudgetItemList } from "./budget-item-list"
 import { useAiMode } from "@/components/ai-mode"
 import type { BudgetItem } from "@/lib/trips/budget-item-types"
 import { SavedFigure, SpentFigure } from "./budget-figures"
@@ -136,14 +135,7 @@ export function BudgetTab({
               memberCount={Object.keys(members).length}
               initialItems={budgetItems}
             />
-          ) : (
-            <BudgetItemList
-              tripId={tripId}
-              tripSlug={tripSlug}
-              items={budgetItems}
-              locations={locations}
-            />
-          )}
+          ) : null}
           <div className="px-5 pt-4">
             <AiSuggestion surface="budget" />
           </div>
