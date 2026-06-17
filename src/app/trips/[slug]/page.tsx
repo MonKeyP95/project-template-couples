@@ -22,6 +22,7 @@ import {
 } from "@/lib/trips/expense-queries"
 import { getTripSavings } from "@/lib/trips/savings-queries"
 import { getTripBudgetMoves } from "@/lib/trips/budget-move-queries"
+import { getBudgetItems } from "@/lib/trips/budget-item-queries"
 import { summarizeBudget } from "@/lib/trips/expense-types"
 import { getTripDetailBySlug, type TripDetail } from "@/lib/trips/fixtures"
 import { getItineraryDays } from "@/lib/trips/itinerary-queries"
@@ -169,7 +170,7 @@ export default async function TripPage({
   // level and share the result with the active tab below.
   const showItinerary = activeTab === "itinerary"
   const isDream = header.startDate === null
-  const [datedItinerary, dreamItinerary, locations, notes, packingItems, packingCategories, expenses, expenseCategories, savings, budgetMoves] =
+  const [datedItinerary, dreamItinerary, locations, notes, packingItems, packingCategories, expenses, expenseCategories, savings, budgetMoves, budgetItems] =
     await Promise.all([
       (showItinerary && !isDream) || activeTab === "budget"
         ? getItineraryDays(header.id)
@@ -187,6 +188,7 @@ export default async function TripPage({
       activeTab === "budget" ? getTripExpenseCategories(header.id) : Promise.resolve(null),
       getTripSavings(header.id, memberIds),
       activeTab === "budget" ? getTripBudgetMoves(header.id) : Promise.resolve(null),
+      activeTab === "budget" ? getBudgetItems(header.id) : Promise.resolve(null),
     ])
 
   const budgetSummary = summarizeBudget(expenses, memberIds)
@@ -267,6 +269,7 @@ export default async function TripPage({
             locations={locations ?? []}
             itineraryDays={datedItinerary ?? []}
             moves={budgetMoves ?? []}
+            budgetItems={budgetItems ?? []}
             currentUserId={userData.user.id}
           />
         ) : (
