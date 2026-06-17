@@ -61,6 +61,7 @@ export function BudgetItemList({
   const [pending, startTransition] = React.useTransition()
   const [error, setError] = React.useState<string | null>(null)
   const [saved, setSaved] = React.useState(false)
+  const [open, setOpen] = React.useState(false)
 
   const totalCents = rows.reduce((s, r) => s + asCents(r.value), 0)
 
@@ -100,15 +101,27 @@ export function BudgetItemList({
 
   return (
     <div className="border-t border-border px-5 pt-4 pb-3">
-      <div className="flex items-baseline justify-between">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        aria-expanded={open}
+        className="flex w-full items-baseline justify-between text-left"
+      >
         <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
           Budget plan
         </span>
-        <span className="font-mono text-[12px] text-foreground">
-          € {(totalCents / 100).toFixed(0)}
+        <span className="flex items-baseline gap-2">
+          <span className="font-mono text-[12px] text-foreground">
+            € {(totalCents / 100).toFixed(0)}
+          </span>
+          <span className="font-mono text-[13px] leading-none text-muted-foreground">
+            {open ? "⌄" : "›"}
+          </span>
         </span>
-      </div>
+      </button>
 
+      {open ? (
+        <>
       {CATEGORIES.map((category) => {
         const catRows = rows.filter((r) => r.category === category)
         const placed = PLACED.has(category) && locations.length > 0
@@ -193,6 +206,8 @@ export function BudgetItemList({
       >
         {saved ? "saved" : "save budget"}
       </button>
+        </>
+      ) : null}
     </div>
   )
 }
