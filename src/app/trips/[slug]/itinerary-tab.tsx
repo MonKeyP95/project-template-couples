@@ -4,6 +4,8 @@ import * as React from "react"
 
 import { Label, MonoBadge } from "@/components/together"
 import { AiSuggestion } from "@/components/ai-suggestion"
+import { BudgetScopeEditor } from "./budget-scope-editor"
+import type { BudgetItem } from "@/lib/trips/budget-item-types"
 import {
   Select,
   SelectContent,
@@ -294,6 +296,7 @@ export function ItineraryTab({
   today,
   initialItems,
   initialLocations,
+  budgetItems,
 }: {
   tripId: string
   tripSlug: string
@@ -302,6 +305,7 @@ export function ItineraryTab({
   today: string
   initialItems: ItineraryDay[]
   initialLocations: ItineraryLocation[]
+  budgetItems: BudgetItem[]
 }) {
   const [days, setDays] = React.useState<ItineraryDay[]>(initialItems)
   const [lastInitial, setLastInitial] = React.useState(initialItems)
@@ -442,6 +446,22 @@ export function ItineraryTab({
       : tripStartDate
 
   const timeline = buildTimeline(locations, days)
+
+  const budgetByLoc = React.useMemo(() => {
+    const m = new Map<string, BudgetItem[]>()
+    for (const it of budgetItems) {
+      if (!it.locationId) continue
+      const arr = m.get(it.locationId)
+      if (arr) arr.push(it)
+      else m.set(it.locationId, [it])
+    }
+    return m
+  }, [budgetItems])
+  const tripWideItems = React.useMemo(
+    () => budgetItems.filter((it) => !it.locationId),
+    [budgetItems],
+  )
+  const plannedTotalCents = budgetItems.reduce((s, it) => s + it.amountCents, 0)
 
   const active = tripActive(today, tripStartDate, tripEndDate)
   const itemIsPast = (it: TimelineItem) =>
@@ -1010,6 +1030,15 @@ export function ItineraryTab({
                         </button>
                       )}
                     </div>
+                    <BudgetScopeEditor
+                      tripId={tripId}
+                      tripSlug={tripSlug}
+                      locationId={group.key}
+                      items={budgetByLoc.get(group.key) ?? []}
+                      withDates={false}
+                      defaultCategory="Accommodation"
+                      label="Budget"
+                    />
                   </div>
                 ) : null}
               </div>
@@ -1017,6 +1046,25 @@ export function ItineraryTab({
             })}
           </>
         )}
+        <div className="border-t border-rule pt-3">
+          <BudgetScopeEditor
+            tripId={tripId}
+            tripSlug={tripSlug}
+            locationId={null}
+            items={tripWideItems}
+            withDates
+            defaultCategory="Other"
+            label="Trip-wide"
+          />
+          <div className="mt-3 flex items-baseline justify-between border-t border-rule pt-3">
+            <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+              Planned total
+            </span>
+            <span className="t-num font-mono text-[14px] text-foreground">
+              € {(plannedTotalCents / 100).toFixed(0)}
+            </span>
+          </div>
+        </div>
         {active ? planningBlock : null}
       </div>
     </section>

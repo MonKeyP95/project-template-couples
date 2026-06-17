@@ -188,7 +188,9 @@ export default async function TripPage({
       activeTab === "budget" ? getTripExpenseCategories(header.id) : Promise.resolve(null),
       getTripSavings(header.id, memberIds),
       activeTab === "budget" ? getTripBudgetMoves(header.id) : Promise.resolve(null),
-      activeTab === "budget" ? getBudgetItems(header.id) : Promise.resolve(null),
+      activeTab === "budget" || activeTab === "itinerary"
+        ? getBudgetItems(header.id)
+        : Promise.resolve(null),
     ])
 
   const budgetSummary = summarizeBudget(expenses, memberIds)
@@ -239,6 +241,7 @@ export default async function TripPage({
               today={await localToday()}
               initialItems={datedItinerary ?? []}
               initialLocations={locations ?? []}
+              budgetItems={budgetItems ?? []}
             />
           )
         ) : activeTab === "packing" ? (
