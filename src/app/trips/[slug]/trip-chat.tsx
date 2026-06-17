@@ -3,6 +3,7 @@
 import * as React from "react"
 
 import { requestChatReply, type ChatMessage } from "@/lib/ai/chat"
+import { useAiMode } from "@/components/ai-mode"
 
 export interface TripChatProps {
   tripSlug: string
@@ -10,6 +11,7 @@ export interface TripChatProps {
 
 export function TripChat({ tripSlug }: TripChatProps) {
   void tripSlug
+  const { enabled } = useAiMode()
   const [open, setOpen] = React.useState(false)
   const [messages, setMessages] = React.useState<ChatMessage[]>([])
   const [input, setInput] = React.useState("")
@@ -19,6 +21,8 @@ export function TripChat({ tripSlug }: TripChatProps) {
   React.useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth" })
   }, [messages, pending, open])
+
+  if (!enabled) return null
 
   function send() {
     const text = input.trim()
