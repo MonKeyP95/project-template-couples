@@ -19,8 +19,9 @@ import { AiSuggestion } from "@/components/ai-suggestion"
 
 import { BudgetByLocation } from "./budget-by-location"
 import { BudgetDrafter } from "./budget-drafter"
-import { BudgetTotalField } from "./budget-total-field"
+import { BudgetItemList } from "./budget-item-list"
 import { useAiMode } from "@/components/ai-mode"
+import type { BudgetItem } from "@/lib/trips/budget-item-types"
 import { SavedFigure, SpentFigure } from "./budget-figures"
 import { Ledger } from "./budget-ledger"
 import { LogExpenseRow } from "./log-expense-row"
@@ -49,6 +50,7 @@ export interface BudgetTabProps {
   locations: ItineraryLocation[]
   itineraryDays: DayLocation[]
   moves: BudgetMove[]
+  budgetItems: BudgetItem[]
   currentUserId: string
 }
 
@@ -68,6 +70,7 @@ export function BudgetTab({
   locations,
   itineraryDays,
   moves,
+  budgetItems,
   currentUserId,
 }: BudgetTabProps) {
   const [view, setView] = React.useState<View>("budget")
@@ -131,12 +134,14 @@ export function BudgetTab({
               locations={locations}
               itineraryDays={itineraryDays}
               memberCount={Object.keys(members).length}
+              initialItems={budgetItems}
             />
           ) : (
-            <BudgetTotalField
+            <BudgetItemList
               tripId={tripId}
               tripSlug={tripSlug}
-              plannedBudgetCents={plannedBudgetCents}
+              items={budgetItems}
+              locations={locations}
             />
           )}
           <div className="px-5 pt-4">

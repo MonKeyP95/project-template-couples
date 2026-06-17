@@ -9,7 +9,8 @@ import {
   type BudgetGroup,
   type BudgetStep,
 } from "@/lib/ai/budget-planner"
-import { updateTripBudget } from "@/lib/trips/actions"
+import { saveBudgetItems, type SaveBudgetItemInput } from "@/lib/trips/actions"
+import type { BudgetItem } from "@/lib/trips/budget-item-types"
 import {
   locationDateLabel,
   type DayLocation,
@@ -50,29 +51,61 @@ function stepBuckets(
 
 type SavedItems = Record<string, { subject: string; when: string; value: string }[]>
 
-function planKey(tripId: string): string {
-  return `together:budget-plan:${tripId}`
+const CATEGORY_BY_STEP: Record<string, string> = {
+  accommodation: "Accommodation",
+  transport: "Transportation",
+  food: "Food",
+  activities: "Activities",
+  other: "Other",
 }
+const STEP_BY_CATEGORY: Record<string, string> = {
+  Accommodation: "accommodation",
+  Transportation: "transport",
+  Food: "food",
+  Activities: "activities",
+  Other: "other",
+}
+const GROUPED_STEPS = new Set(["accommodation", "activities"])
 
-function loadSavedItems(tripId: string): SavedItems | null {
-  try {
-    const raw = window.localStorage.getItem(planKey(tripId))
-    return raw ? (JSON.parse(raw) as SavedItems) : null
-  } catch {
-    return null
+/** Server items -> the drafter's bucket-keyed saved shape. */
+function serverToSaved(items: BudgetItem[]): SavedItems {
+  const out: SavedItems = {}
+  for (const it of items) {
+    const stepKey = STEP_BY_CATEGORY[it.category]
+    if (!stepKey) continue
+    const bucketId = GROUPED_STEPS.has(stepKey)
+      ? `${stepKey}:${it.locationId ?? "trip"}`
+      : stepKey
+    ;(out[bucketId] ??= []).push({
+      subject: it.subject,
+      when: it.whenLabel,
+      value: it.amountCents ? fmt(it.amountCents) : "",
+    })
   }
+  return out
 }
 
-function saveItems(tripId: string, items: Record<string, ItemRow[]>) {
-  try {
-    const plain: SavedItems = {}
-    for (const [k, rows] of Object.entries(items)) {
-      plain[k] = rows.map(({ subject, when, value }) => ({ subject, when, value }))
+/** The drafter's session -> server items (drops blank rows). */
+function sessionToServerItems(session: Session): SaveBudgetItemInput[] {
+  const out: SaveBudgetItemInput[] = []
+  for (const [bucketId, rows] of Object.entries(session.items)) {
+    const [stepKey, locKey] = bucketId.split(":")
+    const category = CATEGORY_BY_STEP[stepKey]
+    if (!category) continue
+    const locationId = locKey && locKey !== "trip" ? locKey : null
+    for (const r of rows) {
+      const cents = asCents(r.value)
+      if (r.subject.trim() === "" && cents === 0) continue
+      out.push({
+        category,
+        subject: r.subject,
+        whenLabel: r.when,
+        amountCents: cents,
+        locationId,
+      })
     }
-    window.localStorage.setItem(planKey(tripId), JSON.stringify(plain))
-  } catch {
-    // storage unavailable (private mode / disabled) — saving is best-effort.
   }
+  return out
 }
 
 export interface BudgetDrafterProps {
@@ -85,6 +118,7 @@ export interface BudgetDrafterProps {
   locations: ItineraryLocation[]
   itineraryDays: DayLocation[]
   memberCount: number
+  initialItems: BudgetItem[]
 }
 
 export function BudgetDrafter({
@@ -96,6 +130,7 @@ export function BudgetDrafter({
   locations,
   itineraryDays,
   memberCount,
+  initialItems,
 }: BudgetDrafterProps) {
   const [session, setSession] = React.useState<Session | null>(null)
   const [stepIndex, setStepIndex] = React.useState(0)
@@ -134,7 +169,7 @@ export function BudgetDrafter({
       locations: locInput,
     })
 
-    const saved = fromScratch ? null : loadSavedItems(tripId)
+    const saved = fromScratch ? null : serverToSaved(initialItems)
     const items: Record<string, ItemRow[]> = {}
     for (const step of steps) {
       for (const { bucketId, group } of stepBuckets(step)) {
@@ -238,18 +273,16 @@ export function BudgetDrafter({
 
   function apply() {
     if (!session || isPending) return
-    const total = totalCents(session)
     startTransition(async () => {
-      const r = await updateTripBudget({
+      const r = await saveBudgetItems({
         tripId,
         tripSlug,
-        plannedBudgetCents: total,
+        items: sessionToServerItems(session),
       })
       if (r.error) {
         setError(r.error)
         return
       }
-      saveItems(tripId, session.items)
       setSession(null)
     })
   }
