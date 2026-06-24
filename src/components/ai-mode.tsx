@@ -1,6 +1,7 @@
 "use client"
 
 import * as React from "react"
+import { usePathname } from "next/navigation"
 
 // Inlined so this client bundle doesn't import the next/headers server module
 // (see memory: client/server split rule). Must match AI_COOKIE in lib/ai/ai-mode.ts.
@@ -70,9 +71,15 @@ export function AiToggle() {
   )
 }
 
-/** Always-visible AI on/off pill, fixed bottom-left on every page. */
+// The landing page and the auth flow have no AI surface, so the pill is hidden.
+const AI_HIDDEN_PATHS = new Set(["/", "/signin", "/signup"])
+
+/** AI on/off pill, fixed bottom-left on app pages (not landing or auth). */
 export function AiFloatingToggle() {
   const { enabled, setEnabled } = useAiMode()
+  const pathname = usePathname()
+
+  if (AI_HIDDEN_PATHS.has(pathname)) return null
 
   function toggle() {
     const next = !enabled
