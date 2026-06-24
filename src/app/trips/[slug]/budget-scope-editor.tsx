@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/select"
 import {
   addExpenseCategory,
+  deleteBudgetItem,
   payBudgetItem,
   saveBudgetItemsForScope,
   unpayBudgetItem,
@@ -129,7 +130,9 @@ export function BudgetScopeEditor({
       ...rs,
       {
         id: crypto.randomUUID(),
-        serverId: null,
+        // Assign the db id up front so the cost is payable immediately (the save
+        // inserts with this id); no reload needed for the pay pill to appear.
+        serverId: crypto.randomUUID(),
         paidExpenseId: null,
         category,
         subject: "",
@@ -139,8 +142,16 @@ export function BudgetScopeEditor({
       },
     ])
   }
-  function remove(id: string) {
-    setRows((rs) => rs.filter((r) => r.id !== id))
+  // Remove locally, then delete on the server so it sticks without a save (and,
+  // if paid, its linked expense goes too). A never-saved id is a server no-op.
+  function remove(row: Row) {
+    setRows((rs) => rs.filter((r) => r.id !== row.id))
+    const serverId = row.serverId
+    if (!serverId) return
+    startTransition(async () => {
+      const res = await deleteBudgetItem(serverId, tripSlug)
+      if (res.error) setError(res.error)
+    })
   }
   function pickCategory(v: string | null) {
     if (!v) return
@@ -185,6 +196,13 @@ export function BudgetScopeEditor({
         whenStart: withDates && r.whenStart ? r.whenStart : null,
         whenEnd: withDates && r.whenEnd ? r.whenEnd : null,
       }))
+  }
+
+  function onCostKeyDown(e: React.KeyboardEvent) {
+    if (e.key === "Enter") {
+      e.preventDefault()
+      save()
+    }
   }
 
   function save() {
@@ -293,6 +311,7 @@ export function BudgetScopeEditor({
                     <input
                       value={r.subject}
                       onChange={(e) => patch(r.id, { subject: e.target.value })}
+                      onKeyDown={onCostKeyDown}
                       placeholder="What"
                       className="min-w-0 flex-1 rounded-lg border border-clay bg-transparent px-2.5 py-1.5 text-[12px] text-foreground placeholder:text-muted-foreground focus:outline-none"
                     />
@@ -303,6 +322,7 @@ export function BudgetScopeEditor({
                           aria-label="Start date"
                           value={r.whenStart}
                           onChange={(e) => patch(r.id, { whenStart: e.target.value })}
+                          onKeyDown={onCostKeyDown}
                           className="rounded-lg border border-clay bg-transparent px-2 py-1.5 text-[11px] text-foreground focus:outline-none"
                         />
                         <input
@@ -311,6 +331,7 @@ export function BudgetScopeEditor({
                           value={r.whenEnd}
                           min={r.whenStart || undefined}
                           onChange={(e) => patch(r.id, { whenEnd: e.target.value })}
+                          onKeyDown={onCostKeyDown}
                           className="rounded-lg border border-clay bg-transparent px-2 py-1.5 text-[11px] text-foreground focus:outline-none"
                         />
                       </>
@@ -320,10 +341,11 @@ export function BudgetScopeEditor({
                       inputMode="numeric"
                       value={r.value}
                       onChange={(e) => patch(r.id, { value: e.target.value })}
+                      onKeyDown={onCostKeyDown}
                       placeholder="0"
                       className="w-16 rounded-lg border border-clay bg-transparent px-2 py-1.5 text-right text-[12px] text-foreground placeholder:text-muted-foreground focus:outline-none"
                     />
-                    {r.serverId ? (
+                    {r.serverId && asCents(r.value) > 0 ? (
                       r.paidExpenseId ? (
                         <button
                           type="button"
@@ -346,7 +368,7 @@ export function BudgetScopeEditor({
                     ) : null}
                     <button
                       type="button"
-                      onClick={() => remove(r.id)}
+                      onClick={() => remove(r)}
                       aria-label="Remove item"
                       className="px-1 font-mono text-[13px] text-muted-foreground hover:text-foreground"
                     >
