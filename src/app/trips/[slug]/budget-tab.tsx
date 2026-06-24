@@ -19,6 +19,7 @@ import { AiSuggestion } from "@/components/ai-suggestion"
 
 import { BudgetByLocation } from "./budget-by-location"
 import { BudgetDrafter } from "./budget-drafter"
+import { BudgetScopeEditor } from "./budget-scope-editor"
 import { useAiMode } from "@/components/ai-mode"
 import type { BudgetItem } from "@/lib/trips/budget-item-types"
 import { SavedFigure, SpentFigure } from "./budget-figures"
@@ -101,14 +102,6 @@ export function BudgetTab({
 
       {view === "budget" ? (
         <>
-          <LogExpenseRow
-            tripId={tripId}
-            tripSlug={tripSlug}
-            currentUserId={currentUserId}
-            members={members}
-            locations={locations}
-            categories={expenseCategories}
-          />
           <div className="border-b border-border px-5 pt-4 pb-4">
             <SpentFigure
               tripId={tripId}
@@ -136,6 +129,21 @@ export function BudgetTab({
               initialItems={budgetItems}
             />
           ) : null}
+          <PlannedBudget
+            tripId={tripId}
+            tripSlug={tripSlug}
+            tripName={tripName}
+            locations={locations}
+            budgetItems={budgetItems}
+          />
+          <LogExpenseRow
+            tripId={tripId}
+            tripSlug={tripSlug}
+            currentUserId={currentUserId}
+            members={members}
+            locations={locations}
+            categories={expenseCategories}
+          />
           <div className="px-5 pt-4">
             <AiSuggestion surface="budget" />
           </div>
@@ -234,6 +242,80 @@ export function BudgetTab({
         </>
       ) : null}
     </section>
+  )
+}
+
+/** Always-visible planned-budget detail: one scope editor per location plus a
+ * trip-wide bucket, or a single trip-name editor when no locations exist.
+ * Reuses the itinerary's editors, so budget detail is editable with AI off. */
+function PlannedBudget({
+  tripId,
+  tripSlug,
+  tripName,
+  locations,
+  budgetItems,
+}: {
+  tripId: string
+  tripSlug: string
+  tripName: string
+  locations: ItineraryLocation[]
+  budgetItems: BudgetItem[]
+}) {
+  const byLoc = new Map<string, BudgetItem[]>()
+  for (const it of budgetItems) {
+    if (!it.locationId) continue
+    const arr = byLoc.get(it.locationId)
+    if (arr) arr.push(it)
+    else byLoc.set(it.locationId, [it])
+  }
+  const tripWide = budgetItems.filter((it) => !it.locationId)
+  const plannedTotalCents = budgetItems.reduce((s, it) => s + it.amountCents, 0)
+
+  return (
+    <div className="border-t border-border bg-background px-5 pt-4 pb-2">
+      <Label>Planned budget</Label>
+      {locations.map((loc) => (
+        <BudgetScopeEditor
+          key={loc.id}
+          tripId={tripId}
+          tripSlug={tripSlug}
+          locationId={loc.id}
+          items={byLoc.get(loc.id) ?? []}
+          withDates={false}
+          defaultCategory="Accommodation"
+          label={loc.name}
+        />
+      ))}
+      {locations.length === 0 ? (
+        <BudgetScopeEditor
+          tripId={tripId}
+          tripSlug={tripSlug}
+          locationId={null}
+          items={tripWide}
+          withDates={false}
+          defaultCategory="Accommodation"
+          label={tripName}
+        />
+      ) : (
+        <BudgetScopeEditor
+          tripId={tripId}
+          tripSlug={tripSlug}
+          locationId={null}
+          items={tripWide}
+          withDates
+          defaultCategory="Other"
+          label="Trip-wide"
+        />
+      )}
+      <div className="mt-3 flex items-baseline justify-between border-t border-rule pt-3">
+        <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+          Planned total
+        </span>
+        <span className="t-num font-mono text-[14px] text-foreground">
+          €{fmt(plannedTotalCents)}
+        </span>
+      </div>
+    </div>
   )
 }
 
