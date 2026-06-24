@@ -86,49 +86,62 @@ export function BudgetTab({
         </div>
       </div>
 
-      <div className="border-b border-border px-5 pt-4 pb-4">
-        <SpentFigure
+      {/* Budget bar + add expense */}
+      <div className="mx-5 my-4 overflow-hidden rounded-xl border border-border bg-card">
+        <div className="px-5 pt-4 pb-4">
+          <SpentFigure
+            tripId={tripId}
+            tripSlug={tripSlug}
+            spentCents={totalCents}
+            plannedBudgetCents={plannedBudgetCents}
+          />
+        </div>
+        <LogExpenseRow
           tripId={tripId}
           tripSlug={tripSlug}
-          spentCents={totalCents}
-          plannedBudgetCents={plannedBudgetCents}
+          currentUserId={currentUserId}
+          members={members}
+          locations={locations}
+          categories={expenseCategories}
         />
       </div>
 
-      {aiEnabled ? (
-        <BudgetDrafter
+      {/* Saved + planned budget */}
+      <div className="mx-5 my-4 overflow-hidden rounded-xl border border-border bg-card">
+        <div className="px-5 pt-4 pb-4">
+          <SavedFigure
+            tripId={tripId}
+            tripSlug={tripSlug}
+            plannedBudgetCents={plannedBudgetCents}
+            savedCents={savedCents}
+            contributions={savingsContributions}
+            perUser={savedPerUser}
+            members={members}
+            currentUserId={currentUserId}
+          />
+        </div>
+        {aiEnabled ? (
+          <BudgetDrafter
+            tripId={tripId}
+            tripSlug={tripSlug}
+            tripName={tripName}
+            tripDays={tripDays}
+            plannedBudgetCents={plannedBudgetCents}
+            locations={locations}
+            itineraryDays={itineraryDays}
+            memberCount={Object.keys(members).length}
+            initialItems={budgetItems}
+          />
+        ) : null}
+        <PlannedBudget
           tripId={tripId}
           tripSlug={tripSlug}
           tripName={tripName}
-          tripDays={tripDays}
-          plannedBudgetCents={plannedBudgetCents}
           locations={locations}
+          budgetItems={budgetItems}
+          expenses={expenses}
           itineraryDays={itineraryDays}
-          memberCount={Object.keys(members).length}
-          initialItems={budgetItems}
-        />
-      ) : null}
-      <PlannedBudget
-        tripId={tripId}
-        tripSlug={tripSlug}
-        tripName={tripName}
-        locations={locations}
-        budgetItems={budgetItems}
-        expenses={expenses}
-        itineraryDays={itineraryDays}
-        categories={expenseCategories}
-      />
-
-      <div className="border-t border-border px-5 pt-4 pb-4">
-        <SavedFigure
-          tripId={tripId}
-          tripSlug={tripSlug}
-          plannedBudgetCents={plannedBudgetCents}
-          savedCents={savedCents}
-          contributions={savingsContributions}
-          perUser={savedPerUser}
-          members={members}
-          currentUserId={currentUserId}
+          categories={expenseCategories}
         />
       </div>
 
@@ -148,15 +161,6 @@ export function BudgetTab({
         />
         <SettlementHistory expenses={expenses} members={members} />
       </CompactSettle>
-
-      <LogExpenseRow
-        tripId={tripId}
-        tripSlug={tripSlug}
-        currentUserId={currentUserId}
-        members={members}
-        locations={locations}
-        categories={expenseCategories}
-      />
       <div className="px-5 pt-4">
         <AiSuggestion surface="budget" />
       </div>
@@ -230,7 +234,7 @@ function PlannedBudget({
   }
 
   return (
-    <div className="border-t border-border bg-background px-5 pt-4 pb-5">
+    <div className="border-t border-border px-5 pt-4 pb-5">
       <Label>Planned budget</Label>
       {locations.map((loc) => (
         <BudgetScopeEditor
