@@ -11,7 +11,7 @@ import {
 } from "@/lib/checklists/queries"
 import {
   LeftRail,
-  MobileTopNav,
+  MobileHeaderNav,
   buildNavDestinations,
 } from "@/components/app-nav"
 
@@ -48,7 +48,6 @@ export default async function ChecklistDetailPage({
 
   return (
     <div className="relative mx-auto min-h-screen w-full max-w-[440px] lg:flex lg:max-w-none lg:items-stretch">
-      <MobileTopNav destinations={navDestinations} current="checklists" />
       <LeftRail
         workspace={workspace}
         initialDark={dark}
@@ -56,6 +55,11 @@ export default async function ChecklistDetailPage({
         current="checklists"
       />
       <main className="w-full lg:min-w-0 lg:flex-1">
+        <MobileHeaderNav
+          destinations={navDestinations}
+          current="checklists"
+          className="px-5 pt-4"
+        />
         <ChecklistDetail
           checklistId={checklist.id}
           slug={checklist.slug}

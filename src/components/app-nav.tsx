@@ -4,6 +4,7 @@ import { ArrowLeft, ArrowRight, LogOut } from "lucide-react"
 
 import { Avatar, Chevron, Coord, Label } from "@/components/together"
 import { ThemeToggle } from "@/components/theme-toggle"
+import { cn } from "@/lib/utils"
 import type { CurrentWorkspace } from "@/lib/workspace/queries"
 
 export type NavKey = "home" | "on-the-road" | "checklists" | "trip"
@@ -159,16 +160,22 @@ export function LeftRail({
 const arrowLabel = "flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground hover:text-foreground"
 
 /**
- * Prev/next arrows over the canonical page order. The current page sits between
- * them; prev/next wrap around. With only two pages they resolve to the same
- * other page, so a single (right) arrow is shown.
+ * In-header mobile nav row (not sticky — sits inside each page's header). Prev/next
+ * arrows over the mobile page order: the current page sits between them and the arrows
+ * wrap around. Two pages -> a single (right) arrow; `current` not in the order (e.g.
+ * /checklists) -> a lone `<- Home`; one page -> no arrows. `center` fills the middle
+ * slot (the trip page passes its "edit trip" link). Sign-out stays on the right.
  */
-export function MobileTopNav({
+export function MobileHeaderNav({
   destinations,
   current,
+  center,
+  className,
 }: {
   destinations: NavDestination[]
   current: NavKey
+  center?: ReactNode
+  className?: string
 }) {
   const ordered = MOBILE_NAV_ORDER.map((key) =>
     destinations.find((d) => d.key === key),
@@ -176,48 +183,31 @@ export function MobileTopNav({
 
   const i = ordered.findIndex((d) => d.key === current)
 
-  // Current page isn't in the mobile order (e.g. /checklists on a phone, since
-  // checklists is desktop-only): a single back arrow to Home. Home is always present.
+  let left: ReactNode = <span />
+  let right: ReactNode = null
+
   if (i === -1) {
+    // Current page isn't in the mobile order (checklists is desktop-only): back to Home.
     const home = ordered.find((d) => d.key === "home")
-    return <MobileNavBar left={home ? <PrevArrow dest={home} /> : <span />} />
+    if (home) left = <PrevArrow dest={home} />
+  } else if (ordered.length > 1) {
+    const n = ordered.length
+    const prev = ordered[(i - 1 + n) % n]
+    const next = ordered[(i + 1) % n]
+    if (prev.key !== next.key) left = <PrevArrow dest={prev} />
+    right = <NextArrow dest={next} />
   }
-
-  const n = ordered.length
-
-  // Only Home exists (no active trip, not on the road): no neighbour to point at.
-  if (n === 1) {
-    return <MobileNavBar left={<span />} />
-  }
-
-  const prev = ordered[(i - 1 + n) % n]
-  const next = ordered[(i + 1) % n]
-  const showPrev = prev.key !== next.key
+  // ordered.length === 1 (only Home): no neighbour to point at — arrows stay empty.
 
   return (
-    <MobileNavBar
-      left={showPrev ? <PrevArrow dest={prev} /> : <span />}
-      right={<NextArrow dest={next} />}
-    />
-  )
-}
-
-/** Sticky mobile bar shell: a left slot, then the right slot beside sign-out. */
-function MobileNavBar({
-  left,
-  right,
-}: {
-  left: ReactNode
-  right?: ReactNode
-}) {
-  return (
-    <nav className="sticky top-0 z-20 flex items-center justify-between border-b border-border bg-card/95 px-4 py-2.5 backdrop-blur lg:hidden">
+    <div className={cn("flex items-center justify-between lg:hidden", className)}>
       {left}
+      {center ? <div className="min-w-0">{center}</div> : null}
       <div className="flex items-center gap-3">
         {right}
         <SignOutButton className="flex items-center text-muted-foreground hover:text-foreground" />
       </div>
-    </nav>
+    </div>
   )
 }
 

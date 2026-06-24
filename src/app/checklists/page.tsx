@@ -8,7 +8,7 @@ import { listTripsForWorkspace } from "@/lib/trips/list-queries"
 import { listChecklists } from "@/lib/checklists/queries"
 import {
   LeftRail,
-  MobileTopNav,
+  MobileHeaderNav,
   buildNavDestinations,
 } from "@/components/app-nav"
 
@@ -37,7 +37,6 @@ export default async function ChecklistsPage() {
 
   return (
     <div className="relative mx-auto min-h-screen w-full max-w-[440px] lg:flex lg:max-w-none lg:items-stretch">
-      <MobileTopNav destinations={navDestinations} current="checklists" />
       <LeftRail
         workspace={workspace}
         initialDark={dark}
@@ -45,6 +44,11 @@ export default async function ChecklistsPage() {
         current="checklists"
       />
       <main className="w-full px-5 pt-14 pb-16 lg:min-w-0 lg:flex-1 lg:px-12 lg:pt-12">
+        <MobileHeaderNav
+          destinations={navDestinations}
+          current="checklists"
+          className="mb-4"
+        />
         <Label className="mb-4 block">Checklists</Label>
         <AiSuggestion surface="checklists" className="mb-4 block" />
         <ChecklistsOverview initial={checklists} />

@@ -10,7 +10,7 @@ import {
   Label,
   PairAvatar,
 } from "@/components/together"
-import { LeftRail, MobileTopNav, buildNavDestinations } from "@/components/app-nav"
+import { LeftRail, MobileHeaderNav, buildNavDestinations } from "@/components/app-nav"
 import { AiSuggestion } from "@/components/ai-suggestion"
 import { createClient } from "@/lib/supabase/server"
 import { isDarkTheme } from "@/lib/theme"
@@ -102,17 +102,21 @@ export default async function HomePage() {
   return (
     <div className="relative mx-auto min-h-screen w-full max-w-[440px] lg:flex lg:max-w-none lg:items-stretch">
       {workspace ? (
-        <>
-          <MobileTopNav destinations={navDestinations} current="home" />
-          <LeftRail
-            workspace={workspace}
-            initialDark={dark}
-            destinations={navDestinations}
-            current="home"
-          />
-        </>
+        <LeftRail
+          workspace={workspace}
+          initialDark={dark}
+          destinations={navDestinations}
+          current="home"
+        />
       ) : null}
       <main className="w-full px-5 pt-14 pb-10 lg:min-w-0 lg:flex-1 lg:px-12 lg:pt-12 lg:pb-16">
+      {workspace ? (
+        <MobileHeaderNav
+          destinations={navDestinations}
+          current="home"
+          className="mb-6"
+        />
+      ) : null}
       <header className="mb-14 flex items-center justify-between md:hidden">
         <Label>Together · Workspace</Label>
         {members.length >= 2 ? (

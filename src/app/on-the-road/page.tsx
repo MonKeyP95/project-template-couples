@@ -2,7 +2,7 @@ import { redirect } from "next/navigation"
 
 import { Coord, Label, TopoBg } from "@/components/together"
 import { isDarkTheme } from "@/lib/theme"
-import { LeftRail, MobileTopNav, buildNavDestinations } from "@/components/app-nav"
+import { LeftRail, MobileHeaderNav, buildNavDestinations } from "@/components/app-nav"
 import { createClient } from "@/lib/supabase/server"
 import { getCurrentWorkspace } from "@/lib/workspace/queries"
 import { listTripsForWorkspace } from "@/lib/trips/list-queries"
@@ -86,7 +86,6 @@ export default async function OnTheRoadPage() {
         tripId={trip.id}
         tables={["expenses", "trip_notes", "itinerary_days"]}
       />
-      <MobileTopNav destinations={navDestinations} current="on-the-road" />
       <LeftRail
         workspace={workspace}
         initialDark={dark}
@@ -94,6 +93,11 @@ export default async function OnTheRoadPage() {
         current="on-the-road"
       />
       <div className="px-5 pt-6 pb-16 lg:min-w-0 lg:flex-1 lg:px-8 lg:py-8">
+        <MobileHeaderNav
+          destinations={navDestinations}
+          current="on-the-road"
+          className="mb-4"
+        />
         <Label className="mb-4 block">{`On the road · ${trip.name}`}</Label>
         <AiSuggestion surface="road" className="mb-4 block" />
 
