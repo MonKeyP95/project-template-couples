@@ -2,7 +2,7 @@
 
 import * as React from "react"
 
-import { Avatar, Label, SegBtn, TopoBg } from "@/components/together"
+import { Avatar, Label, TopoBg } from "@/components/together"
 import {
   type BudgetSummary,
   type Expense,
@@ -10,6 +10,8 @@ import {
 } from "@/lib/trips/expense-types"
 import { type SavingsContribution } from "@/lib/trips/savings-types"
 import {
+  dayLocationMap,
+  expenseLocationId,
   type BudgetMove,
   type DayLocation,
 } from "@/lib/trips/location-budget-types"
@@ -19,6 +21,7 @@ import { AiSuggestion } from "@/components/ai-suggestion"
 
 import { BudgetByLocation } from "./budget-by-location"
 import { BudgetDrafter } from "./budget-drafter"
+import { BudgetScopeEditor } from "./budget-scope-editor"
 import { useAiMode } from "@/components/ai-mode"
 import type { BudgetItem } from "@/lib/trips/budget-item-types"
 import { SavedFigure, SpentFigure } from "./budget-figures"
@@ -30,8 +33,6 @@ import { SettleUpButtons } from "./settle-up-card"
 function fmt(cents: number): string {
   return (cents / 100).toFixed(2)
 }
-
-type View = "budget" | "expense" | "saved" | "settle"
 
 export interface BudgetTabProps {
   tripId: string
@@ -72,8 +73,8 @@ export function BudgetTab({
   budgetItems,
   currentUserId,
 }: BudgetTabProps) {
-  const [view, setView] = React.useState<View>("budget")
   const { enabled: aiEnabled } = useAiMode()
+  const [settleOpen, setSettleOpen] = React.useState(false)
   const totalCents = summary.expenseTotalCents
 
   return (
@@ -82,126 +83,31 @@ export function BudgetTab({
         <TopoBg tone="sea" opacity={0.1} />
         <div className="relative">
           <Label>Budget · {tripName}</Label>
-          <div className="mt-3 flex flex-wrap items-center gap-1.5">
-            <SegBtn tone="sea" active={view === "budget"} onClick={() => setView("budget")}>
-              Budget
-            </SegBtn>
-            <SegBtn tone="sea" active={view === "expense"} onClick={() => setView("expense")}>
-              Expense
-            </SegBtn>
-            <SegBtn tone="sea" active={view === "saved"} onClick={() => setView("saved")}>
-              Saved
-            </SegBtn>
-            <SegBtn tone="sea" active={view === "settle"} onClick={() => setView("settle")}>
-              Settle up
-            </SegBtn>
-          </div>
         </div>
       </div>
 
-      {view === "budget" ? (
-        <>
-          <LogExpenseRow
+      {/* Budget bar + add expense */}
+      <div className="mx-5 my-4 overflow-hidden rounded-xl border border-border bg-card">
+        <div className="px-5 pt-4 pb-4">
+          <SpentFigure
             tripId={tripId}
             tripSlug={tripSlug}
-            currentUserId={currentUserId}
-            members={members}
-            locations={locations}
-            categories={expenseCategories}
+            spentCents={totalCents}
+            plannedBudgetCents={plannedBudgetCents}
           />
-          <div className="border-b border-border px-5 pt-4 pb-4">
-            <SpentFigure
-              tripId={tripId}
-              tripSlug={tripSlug}
-              spentCents={totalCents}
-              plannedBudgetCents={plannedBudgetCents}
-            />
-          </div>
-          <CompactSettle
-            summary={summary}
-            currentUserId={currentUserId}
-            tripId={tripId}
-            tripSlug={tripSlug}
-          />
-          {aiEnabled ? (
-            <BudgetDrafter
-              tripId={tripId}
-              tripSlug={tripSlug}
-              tripName={tripName}
-              tripDays={tripDays}
-              plannedBudgetCents={plannedBudgetCents}
-              locations={locations}
-              itineraryDays={itineraryDays}
-              memberCount={Object.keys(members).length}
-              initialItems={budgetItems}
-            />
-          ) : null}
-          <div className="px-5 pt-4">
-            <AiSuggestion surface="budget" />
-          </div>
-          <BudgetByLocation
-            tripId={tripId}
-            tripSlug={tripSlug}
-            masterBudgetCents={plannedBudgetCents}
-            locations={locations}
-            expenses={expenses}
-            itineraryDays={itineraryDays}
-            members={members}
-            moves={moves}
-            categories={expenseCategories}
-          />
-          <Ledger
-            expenses={expenses}
-            moves={moves}
-            members={members}
-            tripSlug={tripSlug}
-            locations={locations}
-            itineraryDays={itineraryDays}
-            categories={expenseCategories}
-          />
-        </>
-      ) : null}
+        </div>
+        <LogExpenseRow
+          tripId={tripId}
+          tripSlug={tripSlug}
+          currentUserId={currentUserId}
+          members={members}
+          locations={locations}
+          categories={expenseCategories}
+        />
+      </div>
 
-      {view === "expense" ? (
-        <>
-          <LogExpenseRow
-            tripId={tripId}
-            tripSlug={tripSlug}
-            currentUserId={currentUserId}
-            members={members}
-            locations={locations}
-            categories={expenseCategories}
-          />
-          <div className="border-b border-border px-5 pt-4 pb-4">
-            <div className="flex items-baseline gap-1">
-              <span className="t-display text-[22px] text-muted-foreground">€</span>
-              <span className="t-display t-num text-[42px] leading-none text-foreground">
-                {fmt(totalCents)}
-              </span>
-              <span className="ml-1.5 font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
-                spent
-              </span>
-            </div>
-          </div>
-          <CompactSettle
-            summary={summary}
-            currentUserId={currentUserId}
-            tripId={tripId}
-            tripSlug={tripSlug}
-          />
-          <Ledger
-            expenses={expenses}
-            moves={moves}
-            members={members}
-            tripSlug={tripSlug}
-            locations={locations}
-            itineraryDays={itineraryDays}
-            categories={expenseCategories}
-          />
-        </>
-      ) : null}
-
-      {view === "saved" ? (
+      {/* Saved + planned budget */}
+      <div className="mx-5 my-4 overflow-hidden rounded-xl border border-border bg-card">
         <div className="px-5 pt-4 pb-4">
           <SavedFigure
             tripId={tripId}
@@ -214,26 +120,170 @@ export function BudgetTab({
             currentUserId={currentUserId}
           />
         </div>
-      ) : null}
-
-      {view === "settle" ? (
-        <>
-          <CompactSettle
-            summary={summary}
-            currentUserId={currentUserId}
+        {aiEnabled ? (
+          <BudgetDrafter
             tripId={tripId}
             tripSlug={tripSlug}
-            alwaysShow
+            tripName={tripName}
+            tripDays={tripDays}
+            plannedBudgetCents={plannedBudgetCents}
+            locations={locations}
+            itineraryDays={itineraryDays}
+            memberCount={Object.keys(members).length}
+            initialItems={budgetItems}
           />
-          <SplitBreakdown
-            members={members}
-            paidByUser={summary.expensePaidByUser}
-            settlementsByUser={summary.settlementsByUser}
-          />
-          <SettlementHistory expenses={expenses} members={members} />
-        </>
-      ) : null}
+        ) : null}
+        <PlannedBudget
+          tripId={tripId}
+          tripSlug={tripSlug}
+          tripName={tripName}
+          locations={locations}
+          budgetItems={budgetItems}
+          expenses={expenses}
+          itineraryDays={itineraryDays}
+          categories={expenseCategories}
+        />
+      </div>
+
+      <CompactSettle
+        summary={summary}
+        currentUserId={currentUserId}
+        tripId={tripId}
+        tripSlug={tripSlug}
+        alwaysShow
+        open={settleOpen}
+        onToggle={() => setSettleOpen((v) => !v)}
+      >
+        <SplitBreakdown
+          members={members}
+          paidByUser={summary.expensePaidByUser}
+          settlementsByUser={summary.settlementsByUser}
+        />
+        <SettlementHistory expenses={expenses} members={members} />
+      </CompactSettle>
+      <div className="px-5 pt-4">
+        <AiSuggestion surface="budget" />
+      </div>
+      <BudgetByLocation
+        tripId={tripId}
+        tripSlug={tripSlug}
+        masterBudgetCents={plannedBudgetCents}
+        locations={locations}
+        expenses={expenses}
+        itineraryDays={itineraryDays}
+        members={members}
+        moves={moves}
+        categories={expenseCategories}
+      />
+      <Ledger
+        expenses={expenses}
+        moves={moves}
+        members={members}
+        tripSlug={tripSlug}
+        locations={locations}
+        itineraryDays={itineraryDays}
+        categories={expenseCategories}
+      />
     </section>
+  )
+}
+
+/** Always-visible planned-budget detail: one scope editor per location plus a
+ * trip-wide bucket, or a single trip-name editor when no locations exist.
+ * Reuses the itinerary's editors, so budget detail is editable with AI off. */
+function PlannedBudget({
+  tripId,
+  tripSlug,
+  tripName,
+  locations,
+  budgetItems,
+  expenses,
+  itineraryDays,
+  categories,
+}: {
+  tripId: string
+  tripSlug: string
+  tripName: string
+  locations: ItineraryLocation[]
+  budgetItems: BudgetItem[]
+  expenses: Expense[]
+  itineraryDays: DayLocation[]
+  categories: ExpenseCategoryRow[]
+}) {
+  const byLoc = new Map<string, BudgetItem[]>()
+  for (const it of budgetItems) {
+    if (!it.locationId) continue
+    const arr = byLoc.get(it.locationId)
+    if (arr) arr.push(it)
+    else byLoc.set(it.locationId, [it])
+  }
+  const tripWide = budgetItems.filter((it) => !it.locationId)
+  const plannedTotalCents = budgetItems.reduce((s, it) => s + it.amountCents, 0)
+
+  // Actual spend grouped by category, for the expenses attributed to one scope
+  // (a location, or the unassigned/trip-wide bucket when locationId is null).
+  const dayMap = dayLocationMap(itineraryDays)
+  function spentForScope(locId: string | null): Record<string, number> {
+    const out: Record<string, number> = {}
+    for (const e of expenses) {
+      if (e.isSettlement) continue
+      if (expenseLocationId(e, dayMap) !== locId) continue
+      out[e.category] = (out[e.category] ?? 0) + e.amountCents
+    }
+    return out
+  }
+
+  return (
+    <div className="border-t border-border px-5 pt-4 pb-5">
+      <Label>Planned budget</Label>
+      {locations.map((loc) => (
+        <BudgetScopeEditor
+          key={loc.id}
+          tripId={tripId}
+          tripSlug={tripSlug}
+          locationId={loc.id}
+          items={byLoc.get(loc.id) ?? []}
+          withDates={false}
+          defaultCategory="Accommodation"
+          label={loc.name}
+          categories={categories}
+          spentByCategory={spentForScope(loc.id)}
+        />
+      ))}
+      {locations.length === 0 ? (
+        <BudgetScopeEditor
+          tripId={tripId}
+          tripSlug={tripSlug}
+          locationId={null}
+          items={tripWide}
+          withDates={false}
+          defaultCategory="Accommodation"
+          label={tripName}
+          categories={categories}
+          spentByCategory={spentForScope(null)}
+        />
+      ) : (
+        <BudgetScopeEditor
+          tripId={tripId}
+          tripSlug={tripSlug}
+          locationId={null}
+          items={tripWide}
+          withDates
+          defaultCategory="Other"
+          label="Trip-wide"
+          categories={categories}
+          spentByCategory={spentForScope(null)}
+        />
+      )}
+      <div className="mt-3 flex items-baseline justify-between border-t border-rule pt-3">
+        <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+          Planned total
+        </span>
+        <span className="t-num font-mono text-[14px] text-foreground">
+          €{fmt(plannedTotalCents)}
+        </span>
+      </div>
+    </div>
   )
 }
 
@@ -306,12 +356,18 @@ function CompactSettle({
   tripId,
   tripSlug,
   alwaysShow = false,
+  open,
+  onToggle,
+  children,
 }: {
   summary: BudgetSummary
   currentUserId: string
   tripId: string
   tripSlug: string
   alwaysShow?: boolean
+  open?: boolean
+  onToggle?: () => void
+  children?: React.ReactNode
 }) {
   const owedCents = Math.abs(summary.netBalanceCents)
   const isSquare = owedCents === 0
@@ -326,18 +382,35 @@ function CompactSettle({
       : youGet
         ? "you're owed"
         : "owed"
+  const collapsible = onToggle != null
 
   return (
-    <div className="border-b border-border px-5 py-3">
-      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
-        <SettleUpButtons owedCents={owedCents} tripId={tripId} tripSlug={tripSlug} />
-        <div className="text-right">
-          <div className="font-mono text-[9px] uppercase tracking-[0.18em] text-muted-foreground">
-            {label}
+    <div className="border-y border-border">
+      <div className="px-5 py-3">
+        <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
+          <SettleUpButtons owedCents={owedCents} tripId={tripId} tripSlug={tripSlug} />
+          <div className="flex items-center gap-3">
+            <div className="text-right">
+              <div className="font-mono text-[9px] uppercase tracking-[0.18em] text-muted-foreground">
+                {label}
+              </div>
+              <div className="t-num text-[18px] text-foreground">€{fmt(owedCents)}</div>
+            </div>
+            {collapsible ? (
+              <button
+                type="button"
+                onClick={onToggle}
+                aria-expanded={open}
+                aria-label="Toggle settle details"
+                className="border-0 bg-transparent font-mono text-[14px] leading-none text-muted-foreground hover:text-foreground"
+              >
+                {open ? "⌄" : "›"}
+              </button>
+            ) : null}
           </div>
-          <div className="t-num text-[18px] text-foreground">€{fmt(owedCents)}</div>
         </div>
       </div>
+      {collapsible && open ? children : null}
     </div>
   )
 }

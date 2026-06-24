@@ -289,7 +289,7 @@ export function BudgetDrafter({
 
   if (!session) {
     return (
-      <div className="flex items-center justify-between border-t border-border bg-background px-5 pt-4 pb-2">
+      <div className="flex items-center justify-between border-t border-border px-5 pt-4 pb-2">
         <button
           type="button"
           onClick={() => open()}
@@ -313,7 +313,7 @@ export function BudgetDrafter({
   const onSummary = stepIndex >= session.steps.length
 
   return (
-    <div className="border-t border-border bg-background px-5 pt-4 pb-2">
+    <div className="border-t border-border px-5 pt-4 pb-2">
       <div className="rounded-lg border border-border bg-card px-3.5 py-3">
         {onSummary ? renderSummary() : renderStep(session.steps[stepIndex])}
       </div>

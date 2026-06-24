@@ -205,7 +205,7 @@ export function SavedFigure({
   members,
   currentUserId,
 }: SavedFigureProps) {
-  const [expanded, setExpanded] = React.useState(true)
+  const [expanded, setExpanded] = React.useState(false)
   const hasPlanned = plannedBudgetCents > 0
   const savedToGo = Math.max(0, plannedBudgetCents - savedCents)
   const savedPct = hasPlanned
@@ -247,6 +247,15 @@ export function SavedFigure({
             )
           }
         />
+        <button
+          type="button"
+          onClick={() => setExpanded((v) => !v)}
+          aria-expanded={expanded}
+          aria-label="Toggle savings details"
+          className="ml-auto self-center border-0 bg-transparent font-mono text-[14px] leading-none text-muted-foreground hover:text-foreground"
+        >
+          {expanded ? "⌄" : "›"}
+        </button>
       </div>
       {hasPlanned && savedCents > 0 ? (
         <>

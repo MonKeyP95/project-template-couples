@@ -160,14 +160,6 @@ function LocationView({
   dayMap: Record<string, string>
   locationsById: Record<string, string>
 }) {
-  if (locations.length === 0) {
-    return (
-      <div className="py-4 font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
-        Add locations in the itinerary to budget by place
-      </div>
-    )
-  }
-
   const overAllocated = summary.unallocatedCents < 0
   const targets: MoveTarget[] = [
     { id: null, name: "Unallocated" },

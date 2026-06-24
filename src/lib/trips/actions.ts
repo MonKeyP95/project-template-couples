@@ -7,7 +7,6 @@ import { createClient } from "@/lib/supabase/server"
 import { localToday } from "@/lib/time/local-today"
 import {
   EXPENSE_CATEGORIES,
-  type ExpenseCategory,
   type ExpenseCategoryRow,
 } from "@/lib/trips/expense-types"
 import { getCurrentWorkspace } from "@/lib/workspace/queries"
@@ -1957,8 +1956,8 @@ export async function saveBudgetItems(
   }[] = []
 
   for (const it of input.items) {
-    if (!EXPENSE_CATEGORIES.includes(it.category as ExpenseCategory)) {
-      return { error: "Unknown budget category." }
+    if (it.category.trim() === "" || it.category.length > 40) {
+      return { error: "Invalid budget category." }
     }
     if (!validCents(it.amountCents)) {
       return { error: "Budget amount out of range." }
@@ -2031,8 +2030,8 @@ export async function saveBudgetItemsForScope(
   }[] = []
 
   for (const it of input.items) {
-    if (!EXPENSE_CATEGORIES.includes(it.category as ExpenseCategory)) {
-      return { error: "Unknown budget category." }
+    if (it.category.trim() === "" || it.category.length > 40) {
+      return { error: "Invalid budget category." }
     }
     if (!validCents(it.amountCents)) {
       return { error: "Budget amount out of range." }
