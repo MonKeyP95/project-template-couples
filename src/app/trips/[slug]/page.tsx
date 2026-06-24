@@ -3,7 +3,6 @@ import { notFound, redirect } from "next/navigation"
 
 import {
   Bar,
-  Chevron,
   Coord,
   DayChip,
   Label,
@@ -36,7 +35,12 @@ import {
   getCurrentWorkspace,
   type CurrentWorkspace,
 } from "@/lib/workspace/queries"
-import { LeftRail, MobileTopNav, buildNavDestinations } from "@/components/app-nav"
+import {
+  LeftRail,
+  MobileHeaderNav,
+  buildNavDestinations,
+  type NavDestination,
+} from "@/components/app-nav"
 
 import { BudgetTab } from "./budget-tab"
 import { ItineraryTab } from "./itinerary-tab"
@@ -209,7 +213,6 @@ export default async function TripPage({
   return (
     <main className="relative mx-auto min-h-screen w-full max-w-[440px] pb-32 lg:flex lg:max-w-none lg:items-stretch lg:pb-0">
       <RefreshOnVisible />
-      <MobileTopNav destinations={navDestinations} current="trip" />
       <LeftRail
         workspace={workspace}
         initialDark={dark}
@@ -218,7 +221,11 @@ export default async function TripPage({
       />
 
       <div className="lg:min-w-0 lg:flex-1">
-        <TripHeaderView header={header} workspace={workspace} />
+        <TripHeaderView
+          header={header}
+          workspace={workspace}
+          destinations={navDestinations}
+        />
         <DesktopTabs slug={header.slug} active={activeTab} />
         {activeTab === "itinerary" && detail && header.startDate ? (
           <div className="lg:hidden">
@@ -308,9 +315,11 @@ export default async function TripPage({
 function TripHeaderView({
   header,
   workspace,
+  destinations,
 }: {
   header: TripHeader
   workspace: NonNullable<Awaited<ReturnType<typeof getCurrentWorkspace>>>
+  destinations: NavDestination[]
 }) {
   const coord = formatCoord(header.lat, header.lng)
   const dateRange = formatDateRange(header.startDate, header.endDate)
@@ -322,23 +331,19 @@ function TripHeaderView({
   return (
     <header className="relative overflow-hidden bg-sea-tint px-5 pt-14 pb-5 lg:px-10 lg:pt-10 lg:pb-7">
       <TopoBg tone="sea" opacity={0.18} />
-      <div className="relative mb-6 flex items-center justify-between lg:hidden">
-        <Link
-          href="/home"
-          className="inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.2em] text-muted-foreground hover:text-foreground"
-        >
-          <Chevron dir="left" /> back
-        </Link>
-        <div className="flex items-center gap-3">
-          <Label>{isDream ? "Dream" : `Trip · ${tripCount}`}</Label>
+      <MobileHeaderNav
+        destinations={destinations}
+        current="trip"
+        className="relative mb-6"
+        center={
           <Link
             href={`/trips/${header.slug}/edit`}
             className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground hover:text-foreground"
           >
             {"// edit trip"}
           </Link>
-        </div>
-      </div>
+        }
+      />
       <div className="relative hidden lg:mb-2 lg:flex lg:items-center lg:justify-between">
         <Label>{isDream ? "Dream" : `Trip · ${tripCount}`}</Label>
         <Link
