@@ -2108,7 +2108,18 @@ export async function saveBudgetItemsForScope(
   const keptIds = new Set<string>()
   let order = 0
   for (const it of input.items) {
-    const fields = {
+    const fields: {
+      id?: string
+      trip_id: string
+      category: string
+      subject: string
+      when_label: string
+      amount_cents: number
+      location_id: string | null
+      when_start: string | null
+      when_end: string | null
+      sort_order: number
+    } = {
       trip_id: input.tripId,
       category: it.category,
       subject: it.subject.trim(),
@@ -2127,6 +2138,9 @@ export async function saveBudgetItemsForScope(
       if (error) return { error: error.message }
       keptIds.add(it.id)
     } else {
+      // Insert with the client-provided id so a just-added cost is immediately
+      // payable (its row exists at the id the editor already holds).
+      if (it.id) fields.id = it.id
       const { error } = await supabase.from("trip_budget_items").insert(fields)
       if (error) return { error: error.message }
     }
@@ -2242,6 +2256,54 @@ export async function unpayBudgetItem(
     .delete()
     .eq("id", item.paid_expense_id)
   if (delErr) return { error: delErr.message }
+
+  revalidatePath(`/trips/${tripSlug}`)
+  return {}
+}
+
+/**
+ * Deletes one planned cost immediately (and its linked expense, if paid), then
+ * recomputes the trip's planned total. No-op if the id isn't a saved item.
+ */
+export async function deleteBudgetItem(
+  itemId: string,
+  tripSlug: string,
+): Promise<{ error?: string }> {
+  const supabase = await createClient()
+  const { data: item, error: itemErr } = await supabase
+    .from("trip_budget_items")
+    .select("trip_id, paid_expense_id")
+    .eq("id", itemId)
+    .maybeSingle()
+  if (itemErr) return { error: itemErr.message }
+  if (!item) return {}
+
+  if (item.paid_expense_id) {
+    const { error } = await supabase
+      .from("expenses")
+      .delete()
+      .eq("id", item.paid_expense_id)
+    if (error) return { error: error.message }
+  }
+
+  const { error: delErr } = await supabase
+    .from("trip_budget_items")
+    .delete()
+    .eq("id", itemId)
+  if (delErr) return { error: delErr.message }
+
+  const { data: allRows } = await supabase
+    .from("trip_budget_items")
+    .select("amount_cents")
+    .eq("trip_id", item.trip_id)
+  const total = (allRows ?? []).reduce(
+    (s, r) => s + (r.amount_cents as number),
+    0,
+  )
+  await supabase
+    .from("trips")
+    .update({ planned_budget_cents: total })
+    .eq("id", item.trip_id)
 
   revalidatePath(`/trips/${tripSlug}`)
   return {}
