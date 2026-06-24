@@ -1,3 +1,4 @@
+import type { ReactNode } from "react"
 import Link from "next/link"
 import { ArrowLeft, ArrowRight, LogOut } from "lucide-react"
 
@@ -7,8 +8,12 @@ import type { CurrentWorkspace } from "@/lib/workspace/queries"
 
 export type NavKey = "home" | "on-the-road" | "checklists" | "trip"
 
-/** Canonical left-to-right order for the mobile prev/next arrows. */
-const NAV_ORDER: NavKey[] = ["home", "trip", "on-the-road", "checklists"]
+/**
+ * Left-to-right order for the mobile prev/next arrows. Mobile-only and
+ * intentionally excludes `checklists` (a desktop-only destination — editing
+ * checklists is a desktop task; mobile consumes them via packing's Import items).
+ */
+const MOBILE_NAV_ORDER: NavKey[] = ["home", "trip", "on-the-road"]
 
 /** Posts to the existing /api/signout route, then redirects to the landing page. */
 export function SignOutButton({ className }: { className?: string }) {
@@ -165,37 +170,75 @@ export function MobileTopNav({
   destinations: NavDestination[]
   current: NavKey
 }) {
-  const ordered = NAV_ORDER.map((key) =>
+  const ordered = MOBILE_NAV_ORDER.map((key) =>
     destinations.find((d) => d.key === key),
   ).filter((d): d is NavDestination => d !== undefined)
 
   const i = ordered.findIndex((d) => d.key === current)
+
+  // Current page isn't in the mobile order (e.g. /checklists on a phone, since
+  // checklists is desktop-only): a single back arrow to Home. Home is always present.
+  if (i === -1) {
+    const home = ordered.find((d) => d.key === "home")
+    return <MobileNavBar left={home ? <PrevArrow dest={home} /> : <span />} />
+  }
+
   const n = ordered.length
+
+  // Only Home exists (no active trip, not on the road): no neighbour to point at.
+  if (n === 1) {
+    return <MobileNavBar left={<span />} />
+  }
+
   const prev = ordered[(i - 1 + n) % n]
   const next = ordered[(i + 1) % n]
   const showPrev = prev.key !== next.key
 
   return (
+    <MobileNavBar
+      left={showPrev ? <PrevArrow dest={prev} /> : <span />}
+      right={<NextArrow dest={next} />}
+    />
+  )
+}
+
+/** Sticky mobile bar shell: a left slot, then the right slot beside sign-out. */
+function MobileNavBar({
+  left,
+  right,
+}: {
+  left: ReactNode
+  right?: ReactNode
+}) {
+  return (
     <nav className="sticky top-0 z-20 flex items-center justify-between border-b border-border bg-card/95 px-4 py-2.5 backdrop-blur lg:hidden">
-      {showPrev ? (
-        <Link href={prev.href} className={arrowLabel}>
-          <ArrowLeft className="size-3.5" strokeWidth={1.75} />
-          <span className={prev.italic ? "font-serif italic normal-case" : undefined}>
-            {prev.label}
-          </span>
-        </Link>
-      ) : (
-        <span />
-      )}
+      {left}
       <div className="flex items-center gap-3">
-        <Link href={next.href} className={arrowLabel}>
-          <span className={next.italic ? "font-serif italic normal-case" : undefined}>
-            {next.label}
-          </span>
-          <ArrowRight className="size-3.5" strokeWidth={1.75} />
-        </Link>
+        {right}
         <SignOutButton className="flex items-center text-muted-foreground hover:text-foreground" />
       </div>
     </nav>
+  )
+}
+
+function PrevArrow({ dest }: { dest: NavDestination }) {
+  return (
+    <Link href={dest.href} className={arrowLabel}>
+      <ArrowLeft className="size-3.5" strokeWidth={1.75} />
+      <span className={dest.italic ? "font-serif italic normal-case" : undefined}>
+        {dest.label}
+      </span>
+    </Link>
+  )
+}
+
+function NextArrow({ dest }: { dest: NavDestination }) {
+  return (
+    <Link href={dest.href} className={arrowLabel}>
+      <span className={dest.italic ? "font-serif italic normal-case" : undefined}>
+        {dest.label}
+      </span>
+      <ArrowRight className="size-3.5" strokeWidth={1.75} />
+    </Link>
   )
 }
