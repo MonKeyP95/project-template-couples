@@ -2,7 +2,7 @@
 
 import * as React from "react"
 
-import { addExpenseCategory } from "@/lib/trips/actions"
+import { addExpenseCategory, deleteExpenseCategory } from "@/lib/trips/actions"
 import type { ExpenseCategoryRow } from "@/lib/trips/expense-types"
 import {
   Select,
@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/select"
 
 const ADD_SENTINEL = "__add_category__"
+const MANAGE_SENTINEL = "__manage_category__"
 
 export interface CategorySelectProps {
   categories: ExpenseCategoryRow[]
@@ -37,6 +38,7 @@ export function CategorySelect({
   disabled,
 }: CategorySelectProps) {
   const [adding, setAdding] = React.useState(false)
+  const [managing, setManaging] = React.useState(false)
   const [name, setName] = React.useState("")
   const [error, setError] = React.useState<string | null>(null)
   const [isPending, startTransition] = React.useTransition()
@@ -48,7 +50,29 @@ export function CategorySelect({
       setAdding(true)
       return
     }
+    if (next === MANAGE_SENTINEL) {
+      setManaging(true)
+      return
+    }
     onChange(next)
+  }
+
+  function remove(c: ExpenseCategoryRow) {
+    if (busy) return
+    if (
+      !confirm(
+        `Delete "${c.name}"? Its expenses move to "Other" and its planned budget items are removed.`,
+      )
+    )
+      return
+    startTransition(async () => {
+      const result = await deleteExpenseCategory(c.id, tripSlug)
+      if (result.error) {
+        setError(result.error)
+        return
+      }
+      setError(null)
+    })
   }
 
   function add() {
@@ -82,8 +106,44 @@ export function CategorySelect({
           <SelectItem value={ADD_SENTINEL} className="text-clay">
             + Add category…
           </SelectItem>
+          <SelectItem value={MANAGE_SENTINEL} className="text-muted-foreground">
+            Edit categories…
+          </SelectItem>
         </SelectContent>
       </Select>
+
+      {managing ? (
+        <div className="mt-2 rounded-lg border border-rule p-2">
+          <div className="mb-1.5 flex items-center justify-between">
+            <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
+              Edit categories
+            </span>
+            <button
+              type="button"
+              onClick={() => setManaging(false)}
+              className="font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground hover:text-foreground"
+            >
+              done
+            </button>
+          </div>
+          <div className="space-y-0.5">
+            {categories.map((c) => (
+              <div key={c.id} className="flex items-center justify-between gap-2">
+                <span className="text-[13px] text-foreground">{c.name}</span>
+                <button
+                  type="button"
+                  onClick={() => remove(c)}
+                  disabled={busy}
+                  aria-label={`Delete ${c.name}`}
+                  className="px-1 font-mono text-[13px] text-muted-foreground hover:text-clay disabled:opacity-50"
+                >
+                  ×
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : null}
 
       {adding ? (
         <div className="mt-2 flex items-center gap-2">

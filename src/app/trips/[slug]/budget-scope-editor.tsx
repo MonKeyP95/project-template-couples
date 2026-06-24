@@ -9,9 +9,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { addExpenseCategory, saveBudgetItemsForScope } from "@/lib/trips/actions"
+import {
+  addExpenseCategory,
+  payBudgetItem,
+  saveBudgetItemsForScope,
+  unpayBudgetItem,
+} from "@/lib/trips/actions"
 import type { BudgetItem } from "@/lib/trips/budget-item-types"
 import type { ExpenseCategoryRow } from "@/lib/trips/expense-types"
+import { deviceToday } from "@/lib/time/today"
 
 const CATEGORIES = [
   "Accommodation",
@@ -23,6 +29,10 @@ const CATEGORIES = [
 
 interface Row {
   id: string
+  /** Persisted item id; null for a row not yet saved. */
+  serverId: string | null
+  /** Expense logged when paid; null while unpaid. */
+  paidExpenseId: string | null
   category: string
   subject: string
   value: string
@@ -64,6 +74,8 @@ export function BudgetScopeEditor({
   const [rows, setRows] = React.useState<Row[]>(() =>
     items.map((it) => ({
       id: crypto.randomUUID(),
+      serverId: it.id,
+      paidExpenseId: it.paidExpenseId,
       category: it.category,
       subject: it.subject,
       value: it.amountCents ? (it.amountCents / 100).toFixed(0) : "",
@@ -117,6 +129,8 @@ export function BudgetScopeEditor({
       ...rs,
       {
         id: crypto.randomUUID(),
+        serverId: null,
+        paidExpenseId: null,
         category,
         subject: "",
         value: "",
@@ -158,10 +172,11 @@ export function BudgetScopeEditor({
     }
   }
 
-  function save() {
-    const payload = rows
+  function buildPayload() {
+    return rows
       .filter((r) => r.subject.trim() !== "" || asCents(r.value) > 0)
       .map((r) => ({
+        id: r.serverId ?? undefined,
         category: r.category,
         subject: r.subject,
         whenLabel: "",
@@ -170,15 +185,62 @@ export function BudgetScopeEditor({
         whenStart: withDates && r.whenStart ? r.whenStart : null,
         whenEnd: withDates && r.whenEnd ? r.whenEnd : null,
       }))
+  }
+
+  function save() {
     setError(null)
     startTransition(async () => {
       const res = await saveBudgetItemsForScope({
         tripId,
         tripSlug,
         locationId,
-        items: payload,
+        items: buildPayload(),
       })
       if (res.error) setError(res.error)
+    })
+  }
+
+  // Paying first persists the scope (so the logged expense matches what's shown
+  // and ids are stable), then marks this cost paid. Optimistically flip the pill.
+  function pay(row: Row) {
+    if (!row.serverId || pending) return
+    const serverId = row.serverId
+    setError(null)
+    startTransition(async () => {
+      const saveRes = await saveBudgetItemsForScope({
+        tripId,
+        tripSlug,
+        locationId,
+        items: buildPayload(),
+      })
+      if (saveRes.error) {
+        setError(saveRes.error)
+        return
+      }
+      const res = await payBudgetItem(serverId, tripSlug, deviceToday())
+      if (res.error) {
+        setError(res.error)
+        return
+      }
+      setRows((rs) =>
+        rs.map((r) => (r.id === row.id ? { ...r, paidExpenseId: "paid" } : r)),
+      )
+    })
+  }
+
+  function unpay(row: Row) {
+    if (!row.serverId || pending) return
+    const serverId = row.serverId
+    setError(null)
+    startTransition(async () => {
+      const res = await unpayBudgetItem(serverId, tripSlug)
+      if (res.error) {
+        setError(res.error)
+        return
+      }
+      setRows((rs) =>
+        rs.map((r) => (r.id === row.id ? { ...r, paidExpenseId: null } : r)),
+      )
     })
   }
 
@@ -261,6 +323,27 @@ export function BudgetScopeEditor({
                       placeholder="0"
                       className="w-16 rounded-lg border border-clay bg-transparent px-2 py-1.5 text-right text-[12px] text-foreground placeholder:text-muted-foreground focus:outline-none"
                     />
+                    {r.serverId ? (
+                      r.paidExpenseId ? (
+                        <button
+                          type="button"
+                          onClick={() => unpay(r)}
+                          disabled={pending}
+                          className="shrink-0 rounded-full border border-moss px-2 py-0.5 font-mono text-[9px] uppercase tracking-[0.12em] text-moss disabled:opacity-50"
+                        >
+                          paid ✓
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => pay(r)}
+                          disabled={pending}
+                          className="shrink-0 rounded-full border border-clay px-2 py-0.5 font-mono text-[9px] uppercase tracking-[0.12em] text-clay disabled:opacity-50"
+                        >
+                          to pay
+                        </button>
+                      )
+                    ) : null}
                     <button
                       type="button"
                       onClick={() => remove(r.id)}
