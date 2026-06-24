@@ -104,6 +104,18 @@ export function BudgetTab({
           locations={locations}
           categories={expenseCategories}
         />
+        <Ledger
+          expenses={expenses}
+          moves={[]}
+          members={members}
+          tripSlug={tripSlug}
+          locations={locations}
+          itineraryDays={itineraryDays}
+          categories={expenseCategories}
+          label="Expenses"
+          defaultExpanded={false}
+          bare
+        />
       </div>
 
       {/* Saved + planned budget */}
@@ -183,6 +195,7 @@ export function BudgetTab({
         locations={locations}
         itineraryDays={itineraryDays}
         categories={expenseCategories}
+        contributions={savingsContributions}
       />
     </section>
   )

@@ -8,6 +8,8 @@ export interface BudgetItem {
   whenStart: string | null
   whenEnd: string | null
   sortOrder: number
+  /** Expense logged when this cost was marked paid; null while unpaid. */
+  paidExpenseId: string | null
 }
 
 export interface BudgetItemRow {
@@ -20,6 +22,7 @@ export interface BudgetItemRow {
   when_start: string | null
   when_end: string | null
   sort_order: number
+  paid_expense_id: string | null
 }
 
 export function rowToBudgetItem(row: BudgetItemRow): BudgetItem {
@@ -33,5 +36,6 @@ export function rowToBudgetItem(row: BudgetItemRow): BudgetItem {
     whenStart: row.when_start,
     whenEnd: row.when_end,
     sortOrder: row.sort_order,
+    paidExpenseId: row.paid_expense_id,
   }
 }

@@ -525,6 +525,68 @@ export async function addExpenseCategory(
   }
 }
 
+export interface DeleteExpenseCategoryResult {
+  error?: string
+}
+
+/**
+ * Removes a trip's expense category. Its planned budget items are dropped (plans
+ * are disposable); its expenses are relabeled to "Other" so spend and settle-up
+ * totals are preserved. "Other" is the fallback target, so it can't be removed
+ * while it still holds expenses.
+ */
+export async function deleteExpenseCategory(
+  categoryId: string,
+  tripSlug: string,
+): Promise<DeleteExpenseCategoryResult> {
+  const FALLBACK = "Other"
+  const supabase = await createClient()
+
+  const { data: cat, error: catError } = await supabase
+    .from("expense_categories")
+    .select("trip_id, name")
+    .eq("id", categoryId)
+    .maybeSingle()
+  if (catError) return { error: catError.message }
+  if (!cat) return {}
+
+  const { count } = await supabase
+    .from("expenses")
+    .select("id", { count: "exact", head: true })
+    .eq("trip_id", cat.trip_id)
+    .eq("category", cat.name)
+  const hasExpenses = (count ?? 0) > 0
+
+  if (cat.name === FALLBACK && hasExpenses) {
+    return { error: `"${FALLBACK}" is the fallback category; reassign its expenses first.` }
+  }
+
+  if (hasExpenses) {
+    const { error: moveError } = await supabase
+      .from("expenses")
+      .update({ category: FALLBACK })
+      .eq("trip_id", cat.trip_id)
+      .eq("category", cat.name)
+    if (moveError) return { error: moveError.message }
+  }
+
+  const { error: itemsError } = await supabase
+    .from("trip_budget_items")
+    .delete()
+    .eq("trip_id", cat.trip_id)
+    .eq("category", cat.name)
+  if (itemsError) return { error: itemsError.message }
+
+  const { error } = await supabase
+    .from("expense_categories")
+    .delete()
+    .eq("id", categoryId)
+  if (error) return { error: error.message }
+
+  revalidatePath(`/trips/${tripSlug}`)
+  return {}
+}
+
 export interface CreateTripInput {
   name: string
   slug: string
@@ -1922,6 +1984,8 @@ export async function updateTripBudget(
 }
 
 export interface SaveBudgetItemInput {
+  /** Existing item id; present => update in place (preserving paid link). */
+  id?: string
   category: string
   subject: string
   whenLabel: string
@@ -2016,19 +2080,6 @@ export interface SaveScopeInput {
 export async function saveBudgetItemsForScope(
   input: SaveScopeInput,
 ): Promise<{ error?: string }> {
-  let order = 0
-  const rows: {
-    trip_id: string
-    category: string
-    subject: string
-    when_label: string
-    amount_cents: number
-    location_id: string | null
-    when_start: string | null
-    when_end: string | null
-    sort_order: number
-  }[] = []
-
   for (const it of input.items) {
     if (it.category.trim() === "" || it.category.length > 40) {
       return { error: "Invalid budget category." }
@@ -2036,7 +2087,28 @@ export async function saveBudgetItemsForScope(
     if (!validCents(it.amountCents)) {
       return { error: "Budget amount out of range." }
     }
-    rows.push({
+  }
+
+  const supabase = await createClient()
+
+  // Existing ids in this scope, so we can update-in-place (preserving each
+  // item's paid link) instead of wiping and reinserting.
+  let existingQ = supabase
+    .from("trip_budget_items")
+    .select("id")
+    .eq("trip_id", input.tripId)
+  existingQ =
+    input.locationId === null
+      ? existingQ.is("location_id", null)
+      : existingQ.eq("location_id", input.locationId)
+  const { data: existing, error: exErr } = await existingQ
+  if (exErr) return { error: exErr.message }
+  const existingIds = new Set((existing ?? []).map((r) => r.id as string))
+
+  const keptIds = new Set<string>()
+  let order = 0
+  for (const it of input.items) {
+    const fields = {
       trip_id: input.tripId,
       category: it.category,
       subject: it.subject.trim(),
@@ -2046,27 +2118,27 @@ export async function saveBudgetItemsForScope(
       when_start: it.whenStart ?? null,
       when_end: it.whenEnd ?? null,
       sort_order: order++,
-    })
+    }
+    if (it.id && existingIds.has(it.id)) {
+      const { error } = await supabase
+        .from("trip_budget_items")
+        .update(fields)
+        .eq("id", it.id)
+      if (error) return { error: error.message }
+      keptIds.add(it.id)
+    } else {
+      const { error } = await supabase.from("trip_budget_items").insert(fields)
+      if (error) return { error: error.message }
+    }
   }
 
-  const supabase = await createClient()
-
-  let del = supabase
-    .from("trip_budget_items")
-    .delete()
-    .eq("trip_id", input.tripId)
-  del =
-    input.locationId === null
-      ? del.is("location_id", null)
-      : del.eq("location_id", input.locationId)
-  const { error: delErr } = await del
-  if (delErr) return { error: delErr.message }
-
-  if (rows.length > 0) {
-    const { error: insErr } = await supabase
+  const toDelete = [...existingIds].filter((id) => !keptIds.has(id))
+  if (toDelete.length > 0) {
+    const { error: delErr } = await supabase
       .from("trip_budget_items")
-      .insert(rows)
-    if (insErr) return { error: insErr.message }
+      .delete()
+      .in("id", toDelete)
+    if (delErr) return { error: delErr.message }
   }
 
   const { data: allRows } = await supabase
@@ -2084,6 +2156,94 @@ export async function saveBudgetItemsForScope(
   if (budErr) return { error: budErr.message }
 
   revalidatePath(`/trips/${input.tripSlug}`)
+  return {}
+}
+
+/**
+ * Marks a planned cost paid: logs an expense from it (title = its subject, or
+ * its category if blank; amount/category/location from the cost; paid by the
+ * caller, dated `dayDate`) and links it via paid_expense_id. Idempotent: a cost
+ * already paid is left as-is.
+ */
+export async function payBudgetItem(
+  itemId: string,
+  tripSlug: string,
+  dayDate: string | null,
+): Promise<{ error?: string }> {
+  if (dayDate !== null && !/^\d{4}-\d{2}-\d{2}$/.test(dayDate)) {
+    return { error: "Invalid day." }
+  }
+  const supabase = await createClient()
+  const { data: userData, error: userError } = await supabase.auth.getUser()
+  if (userError || !userData.user) return { error: "Not signed in." }
+
+  const { data: item, error: itemErr } = await supabase
+    .from("trip_budget_items")
+    .select("trip_id, category, subject, amount_cents, location_id, paid_expense_id")
+    .eq("id", itemId)
+    .maybeSingle()
+  if (itemErr) return { error: itemErr.message }
+  if (!item) return {}
+  if (item.paid_expense_id) return {}
+  if (!item.amount_cents || item.amount_cents <= 0) {
+    return { error: "Set a cost before paying." }
+  }
+
+  const title = (item.subject as string).trim() || (item.category as string)
+  const { data: exp, error: expErr } = await supabase
+    .from("expenses")
+    .insert({
+      trip_id: item.trip_id,
+      title,
+      amount_cents: item.amount_cents,
+      currency: "EUR",
+      paid_by: userData.user.id,
+      category: item.category,
+      day_date: dayDate,
+      location_id: item.location_id,
+      is_settlement: false,
+    })
+    .select("id")
+    .single()
+  if (expErr) return { error: expErr.message }
+
+  const { error: updErr } = await supabase
+    .from("trip_budget_items")
+    .update({ paid_expense_id: exp.id })
+    .eq("id", itemId)
+  if (updErr) return { error: updErr.message }
+
+  revalidatePath(`/trips/${tripSlug}`)
+  return {}
+}
+
+/** Undoes a payment: deletes the linked expense and clears paid_expense_id. */
+export async function unpayBudgetItem(
+  itemId: string,
+  tripSlug: string,
+): Promise<{ error?: string }> {
+  const supabase = await createClient()
+  const { data: item, error: itemErr } = await supabase
+    .from("trip_budget_items")
+    .select("paid_expense_id")
+    .eq("id", itemId)
+    .maybeSingle()
+  if (itemErr) return { error: itemErr.message }
+  if (!item || !item.paid_expense_id) return {}
+
+  const { error: clrErr } = await supabase
+    .from("trip_budget_items")
+    .update({ paid_expense_id: null })
+    .eq("id", itemId)
+  if (clrErr) return { error: clrErr.message }
+
+  const { error: delErr } = await supabase
+    .from("expenses")
+    .delete()
+    .eq("id", item.paid_expense_id)
+  if (delErr) return { error: delErr.message }
+
+  revalidatePath(`/trips/${tripSlug}`)
   return {}
 }
 
