@@ -1,11 +1,14 @@
 import Link from "next/link"
-import { LogOut } from "lucide-react"
+import { ArrowLeft, ArrowRight, LogOut } from "lucide-react"
 
 import { Avatar, Chevron, Coord, Label } from "@/components/together"
 import { ThemeToggle } from "@/components/theme-toggle"
 import type { CurrentWorkspace } from "@/lib/workspace/queries"
 
 export type NavKey = "home" | "on-the-road" | "checklists" | "trip"
+
+/** Canonical left-to-right order for the mobile prev/next arrows. */
+const NAV_ORDER: NavKey[] = ["home", "trip", "on-the-road", "checklists"]
 
 /** Posts to the existing /api/signout route, then redirects to the landing page. */
 export function SignOutButton({ className }: { className?: string }) {
@@ -148,6 +151,13 @@ export function LeftRail({
   )
 }
 
+const arrowLabel = "flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground hover:text-foreground"
+
+/**
+ * Prev/next arrows over the canonical page order. The current page sits between
+ * them; prev/next wrap around. With only two pages they resolve to the same
+ * other page, so a single (right) arrow is shown.
+ */
 export function MobileTopNav({
   destinations,
   current,
@@ -155,27 +165,37 @@ export function MobileTopNav({
   destinations: NavDestination[]
   current: NavKey
 }) {
+  const ordered = NAV_ORDER.map((key) =>
+    destinations.find((d) => d.key === key),
+  ).filter((d): d is NavDestination => d !== undefined)
+
+  const i = ordered.findIndex((d) => d.key === current)
+  const n = ordered.length
+  const prev = ordered[(i - 1 + n) % n]
+  const next = ordered[(i + 1) % n]
+  const showPrev = prev.key !== next.key
+
   return (
-    <nav className="sticky top-0 z-20 flex items-center gap-1 border-b border-border bg-card/95 px-4 py-2 backdrop-blur lg:hidden">
-      {destinations.map((d) =>
-        d.key === current ? (
-          <span
-            key={d.key}
-            className="rounded-full bg-sea-tint px-3 py-1.5 font-mono text-[10px] uppercase tracking-[0.18em] text-foreground"
-          >
-            {d.label}
+    <nav className="sticky top-0 z-20 flex items-center justify-between border-b border-border bg-card/95 px-4 py-2.5 backdrop-blur lg:hidden">
+      {showPrev ? (
+        <Link href={prev.href} className={arrowLabel}>
+          <ArrowLeft className="size-3.5" strokeWidth={1.75} />
+          <span className={prev.italic ? "font-serif italic normal-case" : undefined}>
+            {prev.label}
           </span>
-        ) : (
-          <Link
-            key={d.key}
-            href={d.href}
-            className="rounded-full px-3 py-1.5 font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground hover:text-foreground"
-          >
-            {d.label}
-          </Link>
-        ),
+        </Link>
+      ) : (
+        <span />
       )}
-      <SignOutButton className="ml-auto flex items-center px-2 py-1.5 text-muted-foreground hover:text-foreground" />
+      <div className="flex items-center gap-3">
+        <Link href={next.href} className={arrowLabel}>
+          <span className={next.italic ? "font-serif italic normal-case" : undefined}>
+            {next.label}
+          </span>
+          <ArrowRight className="size-3.5" strokeWidth={1.75} />
+        </Link>
+        <SignOutButton className="flex items-center text-muted-foreground hover:text-foreground" />
+      </div>
     </nav>
   )
 }
