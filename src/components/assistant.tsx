@@ -57,7 +57,7 @@ export function Assistant() {
         aria-label="Open assistant"
         className="fixed bottom-5 right-5 z-40 rounded-full border border-border bg-foreground px-4 py-3 font-mono text-[10px] uppercase tracking-[0.2em] text-background shadow-lg"
       >
-        ask
+        assistant
       </button>
     )
   }
