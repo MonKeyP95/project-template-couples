@@ -75,7 +75,7 @@ has that token with `is_public = true`.
 ```
 {
   name, country, day_count,
-  locations: [ { name, sort_order, day_span } ],
+  locations: [ { name, sort_order } ],
   days: [ { ordinal, title, tag, tone, location_name, events: [ { time, text } ] } ]
 }
 ```
@@ -83,27 +83,37 @@ has that token with `is_public = true`.
 - Selected only from `trips`, `itinerary_locations`, `itinerary_days`.
 - Structurally absent: `day_date` (only a derived `ordinal`), `created_by`, any
   member join, and every budget/expense/savings table.
-- `grant execute on function public.shared_trip(text) to anon;` — and only this
-  grant to `anon`.
+- Each day carries its `location_name` so the view groups days under their
+  location header; `day_span` is omitted (derivable, unused) to stay minimal.
+- `grant execute on function public.shared_trip(text) to anon, authenticated;`
+  — and only this grant. No other anon access to any table.
 
-### `public.copy_shared_trip(p_token text, p_workspace_id uuid, p_start_date date)` — clone RPC
+### Copy: no privileged write RPC needed
 
-`security definer` (must read a trip the caller cannot normally see).
+The copier already has full write rights in their own workspace under existing
+RLS — `trips`, `trip_members`, `itinerary_locations`, `itinerary_days` all allow
+inserts where the caller is a workspace member and `created_by = auth.uid()`.
+The only privileged operation is *reading* the source trip, which `shared_trip()`
+already exposes as a safe projection.
 
-- Verifies `public.is_workspace_member(p_workspace_id)` before any write.
-- Verifies the source trip exists and `is_public = true`.
-- Creates a new `trips` row in `p_workspace_id`: copies `name`, `country`;
-  `start_date = p_start_date`; `end_date = p_start_date + (day_count - 1)`;
-  fresh unique `slug`; `created_by = auth.uid()`; `is_public = false`,
-  `share_token = null`.
-- Clones `itinerary_locations` (preserving `sort_order`), then `itinerary_days`
-  laid out on consecutive dates from `p_start_date` in original ordinal order,
-  carrying `title`, `tag`, `tone`, `events`, and remapped `location_id`. Every
-  row stamped `created_by = auth.uid()`.
-- Returns the new trip's `slug` for redirect.
+So the copy is plain TypeScript in a Server Action: call `shared_trip(token)` to
+get the projection JSON, then clone it with ordinary inserts under the caller's
+own RLS:
 
-Mirrors the proven `promote_dream_to_dated` pattern (re-insert rows in order,
-stamped with the caller).
+- New `trips` row in the chosen workspace: `name`, `country` from the projection;
+  `start_date = p_start_date`; `end_date = start + (day_count - 1)`; fresh unique
+  `slug`; `created_by = auth.uid()`; `is_public = false`, `share_token = null`.
+  Then a `trip_members` row per workspace member and the default expense
+  categories — exactly as `createTrip` does.
+- Clone `itinerary_locations` (preserving `sort_order`), build a
+  name -> new-id map, then insert `itinerary_days` on consecutive dates from
+  `p_start_date` in ordinal order, carrying `title`, `tag`, `tone`, `events`,
+  and `location_id` remapped via the name map. Each location's `start_date` /
+  `end_date` is set from the min/max date of its days. Every row stamped
+  `created_by = auth.uid()`.
+
+This keeps the only `security definer` surface a single read-only function and
+reuses the proven `createTrip` insert path.
 
 ### Why a full dated clone, not "land as a dream"
 
@@ -119,7 +129,8 @@ privacy leak.
 1. Viewer on `/t/[token]` taps "Plan my own trip from this."
 2. If logged out, sign up / log in, then return to the same token.
 3. Pick their own start date and confirm target workspace.
-4. `copy_shared_trip` clones into a new dated trip in their workspace.
+4. The `copySharedTrip` Server Action reads `shared_trip(token)` and clones it
+   into a new dated trip in their workspace via normal-RLS inserts.
 5. Redirect to their new `/trips/[slug]`, fully editable; one-time toast
    "Copied — make it yours."
 
@@ -153,8 +164,10 @@ privacy leak.
 
 - `anon` gets `execute` on `shared_trip` only. No anon `select` on any base
   table. A leaked token exposes only the projection of that one trip.
-- `copy_shared_trip` requires an authenticated caller, verifies workspace
-  membership before writing, and stamps every row `created_by = auth.uid()`.
+- The copy path has no privileged write RPC: `copySharedTrip` runs as the
+  authenticated caller, so every insert is gated by existing RLS (workspace
+  member + `created_by = auth.uid()`). The only `security definer` function is
+  the read-only `shared_trip`.
 - Token is the capability: 16+ char random, unguessable. Un-sharing revokes by
   flipping `is_public`; the projection RPC returns null unless `is_public = true`.
 - Migration idempotent: `add column if not exists`, `create or replace function`,
@@ -167,15 +180,16 @@ privacy leak.
 
 ## Files (anticipated)
 
-- `supabase/migrations/2026MMDD000001_shareable_trip.sql` — columns + both RPCs +
-  grants (idempotent, pasted into Supabase SQL editor by hand).
+- `supabase/migrations/2026MMDD000001_shareable_trip.sql` — columns + the
+  `shared_trip` read RPC + grant (idempotent, pasted into Supabase SQL editor by
+  hand).
 - `src/app/t/[token]/page.tsx` — public read-only view (Server Component, no
   auth).
 - Share dialog component under `src/components/` + a "Share" entry in the trip
-  header.
-- Copy action (Server Action) calling `copy_shared_trip`, with a start-date /
-  workspace prompt.
-- `*-queries.ts` / `*-types.ts` pair for the shared-trip read + copy, following
+  header, plus a `shareTrip` / `unshareTrip` Server Action.
+- `copySharedTrip` Server Action (reads `shared_trip`, clones via normal-RLS
+  inserts), with a start-date prompt on the public page.
+- `*-queries.ts` / `*-types.ts` pair for the shared-trip projection, following
   the existing client/server split rule.
 
 ## Open questions deferred to later phases
