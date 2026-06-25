@@ -7,7 +7,7 @@ const PUBLIC_ROUTES: ReadonlyArray<string> = [
   "/signup",
   "/api/signout",
 ]
-const PUBLIC_ROUTE_PREFIXES: ReadonlyArray<string> = ["/join/"]
+const PUBLIC_ROUTE_PREFIXES: ReadonlyArray<string> = ["/join/", "/t/"]
 
 function isPublic(pathname: string): boolean {
   if (PUBLIC_ROUTES.includes(pathname)) return true
