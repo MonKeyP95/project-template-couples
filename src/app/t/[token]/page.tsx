@@ -1,6 +1,9 @@
 import { Label, TopoBg, WaveGlyph } from "@/components/together"
+import { createClient } from "@/lib/supabase/server"
 import { getSharedTrip } from "@/lib/trips/shared-trip-queries"
 import type { SharedDay, SharedTrip } from "@/lib/trips/shared-trip-types"
+
+import { CopyCta } from "./copy-cta"
 
 export default async function SharedTripPage({
   params,
@@ -23,10 +26,15 @@ export default async function SharedTripPage({
     )
   }
 
+  const supabase = await createClient()
+  const { data: userData } = await supabase.auth.getUser()
+  const isAuthed = Boolean(userData.user)
+
   return (
     <main className="relative mx-auto min-h-screen w-full max-w-[440px] pb-24 lg:max-w-[760px]">
       <SharedHeader trip={trip} />
       <SharedBody trip={trip} />
+      <CopyCta token={token} isAuthed={isAuthed} />
     </main>
   )
 }
