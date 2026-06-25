@@ -13,6 +13,7 @@
 - Trip notes and restaurant ideas
 - Dream destinations board (dateless dreams that promote to dated trips)
 - Dark mode
+- Shareable trips — one-toggle public, read-only itinerary at `/t/<token>` (anonymous view; budget/expenses/members/exact dates never shared), with "copy this plan into my workspace" as a new dated trip
 
 ## Next (current focus)
 

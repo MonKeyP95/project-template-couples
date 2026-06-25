@@ -31,6 +31,8 @@ import { getTripNotes } from "@/lib/trips/note-queries"
 import { getPackingCategories, getPackingItems } from "@/lib/trips/packing-queries"
 import { listTripsForWorkspace } from "@/lib/trips/list-queries"
 import { getTripBySlug, type TripHeader } from "@/lib/trips/queries"
+import { getTripShareState } from "@/lib/trips/shared-trip-queries"
+import { ShareTripDialog } from "@/components/share-trip-dialog"
 import {
   getCurrentWorkspace,
   type CurrentWorkspace,
@@ -161,6 +163,8 @@ export default async function TripPage({
   const header = await getTripBySlug(workspace.id, slug)
   if (!header) notFound()
 
+  const shareState = await getTripShareState(header.id)
+
   const detail = getTripDetailBySlug(slug)
   const activeTab: TabId = isTab(tab) ? tab : "budget"
 
@@ -225,6 +229,7 @@ export default async function TripPage({
           header={header}
           workspace={workspace}
           destinations={navDestinations}
+          shareState={shareState}
         />
         <DesktopTabs slug={header.slug} active={activeTab} />
         {activeTab === "itinerary" && detail && header.startDate ? (
@@ -316,10 +321,12 @@ function TripHeaderView({
   header,
   workspace,
   destinations,
+  shareState,
 }: {
   header: TripHeader
   workspace: NonNullable<Awaited<ReturnType<typeof getCurrentWorkspace>>>
   destinations: NavDestination[]
+  shareState: { isPublic: boolean; shareToken: string | null }
 }) {
   const coord = formatCoord(header.lat, header.lng)
   const dateRange = formatDateRange(header.startDate, header.endDate)
@@ -346,12 +353,20 @@ function TripHeaderView({
       />
       <div className="relative hidden lg:mb-2 lg:flex lg:items-center lg:justify-between">
         <Label>{isDream ? "Dream" : `Trip · ${tripCount}`}</Label>
-        <Link
-          href={`/trips/${header.slug}/edit`}
-          className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground hover:text-foreground"
-        >
-          {"// edit trip"}
-        </Link>
+        <div className="flex items-center gap-4">
+          <ShareTripDialog
+            tripId={header.id}
+            tripSlug={header.slug}
+            initialPublic={shareState.isPublic}
+            initialToken={shareState.shareToken}
+          />
+          <Link
+            href={`/trips/${header.slug}/edit`}
+            className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground hover:text-foreground"
+          >
+            {"// edit trip"}
+          </Link>
+        </div>
       </div>
       <div className="relative flex items-end justify-between">
         <div>
