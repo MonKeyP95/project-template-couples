@@ -199,13 +199,24 @@ export function MobileHeaderNav({
   }
   // ordered.length === 1 (only Home): no neighbour to point at — arrows stay empty.
 
+  // Sign-out rides with the center slot when there is one (trip page: beside "edit
+  // trip", so the right arrow stays the clean right edge); otherwise it sits far right.
+  const signOut = (
+    <SignOutButton className="flex items-center text-muted-foreground hover:text-foreground" />
+  )
+
   return (
     <div className={cn("flex items-center justify-between lg:hidden", className)}>
       {left}
-      {center ? <div className="min-w-0">{center}</div> : null}
+      {center ? (
+        <div className="flex min-w-0 items-center gap-3">
+          {center}
+          {signOut}
+        </div>
+      ) : null}
       <div className="flex items-center gap-3">
         {right}
-        <SignOutButton className="flex items-center text-muted-foreground hover:text-foreground" />
+        {center ? null : signOut}
       </div>
     </div>
   )
