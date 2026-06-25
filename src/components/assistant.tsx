@@ -1,15 +1,22 @@
 "use client"
 
 import * as React from "react"
+import { usePathname } from "next/navigation"
 
 import { requestChatReply, type ChatMessage } from "@/lib/ai/chat"
+import { AiToggle } from "@/components/ai-mode"
 
-export interface TripChatProps {
-  tripSlug: string
-}
+// Landing + auth have no assistant.
+const HIDDEN_PATHS = new Set(["/", "/signin", "/signup"])
 
-export function TripChat({ tripSlug }: TripChatProps) {
-  void tripSlug
+/**
+ * The single floating assistant: a mock chat plus the AI on/off toggle in its header.
+ * Replaces the separate bottom-left "AI on/off" pill and bottom-right "ask" button.
+ * Chat always works; the toggle only gates the proactive surfaces (suggestion cards,
+ * budget drafter), which read `useAiMode()` elsewhere.
+ */
+export function Assistant() {
+  const pathname = usePathname()
   const [open, setOpen] = React.useState(false)
   const [messages, setMessages] = React.useState<ChatMessage[]>([])
   const [input, setInput] = React.useState("")
@@ -19,6 +26,8 @@ export function TripChat({ tripSlug }: TripChatProps) {
   React.useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth" })
   }, [messages, pending, open])
+
+  if (HIDDEN_PATHS.has(pathname)) return null
 
   function send() {
     const text = input.trim()
@@ -45,7 +54,7 @@ export function TripChat({ tripSlug }: TripChatProps) {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        aria-label="Open chat"
+        aria-label="Open assistant"
         className="fixed bottom-5 right-5 z-40 rounded-full border border-border bg-foreground px-4 py-3 font-mono text-[10px] uppercase tracking-[0.2em] text-background shadow-lg"
       >
         ask
@@ -59,21 +68,24 @@ export function TripChat({ tripSlug }: TripChatProps) {
         <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-moss">
           / assistant
         </span>
-        <button
-          type="button"
-          onClick={() => setOpen(false)}
-          aria-label="Close chat"
-          className="border-0 bg-transparent font-mono text-[13px] text-muted-foreground hover:text-foreground"
-        >
-          ×
-        </button>
+        <div className="flex items-center gap-3">
+          <AiToggle />
+          <button
+            type="button"
+            onClick={() => setOpen(false)}
+            aria-label="Close assistant"
+            className="border-0 bg-transparent font-mono text-[13px] text-muted-foreground hover:text-foreground"
+          >
+            ×
+          </button>
+        </div>
       </div>
 
       <div className="flex-1 space-y-2.5 overflow-y-auto px-3.5 py-3">
         {messages.length === 0 ? (
           <p className="font-mono text-[10px] leading-relaxed tracking-[0.04em] text-muted-foreground">
-            Ask me anything about your trip — packing, budget, ideas. (I&apos;m
-            a placeholder until I&apos;m connected to a real assistant.)
+            Ask me anything — packing, budget, ideas. (I&apos;m a placeholder
+            until I&apos;m connected to a real assistant.)
           </p>
         ) : (
           messages.map((m, i) => (
