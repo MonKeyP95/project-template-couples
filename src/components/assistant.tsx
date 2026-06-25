@@ -68,7 +68,10 @@ export function Assistant() {
         <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-moss">
           / assistant
         </span>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2.5">
+          <span className="font-mono text-[9px] uppercase tracking-[0.16em] text-muted-foreground">
+            AI mode
+          </span>
           <AiToggle />
           <button
             type="button"
