@@ -233,21 +233,6 @@ export default async function HomePage() {
             </section>
           ) : null}
 
-          {buckets.past.length > 0 ? (
-            <section className="mt-9 md:mt-12">
-              <div className="mb-2.5 flex items-center justify-between md:mb-4">
-                <Label>Past · {buckets.past.length}</Label>
-                <span className="font-mono text-[10px] tracking-[0.06em] text-muted-foreground">
-                  most recent first
-                </span>
-              </div>
-              <div className="flex flex-col gap-2.5 md:grid md:grid-cols-3 md:gap-4 lg:grid-cols-4">
-                {buckets.past.map((p) => (
-                  <CompactRow key={p.id} trip={p} dimmed />
-                ))}
-              </div>
-            </section>
-          ) : null}
         </>
       )}
 
@@ -260,6 +245,22 @@ export default async function HomePage() {
         <span>+ new trip or dream</span>
         <Chevron />
       </Link>
+
+      {!youOnly && buckets.past.length > 0 ? (
+        <section className="mt-9 md:mt-12">
+          <div className="mb-2.5 flex items-center justify-between md:mb-4">
+            <Label>Past · {buckets.past.length}</Label>
+            <span className="font-mono text-[10px] tracking-[0.06em] text-muted-foreground">
+              most recent first
+            </span>
+          </div>
+          <div className="flex flex-col gap-2.5 md:grid md:grid-cols-3 md:gap-4 lg:grid-cols-4">
+            {buckets.past.map((p) => (
+              <CompactRow key={p.id} trip={p} dimmed />
+            ))}
+          </div>
+        </section>
+      ) : null}
 
       <footer className="mt-12 flex items-center justify-center gap-5 md:mt-16 lg:hidden">
         <ThemeToggle initialDark={dark} />

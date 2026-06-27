@@ -29,6 +29,12 @@ export function Assistant() {
 
   if (HIDDEN_PATHS.has(pathname)) return null
 
+  // The trip page has a fixed bottom tab bar; lift the pill above it on mobile so
+  // they don't collide. Desktop has no bottom bar, so drop back to the corner.
+  const bottomPos = pathname.startsWith("/trips/")
+    ? "bottom-24 lg:bottom-5"
+    : "bottom-5"
+
   function send() {
     const text = input.trim()
     if (!text || pending) return
@@ -55,7 +61,7 @@ export function Assistant() {
         type="button"
         onClick={() => setOpen(true)}
         aria-label="Open assistant"
-        className="fixed bottom-5 right-5 z-40 rounded-full border border-border bg-foreground px-4 py-3 font-mono text-[10px] uppercase tracking-[0.2em] text-background shadow-lg"
+        className={`fixed ${bottomPos} right-5 z-40 rounded-full border border-border bg-foreground px-4 py-3 font-mono text-[10px] uppercase tracking-[0.2em] text-background shadow-lg`}
       >
         assistant
       </button>
@@ -63,7 +69,7 @@ export function Assistant() {
   }
 
   return (
-    <div className="fixed bottom-5 right-5 z-40 flex h-[28rem] w-[20rem] max-w-[calc(100vw-2.5rem)] flex-col rounded-xl border border-border bg-card shadow-xl">
+    <div className={`fixed ${bottomPos} right-5 z-40 flex h-[28rem] w-[20rem] max-w-[calc(100vw-2.5rem)] flex-col rounded-xl border border-border bg-card shadow-xl`}>
       <div className="flex items-center justify-between border-b border-border px-3.5 py-2.5">
         <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-moss">
           / assistant

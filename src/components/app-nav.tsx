@@ -166,7 +166,8 @@ const arrowLabel = "flex items-center gap-1.5 font-mono text-[10px] uppercase tr
  * arrows over the mobile page order: the current page sits between them and the arrows
  * wrap around. Two pages -> a single (right) arrow; `current` not in the order (e.g.
  * /checklists) -> a lone `<- Home`; one page -> no arrows. `center` fills the middle
- * slot (the trip page passes its "edit trip" link). Sign-out stays on the right.
+ * slot (the trip page passes its "edit trip" link). Sign-out always sits in that
+ * middle slot, so it reads the same on every page.
  */
 export function MobileHeaderNav({
   destinations,
@@ -201,25 +202,20 @@ export function MobileHeaderNav({
   }
   // ordered.length === 1 (only Home): no neighbour to point at — arrows stay empty.
 
-  // Sign-out rides with the center slot when there is one (trip page: beside "edit
-  // trip", so the right arrow stays the clean right edge); otherwise it sits far right.
+  // Sign-out always sits in the middle slot (beside the center content when there is
+  // one, e.g. the trip page's "edit trip"), so the right slot stays the clean arrow edge.
   const signOut = (
     <SignOutButton className="flex items-center text-muted-foreground hover:text-foreground" />
   )
 
   return (
-    <div className={cn("flex items-center justify-between lg:hidden", className)}>
-      {left}
-      {center ? (
-        <div className="flex min-w-0 items-center gap-3">
-          {center}
-          {signOut}
-        </div>
-      ) : null}
-      <div className="flex items-center gap-3">
-        {right}
-        {center ? null : signOut}
+    <div className={cn("flex items-center lg:hidden", className)}>
+      <div className="flex flex-1 items-center justify-start">{left}</div>
+      <div className="flex min-w-0 items-center gap-3">
+        {center}
+        {signOut}
       </div>
+      <div className="flex flex-1 items-center justify-end gap-3">{right}</div>
     </div>
   )
 }
