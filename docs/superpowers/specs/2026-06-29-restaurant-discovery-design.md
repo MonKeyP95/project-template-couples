@@ -192,14 +192,48 @@ now, near us, this meal, one tap.
   event, so the same later good/bad mark (already spec'd for the On-the-road page)
   covers it.
 
+### 7. Auth'd, preference-aware route (slice B2)
+
+Slice B1 shipped `/api/ai/discover` as a body-driven smoke route (destination +
+when + defaults, briefly public). B2 turns it into the real endpoint — a thin
+enrichment seam that loads the couple's preferences server-side. **Decision
+(2026-06-29): preferences-only enrichment; the doors are unchanged.**
+
+- **One file changes:** `src/app/api/ai/discover/route.ts`. `claude.ts`,
+  `searchRestaurants`, `RestaurantQuery`, and the doors stay as they are.
+- **Gate:** keep the `isAiEnabled()` 403. The proxy already requires a session
+  (the B-road re-gate removed the temporary `PUBLIC_ROUTES` entry), so the route
+  assumes an authenticated request.
+- **Resolve → preferences:** `getCurrentWorkspace()` (resolves the user and
+  workspace; returns `null` when unauthenticated or workspace-less → the route
+  returns 401) → `getDiningPreferences(workspace.id)` (slice A;
+  `src/lib/preferences/dining-queries.ts`).
+- **Build the query:** take only `{ destination, when }` from the body (what the
+  door knows) and fill the rest of `RestaurantQuery` from the loaded preferences
+  (`budgetBand`, `vibeTags`, `dietary`, `cuisines`). Preferences are
+  server-authoritative; any preference fields in the body are ignored.
+- **Why preferences-only, not a `tripId`:** the doors already compute the
+  destination/when more precisely than a trip row would (on-the-road uses today's
+  *location*, not the trip country). The only thing a door cannot know is the
+  workspace-scoped preferences, so that is all the route adds. Loading a trip
+  server-side would make the on-the-road door *worse*. Mode-agnostic by
+  construction: both doors send `{destination, when}` and get the same
+  enrichment.
+- **Comment:** drop the "temporary smoke route" framing.
+
 ## Build slicing (validate each step)
 
 The full vision is v1, but build it in validated sub-steps:
 
 - **A — Preferences:** table + `/profile` editor + queries. Shippable alone.
-- **B — Discovery loop:** `claude.ts` web search + `restaurant-discovery.ts`
-  (incl. the `nearLocationName` / `targetMeal` input fields) + `/api/ai/discover`
-  + the Assistant planning affordance + cited results. The core.
+- **B1 — Discovery seam (shipped):** `claude.ts` web search + the
+  `RestaurantQuery`/`RestaurantSuggestion` types + a body-driven smoke
+  `/api/ai/discover`. Proved search quality/cost/latency in isolation.
+- **B2 — Auth'd preference-aware route (§7):** turn the smoke route into the real
+  endpoint — auth → workspace → `getDiningPreferences` merged into the query;
+  doors unchanged.
+- **B-planning — Assistant planning affordance:** the composer chip + cited
+  results in the Assistant (the planning door, §3). Not yet built.
 - **B-road — On-the-road door (§6):** the on-page meal-aware affordance on
   `/on-the-road` (meal inference + visibility heuristic + one-tap "Add to today").
   Depends on B; the planning and road doors share its engine.
