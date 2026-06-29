@@ -102,13 +102,13 @@ suggest-only, review-then-accept gate used everywhere else.
   why-it-fits, area, price hint as *text not cents*, `sourceUrl`) and
   `findRestaurants(input)` where `input` carries the trip destination, the target
   day, and the loaded preferences.
-- Two **optional** input fields let the one engine serve both doors (§3 planning,
-  §6 on-the-road) without branching the seam:
-  - `nearLocationName` — bias the search to a specific location name (planning:
-    the chosen day's location; road: today's location / trip city).
-  - `targetMeal` — `breakfast | lunch | dinner`; when set, the prompt prefers
-    places open around that meal (with the verify-hours nudge below). Planning
-    leaves it unset; the road door infers it.
+- The one engine serves both doors (§3 planning, §6 on-the-road) without
+  branching the seam. **As built (2026-06-29):** rather than add new typed
+  fields, both doors reuse the existing `RestaurantQuery` shape —
+  `destination` carries the location name (planning: the chosen day's location;
+  road: today's location / trip city) and the free-text `when` carries the
+  timing (planning: a date label; road: a meal phrase like "dinner tonight").
+  No `nearLocationName`/`targetMeal` fields were needed (YAGNI).
 - Internally calls a new `searchRestaurants(...)` in `claude.ts` (the only place
   that touches the SDK) — one `messages.create` with the web search tool, returning
   3–4 grounded suggestions via a structured tool/`output_config.format` shape.
@@ -168,18 +168,23 @@ now, near us, this meal, one tap.
   fuzzy nudge, not a guarantee: a manually-named dinner with no "dinner" in the
   title is a harmless false gap (you just ignore the button). No event-model
   change (no meal tag) — the heuristic stands in for it.
-- **Search.** On tap, calls the shared engine with `nearLocationName` = today's
-  location name (fallback `trip.country` / trip city, same value the page's
-  `place` already computes) and `targetMeal` = the inferred meal. No GPS in v1.
+- **Search.** On tap, POSTs to `/api/ai/discover` with `destination` = today's
+  location name (fallback `trip.country` / `trip.name`) and `when` = a meal phrase
+  ("dinner tonight"). No GPS in v1.
 - **Results.** 3–4 **cited** rows inline (moss `SuggestionCard` tone), each
   name · why · source link, with an **"open hours — verify on their site"** nudge.
   "Open now" is only ever a prompt preference + this nudge, never a promise — web
   search can't know live hours.
 - **Accept — one tap → today.** "Add to today" drops the pick straight onto
-  today's events via the existing `AddTodayEvent` action: day = today, label =
-  `"<Meal> · <Name>"`, source URL in the note. No confirm dialog (day and meal are
-  already known); editable afterward like any event. Contrast §3, where the
-  planning door keeps its day-picker confirm because there the day is a decision.
+  today's events via the existing `addTodayEvent` action: day = today, event text
+  = `"<Meal> · <Name>"`. No confirm dialog (day and meal are already known);
+  editable afterward like any event. Contrast §3, where the planning door keeps
+  its day-picker confirm because there the day is a decision.
+  - **As built (2026-06-29):** `ItineraryEvent` is `{ time, text }` only — there
+    is no note field — so the source URL is **not** stored on the event; it lives
+    in the suggestion row (with the verify-hours link) that you see before
+    accepting. Storing it would require an event-model change, which is out of
+    scope.
 - **No-location case.** `todayDay.locationId` null → fall back to the trip
   city/country. No "where am I" prompt; GPS precision is the deferred upgrade to
   the engine's `user_location` input.
