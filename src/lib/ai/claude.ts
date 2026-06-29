@@ -1,5 +1,9 @@
 import "server-only"
 import Anthropic from "@anthropic-ai/sdk"
+import type {
+  RestaurantQuery,
+  RestaurantSuggestion,
+} from "./restaurant-discovery-types"
 
 /**
  * The single seam for Claude calls (CLAUDE.md: "AI provider is one file").
@@ -27,4 +31,112 @@ export async function pingClaude(): Promise<string> {
     .map((block) => block.text)
     .join("")
     .trim()
+}
+
+// Restaurant discovery (slice B1). Claude uses the server-side web_search tool
+// to find real, current restaurants, then calls propose_restaurants with a
+// structured shortlist. Structured-extraction-via-tool-use keeps the result
+// typed without fighting citations. The model never writes anything; the caller
+// only reads the proposal.
+
+const DISCOVERY_TOOLS: Anthropic.Messages.ToolUnion[] = [
+  { type: "web_search_20260209", name: "web_search" },
+  {
+    name: "propose_restaurants",
+    description: "Return the final shortlist of restaurant suggestions.",
+    strict: true,
+    input_schema: {
+      type: "object",
+      additionalProperties: false,
+      properties: {
+        suggestions: {
+          type: "array",
+          items: {
+            type: "object",
+            additionalProperties: false,
+            properties: {
+              name: { type: "string" },
+              why: {
+                type: "string",
+                description: "One sentence on why it fits this couple/trip.",
+              },
+              area: { type: "string", description: "Neighbourhood or area." },
+              priceHint: {
+                type: "string",
+                description:
+                  "Rough price feel as text (e.g. 'mid-range'). Never an exact price.",
+              },
+              sourceUrl: {
+                type: "string",
+                description: "A real URL from the web search backing this pick.",
+              },
+            },
+            required: ["name", "why", "area", "priceHint", "sourceUrl"],
+          },
+        },
+      },
+      required: ["suggestions"],
+    },
+  },
+]
+
+const DISCOVERY_SYSTEM =
+  "You help a couple find restaurants for a trip. Use the web_search tool to " +
+  "find real, currently-open restaurants near the destination that fit their " +
+  "tastes. Then call propose_restaurants with 3 to 4 options. Every suggestion " +
+  "must come from a real search result and include that result's URL as " +
+  "sourceUrl. Never invent a restaurant, a URL, or an exact price. Keep each " +
+  "'why' to one sentence tied to their stated preferences."
+
+function discoveryPrompt(query: RestaurantQuery): string {
+  const list = (label: string, items: string[]) =>
+    items.length ? `${label}: ${items.join(", ")}.` : ""
+  return [
+    `Find restaurants in ${query.destination} for ${query.when}.`,
+    `Budget: ${query.budgetBand}.`,
+    list("Vibe", query.vibeTags),
+    list("Dietary needs", query.dietary),
+    list("Cuisines they love", query.cuisines),
+  ]
+    .filter(Boolean)
+    .join(" ")
+}
+
+/** Real web-search-backed restaurant shortlist for a trip. Returns [] if the
+ * model finishes without proposing. */
+export async function searchRestaurants(
+  query: RestaurantQuery,
+): Promise<RestaurantSuggestion[]> {
+  const messages: Anthropic.MessageParam[] = [
+    { role: "user", content: discoveryPrompt(query) },
+  ]
+
+  // Bounded loop only to resume the server-side search loop on pause_turn.
+  for (let i = 0; i < 6; i++) {
+    const response = await anthropic.messages.create({
+      model: MODEL,
+      max_tokens: 2048,
+      system: DISCOVERY_SYSTEM,
+      tools: DISCOVERY_TOOLS,
+      messages,
+    })
+
+    const proposal = response.content.find(
+      (block): block is Anthropic.ToolUseBlock =>
+        block.type === "tool_use" && block.name === "propose_restaurants",
+    )
+    if (proposal) {
+      const input = proposal.input as { suggestions?: RestaurantSuggestion[] }
+      return input.suggestions ?? []
+    }
+
+    if (response.stop_reason === "pause_turn") {
+      messages.push({ role: "assistant", content: response.content })
+      continue
+    }
+
+    // Finished (end_turn / max_tokens) without proposing — no usable results.
+    return []
+  }
+  return []
 }
