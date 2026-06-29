@@ -6,9 +6,11 @@ import type { RestaurantQuery } from "@/lib/ai/restaurant-discovery-types"
 
 // Temporary slice-B1 smoke route: POST /api/ai/discover runs one real
 // web-search-backed Claude call and returns a cited restaurant shortlist, to
-// prove search quality, cost, and latency in isolation. AI-mode-gated and
-// body-driven (no auth, no DB). Slice B2 replaces it with the auth'd endpoint
-// that loads the couple's saved preferences + the trip's facts.
+// prove search quality, cost, and latency in isolation. Body-driven, no DB,
+// and genuinely unauthenticated — it is allow-listed in proxy.ts PUBLIC_ROUTES
+// so it can be hit directly; the only gate is the `ai` cookie (isAiEnabled).
+// Slice B2 replaces it with the auth'd endpoint that loads the couple's saved
+// preferences + the trip's facts; remove it from PUBLIC_ROUTES then.
 export async function POST(request: Request) {
   if (!(await isAiEnabled())) {
     return NextResponse.json({ error: "AI mode is off." }, { status: 403 })

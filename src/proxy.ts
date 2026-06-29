@@ -6,6 +6,10 @@ const PUBLIC_ROUTES: ReadonlyArray<string> = [
   "/signin",
   "/signup",
   "/api/signout",
+  // Temporary slice-B1 smoke route — genuinely unauthenticated so it can be
+  // hit directly (curl/fetch) to prove the web-search call. Still AI-mode-gated
+  // by the `ai` cookie. Slice B2 makes this auth'd; REMOVE this entry then.
+  "/api/ai/discover",
 ]
 const PUBLIC_ROUTE_PREFIXES: ReadonlyArray<string> = ["/join/", "/t/"]
 
