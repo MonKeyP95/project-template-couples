@@ -40,7 +40,9 @@ export async function pingClaude(): Promise<string> {
 // only reads the proposal.
 
 const DISCOVERY_TOOLS: Anthropic.Messages.ToolUnion[] = [
-  { type: "web_search_20260209", name: "web_search" },
+  // Cap search rounds — uncapped, the model can search many times and the call
+  // runs ~2 min. 3 is plenty for "restaurants near X" and keeps latency sane.
+  { type: "web_search_20260209", name: "web_search", max_uses: 3 },
   {
     name: "propose_restaurants",
     description: "Return the final shortlist of restaurant suggestions.",
