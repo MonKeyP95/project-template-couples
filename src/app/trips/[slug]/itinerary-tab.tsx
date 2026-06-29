@@ -4,6 +4,7 @@ import * as React from "react"
 
 import { Label, MonoBadge } from "@/components/together"
 import { AiSuggestion } from "@/components/ai-suggestion"
+import { FindAPlacePlanning } from "./find-a-place-planning"
 import { BudgetScopeEditor } from "./budget-scope-editor"
 import type { BudgetItem } from "@/lib/trips/budget-item-types"
 import {
@@ -629,6 +630,12 @@ export function ItineraryTab({
         </button>
       )}
       <AiSuggestion surface="itinerary" />
+      <FindAPlacePlanning
+        tripId={tripId}
+        tripSlug={tripSlug}
+        locations={locations}
+        days={days}
+      />
     </div>
   )
 
