@@ -8,6 +8,10 @@ import { Input } from "@/components/ui/input"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { AiToggle } from "@/components/ai-mode"
 import { isDarkTheme } from "@/lib/theme"
+import { getCurrentWorkspace } from "@/lib/workspace/queries"
+import { getDiningPreferences } from "@/lib/preferences/dining-queries"
+import { BUDGET_BANDS } from "@/lib/preferences/dining-types"
+import { saveDiningPreferences } from "@/lib/preferences/dining-actions"
 
 export default async function ProfilePage() {
   const supabase = await createClient()
@@ -21,6 +25,8 @@ export default async function ProfilePage() {
     .single()
 
   const dark = await isDarkTheme()
+  const workspace = await getCurrentWorkspace()
+  const dining = workspace ? await getDiningPreferences(workspace.id) : null
 
   return (
     <main className="flex min-h-screen items-center justify-center px-6">
@@ -66,6 +72,52 @@ export default async function ProfilePage() {
           </span>
           <AiToggle />
         </div>
+
+        {dining && (
+          <form
+            action={saveDiningPreferences}
+            className="mt-4 border-t border-border pt-6"
+          >
+            <p className="text-sm text-muted-foreground">
+              What we like (used by the AI to suggest places)
+            </p>
+            <label className="mt-4 block text-xs text-muted-foreground">
+              Budget
+              <select
+                name="budget_band"
+                defaultValue={dining.budgetBand}
+                className="mt-1 block w-full rounded-md border border-border bg-transparent px-3 py-2 text-sm"
+              >
+                {BUDGET_BANDS.map((band) => (
+                  <option key={band} value={band}>
+                    {band}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <Input
+              name="vibe_tags"
+              placeholder="Vibe (e.g. quiet, walkable, lively)"
+              defaultValue={dining.vibeTags.join(", ")}
+              className="mt-3"
+            />
+            <Input
+              name="dietary"
+              placeholder="Dietary (e.g. vegetarian, gluten-free)"
+              defaultValue={dining.dietary.join(", ")}
+              className="mt-3"
+            />
+            <Input
+              name="cuisines"
+              placeholder="Cuisines you love (e.g. seafood, Thai)"
+              defaultValue={dining.cuisines.join(", ")}
+              className="mt-3"
+            />
+            <Button type="submit" variant="outline" size="sm" className="mt-4">
+              Save preferences
+            </Button>
+          </form>
+        )}
 
         <Link
           href="/home"
