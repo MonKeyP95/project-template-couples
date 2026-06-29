@@ -20,6 +20,16 @@ A single shared space for couples and families to plan trips together: itinerari
 
 This app's center of gravity is **the shared trip** — both partners adding ideas, splitting expenses inside the trip, drafting itineraries together, with an AI assistant that knows both people's preferences.
 
+## Two Modes: Planning vs. On the Road
+The app has **one set of features but two modes of using them**, and every feature must be designed with both in mind:
+
+- **Planning** (before the trip) — exploratory and leisurely. You're *deciding*: building/reordering the itinerary, estimating the budget, assembling the packing list, dreaming. Rich, many controls, comparison-friendly; desktop is fine.
+- **On the road** (during the trip) — execution. You're *doing*: what's today / what's next, snap a receipt and settle up, tick packing off, coordinate live. Glanceable, low-friction, mobile-first; poor signal is normal.
+
+Same data, same features — but **what gets surfaced, how dense it is, and how much friction is acceptable flips** between the two. A screen that's great for planning is often wrong on the road, and vice versa.
+
+**Mode is dates-driven, not a manual toggle:** if today falls within the trip's dates, it's in on-the-road mode; otherwise it's planning. (Dateless dreams are always planning.) The design question for every feature is: *"What does this look like in planning vs. on the road?"*
+
 ## Core Values
 - Simple and clear
 - Collaborative — both partners feel equal ownership

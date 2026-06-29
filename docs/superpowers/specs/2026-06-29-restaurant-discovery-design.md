@@ -1,9 +1,15 @@
 # Restaurant discovery agent — design
 
 **Date:** 2026-06-29
-**Status:** Design — brainstormed 2026-06-29, ready to slice into a plan.
+**Status:** Design — brainstormed 2026-06-29; on-the-road door added 2026-06-29.
+Ready to slice into a plan.
 **Phase:** 5 (AI assistant). Builds on the real-Claude seam wired in slice 0
 (`lib/ai/claude.ts`, `pingClaude`).
+
+> **Two modes.** Per the app's planning-vs-on-the-road principle
+> (`docs/VISION.md`), discovery has **one engine, two front doors**: a deliberate
+> planning door in the Assistant (pick a future day) and an on-page on-the-road
+> door (now / near us / this meal). See §6.
 
 ## What
 
@@ -96,13 +102,23 @@ suggest-only, review-then-accept gate used everywhere else.
   why-it-fits, area, price hint as *text not cents*, `sourceUrl`) and
   `findRestaurants(input)` where `input` carries the trip destination, the target
   day, and the loaded preferences.
+- Two **optional** input fields let the one engine serve both doors (§3 planning,
+  §6 on-the-road) without branching the seam:
+  - `nearLocationName` — bias the search to a specific location name (planning:
+    the chosen day's location; road: today's location / trip city).
+  - `targetMeal` — `breakfast | lunch | dinner`; when set, the prompt prefers
+    places open around that meal (with the verify-hours nudge below). Planning
+    leaves it unset; the road door infers it.
 - Internally calls a new `searchRestaurants(...)` in `claude.ts` (the only place
   that touches the SDK) — one `messages.create` with the web search tool, returning
   3–4 grounded suggestions via a structured tool/`output_config.format` shape.
 - Route handler `GET/POST /api/ai/discover` (server-only, AI-mode-gated) so the
   key never reaches the browser — mirrors the slice-0 ping route.
 
-### 3. Assistant entry point — `src/components/assistant.tsx`
+### 3. Assistant entry point — `src/components/assistant.tsx` (planning door)
+
+> This is the **planning door**. The engine is shared with the on-the-road door
+> in §6; this one is the deliberate "pick a future day" entry point.
 
 - When AI mode is **on** and the panel is open on a trip context, show a **"find a
   restaurant"** quick affordance (a chip in the composer). It asks which day
@@ -134,14 +150,56 @@ suggest-only, review-then-accept gate used everywhere else.
 - v1 only **stores** it. Feeding it back into `findRestaurants` to bias future
   results is the deferred learning layer.
 
+### 6. On-the-road door — on-page affordance on `/on-the-road`
+
+The **road door** is the same engine (§2) reached from the day view instead of the
+Assistant. Its whole point is staying in the surface you're already looking at:
+now, near us, this meal, one tap.
+
+- **Where.** A small block directly under the **Today** section (between
+  `AddTodayEvent` and `QuickExpense`). AI-mode-gated, like all discovery — AI off,
+  the block never renders.
+- **Meal inference.** From the **local hour** (the page's existing timezone
+  source — `localToday` / the timezone cookie): `<11:00` breakfast, `11:00–16:00`
+  lunch, `≥16:00` dinner.
+- **Visibility heuristic.** Show **only when today's events have no title
+  containing the current meal word** (case-insensitive keyword match on the
+  current slot — e.g. evening with no "dinner" event → show "Find dinner"). A
+  fuzzy nudge, not a guarantee: a manually-named dinner with no "dinner" in the
+  title is a harmless false gap (you just ignore the button). No event-model
+  change (no meal tag) — the heuristic stands in for it.
+- **Search.** On tap, calls the shared engine with `nearLocationName` = today's
+  location name (fallback `trip.country` / trip city, same value the page's
+  `place` already computes) and `targetMeal` = the inferred meal. No GPS in v1.
+- **Results.** 3–4 **cited** rows inline (moss `SuggestionCard` tone), each
+  name · why · source link, with an **"open hours — verify on their site"** nudge.
+  "Open now" is only ever a prompt preference + this nudge, never a promise — web
+  search can't know live hours.
+- **Accept — one tap → today.** "Add to today" drops the pick straight onto
+  today's events via the existing `AddTodayEvent` action: day = today, label =
+  `"<Meal> · <Name>"`, source URL in the note. No confirm dialog (day and meal are
+  already known); editable afterward like any event. Contrast §3, where the
+  planning door keeps its day-picker confirm because there the day is a decision.
+- **No-location case.** `todayDay.locationId` null → fall back to the trip
+  city/country. No "where am I" prompt; GPS precision is the deferred upgrade to
+  the engine's `user_location` input.
+- **Feedback (§5) needs nothing extra.** An accepted road pick is an ordinary
+  event, so the same later good/bad mark (already spec'd for the On-the-road page)
+  covers it.
+
 ## Build slicing (validate each step)
 
 The full vision is v1, but build it in validated sub-steps:
 
 - **A — Preferences:** table + `/profile` editor + queries. Shippable alone.
-- **B — Discovery loop:** `claude.ts` web search + `restaurant-discovery.ts` +
-  `/api/ai/discover` + the Assistant affordance + cited results. The core.
-- **C — Accept → event:** the Add-to-itinerary confirm wired to existing actions.
+- **B — Discovery loop:** `claude.ts` web search + `restaurant-discovery.ts`
+  (incl. the `nearLocationName` / `targetMeal` input fields) + `/api/ai/discover`
+  + the Assistant planning affordance + cited results. The core.
+- **B-road — On-the-road door (§6):** the on-page meal-aware affordance on
+  `/on-the-road` (meal inference + visibility heuristic + one-tap "Add to today").
+  Depends on B; the planning and road doors share its engine.
+- **C — Accept → event:** the Add-to-itinerary confirm wired to existing actions
+  (the planning door's day-picker; the road door's one-tap accept rides on B-road).
 - **D — Feedback capture:** the good/bad mark on a past event.
 
 ## Architecture invariants honored
