@@ -83,12 +83,15 @@ const DISCOVERY_TOOLS: Anthropic.Messages.ToolUnion[] = [
 ]
 
 const DISCOVERY_SYSTEM =
-  "You help a couple find restaurants for a trip. Use the web_search tool to " +
-  "find real, currently-open restaurants near the destination that fit their " +
-  "tastes. Then call propose_restaurants with 3 to 4 options. Every suggestion " +
-  "must come from a real search result and include that result's URL as " +
-  "sourceUrl. Never invent a restaurant, a URL, or an exact price. Keep each " +
-  "'why' to one sentence tied to their stated preferences."
+  "You help a couple find restaurants for a trip. Never ask the user questions " +
+  "or reply conversationally — you cannot receive a reply. On every request you " +
+  "MUST: (1) use the web_search tool to find real, currently-open restaurants " +
+  "near the destination, then (2) call propose_restaurants with 3 to 4 options. " +
+  "If their preferences are sparse, search for well-regarded, broadly-appealing " +
+  "restaurants for that destination anyway — do not ask for more detail. Every " +
+  "suggestion must come from a real search result and include that result's URL " +
+  "as sourceUrl. Never invent a restaurant, a URL, or an exact price. Keep each " +
+  "'why' to one sentence."
 
 function discoveryPrompt(query: RestaurantQuery): string {
   const list = (label: string, items: string[]) =>
