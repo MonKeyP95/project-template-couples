@@ -115,23 +115,36 @@ suggest-only, review-then-accept gate used everywhere else.
 - Route handler `GET/POST /api/ai/discover` (server-only, AI-mode-gated) so the
   key never reaches the browser — mirrors the slice-0 ping route.
 
-### 3. Assistant entry point — `src/components/assistant.tsx` (planning door)
+### 3. Planning door — on-page on the itinerary tab
 
-> This is the **planning door**. The engine is shared with the on-the-road door
-> in §6; this one is the deliberate "pick a future day" entry point.
+> The **planning door**: the planning-mode twin of the on-the-road door (§6),
+> sharing the same engine. **Decision (2026-06-29): it lives on the itinerary
+> tab, NOT in the Assistant.** The Assistant (`src/components/assistant.tsx`) is
+> a global, context-free mock chat mounted in the root layout — it has no trip
+> context. Plumbing the trip's destination + days into it is real work for a
+> worse fit, when the itinerary tab already holds all of it and the on-the-road
+> door proved the on-page pattern. This reverses the original "chip in the
+> Assistant" sketch.
 
-- When AI mode is **on** and the panel is open on a trip context, show a **"find a
-  restaurant"** quick affordance (a chip in the composer). It asks which day
-  (defaults to tomorrow / the trip's next day) and calls `/api/ai/discover`.
-  - Decision: an explicit affordance, not free-text intent parsing, for v1. It's
-    deterministic, token-frugal, and avoids misfires; natural-language routing
-    ("find me a restaurant tomorrow") is a clean fast-follow once the loop is
-    proven. Tradeoff noted, not blocking.
-- Results render as cited `SuggestionCard`-style rows (moss border — the existing
-  "AI, not yet committed" tone), each with name · why · source link, and an
-  **Add to itinerary** action.
-- Chat otherwise unchanged (still opens regardless of AI mode; the discovery
-  affordance is the only AI-mode-gated part).
+- A small **"find a place to eat"** affordance on the itinerary tab, placed in
+  the planning-only block (the block that renders only when the trip is **not**
+  active — `{active ? null : planningBlock}`, beside `+ location` and the
+  itinerary `AiSuggestion`). So planning gets this door; active trips get the
+  on-the-road door. AI-mode-gated like all discovery.
+- A **location select** (defaults to the first location) scopes the search:
+  on tap, POST `/api/ai/discover` with `{ destination: <location name>,
+  when: "dinner" }` (preferences merged server-side by B2). Explicit affordance,
+  not free-text intent parsing (deterministic, token-frugal); meal choice beyond
+  "dinner" is a later refinement.
+- Results render as cited rows (moss tone — the "AI, not yet committed" look),
+  each with name · why · area · price · source link, and an **Add to itinerary**
+  action.
+- **Accept** appends `"Dinner · <name>"` to the selected location's **earliest
+  day** via the existing `addTodayEvent` action (it takes any day by date/id, not
+  just today) — an accepted pick becomes an ordinary editable event, same as the
+  on-the-road door. If the location has no days yet, Add is disabled with a hint
+  to add a day first. (`ItineraryEvent` has no note field, so the source URL
+  stays in the suggestion row, per §6.)
 
 ### 4. Accept → itinerary event
 
@@ -232,8 +245,10 @@ The full vision is v1, but build it in validated sub-steps:
 - **B2 — Auth'd preference-aware route (§7):** turn the smoke route into the real
   endpoint — auth → workspace → `getDiningPreferences` merged into the query;
   doors unchanged.
-- **B-planning — Assistant planning affordance:** the composer chip + cited
-  results in the Assistant (the planning door, §3). Not yet built.
+- **B-planning — Itinerary-tab planning door (§3):** on-page "find a place to
+  eat" affordance in the itinerary planning block — location select → cited
+  results → add to a day in that location. (Reverses the original "Assistant
+  chip" sketch.)
 - **B-road — On-the-road door (§6):** the on-page meal-aware affordance on
   `/on-the-road` (meal inference + visibility heuristic + one-tap "Add to today").
   Depends on B; the planning and road doors share its engine.
