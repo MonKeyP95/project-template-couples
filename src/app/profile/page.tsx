@@ -75,6 +75,12 @@ export default async function ProfilePage() {
 
         {dining && (
           <form
+            key={[
+              dining.budgetBand,
+              dining.vibeTags.join(","),
+              dining.dietary.join(","),
+              dining.cuisines.join(","),
+            ].join("|")}
             action={saveDiningPreferences}
             className="mt-4 border-t border-border pt-6"
           >
