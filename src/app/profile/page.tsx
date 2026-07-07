@@ -15,7 +15,11 @@ import { getCurrentWorkspace } from "@/lib/workspace/queries"
 import { listTripsForWorkspace } from "@/lib/trips/list-queries"
 import { getDiningPreferences } from "@/lib/preferences/dining-queries"
 import { BUDGET_BANDS } from "@/lib/preferences/dining-types"
-import { saveDiningPreferences } from "@/lib/preferences/dining-actions"
+import {
+  saveActivities,
+  saveFoodPreferences,
+} from "@/lib/preferences/dining-actions"
+import { ProfileCategory } from "./profile-category"
 
 export default async function ProfilePage() {
   const supabase = await createClient()
@@ -39,6 +43,13 @@ export default async function ProfilePage() {
     onTheRoad: buckets.now.length > 0,
     tripSlug: hero?.slug ?? null,
   })
+
+  const foodKey = [
+    dining.budgetBand,
+    dining.vibeTags.join(","),
+    dining.dietary.join(","),
+    dining.cuisines.join(","),
+  ].join("|")
 
   return (
     <div className="relative mx-auto min-h-screen w-full max-w-[440px] lg:flex lg:max-w-none lg:items-stretch">
@@ -92,62 +103,76 @@ export default async function ProfilePage() {
             <AiToggle />
           </div>
 
-          <form
-            key={[
-              dining.budgetBand,
-              dining.vibeTags.join(","),
-              dining.dietary.join(","),
-              dining.cuisines.join(","),
-              dining.activities.join(","),
-            ].join("|")}
-            action={saveDiningPreferences}
-            className="mt-4 border-t border-border pt-6"
-          >
-            <p className="text-sm text-muted-foreground">
-              What we like (used by the AI to suggest places)
-            </p>
-            <label className="mt-4 block text-xs text-muted-foreground">
-              Budget
-              <select
-                name="budget_band"
-                defaultValue={dining.budgetBand}
-                className="mt-1 block w-full rounded-md border border-border bg-transparent px-3 py-2 text-sm"
-              >
-                {BUDGET_BANDS.map((band) => (
-                  <option key={band} value={band}>
-                    {band}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <Input
-              name="vibe_tags"
-              placeholder="Vibe (e.g. quiet, walkable, lively)"
-              defaultValue={dining.vibeTags.join(", ")}
-              className="mt-3"
-            />
-            <Input
-              name="dietary"
-              placeholder="Dietary (e.g. vegetarian, gluten-free)"
-              defaultValue={dining.dietary.join(", ")}
-              className="mt-3"
-            />
-            <Input
-              name="cuisines"
-              placeholder="Cuisines you love (e.g. seafood, Thai)"
-              defaultValue={dining.cuisines.join(", ")}
-              className="mt-3"
-            />
-            <Input
-              name="activities"
-              placeholder="Activities you love (e.g. surf, hike, museums)"
-              defaultValue={dining.activities.join(", ")}
-              className="mt-3"
-            />
-            <Button type="submit" variant="outline" size="sm" className="mt-4">
-              Save preferences
-            </Button>
-          </form>
+          <p className="mt-8 text-sm text-muted-foreground">
+            What we like (used by the AI to suggest places)
+          </p>
+          <div className="mt-4 flex flex-col gap-5">
+            <ProfileCategory title="Food" defaultOpen>
+              <form key={foodKey} action={saveFoodPreferences}>
+                <label className="block text-xs text-muted-foreground">
+                  Budget
+                  <select
+                    name="budget_band"
+                    defaultValue={dining.budgetBand}
+                    className="mt-1 block w-full rounded-md border border-border bg-transparent px-3 py-2 text-sm"
+                  >
+                    {BUDGET_BANDS.map((band) => (
+                      <option key={band} value={band}>
+                        {band}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <Input
+                  name="vibe_tags"
+                  placeholder="Vibe (e.g. quiet, walkable, lively)"
+                  defaultValue={dining.vibeTags.join(", ")}
+                  className="mt-3"
+                />
+                <Input
+                  name="dietary"
+                  placeholder="Dietary (e.g. vegetarian, gluten-free)"
+                  defaultValue={dining.dietary.join(", ")}
+                  className="mt-3"
+                />
+                <Input
+                  name="cuisines"
+                  placeholder="Cuisines you love (e.g. seafood, Thai)"
+                  defaultValue={dining.cuisines.join(", ")}
+                  className="mt-3"
+                />
+                <Button type="submit" variant="outline" size="sm" className="mt-4">
+                  Save food
+                </Button>
+              </form>
+            </ProfileCategory>
+
+            <ProfileCategory title="Activities">
+              <form key={dining.activities.join(",")} action={saveActivities}>
+                <Input
+                  name="activities"
+                  placeholder="Activities you love (e.g. surf, hike, museums)"
+                  defaultValue={dining.activities.join(", ")}
+                />
+                <Button type="submit" variant="outline" size="sm" className="mt-4">
+                  Save activities
+                </Button>
+              </form>
+            </ProfileCategory>
+
+            <ProfileCategory title="Accommodation" hint="empty">
+              <p className="text-sm text-muted-foreground">
+                Nothing here yet — this will hold what you look for in a place to
+                stay.
+              </p>
+            </ProfileCategory>
+
+            <ProfileCategory title="Transport" hint="empty">
+              <p className="text-sm text-muted-foreground">
+                Nothing here yet — this will hold how you like to get around.
+              </p>
+            </ProfileCategory>
+          </div>
         </div>
       </main>
     </div>
