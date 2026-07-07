@@ -5,6 +5,8 @@ export interface ItineraryEvent {
   /** Free "HH:MM"-style label; "" when untimed. Cosmetic, no parsing. */
   time: string
   text: string
+  /** Optional source/booking link. Omitted when absent. */
+  url?: string
 }
 
 export interface ItineraryDay {
@@ -83,6 +85,7 @@ function parseEvents(raw: unknown): ItineraryEvent[] {
     .map((e) => ({
       time: typeof e.time === "string" ? e.time : "",
       text: typeof e.text === "string" ? e.text : "",
+      ...(typeof e.url === "string" && e.url.length > 0 ? { url: e.url } : {}),
     }))
     .filter((e) => e.text.length > 0)
 }

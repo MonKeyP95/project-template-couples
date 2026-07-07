@@ -85,10 +85,11 @@ interface EventDraft {
   key: string
   time: string
   text: string
+  url: string
 }
 
-function newEventDraft(time = "", text = ""): EventDraft {
-  return { key: crypto.randomUUID(), time, text }
+function newEventDraft(time = "", text = "", url = ""): EventDraft {
+  return { key: crypto.randomUUID(), time, text, url }
 }
 
 /** Normalize a typed time to "HH:MM": "11" -> "11:00", "9:5" -> "09:05".
@@ -113,7 +114,7 @@ function sortEvents<T extends { time: string }>(list: T[]): T[] {
 }
 
 function toEventDrafts(events: ItineraryEvent[]): EventDraft[] {
-  return events.map((e) => newEventDraft(e.time, e.text))
+  return events.map((e) => newEventDraft(e.time, e.text, e.url ?? ""))
 }
 
 /** One-line summary for a collapsed day: the typed sub, else a cheap derived
@@ -1316,6 +1317,16 @@ function DayView({
                     </span>
                   ) : null}
                   <span>{ev.text}</span>
+                  {ev.url ? (
+                    <a
+                      href={ev.url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="shrink-0 font-mono text-[10px] uppercase tracking-[0.14em] text-sea hover:underline"
+                    >
+                      ↗ source
+                    </a>
+                  ) : null}
                 </div>
               ))}
             </div>
@@ -1399,7 +1410,11 @@ function DayEditor({
         dayDate,
         title,
         sub,
-        events: events.map((e) => ({ time: e.time, text: e.text })),
+        events: events.map((e) => ({
+          time: e.time,
+          text: e.text,
+          ...(e.url.trim() ? { url: e.url.trim() } : {}),
+        })),
         tag,
         tone,
         locationId,
@@ -1491,7 +1506,11 @@ function AddDayRow({
         groupName,
         title,
         sub,
-        events: events.map((e) => ({ time: e.time, text: e.text })),
+        events: events.map((e) => ({
+          time: e.time,
+          text: e.text,
+          ...(e.url.trim() ? { url: e.url.trim() } : {}),
+        })),
         tag,
         tone,
         locationId,
@@ -1723,7 +1742,8 @@ function DayForm({
         </span>
         <div className="mt-1.5 space-y-2">
           {events.map((ev) => (
-            <div key={ev.key} className="flex items-center gap-2">
+            <div key={ev.key} className="space-y-1.5">
+              <div className="flex items-center gap-2">
               <input
                 type="text"
                 value={ev.time}
@@ -1772,6 +1792,21 @@ function DayForm({
               >
                 ×
               </button>
+              </div>
+              <input
+                type="text"
+                value={ev.url}
+                onChange={(e) =>
+                  setEvents(
+                    events.map((x) =>
+                      x.key === ev.key ? { ...x, url: e.target.value } : x,
+                    ),
+                  )
+                }
+                placeholder="link (optional)"
+                disabled={isPending}
+                className="w-full border-0 border-b border-rule bg-transparent py-1 text-[12px] text-foreground placeholder:text-muted-foreground focus:border-clay focus:outline-none disabled:opacity-50"
+              />
             </div>
           ))}
         </div>

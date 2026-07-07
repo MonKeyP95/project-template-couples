@@ -32,14 +32,16 @@ export function FindAPlacePlanning({
   >(null)
   const [error, setError] = React.useState<string | null>(null)
   const [added, setAdded] = React.useState<Set<string>>(new Set())
+  const [confirmingName, setConfirmingName] = React.useState<string | null>(null)
+  const [selDayId, setSelDayId] = React.useState("")
+  const [time, setTime] = React.useState("")
 
   if (!enabled || locations.length === 0) return null
 
   const location = locations.find((l) => l.id === locId) ?? locations[0]
-  const targetDay =
-    days
-      .filter((d) => d.locationId === location.id)
-      .sort((a, b) => a.dayDate.localeCompare(b.dayDate))[0] ?? null
+  const locDays = days
+    .filter((d) => d.locationId === location.id)
+    .sort((a, b) => a.dayDate.localeCompare(b.dayDate))
 
   async function find() {
     setLoading(true)
@@ -63,21 +65,25 @@ export function FindAPlacePlanning({
     }
   }
 
-  function addToItinerary(s: RestaurantSuggestion) {
-    if (!targetDay) return
+  function commit(s: RestaurantSuggestion) {
+    const day = locDays.find((d) => d.id === selDayId) ?? locDays[0]
+    if (!day) return
     addTodayEvent({
       tripId,
       tripSlug,
-      dayDate: targetDay.dayDate,
-      dayId: targetDay.id,
-      time: "",
+      dayDate: day.dayDate,
+      dayId: day.id,
+      time: time.trim(),
       text: `Dinner · ${s.name}`,
+      url: s.sourceUrl,
     }).then((result) => {
       if (result.error) {
         setError(result.error)
         return
       }
       setAdded((prev) => new Set(prev).add(s.name))
+      setConfirmingName(null)
+      setTime("")
       router.refresh()
     })
   }
@@ -94,6 +100,7 @@ export function FindAPlacePlanning({
             setLocId(e.target.value)
             setSuggestions(null)
             setError(null)
+            setConfirmingName(null)
           }}
           className="rounded-lg border border-border bg-background px-2.5 py-1.5 text-[13px] text-foreground"
         >
@@ -140,19 +147,69 @@ export function FindAPlacePlanning({
               >
                 source — verify hours
               </a>
-              <button
-                type="button"
-                onClick={() => addToItinerary(s)}
-                disabled={!targetDay || added.has(s.name)}
-                title={targetDay ? undefined : "Add a day to this location first"}
-                className="mt-1 self-start rounded-full border-0 bg-foreground px-3.5 py-1.5 font-mono text-[10px] uppercase tracking-[0.2em] text-background disabled:opacity-40"
-              >
-                {added.has(s.name)
-                  ? "added"
-                  : targetDay
-                    ? `add to ${location.name}`
-                    : "add a day first"}
-              </button>
+              {added.has(s.name) ? (
+                <span className="mt-1 self-start rounded-full bg-foreground/40 px-3.5 py-1.5 font-mono text-[10px] uppercase tracking-[0.2em] text-background">
+                  added
+                </span>
+              ) : locDays.length === 0 ? (
+                <span
+                  title="Add a day to this location first"
+                  className="mt-1 self-start rounded-full bg-foreground/40 px-3.5 py-1.5 font-mono text-[10px] uppercase tracking-[0.2em] text-background"
+                >
+                  add a day first
+                </span>
+              ) : confirmingName === s.name ? (
+                <div className="mt-1 flex flex-wrap items-center gap-2">
+                  <select
+                    value={selDayId}
+                    onChange={(e) => setSelDayId(e.target.value)}
+                    className="rounded-lg border border-border bg-background px-2 py-1 text-[12px] text-foreground"
+                  >
+                    {locDays.map((d) => (
+                      <option key={d.id} value={d.id}>
+                        Day {d.d} · {d.date}
+                      </option>
+                    ))}
+                  </select>
+                  <input
+                    type="text"
+                    value={time}
+                    onChange={(e) => setTime(e.target.value)}
+                    placeholder="19:30"
+                    className="t-num w-16 border-0 border-b border-rule bg-transparent py-1 text-[13px] text-foreground placeholder:text-muted-foreground focus:border-clay focus:outline-none"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => commit(s)}
+                    className="rounded-full border-0 bg-foreground px-3.5 py-1.5 font-mono text-[10px] uppercase tracking-[0.2em] text-background"
+                  >
+                    add
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setConfirmingName(null)
+                      setTime("")
+                    }}
+                    aria-label="Cancel"
+                    className="border-0 bg-transparent px-1.5 py-1 font-mono text-[13px] text-muted-foreground hover:text-clay"
+                  >
+                    ×
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setConfirmingName(s.name)
+                    setSelDayId(locDays[0].id)
+                    setTime("")
+                  }}
+                  className="mt-1 self-start rounded-full border-0 bg-foreground px-3.5 py-1.5 font-mono text-[10px] uppercase tracking-[0.2em] text-background"
+                >
+                  add to {location.name}
+                </button>
+              )}
             </li>
           ))}
         </ul>

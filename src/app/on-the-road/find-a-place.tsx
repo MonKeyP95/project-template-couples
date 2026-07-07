@@ -37,6 +37,8 @@ export function FindAPlace({
   >(null)
   const [error, setError] = React.useState<string | null>(null)
   const [added, setAdded] = React.useState<Set<string>>(new Set())
+  const [confirmingName, setConfirmingName] = React.useState<string | null>(null)
+  const [time, setTime] = React.useState("")
 
   // Meal is a client-only value: the server has no device clock, so it must be
   // null during SSR to avoid a hydration mismatch. useSyncExternalStore is the
@@ -76,20 +78,23 @@ export function FindAPlace({
     }
   }
 
-  function addToToday(s: RestaurantSuggestion) {
+  function commit(s: RestaurantSuggestion) {
     addTodayEvent({
       tripId,
       tripSlug,
       dayDate,
       dayId,
-      time: "",
+      time: time.trim(),
       text: `${label} · ${s.name}`,
+      url: s.sourceUrl,
     }).then((result) => {
       if (result.error) {
         setError(result.error)
         return
       }
       setAdded((prev) => new Set(prev).add(s.name))
+      setConfirmingName(null)
+      setTime("")
       router.refresh()
     })
   }
@@ -133,14 +138,50 @@ export function FindAPlace({
               >
                 source — verify hours
               </a>
-              <button
-                type="button"
-                onClick={() => addToToday(s)}
-                disabled={added.has(s.name)}
-                className="mt-1 self-start rounded-full border-0 bg-foreground px-3.5 py-1.5 font-mono text-[10px] uppercase tracking-[0.2em] text-background disabled:opacity-40"
-              >
-                {added.has(s.name) ? "added" : "add to today"}
-              </button>
+              {added.has(s.name) ? (
+                <span className="mt-1 self-start rounded-full bg-foreground/40 px-3.5 py-1.5 font-mono text-[10px] uppercase tracking-[0.2em] text-background">
+                  added
+                </span>
+              ) : confirmingName === s.name ? (
+                <div className="mt-1 flex items-center gap-2">
+                  <input
+                    type="text"
+                    value={time}
+                    onChange={(e) => setTime(e.target.value)}
+                    placeholder="19:30"
+                    className="t-num w-16 border-0 border-b border-rule bg-transparent py-1 text-[13px] text-foreground placeholder:text-muted-foreground focus:border-clay focus:outline-none"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => commit(s)}
+                    className="rounded-full border-0 bg-foreground px-3.5 py-1.5 font-mono text-[10px] uppercase tracking-[0.2em] text-background"
+                  >
+                    add
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setConfirmingName(null)
+                      setTime("")
+                    }}
+                    aria-label="Cancel"
+                    className="border-0 bg-transparent px-1.5 py-1 font-mono text-[13px] text-muted-foreground hover:text-clay"
+                  >
+                    ×
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setConfirmingName(s.name)
+                    setTime("")
+                  }}
+                  className="mt-1 self-start rounded-full border-0 bg-foreground px-3.5 py-1.5 font-mono text-[10px] uppercase tracking-[0.2em] text-background"
+                >
+                  add to today
+                </button>
+              )}
             </li>
           ))}
         </ul>

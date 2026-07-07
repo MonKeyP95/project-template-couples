@@ -1244,6 +1244,8 @@ export interface AddTodayEventInput {
   dayId: string | null
   time: string
   text: string
+  /** Optional source/booking link stored on the event. */
+  url?: string
 }
 
 /** Ascending by time; untimed events sort last. Matches the itinerary tab. */
@@ -1264,7 +1266,8 @@ export async function addTodayEvent(
 ): Promise<{ error?: string }> {
   const text = input.text.trim()
   if (!text) return { error: "Event text required." }
-  const newEvent: ItineraryEvent = { time: input.time.trim(), text }
+  const url = (input.url ?? "").trim()
+  const newEvent: ItineraryEvent = { time: input.time.trim(), text, ...(url ? { url } : {}) }
 
   const supabase = await createClient()
   const { data: userData, error: userError } = await supabase.auth.getUser()
@@ -1283,7 +1286,11 @@ export async function addTodayEvent(
       ? (row.events as ItineraryEvent[])
       : []
     const events = [...existing, newEvent]
-      .map((e) => ({ time: (e.time ?? "").trim(), text: (e.text ?? "").trim() }))
+      .map((e) => ({
+        time: (e.time ?? "").trim(),
+        text: (e.text ?? "").trim(),
+        ...(typeof e.url === "string" && e.url.trim() ? { url: e.url.trim() } : {}),
+      }))
       .filter((e) => e.text.length > 0)
       .sort(sortDayEvents)
 
