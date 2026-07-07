@@ -47,19 +47,19 @@ import {
 import { BudgetTab } from "./budget-tab"
 import { ItineraryTab } from "./itinerary-tab"
 import { DreamItineraryTab } from "./dream-itinerary-tab"
-import { NotesTab } from "./notes-tab"
+import { ProfileTab } from "./profile-tab"
 import {
   PackingTab,
   type MemberToneEntry,
 } from "./packing-tab"
 
-type TabId = "itinerary" | "packing" | "budget" | "notes"
+type TabId = "itinerary" | "packing" | "budget" | "profile"
 
 const TABS: { id: TabId; label: string }[] = [
   { id: "budget", label: "Budget" },
   { id: "itinerary", label: "Itinerary" },
   { id: "packing", label: "Packing" },
-  { id: "notes", label: "Notes" },
+  { id: "profile", label: "Profile" },
 ]
 
 function isTab(value: string | undefined): value is TabId {
@@ -67,7 +67,7 @@ function isTab(value: string | undefined): value is TabId {
     value === "itinerary" ||
     value === "packing" ||
     value === "budget" ||
-    value === "notes"
+    value === "profile"
   )
 }
 
@@ -186,14 +186,16 @@ export default async function TripPage({
       showItinerary && isDream ? getDreamItineraryDays(header.id) : Promise.resolve(null),
       (showItinerary && !isDream) ||
       activeTab === "budget" ||
-      activeTab === "notes"
+      activeTab === "profile"
         ? getItineraryLocations(header.id)
         : Promise.resolve(null),
-      activeTab === "notes" ? getTripNotes(header.id) : Promise.resolve(null),
+      activeTab === "profile" ? getTripNotes(header.id) : Promise.resolve(null),
       getPackingItems(header.id),
       getPackingCategories(header.id),
       getTripExpenses(header.id),
-      activeTab === "budget" ? getTripExpenseCategories(header.id) : Promise.resolve(null),
+      activeTab === "budget" || activeTab === "profile"
+        ? getTripExpenseCategories(header.id)
+        : Promise.resolve(null),
       getTripSavings(header.id, memberIds),
       activeTab === "budget" ? getTripBudgetMoves(header.id) : Promise.resolve(null),
       activeTab === "budget" || activeTab === "itinerary"
@@ -289,7 +291,9 @@ export default async function TripPage({
             currentUserId={userData.user.id}
           />
         ) : (
-          <NotesTab
+          <ProfileTab
+            profile={header.tripProfile}
+            expenseCategories={expenseCategories ?? []}
             tripId={header.id}
             tripSlug={header.slug}
             initialNotes={notes ?? []}
@@ -380,6 +384,11 @@ function TripHeaderView({
           {header.country ? (
             <div className="font-mono text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
               {header.country}
+            </div>
+          ) : null}
+          {header.tripProfile.headline ? (
+            <div className="mt-1.5 font-mono text-[11px] tracking-[0.06em] text-muted-foreground">
+              {header.tripProfile.headline}
             </div>
           ) : null}
         </div>

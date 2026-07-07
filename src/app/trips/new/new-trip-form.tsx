@@ -64,7 +64,7 @@ export function NewTripForm() {
         setError(result.error)
         return
       }
-      router.push(`/trips/${result.slug}`)
+      router.push(`/trips/${result.slug}?tab=profile`)
     })
   }
 

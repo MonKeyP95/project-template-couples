@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server"
+import { parseTripProfile, type TripProfile } from "./trip-profile-types"
 
 export interface TripHeader {
   id: string
@@ -13,6 +14,8 @@ export interface TripHeader {
   lng: number | null
   /** Planned budget goal in cents (0 = unset). */
   plannedBudgetCents: number
+  /** Per-trip structured profile (slice 1). */
+  tripProfile: TripProfile
   /** 1-based position within the workspace's trip list, ordered by start_date. */
   index: number
   /** Total number of trips in the workspace. */
@@ -31,6 +34,7 @@ interface TripRow {
   lat: string | number | null
   lng: string | number | null
   planned_budget_cents: number
+  trip_profile: unknown
 }
 
 function asNumber(v: string | number | null): number | null {
@@ -46,7 +50,7 @@ export async function getTripBySlug(
   const tripQuery = supabase
     .from("trips")
     .select(
-      "id, workspace_id, slug, name, country, start_date, end_date, fuzzy_when, lat, lng, planned_budget_cents",
+      "id, workspace_id, slug, name, country, start_date, end_date, fuzzy_when, lat, lng, planned_budget_cents, trip_profile",
     )
     .eq("workspace_id", workspaceId)
     .eq("slug", slug)
@@ -81,6 +85,7 @@ export async function getTripBySlug(
     lat: asNumber(trip.lat),
     lng: asNumber(trip.lng),
     plannedBudgetCents: trip.planned_budget_cents,
+    tripProfile: parseTripProfile(trip.trip_profile),
     index,
     total,
   }

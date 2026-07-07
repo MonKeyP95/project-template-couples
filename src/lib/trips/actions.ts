@@ -29,6 +29,11 @@ import {
   type ItineraryLocation,
 } from "@/lib/trips/location-types"
 import { slugToTone } from "@/lib/trips/slug-tone"
+import {
+  TRIP_VIBES,
+  TRIP_WHO,
+  type TripProfile,
+} from "@/lib/trips/trip-profile-types"
 
 export interface ToggleResult {
   error?: string
@@ -1381,6 +1386,40 @@ export async function rateEvent(
     .from("itinerary_days")
     .update({ events: sorted })
     .eq("id", input.dayId)
+  if (error) return { error: error.message }
+
+  revalidatePath(`/trips/${input.tripSlug}`)
+  return {}
+}
+
+export interface SaveTripProfileInput {
+  tripId: string
+  tripSlug: string
+  profile: TripProfile
+}
+
+/** Writes the per-trip profile (headline + chips + brief) to trips.trip_profile.
+ * Activities are free strings (trim/dedupe/cap); vibe/who filtered to the allowed
+ * sets; text capped. RLS gates the write to workspace members. Manual — no AI. */
+export async function saveTripProfile(
+  input: SaveTripProfileInput,
+): Promise<{ error?: string }> {
+  const supabase = await createClient()
+  const { data: userData, error: userError } = await supabase.auth.getUser()
+  if (userError || !userData.user) return { error: "Not signed in." }
+
+  const p = input.profile
+  const clean = {
+    headline: p.headline.trim().slice(0, 80),
+    vibe: p.vibe.filter((v) => (TRIP_VIBES as readonly string[]).includes(v)),
+    who: (TRIP_WHO as readonly string[]).includes(p.who) ? p.who : "",
+    brief: p.brief.trim().slice(0, 2000),
+  }
+
+  const { error } = await supabase
+    .from("trips")
+    .update({ trip_profile: clean })
+    .eq("id", input.tripId)
   if (error) return { error: error.message }
 
   revalidatePath(`/trips/${input.tripSlug}`)
