@@ -66,10 +66,27 @@ overrides couple defaults on conflict.
    (headline, chips, brief) + the existing notes below. Self-contained.
 2. **Couple profile in nav** (manual). Promote `/profile` into the nav; add
    activities to the existing dining preferences.
-3. **AI reads the trip profile.** Feed the trip's chips/brief into discovery
-   (small — discovery already merges couple preferences; this adds the trip
-   layer). Depends on slice 1.
-4. **Learning layer (later).** Derive the visible learned preferences from
+3. **AI reads the trip profile + in-the-moment discovery** (2026-07-07 spec).
+   Feed the trip's vibe + brief and the slice-2 couple activities into restaurant
+   discovery, and add the two signals that matter most on the road: a free-text
+   **craving** ("what do you feel like?") and a **walkable-from-anchor** proximity
+   constraint (`near` prefilled + on-foot toggle). Priority: craving > this trip >
+   couple defaults; walkability is a hard constraint. Prompt-level precedence, no
+   code merge. Spec: `docs/superpowers/specs/2026-07-07-discovery-reads-trip-profile-slice3-design.md`.
+4. **Couple profile organized into categories** (presentational IA). Split the
+   couple profile page onto the app's category spine — Food / Accommodation /
+   Transport / Activities. Populate **Food** (existing dining prefs) and
+   **Activities** (slice 2) now; Accommodation/Transport are labelled homes left
+   empty until a consumer exists. No speculative capture — a section is built when
+   something reads it.
+5. **Discovery per category** (vision). The unifying pattern: each category has a
+   profile section (what we like) + a discovery door (find one), reading the same
+   trip profile + in-the-moment inputs. Restaurant discovery is the **Food**
+   instance. Two expansion axes: meal granularity within Food (breakfast/lunch/
+   dinner picker), and new category doors (Accommodation / Transport / Activities).
+   Rule: **each category's profile section ships in the same slice as its
+   discovery door**, so no preference is stored ahead of the thing that reads it.
+6. **Learning layer (later).** Derive the visible learned preferences from
    ratings, show them editable in the couple profile, and feed them into
    discovery ranking. The payoff; deferred until enough ratings accumulate.
 
