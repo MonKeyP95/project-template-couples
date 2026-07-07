@@ -40,9 +40,12 @@ export async function pingClaude(): Promise<string> {
 // only reads the proposal.
 
 const DISCOVERY_TOOLS: Anthropic.Messages.ToolUnion[] = [
-  // Cap search rounds — uncapped, the model can search many times and the call
-  // runs ~2 min. 3 is plenty for "restaurants near X" and keeps latency sane.
-  { type: "web_search_20260209", name: "web_search", max_uses: 3 },
+  // Basic web_search (not the _20260209 variant): its built-in "dynamic
+  // filtering" spins up server-side code_execution to pre-filter results,
+  // which tripled latency (~35s -> ~175s in an A/B) for no quality gain on
+  // "restaurants near X". Cap rounds too — uncapped the model searches many
+  // times. 3 is plenty and keeps latency sane.
+  { type: "web_search_20250305", name: "web_search", max_uses: 3 },
   {
     name: "propose_restaurants",
     description: "Return the final shortlist of restaurant suggestions.",
