@@ -39,6 +39,9 @@ export function FindAPlace({
   const [added, setAdded] = React.useState<Set<string>>(new Set())
   const [confirmingName, setConfirmingName] = React.useState<string | null>(null)
   const [time, setTime] = React.useState("")
+  const [craving, setCraving] = React.useState("")
+  const [near, setNear] = React.useState(destination)
+  const [walkable, setWalkable] = React.useState(true)
 
   // Meal is a client-only value: the server has no device clock, so it must be
   // null during SSR to avoid a hydration mismatch. useSyncExternalStore is the
@@ -63,7 +66,14 @@ export function FindAPlace({
       const res = await fetch("/api/ai/discover", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ destination, when: mealWhen(activeMeal) }),
+        body: JSON.stringify({
+          destination,
+          when: mealWhen(activeMeal),
+          tripId,
+          craving: craving.trim(),
+          near: near.trim(),
+          walkable,
+        }),
       })
       const data = await res.json()
       if (!res.ok) {
@@ -105,14 +115,38 @@ export function FindAPlace({
         AI · suggestion
       </span>
       {suggestions === null ? (
-        <button
-          type="button"
-          onClick={find}
-          disabled={loading}
-          className="mt-2 block font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground hover:text-foreground disabled:opacity-40"
-        >
-          {loading ? "searching…" : `find ${activeMeal}`}
-        </button>
+        <div className="mt-2 flex flex-col gap-2">
+          <input
+            type="text"
+            value={craving}
+            onChange={(e) => setCraving(e.target.value)}
+            placeholder="what do you feel like? (optional)"
+            className="w-full border-0 border-b border-rule bg-transparent py-1 text-[13px] text-foreground placeholder:text-muted-foreground focus:border-clay focus:outline-none"
+          />
+          <input
+            type="text"
+            value={near}
+            onChange={(e) => setNear(e.target.value)}
+            placeholder="near…"
+            className="w-full border-0 border-b border-rule bg-transparent py-1 text-[13px] text-foreground placeholder:text-muted-foreground focus:border-clay focus:outline-none"
+          />
+          <label className="flex items-center gap-2 font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
+            <input
+              type="checkbox"
+              checked={walkable}
+              onChange={(e) => setWalkable(e.target.checked)}
+            />
+            walking distance
+          </label>
+          <button
+            type="button"
+            onClick={find}
+            disabled={loading}
+            className="block font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground hover:text-foreground disabled:opacity-40"
+          >
+            {loading ? "searching…" : `find ${activeMeal}`}
+          </button>
+        </div>
       ) : suggestions.length === 0 ? (
         <div className="mt-2 text-[13px] text-muted-foreground">
           No places found — try again later.
