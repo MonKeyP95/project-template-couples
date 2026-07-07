@@ -90,3 +90,16 @@ export async function getTripBySlug(
     total,
   }
 }
+
+/** The trip's profile (headline/vibe/who/brief) by id, RLS-scoped. Returns an
+ * empty profile when the trip is missing or unreadable. Used by the discovery
+ * route, which knows the trip id but not the slug. */
+export async function getTripProfile(tripId: string): Promise<TripProfile> {
+  const supabase = await createClient()
+  const { data } = await supabase
+    .from("trips")
+    .select("trip_profile")
+    .eq("id", tripId)
+    .maybeSingle()
+  return parseTripProfile(data?.trip_profile)
+}

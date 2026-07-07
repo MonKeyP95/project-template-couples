@@ -35,6 +35,9 @@ export function FindAPlacePlanning({
   const [confirmingName, setConfirmingName] = React.useState<string | null>(null)
   const [selDayId, setSelDayId] = React.useState("")
   const [time, setTime] = React.useState("")
+  const [craving, setCraving] = React.useState("")
+  const [near, setNear] = React.useState(locations[0]?.name ?? "")
+  const [walkable, setWalkable] = React.useState(false)
 
   if (!enabled || locations.length === 0) return null
 
@@ -50,7 +53,14 @@ export function FindAPlacePlanning({
       const res = await fetch("/api/ai/discover", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ destination: location.name, when: "dinner" }),
+        body: JSON.stringify({
+          destination: location.name,
+          when: "dinner",
+          tripId,
+          craving: craving.trim(),
+          near: near.trim(),
+          walkable,
+        }),
       })
       const data = await res.json()
       if (!res.ok) {
@@ -98,6 +108,7 @@ export function FindAPlacePlanning({
           value={location.id}
           onChange={(e) => {
             setLocId(e.target.value)
+            setNear(locations.find((l) => l.id === e.target.value)?.name ?? "")
             setSuggestions(null)
             setError(null)
             setConfirmingName(null)
@@ -110,6 +121,28 @@ export function FindAPlacePlanning({
             </option>
           ))}
         </select>
+        <input
+          type="text"
+          value={craving}
+          onChange={(e) => setCraving(e.target.value)}
+          placeholder="what do you feel like?"
+          className="rounded-lg border border-border bg-background px-2.5 py-1.5 text-[13px] text-foreground placeholder:text-muted-foreground"
+        />
+        <input
+          type="text"
+          value={near}
+          onChange={(e) => setNear(e.target.value)}
+          placeholder="near…"
+          className="rounded-lg border border-border bg-background px-2.5 py-1.5 text-[13px] text-foreground placeholder:text-muted-foreground"
+        />
+        <label className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+          <input
+            type="checkbox"
+            checked={walkable}
+            onChange={(e) => setWalkable(e.target.checked)}
+          />
+          walkable
+        </label>
         <button
           type="button"
           onClick={find}
