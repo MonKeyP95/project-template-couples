@@ -1290,6 +1290,10 @@ export async function addTodayEvent(
         time: (e.time ?? "").trim(),
         text: (e.text ?? "").trim(),
         ...(typeof e.url === "string" && e.url.trim() ? { url: e.url.trim() } : {}),
+        ...(typeof e.rating === "number" && e.rating >= 1 && e.rating <= 5
+          ? { rating: Math.round(e.rating) }
+          : {}),
+        ...(typeof e.note === "string" && e.note.trim() ? { note: e.note.trim() } : {}),
       }))
       .filter((e) => e.text.length > 0)
       .sort(sortDayEvents)
@@ -1317,6 +1321,67 @@ export async function addTodayEvent(
       return { error: error.message }
     }
   }
+
+  revalidatePath(`/trips/${input.tripSlug}`)
+  return {}
+}
+
+export interface RateEventInput {
+  tripSlug: string
+  dayId: string
+  /** Index of the event within the day's time-sorted events (sortDayEvents order). */
+  eventIndex: number
+  /** 1-5, or null to clear back to unrated. */
+  rating: number | null
+  /** "" clears the note. */
+  note: string
+}
+
+/**
+ * Writes a 1-5 rating and/or note onto one event of a day. Addresses the event
+ * by its index in the day's sorted events (sortDayEvents) so it aligns with what
+ * every surface renders; the rating rides on the event object. Store-only.
+ */
+export async function rateEvent(
+  input: RateEventInput,
+): Promise<{ error?: string }> {
+  const supabase = await createClient()
+  const { data: userData, error: userError } = await supabase.auth.getUser()
+  if (userError || !userData.user) return { error: "Not signed in." }
+
+  const { data: row, error: loadError } = await supabase
+    .from("itinerary_days")
+    .select("events")
+    .eq("id", input.dayId)
+    .maybeSingle()
+  if (loadError) return { error: loadError.message }
+  if (!row) return { error: "Day not found." }
+
+  const existing = Array.isArray(row.events)
+    ? (row.events as ItineraryEvent[])
+    : []
+  const sorted = [...existing].sort(sortDayEvents)
+  if (input.eventIndex < 0 || input.eventIndex >= sorted.length) {
+    return { error: "Event not found." }
+  }
+
+  const note = input.note.trim()
+  const rating =
+    input.rating && input.rating >= 1 && input.rating <= 5
+      ? Math.round(input.rating)
+      : null
+  const target: ItineraryEvent = { ...sorted[input.eventIndex] }
+  if (rating) target.rating = rating
+  else delete target.rating
+  if (note) target.note = note
+  else delete target.note
+  sorted[input.eventIndex] = target
+
+  const { error } = await supabase
+    .from("itinerary_days")
+    .update({ events: sorted })
+    .eq("id", input.dayId)
+  if (error) return { error: error.message }
 
   revalidatePath(`/trips/${input.tripSlug}`)
   return {}

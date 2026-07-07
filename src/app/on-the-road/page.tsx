@@ -27,6 +27,7 @@ import { QuickNote } from "./quick-note"
 import { LookingAheadPanel } from "./looking-ahead-panel"
 import { AddTodayEvent } from "./add-today-event"
 import { TodayUpcoming } from "./today-upcoming"
+import { TodayPast } from "./today-past"
 import { FindAPlace } from "./find-a-place"
 
 const WEEKDAY_FMT = new Intl.DateTimeFormat("en-GB", {
@@ -130,6 +131,11 @@ export default async function OnTheRoadPage() {
               </div>
             ) : null}
             <TodayUpcoming events={todayDay.events} />
+            <TodayPast
+              tripSlug={trip.slug}
+              dayId={todayDay.id}
+              events={todayDay.events}
+            />
           </>
         ) : (
           <div className="mt-2 text-[13px] text-muted-foreground">

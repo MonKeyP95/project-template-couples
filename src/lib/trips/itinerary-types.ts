@@ -7,6 +7,10 @@ export interface ItineraryEvent {
   text: string
   /** Optional source/booking link. Omitted when absent. */
   url?: string
+  /** Optional 1-5 rating. Omitted when unrated. */
+  rating?: number
+  /** Optional free note captured with a rating. Omitted when empty. */
+  note?: string
 }
 
 export interface ItineraryDay {
@@ -86,6 +90,10 @@ function parseEvents(raw: unknown): ItineraryEvent[] {
       time: typeof e.time === "string" ? e.time : "",
       text: typeof e.text === "string" ? e.text : "",
       ...(typeof e.url === "string" && e.url.length > 0 ? { url: e.url } : {}),
+      ...(typeof e.rating === "number" && e.rating >= 1 && e.rating <= 5
+        ? { rating: Math.round(e.rating) }
+        : {}),
+      ...(typeof e.note === "string" && e.note.length > 0 ? { note: e.note } : {}),
     }))
     .filter((e) => e.text.length > 0)
 }

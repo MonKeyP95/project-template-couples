@@ -4,6 +4,7 @@ import * as React from "react"
 
 import { Label, MonoBadge } from "@/components/together"
 import { AiSuggestion } from "@/components/ai-suggestion"
+import { EventRating } from "@/components/event-rating"
 import { FindAPlacePlanning } from "./find-a-place-planning"
 import { BudgetScopeEditor } from "./budget-scope-editor"
 import type { BudgetItem } from "@/lib/trips/budget-item-types"
@@ -86,6 +87,10 @@ interface EventDraft {
   time: string
   text: string
   url: string
+  /** Pass-through only — the planning form never edits these, but must not drop
+   * them when saving other fields (they carry the post-experience rating). */
+  rating?: number
+  note?: string
 }
 
 function newEventDraft(time = "", text = "", url = ""): EventDraft {
@@ -114,7 +119,11 @@ function sortEvents<T extends { time: string }>(list: T[]): T[] {
 }
 
 function toEventDrafts(events: ItineraryEvent[]): EventDraft[] {
-  return events.map((e) => newEventDraft(e.time, e.text, e.url ?? ""))
+  return events.map((e) => ({
+    ...newEventDraft(e.time, e.text, e.url ?? ""),
+    rating: e.rating,
+    note: e.note,
+  }))
 }
 
 /** One-line summary for a collapsed day: the typed sub, else a cheap derived
@@ -692,6 +701,7 @@ export function ItineraryTab({
                     expandedDays={expandedDays}
                     toggleDay={toggleDay}
                     dimBefore={active ? today : null}
+                    today={today}
                   />
                 </div>
               )
@@ -965,6 +975,7 @@ export function ItineraryTab({
                             expandedDays={expandedDays}
                             toggleDay={toggleDay}
                             dimBefore={active ? today : null}
+                            today={today}
                           />
                         )
                       }
@@ -1104,6 +1115,7 @@ function DaySegmentView({
   expandedDays,
   toggleDay,
   dimBefore,
+  today,
 }: {
   seg: DaySegment
   tripId: string
@@ -1115,6 +1127,7 @@ function DaySegmentView({
   expandedDays: Set<string>
   toggleDay: (id: string) => void
   dimBefore: string | null
+  today: string
 }) {
   const cards = seg.days.map((day) => (
     <DayCard
@@ -1124,6 +1137,7 @@ function DaySegmentView({
       expanded={expandedDays.has(day.id)}
       onToggle={() => toggleDay(day.id)}
       dimBefore={dimBefore}
+      today={today}
       isLast={day.id === lastDayId}
       isEditing={editingId === day.id}
       onStartEdit={() => setEditingId(day.id)}
@@ -1203,6 +1217,7 @@ interface DayCardProps {
   expanded: boolean
   onToggle: () => void
   dimBefore: string | null
+  today: string
   onStartEdit: () => void
   onStopEdit: () => void
   dragHandle?: React.ReactNode
@@ -1217,6 +1232,7 @@ function DayCard({
   expanded,
   onToggle,
   dimBefore,
+  today,
   onStartEdit,
   onStopEdit,
   dragHandle,
@@ -1240,6 +1256,7 @@ function DayCard({
       expanded={expanded}
       onToggle={onToggle}
       dimBefore={dimBefore}
+      today={today}
       onStartEdit={onStartEdit}
       dragHandle={dragHandle}
     />
@@ -1253,6 +1270,7 @@ function DayView({
   expanded,
   onToggle,
   dimBefore,
+  today,
   onStartEdit,
   dragHandle,
 }: {
@@ -1262,6 +1280,7 @@ function DayView({
   expanded: boolean
   onToggle: () => void
   dimBefore: string | null
+  today: string
   onStartEdit: () => void
   dragHandle?: React.ReactNode
 }) {
@@ -1307,25 +1326,33 @@ function DayView({
           day.events.length > 0 ? (
             <div className="space-y-0.5">
               {sortEvents(day.events).map((ev, i) => (
-                <div
-                  key={i}
-                  className="flex gap-1.5 text-[12.5px] leading-snug text-muted-foreground"
-                >
-                  {ev.time ? (
-                    <span className="t-num shrink-0 text-foreground/70">
-                      {ev.time}
-                    </span>
-                  ) : null}
-                  <span>{ev.text}</span>
-                  {ev.url ? (
-                    <a
-                      href={ev.url}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="shrink-0 font-mono text-[10px] uppercase tracking-[0.14em] text-sea hover:underline"
-                    >
-                      ↗ source
-                    </a>
+                <div key={i}>
+                  <div className="flex gap-1.5 text-[12.5px] leading-snug text-muted-foreground">
+                    {ev.time ? (
+                      <span className="t-num shrink-0 text-foreground/70">
+                        {ev.time}
+                      </span>
+                    ) : null}
+                    <span>{ev.text}</span>
+                    {ev.url ? (
+                      <a
+                        href={ev.url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="shrink-0 font-mono text-[10px] uppercase tracking-[0.14em] text-sea hover:underline"
+                      >
+                        ↗ source
+                      </a>
+                    ) : null}
+                  </div>
+                  {day.dayDate < today ? (
+                    <EventRating
+                      tripSlug={tripSlug}
+                      dayId={day.id}
+                      eventIndex={i}
+                      rating={ev.rating}
+                      note={ev.note}
+                    />
                   ) : null}
                 </div>
               ))}
@@ -1414,6 +1441,8 @@ function DayEditor({
           time: e.time,
           text: e.text,
           ...(e.url.trim() ? { url: e.url.trim() } : {}),
+          ...(typeof e.rating === "number" ? { rating: e.rating } : {}),
+          ...(e.note && e.note.trim() ? { note: e.note.trim() } : {}),
         })),
         tag,
         tone,
@@ -1510,6 +1539,8 @@ function AddDayRow({
           time: e.time,
           text: e.text,
           ...(e.url.trim() ? { url: e.url.trim() } : {}),
+          ...(typeof e.rating === "number" ? { rating: e.rating } : {}),
+          ...(e.note && e.note.trim() ? { note: e.note.trim() } : {}),
         })),
         tag,
         tone,
