@@ -7,7 +7,7 @@ import { ThemeToggle } from "@/components/theme-toggle"
 import { cn } from "@/lib/utils"
 import type { CurrentWorkspace } from "@/lib/workspace/queries"
 
-export type NavKey = "home" | "on-the-road" | "checklists" | "trip" | "manual"
+export type NavKey = "home" | "on-the-road" | "checklists" | "trip" | "manual" | "profile"
 
 /**
  * Left-to-right order for the mobile prev/next arrows. Mobile-only and
@@ -15,7 +15,7 @@ export type NavKey = "home" | "on-the-road" | "checklists" | "trip" | "manual"
  * checklists is a desktop task; mobile consumes them via packing's Import items).
  * `manual` rides along so the help page is reachable on a phone.
  */
-const MOBILE_NAV_ORDER: NavKey[] = ["home", "trip", "on-the-road", "manual"]
+const MOBILE_NAV_ORDER: NavKey[] = ["home", "trip", "on-the-road", "manual", "profile"]
 
 /** Posts to the existing /api/signout route, then redirects to the landing page. */
 export function SignOutButton({ className }: { className?: string }) {
@@ -66,6 +66,7 @@ export function buildNavDestinations(opts: {
   items.push({ key: "home", label: "Home", href: "/home" })
   items.push({ key: "checklists", label: "Checklists", href: "/checklists" })
   items.push({ key: "manual", label: "Manual", href: "/manual" })
+  items.push({ key: "profile", label: "Profile", href: "/profile" })
   return items
 }
 
