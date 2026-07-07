@@ -4,13 +4,16 @@ import { searchRestaurants } from "@/lib/ai/claude"
 import { isAiEnabled } from "@/lib/ai/ai-mode"
 import { getCurrentWorkspace } from "@/lib/workspace/queries"
 import { getDiningPreferences } from "@/lib/preferences/dining-queries"
+import { getTripProfile } from "@/lib/trips/queries"
+import { EMPTY_TRIP_PROFILE } from "@/lib/trips/trip-profile-types"
 import type { RestaurantQuery } from "@/lib/ai/restaurant-discovery-types"
 
 // POST /api/ai/discover: one real web-search-backed Claude call returning a
-// cited restaurant shortlist for the couple. AI-mode-gated (the `ai` cookie) and
-// auth-gated (the proxy requires a session). The body carries only what a door
-// knows — destination + when; the couple's saved dining preferences are loaded
-// server-side and merged into the query (preferences are server-authoritative).
+// cited restaurant shortlist. AI-mode-gated (the `ai` cookie) and auth-gated
+// (the proxy requires a session). The body carries what a door knows —
+// destination + when + optional tripId + the in-the-moment inputs; the couple's
+// dining preferences and the trip profile are loaded server-side (server
+// authoritative) and merged into the query.
 export async function POST(request: Request) {
   if (!(await isAiEnabled())) {
     return NextResponse.json({ error: "AI mode is off." }, { status: 403 })
@@ -25,6 +28,10 @@ export async function POST(request: Request) {
     const body = (await request.json()) as {
       destination?: string
       when?: string
+      tripId?: string
+      craving?: string
+      near?: string
+      walkable?: boolean
     }
     const destination = String(body.destination ?? "").trim()
     if (!destination) {
@@ -35,6 +42,9 @@ export async function POST(request: Request) {
     }
 
     const prefs = await getDiningPreferences(workspace.id)
+    const tripId = String(body.tripId ?? "").trim()
+    const profile = tripId ? await getTripProfile(tripId) : EMPTY_TRIP_PROFILE
+
     const query: RestaurantQuery = {
       destination,
       when: String(body.when ?? "soon").trim(),
@@ -42,6 +52,11 @@ export async function POST(request: Request) {
       vibeTags: prefs.vibeTags,
       dietary: prefs.dietary,
       cuisines: prefs.cuisines,
+      activities: prefs.activities,
+      trip: { vibe: profile.vibe, brief: profile.brief },
+      craving: String(body.craving ?? "").trim(),
+      near: String(body.near ?? "").trim(),
+      walkable: Boolean(body.walkable),
     }
 
     const suggestions = await searchRestaurants(query)
