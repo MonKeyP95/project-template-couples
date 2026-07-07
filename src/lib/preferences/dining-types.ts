@@ -6,6 +6,7 @@ export interface DiningPreferences {
   vibeTags: string[]
   dietary: string[]
   cuisines: string[]
+  activities: string[]
 }
 
 export const EMPTY_DINING_PREFERENCES: DiningPreferences = {
@@ -13,6 +14,7 @@ export const EMPTY_DINING_PREFERENCES: DiningPreferences = {
   vibeTags: [],
   dietary: [],
   cuisines: [],
+  activities: [],
 }
 
 /** Comma-separated free text -> trimmed, de-duped, length-capped list. */

@@ -19,6 +19,7 @@ export async function saveDiningPreferences(formData: FormData): Promise<void> {
       vibe_tags: parsePreferenceList(String(formData.get("vibe_tags") ?? "")),
       dietary: parsePreferenceList(String(formData.get("dietary") ?? "")),
       cuisines: parsePreferenceList(String(formData.get("cuisines") ?? "")),
+      activities: parsePreferenceList(String(formData.get("activities") ?? "")),
       updated_at: new Date().toISOString(),
     },
     { onConflict: "workspace_id" },

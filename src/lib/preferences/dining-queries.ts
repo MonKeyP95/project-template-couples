@@ -12,7 +12,7 @@ export async function getDiningPreferences(
   const supabase = await createClient()
   const { data } = await supabase
     .from("dining_preferences")
-    .select("budget_band, vibe_tags, dietary, cuisines")
+    .select("budget_band, vibe_tags, dietary, cuisines, activities")
     .eq("workspace_id", workspaceId)
     .maybeSingle()
 
@@ -23,5 +23,6 @@ export async function getDiningPreferences(
     vibeTags: data.vibe_tags ?? [],
     dietary: data.dietary ?? [],
     cuisines: data.cuisines ?? [],
+    activities: data.activities ?? [],
   }
 }
