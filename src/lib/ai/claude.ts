@@ -94,17 +94,35 @@ const DISCOVERY_SYSTEM =
   "restaurants for that destination anyway — do not ask for more detail. Every " +
   "suggestion must come from a real search result and include that result's URL " +
   "as sourceUrl. Never invent a restaurant, a URL, or an exact price. Keep each " +
-  "'why' to one sentence."
+  "'why' to one sentence. When choosing, weight what they are in the mood for " +
+  "right now first, then this trip's vibe and brief, then the couple's general " +
+  "tastes. If told they are on foot, only propose places genuinely within " +
+  "walking distance of the given anchor — never somewhere that needs a car or a " +
+  "long ride."
 
 function discoveryPrompt(query: RestaurantQuery): string {
   const list = (label: string, items: string[]) =>
     items.length ? `${label}: ${items.join(", ")}.` : ""
+  const anchor = query.near || query.destination
+  const tripLines = [
+    list("This trip's vibe", query.trip.vibe),
+    query.trip.brief ? `Trip brief: ${query.trip.brief}.` : "",
+  ].filter(Boolean)
   return [
     `Find restaurants in ${query.destination} for ${query.when}.`,
+    query.craving ? `Right now they are in the mood for: ${query.craving}.` : "",
+    query.walkable
+      ? `They are on foot — only suggest places within easy walking distance of ${anchor}.`
+      : query.near
+        ? `Prefer places near ${query.near}.`
+        : "",
+    "The couple generally —",
     `Budget: ${query.budgetBand}.`,
     list("Vibe", query.vibeTags),
     list("Dietary needs", query.dietary),
     list("Cuisines they love", query.cuisines),
+    list("Activities they enjoy", query.activities),
+    ...(tripLines.length ? ["This trip —", ...tripLines] : []),
   ]
     .filter(Boolean)
     .join(" ")
