@@ -19,6 +19,13 @@ import {
   saveActivities,
   saveFoodPreferences,
 } from "@/lib/preferences/dining-actions"
+import {
+  getCoupleSummary,
+  countRatings,
+} from "@/lib/preferences/couple-summary-queries"
+import { RATING_FLOOR } from "@/lib/preferences/couple-summary-types"
+import { isAiEnabled } from "@/lib/ai/ai-mode"
+import { LearnedSummary } from "./learned-summary"
 import { CategorySection } from "@/components/category-section"
 
 export default async function ProfilePage() {
@@ -37,6 +44,11 @@ export default async function ProfilePage() {
 
   const dark = await isDarkTheme()
   const dining = await getDiningPreferences(workspace.id)
+  const aiOn = await isAiEnabled()
+  const foodSummary = await getCoupleSummary(workspace.id, "food")
+  const foodRatings = await countRatings(workspace.id, "food")
+  const activitySummary = await getCoupleSummary(workspace.id, "activity")
+  const activityRatings = await countRatings(workspace.id, "activity")
   const buckets = await listTripsForWorkspace(workspace.id)
   const hero = buckets.now[0] ?? buckets.upcoming[0] ?? null
   const navDestinations = buildNavDestinations({
@@ -145,6 +157,15 @@ export default async function ProfilePage() {
                   Save food
                 </Button>
               </form>
+              {foodRatings >= RATING_FLOOR ? (
+                <LearnedSummary
+                  category="food"
+                  summaryMd={foodSummary.summaryMd}
+                  ratingCount={foodRatings}
+                  countAtGeneration={foodSummary.ratingCountAtGeneration}
+                  aiOn={aiOn}
+                />
+              ) : null}
             </CategorySection>
 
             <CategorySection title="Activities">
@@ -158,6 +179,15 @@ export default async function ProfilePage() {
                   Save activities
                 </Button>
               </form>
+              {activityRatings >= RATING_FLOOR ? (
+                <LearnedSummary
+                  category="activity"
+                  summaryMd={activitySummary.summaryMd}
+                  ratingCount={activityRatings}
+                  countAtGeneration={activitySummary.ratingCountAtGeneration}
+                  aiOn={aiOn}
+                />
+              ) : null}
             </CategorySection>
 
             <CategorySection title="Accommodation" hint="empty">
