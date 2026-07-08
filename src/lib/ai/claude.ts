@@ -1,5 +1,6 @@
 import "server-only"
 import Anthropic from "@anthropic-ai/sdk"
+import type { ChatMessage } from "./chat-types"
 import type {
   DiscoveryCategory,
   DiscoveryQuery,
@@ -14,7 +15,41 @@ import type {
 
 const MODEL = "claude-sonnet-4-6"
 
+// Chat uses its own model constant so it can be dropped to a cheaper model
+// (e.g. claude-haiku-4-5) without touching the web-search discovery flow.
+const CHAT_MODEL = "claude-sonnet-5"
+
 const anthropic = new Anthropic() // reads ANTHROPIC_API_KEY from process.env
+
+function chatSystem(tripContext: string): string {
+  const base =
+    "You are the in-app travel assistant for a couple planning and taking " +
+    "trips together. Be warm, concise, and practical. Give concrete, " +
+    "actionable answers; ask a brief clarifying question only when you " +
+    "genuinely cannot answer otherwise."
+  const context = tripContext.trim()
+  return context ? `${base}\n\n${context}` : base
+}
+
+/** A real, non-streaming assistant reply. Stateless: the full history is sent
+ * each call. tripContext (empty off a trip page) is folded into the system
+ * prompt. Suggest-only: returns text; it never writes. */
+export async function chatReply(
+  messages: ChatMessage[],
+  tripContext: string,
+): Promise<string> {
+  const response = await anthropic.messages.create({
+    model: CHAT_MODEL,
+    max_tokens: 1024,
+    system: chatSystem(tripContext),
+    messages: messages.map((m) => ({ role: m.role, content: m.content })),
+  })
+  return response.content
+    .filter((block): block is Anthropic.TextBlock => block.type === "text")
+    .map((block) => block.text)
+    .join("")
+    .trim()
+}
 
 /** A trivial real round-trip. Returns Claude's reply text (expected: "pong"). */
 export async function pingClaude(): Promise<string> {
