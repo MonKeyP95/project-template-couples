@@ -81,6 +81,7 @@ From the user's global instructions and project docs — these override default 
 - **Short modules, short functions.** Name things clearly.
 - **Keep `README.md` concise** — detail lives in `docs/`.
 - **After completing a task**, update `docs/TODO.md`. If a non-obvious choice was made, add a row to `docs/DECISIONS.md`.
+- **Offer a fresh session at clean breakpoints.** When work is merged/pushed with a clean tree at a natural task boundary — especially after a long conversation or before starting a new slice — proactively suggest starting a new session (the user often forgets and appreciates the nudge). Offer it; don't force it. Never nag mid-task — only at genuine boundaries.
 
 ## Things to Push Back On
 
