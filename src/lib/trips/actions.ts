@@ -10,6 +10,7 @@ import {
   type ExpenseCategoryRow,
 } from "@/lib/trips/expense-types"
 import { getCurrentWorkspace } from "@/lib/workspace/queries"
+import { inferRatingCategory } from "@/lib/preferences/couple-summary-types"
 import { listChecklists } from "@/lib/checklists/queries"
 import type { PackingCategory } from "@/lib/trips/packing-types"
 import { rowToNote, type TripNote } from "@/lib/trips/note-queries"
@@ -1356,7 +1357,7 @@ export async function rateEvent(
 
   const { data: row, error: loadError } = await supabase
     .from("itinerary_days")
-    .select("events")
+    .select("events, day_date, trip_id, trips(workspace_id)")
     .eq("id", input.dayId)
     .maybeSingle()
   if (loadError) return { error: loadError.message }
@@ -1387,6 +1388,23 @@ export async function rateEvent(
     .update({ events: sorted })
     .eq("id", input.dayId)
   if (error) return { error: error.message }
+
+  // Durable corpus: log a row for every real rating (AI-free). Survives editing
+  // or deleting the event/day/trip because workspace_id is the anchor.
+  if (rating) {
+    const workspaceId = (row.trips as unknown as { workspace_id: string })
+      .workspace_id
+    await supabase.from("event_ratings").insert({
+      workspace_id: workspaceId,
+      trip_id: row.trip_id,
+      day_date: row.day_date,
+      event_text: target.text,
+      note: note || null,
+      rating,
+      category: inferRatingCategory(target.text),
+      created_by: userData.user.id,
+    })
+  }
 
   revalidatePath(`/trips/${input.tripSlug}`)
   return {}
