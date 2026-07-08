@@ -21,12 +21,13 @@ export async function refreshCoupleSummary(
   if (!workspace) return { error: "Not signed in." }
 
   const supabase = await createClient()
-  const { data: rows } = await supabase
+  const { data: rows, error: loadError } = await supabase
     .from("event_ratings")
     .select("event_text, rating, note")
     .eq("workspace_id", workspace.id)
     .eq("category", category)
     .order("created_at", { ascending: true })
+  if (loadError) return { error: loadError.message }
 
   const ratings = (rows ?? []).map((r) => ({
     text: r.event_text as string,
