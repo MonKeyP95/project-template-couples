@@ -29,6 +29,9 @@ export interface DiscoveryQuery {
   near: string
   /** On-foot hard constraint. */
   walkable: boolean
+  /** Learned couple summary markdown from past-trip ratings; "" when none. A
+   * strong, evidence-based couple signal. */
+  learned: string
 }
 
 /** One grounded, cited suggestion. */

@@ -158,11 +158,15 @@ function discoveryPrompt(query: DiscoveryQuery): string {
         ? `Prefer places near ${query.near}.`
         : "",
   ]
+  const learnedLine = query.learned.trim()
+    ? `From past trips, this couple has especially enjoyed: ${query.learned.trim()}`
+    : ""
 
   if (query.category === "activity") {
     return [
       `Find things to do in ${query.destination}.`,
       ...moment,
+      learnedLine,
       "The couple generally —",
       list("Activities they enjoy", query.activities),
       list("Vibe", query.vibeTags),
@@ -175,6 +179,7 @@ function discoveryPrompt(query: DiscoveryQuery): string {
   return [
     `Find restaurants in ${query.destination} for ${query.when}.`,
     ...moment,
+    learnedLine,
     "The couple generally —",
     `Budget: ${query.budgetBand}.`,
     list("Vibe", query.vibeTags),
