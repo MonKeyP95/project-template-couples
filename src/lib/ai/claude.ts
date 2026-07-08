@@ -30,6 +30,47 @@ export async function pingClaude(): Promise<string> {
     .trim()
 }
 
+/** Distil a couple's category ratings into a short markdown summary, evolving
+ * their current summary (which may contain hand-edits) rather than replacing it.
+ * Plain messages.create — no web_search. Suggest-only: returns text; the caller
+ * persists it. */
+export async function summarizeTaste(
+  category: DiscoveryCategory,
+  currentSummaryMd: string,
+  ratings: { text: string; rating: number; note: string }[],
+): Promise<string> {
+  const noun = category === "activity" ? "activities" : "food"
+  const lines = ratings
+    .map((r) => `- ${r.text} · ${r.rating}/5${r.note ? ` · ${r.note}` : ""}`)
+    .join("\n")
+  const current = currentSummaryMd.trim()
+    ? `Their current ${noun} summary (may include their own hand-edits — respect ` +
+      `them):\n\n${currentSummaryMd.trim()}`
+    : `They have no ${noun} summary yet.`
+
+  const response = await anthropic.messages.create({
+    model: MODEL,
+    max_tokens: 512,
+    messages: [
+      {
+        role: "user",
+        content:
+          `A couple has been rating ${noun} on their trips. ${current}\n\n` +
+          `Here are their ${noun} ratings (place · rating · note):\n${lines}\n\n` +
+          `Write a short markdown summary (a few bullet points) of what this ` +
+          `couple likes and dislikes in ${noun}. Evolve the current summary ` +
+          `rather than discarding it; keep any hand-edits that still hold. ` +
+          `Return only the markdown, no preamble.`,
+      },
+    ],
+  })
+  return response.content
+    .filter((block): block is Anthropic.TextBlock => block.type === "text")
+    .map((block) => block.text)
+    .join("")
+    .trim()
+}
+
 // Discovery. Claude uses the server-side web_search tool to find real, current
 // places for a category (food or activity), then calls propose_places with a
 // structured shortlist. Structured-extraction-via-tool-use keeps the result
