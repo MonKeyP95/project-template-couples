@@ -2,9 +2,10 @@
 
 import * as React from "react"
 
-/** One couple-profile category: an always-visible header (title + optional
- * muted hint) that toggles a collapsible body. Each panel keeps its own state. */
-export function ProfileCategory({
+/** One collapsible category panel: an always-visible header (title + optional
+ * muted hint) that toggles a body. Each panel keeps its own open state. Shared
+ * by the couple profile and the discovery doors. */
+export function CategorySection({
   title,
   hint,
   defaultOpen = false,

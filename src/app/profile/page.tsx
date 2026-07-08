@@ -19,7 +19,7 @@ import {
   saveActivities,
   saveFoodPreferences,
 } from "@/lib/preferences/dining-actions"
-import { ProfileCategory } from "./profile-category"
+import { CategorySection } from "@/components/category-section"
 
 export default async function ProfilePage() {
   const supabase = await createClient()
@@ -107,7 +107,7 @@ export default async function ProfilePage() {
             What we like (used by the AI to suggest places)
           </p>
           <div className="mt-4 flex flex-col gap-5">
-            <ProfileCategory title="Food" defaultOpen>
+            <CategorySection title="Food" defaultOpen>
               <form key={foodKey} action={saveFoodPreferences}>
                 <label className="block text-xs text-muted-foreground">
                   Budget
@@ -145,9 +145,9 @@ export default async function ProfilePage() {
                   Save food
                 </Button>
               </form>
-            </ProfileCategory>
+            </CategorySection>
 
-            <ProfileCategory title="Activities">
+            <CategorySection title="Activities">
               <form key={dining.activities.join(",")} action={saveActivities}>
                 <Input
                   name="activities"
@@ -158,20 +158,20 @@ export default async function ProfilePage() {
                   Save activities
                 </Button>
               </form>
-            </ProfileCategory>
+            </CategorySection>
 
-            <ProfileCategory title="Accommodation" hint="empty">
+            <CategorySection title="Accommodation" hint="empty">
               <p className="text-sm text-muted-foreground">
                 Nothing here yet — this will hold what you look for in a place to
                 stay.
               </p>
-            </ProfileCategory>
+            </CategorySection>
 
-            <ProfileCategory title="Transport" hint="empty">
+            <CategorySection title="Transport" hint="empty">
               <p className="text-sm text-muted-foreground">
                 Nothing here yet — this will hold how you like to get around.
               </p>
-            </ProfileCategory>
+            </CategorySection>
           </div>
         </div>
       </main>
