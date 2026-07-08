@@ -1,19 +1,22 @@
 import { NextResponse } from "next/server"
 
-import { searchRestaurants } from "@/lib/ai/claude"
+import { discover } from "@/lib/ai/claude"
 import { isAiEnabled } from "@/lib/ai/ai-mode"
 import { getCurrentWorkspace } from "@/lib/workspace/queries"
 import { getDiningPreferences } from "@/lib/preferences/dining-queries"
 import { getTripProfile } from "@/lib/trips/queries"
 import { EMPTY_TRIP_PROFILE } from "@/lib/trips/trip-profile-types"
-import type { RestaurantQuery } from "@/lib/ai/restaurant-discovery-types"
+import type {
+  DiscoveryCategory,
+  DiscoveryQuery,
+} from "@/lib/ai/discovery-types"
 
 // POST /api/ai/discover: one real web-search-backed Claude call returning a
-// cited restaurant shortlist. AI-mode-gated (the `ai` cookie) and auth-gated
+// cited shortlist for a category. AI-mode-gated (the `ai` cookie) and auth-gated
 // (the proxy requires a session). The body carries what a door knows —
-// destination + when + optional tripId + the in-the-moment inputs; the couple's
-// dining preferences and the trip profile are loaded server-side (server
-// authoritative) and merged into the query.
+// category + destination + when + optional tripId + the in-the-moment inputs;
+// the couple's dining preferences and the trip profile are loaded server-side
+// (server authoritative) and merged into the query.
 export async function POST(request: Request) {
   if (!(await isAiEnabled())) {
     return NextResponse.json({ error: "AI mode is off." }, { status: 403 })
@@ -26,6 +29,7 @@ export async function POST(request: Request) {
 
   try {
     const body = (await request.json()) as {
+      category?: string
       destination?: string
       when?: string
       tripId?: string
@@ -41,11 +45,14 @@ export async function POST(request: Request) {
       )
     }
 
+    const category: DiscoveryCategory =
+      body.category === "activity" ? "activity" : "food"
     const prefs = await getDiningPreferences(workspace.id)
     const tripId = String(body.tripId ?? "").trim()
     const profile = tripId ? await getTripProfile(tripId) : EMPTY_TRIP_PROFILE
 
-    const query: RestaurantQuery = {
+    const query: DiscoveryQuery = {
+      category,
       destination,
       when: String(body.when ?? "soon").trim(),
       budgetBand: prefs.budgetBand,
@@ -59,7 +66,7 @@ export async function POST(request: Request) {
       walkable: Boolean(body.walkable),
     }
 
-    const suggestions = await searchRestaurants(query)
+    const suggestions = await discover(query)
     return NextResponse.json({ suggestions })
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error"

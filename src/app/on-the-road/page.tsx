@@ -81,7 +81,6 @@ export default async function OnTheRoadPage() {
     ? locations.find((l) => l.id === todayDay.locationId)?.name ?? null
     : null
   const place = locationName ?? trip.country ?? "On the road"
-  const todayEventTexts = todayDay?.events.map((e) => e.text) ?? []
   // "On the road" is a UI placeholder, not a place to search — fall back to the
   // trip's country/name instead.
   const searchDestination = locationName ?? trip.country ?? trip.name
@@ -156,7 +155,6 @@ export default async function OnTheRoadPage() {
         dayDate={today}
         dayId={todayDay?.id ?? null}
         destination={searchDestination}
-        todayEventTexts={todayEventTexts}
       />
 
       <QuickExpense

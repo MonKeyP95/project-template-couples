@@ -1,13 +1,18 @@
-// Shapes for the restaurant discovery agent. Pure types — no server-only, no
-// SDK import — so a client component can import RestaurantSuggestion to render
+// Shapes for the discovery agent (any category). Pure types — no server-only, no
+// SDK import — so a client component can import DiscoverySuggestion to render
 // results (the *-types.ts split rule).
 
-/** What we ask Claude to find — a trip's facts, the couple's tastes, and the
- * in-the-moment inputs (craving + walkable-from-anchor). */
-export interface RestaurantQuery {
+/** Which kind of place we are finding. Food and activity are live; the door may
+ * show other categories as inactive. */
+export type DiscoveryCategory = "food" | "activity"
+
+/** What we ask Claude to find — the category, a trip's facts, the couple's
+ * tastes, and the in-the-moment inputs (craving + walkable-from-anchor). */
+export interface DiscoveryQuery {
+  category: DiscoveryCategory
   /** e.g. "Lombok, Indonesia". */
   destination: string
-  /** Human label for when, e.g. "tomorrow" or "Fri 4 Jul". */
+  /** Human label for when, e.g. "dinner tonight". Unused for activity. */
   when: string
   /** One of the dining-preferences bands ("any" | "budget" | "mid" | "splurge"). */
   budgetBand: string
@@ -26,14 +31,14 @@ export interface RestaurantQuery {
   walkable: boolean
 }
 
-/** One grounded, cited restaurant suggestion. */
-export interface RestaurantSuggestion {
+/** One grounded, cited suggestion. */
+export interface DiscoverySuggestion {
   name: string
   /** One sentence on why it fits this couple/trip. */
   why: string
   /** Neighbourhood or area. */
   area: string
-  /** Rough price feel as text (e.g. "mid-range") — never an invented exact price. */
+  /** Rough cost feel as text (e.g. "mid-range") — never an invented exact price. */
   priceHint: string
   /** A real URL from the web search that backs this suggestion. */
   sourceUrl: string
