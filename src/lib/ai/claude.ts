@@ -1,20 +1,17 @@
 import "server-only"
 import Anthropic from "@anthropic-ai/sdk"
 import type {
-  RestaurantQuery,
-  RestaurantSuggestion,
-} from "./restaurant-discovery-types"
+  DiscoveryCategory,
+  DiscoveryQuery,
+  DiscoverySuggestion,
+} from "./discovery-types"
 
 /**
  * The single seam for Claude calls (CLAUDE.md: "AI provider is one file").
  * Server-only — the API key is read from the environment and never reaches the
- * browser. Slice 0 wires the SDK with one trivial call to prove
- * key/route/cost/latency in isolation; real features (the plan importer) land
- * here next, behind this same module.
+ * browser.
  */
 
-// The importer's default per the spec; a one-line swap to A/B against
-// claude-opus-4-8 (cleaner first pass) or claude-haiku-4-5 (cheaper) later.
 const MODEL = "claude-sonnet-4-6"
 
 const anthropic = new Anthropic() // reads ANTHROPIC_API_KEY from process.env
@@ -33,8 +30,8 @@ export async function pingClaude(): Promise<string> {
     .trim()
 }
 
-// Restaurant discovery (slice B1). Claude uses the server-side web_search tool
-// to find real, current restaurants, then calls propose_restaurants with a
+// Discovery. Claude uses the server-side web_search tool to find real, current
+// places for a category (food or activity), then calls propose_places with a
 // structured shortlist. Structured-extraction-via-tool-use keeps the result
 // typed without fighting citations. The model never writes anything; the caller
 // only reads the proposal.
@@ -42,13 +39,11 @@ export async function pingClaude(): Promise<string> {
 const DISCOVERY_TOOLS: Anthropic.Messages.ToolUnion[] = [
   // Basic web_search (not the _20260209 variant): its built-in "dynamic
   // filtering" spins up server-side code_execution to pre-filter results,
-  // which tripled latency (~35s -> ~175s in an A/B) for no quality gain on
-  // "restaurants near X". Cap rounds too — uncapped the model searches many
-  // times. 3 is plenty and keeps latency sane.
+  // which tripled latency for no quality gain. Cap rounds too — 3 is plenty.
   { type: "web_search_20250305", name: "web_search", max_uses: 3 },
   {
-    name: "propose_restaurants",
-    description: "Return the final shortlist of restaurant suggestions.",
+    name: "propose_places",
+    description: "Return the final shortlist of place suggestions.",
     strict: true,
     input_schema: {
       type: "object",
@@ -69,7 +64,7 @@ const DISCOVERY_TOOLS: Anthropic.Messages.ToolUnion[] = [
               priceHint: {
                 type: "string",
                 description:
-                  "Rough price feel as text (e.g. 'mid-range'). Never an exact price.",
+                  "Rough cost feel as text (e.g. 'mid-range'). Never an exact price.",
               },
               sourceUrl: {
                 type: "string",
@@ -85,22 +80,28 @@ const DISCOVERY_TOOLS: Anthropic.Messages.ToolUnion[] = [
   },
 ]
 
-const DISCOVERY_SYSTEM =
-  "You help a couple find restaurants for a trip. Never ask the user questions " +
-  "or reply conversationally — you cannot receive a reply. On every request you " +
-  "MUST: (1) use the web_search tool to find real, currently-open restaurants " +
-  "near the destination, then (2) call propose_restaurants with 3 to 4 options. " +
-  "If their preferences are sparse, search for well-regarded, broadly-appealing " +
-  "restaurants for that destination anyway — do not ask for more detail. Every " +
-  "suggestion must come from a real search result and include that result's URL " +
-  "as sourceUrl. Never invent a restaurant, a URL, or an exact price. Keep each " +
-  "'why' to one sentence. When choosing, weight what they are in the mood for " +
-  "right now first, then this trip's vibe and brief, then the couple's general " +
-  "tastes. If told they are on foot, only propose places genuinely within " +
-  "walking distance of the given anchor — never somewhere that needs a car or a " +
-  "long ride."
+/** System prompt for a category. Only the noun differs between food and
+ * activity; the search discipline and precedence rule are shared. */
+function discoverySystem(category: DiscoveryCategory): string {
+  const noun = category === "activity" ? "things to do" : "restaurants"
+  return (
+    `You help a couple find ${noun} for a trip. Never ask the user questions ` +
+    "or reply conversationally — you cannot receive a reply. On every request you " +
+    `MUST: (1) use the web_search tool to find real, currently-open ${noun} ` +
+    "near the destination, then (2) call propose_places with 3 to 4 options. " +
+    "If their preferences are sparse, search for well-regarded, broadly-appealing " +
+    `${noun} for that destination anyway — do not ask for more detail. Every ` +
+    "suggestion must come from a real search result and include that result's URL " +
+    "as sourceUrl. Never invent a place, a URL, or an exact price. Keep each " +
+    "'why' to one sentence. When choosing, weight what they are in the mood for " +
+    "right now first, then this trip's vibe and brief, then the couple's general " +
+    "tastes. If told they are on foot, only propose places genuinely within " +
+    "walking distance of the given anchor — never somewhere that needs a car or a " +
+    "long ride."
+  )
+}
 
-function discoveryPrompt(query: RestaurantQuery): string {
+function discoveryPrompt(query: DiscoveryQuery): string {
   const list = (label: string, items: string[]) =>
     items.length ? `${label}: ${items.join(", ")}.` : ""
   const anchor = query.near || query.destination
@@ -108,14 +109,31 @@ function discoveryPrompt(query: RestaurantQuery): string {
     list("This trip's vibe", query.trip.vibe),
     query.trip.brief ? `Trip brief: ${query.trip.brief}.` : "",
   ].filter(Boolean)
-  return [
-    `Find restaurants in ${query.destination} for ${query.when}.`,
+  const moment = [
     query.craving ? `Right now they are in the mood for: ${query.craving}.` : "",
     query.walkable
       ? `They are on foot — only suggest places within easy walking distance of ${anchor}.`
       : query.near
         ? `Prefer places near ${query.near}.`
         : "",
+  ]
+
+  if (query.category === "activity") {
+    return [
+      `Find things to do in ${query.destination}.`,
+      ...moment,
+      "The couple generally —",
+      list("Activities they enjoy", query.activities),
+      list("Vibe", query.vibeTags),
+      ...(tripLines.length ? ["This trip —", ...tripLines] : []),
+    ]
+      .filter(Boolean)
+      .join(" ")
+  }
+
+  return [
+    `Find restaurants in ${query.destination} for ${query.when}.`,
+    ...moment,
     "The couple generally —",
     `Budget: ${query.budgetBand}.`,
     list("Vibe", query.vibeTags),
@@ -128,11 +146,11 @@ function discoveryPrompt(query: RestaurantQuery): string {
     .join(" ")
 }
 
-/** Real web-search-backed restaurant shortlist for a trip. Returns [] if the
+/** Real web-search-backed shortlist for a trip + category. Returns [] if the
  * model finishes without proposing. */
-export async function searchRestaurants(
-  query: RestaurantQuery,
-): Promise<RestaurantSuggestion[]> {
+export async function discover(
+  query: DiscoveryQuery,
+): Promise<DiscoverySuggestion[]> {
   const messages: Anthropic.MessageParam[] = [
     { role: "user", content: discoveryPrompt(query) },
   ]
@@ -142,17 +160,17 @@ export async function searchRestaurants(
     const response = await anthropic.messages.create({
       model: MODEL,
       max_tokens: 2048,
-      system: DISCOVERY_SYSTEM,
+      system: discoverySystem(query.category),
       tools: DISCOVERY_TOOLS,
       messages,
     })
 
     const proposal = response.content.find(
       (block): block is Anthropic.ToolUseBlock =>
-        block.type === "tool_use" && block.name === "propose_restaurants",
+        block.type === "tool_use" && block.name === "propose_places",
     )
     if (proposal) {
-      const input = proposal.input as { suggestions?: RestaurantSuggestion[] }
+      const input = proposal.input as { suggestions?: DiscoverySuggestion[] }
       return input.suggestions ?? []
     }
 
