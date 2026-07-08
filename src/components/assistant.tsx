@@ -3,7 +3,8 @@
 import * as React from "react"
 import { usePathname } from "next/navigation"
 
-import { requestChatReply, type ChatMessage } from "@/lib/ai/chat"
+import { sendChatMessage } from "@/lib/ai/chat-actions"
+import type { ChatMessage } from "@/lib/ai/chat-types"
 import { AiToggle } from "@/components/ai-mode"
 
 // Landing + auth have no assistant.
@@ -35,6 +36,9 @@ export function Assistant() {
     ? "bottom-24 lg:bottom-5"
     : "bottom-5"
 
+  // "/trips/[slug]" or "/trips/[slug]/..." -> slug; undefined elsewhere.
+  const tripSlug = pathname.match(/^\/trips\/([^/]+)/)?.[1]
+
   function send() {
     const text = input.trim()
     if (!text || pending) return
@@ -42,7 +46,7 @@ export function Assistant() {
     setMessages(next)
     setInput("")
     setPending(true)
-    requestChatReply(next).then((reply) => {
+    sendChatMessage(next, tripSlug).then((reply) => {
       setMessages((m) => [...m, { role: "assistant", content: reply }])
       setPending(false)
     })
@@ -93,8 +97,7 @@ export function Assistant() {
       <div className="flex-1 space-y-2.5 overflow-y-auto px-3.5 py-3">
         {messages.length === 0 ? (
           <p className="font-mono text-[10px] leading-relaxed tracking-[0.04em] text-muted-foreground">
-            Ask me anything — packing, budget, ideas. (I&apos;m a placeholder
-            until I&apos;m connected to a real assistant.)
+            Ask me anything — packing, budget, ideas for your trip.
           </p>
         ) : (
           messages.map((m, i) => (
