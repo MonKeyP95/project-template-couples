@@ -7,31 +7,45 @@ import { PlaceDoor, type DoorCategory } from "@/components/place-door"
 import type { ItineraryDay } from "@/lib/trips/itinerary-types"
 import type { ItineraryLocation } from "@/lib/trips/location-types"
 
-/** Planning-mode discovery door content: a location picker (rendered as the
- * door's header) plus Food + Activities that search near the chosen location and
- * add picks to one of its days. */
+/** Planning-mode discovery door content: Food + Activities search near a place
+ * and add picks to one of its days. With itinerary locations, a picker (the
+ * door's header) chooses which one; with none yet, it falls back to the trip
+ * header (destination) so the door still works — searching is enabled, and
+ * adding waits on a day (DiscoverySection shows "add a day first"). */
 export function PlanningPlaceDoor({
   tripId,
   tripSlug,
+  destination,
   locations,
   days,
 }: {
   tripId: string
   tripSlug: string
+  destination: string
   locations: ItineraryLocation[]
   days: ItineraryDay[]
 }) {
   const [locId, setLocId] = React.useState("")
 
-  if (locations.length === 0) return null
+  const hasLocations = locations.length > 0
+  const location = hasLocations
+    ? locations.find((l) => l.id === locId) ?? locations[0]
+    : null
 
-  const location = locations.find((l) => l.id === locId) ?? locations[0]
-  const dayOptions = days
-    .filter((d) => d.locationId === location.id)
-    .sort((a, b) => a.dayDate.localeCompare(b.dayDate))
-    .map((d) => ({ id: d.id, dayDate: d.dayDate, label: `Day ${d.d} · ${d.date}` }))
+  // No location yet -> search around the trip header; picks wait on a day.
+  const near = location ? location.name : destination
+  const keyBase = location ? location.id : "trip"
+  const cta = location ? `add to ${location.name}` : "add to a day"
 
-  const header = (
+  const dayOptions = location
+    ? days
+        .filter((d) => d.locationId === location.id)
+        .sort((a, b) => a.dayDate.localeCompare(b.dayDate))
+        .map((d) => ({ id: d.id, dayDate: d.dayDate, label: `Day ${d.d} · ${d.date}` }))
+    : []
+
+  // Only offer the picker when there's a choice to make.
+  const header = location ? (
     <select
       value={location.id}
       onChange={(e) => setLocId(e.target.value)}
@@ -43,7 +57,7 @@ export function PlanningPlaceDoor({
         </option>
       ))}
     </select>
-  )
+  ) : null
 
   const categories: DoorCategory[] = [
     {
@@ -51,17 +65,17 @@ export function PlanningPlaceDoor({
       title: "Food",
       content: (
         <DiscoverySection
-          key={`${location.id}-food`}
+          key={`${keyBase}-food`}
           category="food"
           tripId={tripId}
           tripSlug={tripSlug}
-          destination={location.name}
+          destination={near}
           when="dinner"
-          defaultNear={location.name}
+          defaultNear={near}
           defaultWalkable={false}
           addTarget={{ kind: "select", days: dayOptions }}
           buildEventText={(s) => `Dinner · ${s.name}`}
-          ctaLabel={`add to ${location.name}`}
+          ctaLabel={cta}
         />
       ),
     },
@@ -70,17 +84,17 @@ export function PlanningPlaceDoor({
       title: "Activities",
       content: (
         <DiscoverySection
-          key={`${location.id}-activity`}
+          key={`${keyBase}-activity`}
           category="activity"
           tripId={tripId}
           tripSlug={tripSlug}
-          destination={location.name}
+          destination={near}
           when=""
-          defaultNear={location.name}
+          defaultNear={near}
           defaultWalkable={false}
           addTarget={{ kind: "select", days: dayOptions }}
           buildEventText={(s) => s.name}
-          ctaLabel={`add to ${location.name}`}
+          ctaLabel={cta}
         />
       ),
     },

@@ -303,6 +303,7 @@ export function ItineraryTab({
   tripId,
   tripSlug,
   tripName,
+  destination,
   tripStartDate,
   tripEndDate,
   today,
@@ -313,6 +314,7 @@ export function ItineraryTab({
   tripId: string
   tripSlug: string
   tripName: string
+  destination: string
   tripStartDate: string
   tripEndDate: string
   today: string
@@ -643,14 +645,13 @@ export function ItineraryTab({
         surface="itinerary"
         tripSlug={tripSlug}
         door={
-          locations.length > 0 ? (
-            <PlanningPlaceDoor
-              tripId={tripId}
-              tripSlug={tripSlug}
-              locations={locations}
-              days={days}
-            />
-          ) : undefined
+          <PlanningPlaceDoor
+            tripId={tripId}
+            tripSlug={tripSlug}
+            destination={destination}
+            locations={locations}
+            days={days}
+          />
         }
       />
     </div>

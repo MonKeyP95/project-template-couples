@@ -251,6 +251,7 @@ export default async function TripPage({
               tripId={header.id}
               tripSlug={header.slug}
               tripName={header.name}
+              destination={header.country ?? header.name}
               tripStartDate={header.startDate}
               tripEndDate={header.endDate ?? header.startDate}
               today={await localToday()}
