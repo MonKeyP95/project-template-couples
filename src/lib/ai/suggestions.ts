@@ -1,23 +1,11 @@
 /**
- * Mock for AI suggestions. Pure, no network. The seam where a real model lands
- * later: keep SurfaceKey/Suggestion stable, then make suggestionFor async and
- * generate from the LLM client. `context` is reserved for trip facts; the mock
- * ignores it. Content here is a deterministic placeholder, easy to swap.
+ * Mock for AI suggestions. Superseded by suggestion-actions.ts + claude.ts;
+ * kept only until the client stops importing it (deleted in Task 4).
  */
 
-export type SurfaceKey =
-  | "budget"
-  | "packing"
-  | "itinerary"
-  | "notes"
-  | "home"
-  | "road"
-  | "checklists"
+import type { SurfaceKey, Suggestion } from "./suggestion-types"
 
-export interface Suggestion {
-  label: string
-  body: string
-}
+export type { SurfaceKey, Suggestion }
 
 const SUGGESTIONS: Record<SurfaceKey, Suggestion> = {
   budget: {
