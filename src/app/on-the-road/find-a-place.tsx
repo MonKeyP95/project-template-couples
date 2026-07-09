@@ -2,15 +2,14 @@
 
 import * as React from "react"
 
-import { useAiMode } from "@/components/ai-mode"
-import { CategorySection } from "@/components/category-section"
 import { DiscoverySection } from "@/components/discovery-section"
+import { PlaceDoor, type DoorCategory } from "@/components/place-door"
 import { currentMeal, mealLabel, mealWhen, type Meal } from "./meal-slot"
 
-/** On-the-road discovery door: a four-section accordion (Food + Activities live;
- * Accommodation + Transport coming soon) anchored to today. Renders whenever AI
- * mode is on and a device-local meal is known. */
-export function FindAPlace({
+/** On-the-road discovery door content for the assistant block: Food (anchored to
+ * the current meal) + Activities, added straight to today's day. Accommodation
+ * and Transport are placeholders. */
+export function RoadPlaceDoor({
   tripId,
   tripSlug,
   dayDate,
@@ -23,70 +22,55 @@ export function FindAPlace({
   dayId: string | null
   destination: string
 }) {
-  const { enabled } = useAiMode()
-
-  // Meal is a client-only value: the server has no device clock, so it must be
-  // null during SSR to avoid a hydration mismatch. useSyncExternalStore is the
-  // React 19 way to read such a value without setState-in-effect.
+  // Meal is a client-only value (device clock); null during SSR to avoid a
+  // hydration mismatch, per the React 19 useSyncExternalStore pattern.
   const meal = React.useSyncExternalStore<Meal | null>(
     () => () => {},
     () => currentMeal(new Date()),
     () => null,
   )
+  const label = meal ? mealLabel(meal) : "Meal"
 
-  if (!enabled || !meal) return null
+  const categories: DoorCategory[] = [
+    {
+      key: "food",
+      title: "Food",
+      content: (
+        <DiscoverySection
+          category="food"
+          tripId={tripId}
+          tripSlug={tripSlug}
+          destination={destination}
+          when={meal ? mealWhen(meal) : ""}
+          defaultNear={destination}
+          defaultWalkable
+          addTarget={{ kind: "fixed", dayDate, dayId }}
+          buildEventText={(s) => `${label} · ${s.name}`}
+          ctaLabel="add to today"
+        />
+      ),
+    },
+    {
+      key: "activity",
+      title: "Activities",
+      content: (
+        <DiscoverySection
+          category="activity"
+          tripId={tripId}
+          tripSlug={tripSlug}
+          destination={destination}
+          when=""
+          defaultNear={destination}
+          defaultWalkable
+          addTarget={{ kind: "fixed", dayDate, dayId }}
+          buildEventText={(s) => s.name}
+          ctaLabel="add to today"
+        />
+      ),
+    },
+    { key: "stay", title: "Accommodation", soon: true },
+    { key: "transport", title: "Transport", soon: true },
+  ]
 
-  const activeMeal: Meal = meal
-  const label = mealLabel(activeMeal)
-
-  return (
-    <section className="mt-4 rounded-[14px] border border-l-2 border-border border-l-moss bg-card p-5">
-      <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-moss">
-        AI · suggestions
-      </span>
-      <div className="mt-2 flex flex-col gap-1">
-        <CategorySection title="Food" defaultOpen>
-          <DiscoverySection
-            category="food"
-            tripId={tripId}
-            tripSlug={tripSlug}
-            destination={destination}
-            when={mealWhen(activeMeal)}
-            defaultNear={destination}
-            defaultWalkable
-            addTarget={{ kind: "fixed", dayDate, dayId }}
-            buildEventText={(s) => `${label} · ${s.name}`}
-            ctaLabel="add to today"
-          />
-        </CategorySection>
-
-        <CategorySection title="Activities">
-          <DiscoverySection
-            category="activity"
-            tripId={tripId}
-            tripSlug={tripSlug}
-            destination={destination}
-            when=""
-            defaultNear={destination}
-            defaultWalkable
-            addTarget={{ kind: "fixed", dayDate, dayId }}
-            buildEventText={(s) => s.name}
-            ctaLabel="add to today"
-          />
-        </CategorySection>
-
-        <CategorySection title="Accommodation" hint="coming soon">
-          <p className="text-[13px] text-muted-foreground">
-            Coming soon — find a place to stay.
-          </p>
-        </CategorySection>
-
-        <CategorySection title="Transport" hint="coming soon">
-          <p className="text-[13px] text-muted-foreground">
-            Coming soon — find how to get around.
-          </p>
-        </CategorySection>
-      </div>
-    </section>
-  )
+  return <PlaceDoor categories={categories} />
 }

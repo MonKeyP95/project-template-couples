@@ -20,7 +20,7 @@ import { getNotesForDay } from "@/lib/trips/note-queries"
 import { computeLookingAhead } from "@/lib/trips/looking-ahead"
 import { localToday } from "@/lib/time/local-today"
 
-import { AiSuggestion } from "@/components/ai-suggestion"
+import { AssistantBlock } from "@/components/assistant-block"
 import { RealtimeRefresh } from "@/components/realtime-refresh"
 import { QuickExpense } from "./quick-expense"
 import { QuickNote } from "./quick-note"
@@ -28,7 +28,7 @@ import { LookingAheadPanel } from "./looking-ahead-panel"
 import { AddTodayEvent } from "./add-today-event"
 import { TodayUpcoming } from "./today-upcoming"
 import { TodayPast } from "./today-past"
-import { FindAPlace } from "./find-a-place"
+import { RoadPlaceDoor } from "./find-a-place"
 
 const WEEKDAY_FMT = new Intl.DateTimeFormat("en-GB", {
   weekday: "short",
@@ -104,7 +104,20 @@ export default async function OnTheRoadPage() {
           className="mb-4"
         />
         <Label className="mb-4 block">{`On the road · ${trip.name}`}</Label>
-        <AiSuggestion surface="road" tripSlug={trip.slug} className="mb-4 block" />
+        <AssistantBlock
+          surface="road"
+          tripSlug={trip.slug}
+          className="mb-4 block"
+          door={
+            <RoadPlaceDoor
+              tripId={trip.id}
+              tripSlug={trip.slug}
+              dayDate={today}
+              dayId={todayDay?.id ?? null}
+              destination={searchDestination}
+            />
+          }
+        />
 
       <section className="relative overflow-hidden rounded-[14px] border border-border bg-card p-5">
         <TopoBg tone={tone} opacity={0.12} />
@@ -148,14 +161,6 @@ export default async function OnTheRoadPage() {
           dayId={todayDay?.id ?? null}
         />
       </section>
-
-      <FindAPlace
-        tripId={trip.id}
-        tripSlug={trip.slug}
-        dayDate={today}
-        dayId={todayDay?.id ?? null}
-        destination={searchDestination}
-      />
 
       <QuickExpense
         tripId={trip.id}
