@@ -643,12 +643,14 @@ export function ItineraryTab({
         surface="itinerary"
         tripSlug={tripSlug}
         door={
-          <PlanningPlaceDoor
-            tripId={tripId}
-            tripSlug={tripSlug}
-            locations={locations}
-            days={days}
-          />
+          locations.length > 0 ? (
+            <PlanningPlaceDoor
+              tripId={tripId}
+              tripSlug={tripSlug}
+              locations={locations}
+              days={days}
+            />
+          ) : undefined
         }
       />
     </div>
