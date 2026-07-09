@@ -1,0 +1,213 @@
+"use client"
+
+import * as React from "react"
+
+import { cn } from "@/lib/utils"
+import { useAiMode } from "@/components/ai-mode"
+import { SuggestionCard } from "@/components/together"
+import { suggestForSurface } from "@/lib/ai/suggestion-actions"
+import type { SurfaceKey, Suggestion } from "@/lib/ai/suggestion-types"
+import { sendChatMessage } from "@/lib/ai/chat-actions"
+import type { ChatMessage } from "@/lib/ai/chat-types"
+
+/** The single AI access point. One inline collapsible block whose header IS the
+ * AI on/off: collapsed = off (just the label), expanded = on (suggest + optional
+ * door + inline chat). State persists per-person via useAiMode / the ai cookie. */
+export function AssistantBlock({
+  surface,
+  tripSlug,
+  door,
+  className,
+}: {
+  surface: SurfaceKey
+  tripSlug?: string
+  door?: React.ReactNode
+  className?: string
+}) {
+  const { enabled, setEnabled } = useAiMode()
+  return (
+    <div
+      className={cn(
+        "rounded-[14px] border border-l-2 border-border border-l-moss bg-card",
+        className,
+      )}
+    >
+      <button
+        type="button"
+        onClick={() => setEnabled(!enabled)}
+        aria-expanded={enabled}
+        className="flex w-full items-center justify-between px-4 py-3 text-left"
+      >
+        <span className="font-mono text-[11px] uppercase tracking-[0.2em] text-moss">
+          assistant
+        </span>
+        <span aria-hidden className="font-mono text-[12px] text-muted-foreground">
+          {enabled ? "▾" : "▸"}
+        </span>
+      </button>
+
+      {enabled ? (
+        <div className="flex flex-col">
+          <Divider />
+          <div className="px-4 py-3">
+            <SuggestLine surface={surface} tripSlug={tripSlug} />
+          </div>
+          {door ? (
+            <>
+              <Divider />
+              <div className="px-4 py-3">{door}</div>
+            </>
+          ) : null}
+          <Divider />
+          <div className="px-4 py-3">
+            <AskLine tripSlug={tripSlug} />
+          </div>
+        </div>
+      ) : null}
+    </div>
+  )
+}
+
+function Divider() {
+  return <div className="mx-4 h-px bg-rule" />
+}
+
+/** On-demand suggestion: collapsed to "/ suggest" until pressed, then a Claude
+ * card with "another" (regenerate) and "dismiss". Moved from ai-suggestion.tsx;
+ * no AI-mode gate here since the block already gates. */
+function SuggestLine({
+  surface,
+  tripSlug,
+}: {
+  surface: SurfaceKey
+  tripSlug?: string
+}) {
+  const [suggestion, setSuggestion] = React.useState<Suggestion | null>(null)
+  const [busy, setBusy] = React.useState(false)
+  const [error, setError] = React.useState<string | null>(null)
+
+  const run = React.useCallback(async () => {
+    setBusy(true)
+    setError(null)
+    const res = await suggestForSurface(surface, tripSlug)
+    if (res.suggestion) setSuggestion(res.suggestion)
+    else setError(res.error ?? "Couldn't reach the assistant.")
+    setBusy(false)
+  }, [surface, tripSlug])
+
+  if (!suggestion) {
+    return (
+      <div>
+        <button
+          type="button"
+          onClick={run}
+          disabled={busy}
+          className="font-mono text-[9.5px] uppercase tracking-[0.2em] text-moss disabled:opacity-60"
+        >
+          {busy ? "thinking..." : "/ suggest"}
+        </button>
+        {error ? (
+          <p className="mt-1.5 text-[12.5px] leading-snug text-clay">{error}</p>
+        ) : null}
+      </div>
+    )
+  }
+
+  return (
+    <SuggestionCard
+      label={suggestion.label}
+      applyLabel={busy ? "thinking..." : "another"}
+      dismissLabel="dismiss"
+      onApply={run}
+      onDismiss={() => {
+        setSuggestion(null)
+        setError(null)
+      }}
+    >
+      {suggestion.body}
+    </SuggestionCard>
+  )
+}
+
+/** Inline chat. Same server seam (sendChatMessage) the floating panel used. */
+function AskLine({ tripSlug }: { tripSlug?: string }) {
+  const [messages, setMessages] = React.useState<ChatMessage[]>([])
+  const [input, setInput] = React.useState("")
+  const [pending, setPending] = React.useState(false)
+  const endRef = React.useRef<HTMLDivElement>(null)
+
+  React.useEffect(() => {
+    endRef.current?.scrollIntoView({ behavior: "smooth" })
+  }, [messages, pending])
+
+  function send() {
+    const text = input.trim()
+    if (!text || pending) return
+    const next: ChatMessage[] = [...messages, { role: "user", content: text }]
+    setMessages(next)
+    setInput("")
+    setPending(true)
+    sendChatMessage(next, tripSlug).then((reply) => {
+      setMessages((m) => [...m, { role: "assistant", content: reply }])
+      setPending(false)
+    })
+  }
+
+  function onKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault()
+      send()
+    }
+  }
+
+  return (
+    <div className="flex flex-col gap-2.5">
+      {messages.length > 0 ? (
+        <div className="flex max-h-60 flex-col gap-2 overflow-y-auto">
+          {messages.map((m, i) => (
+            <div
+              key={i}
+              className={m.role === "user" ? "flex justify-end" : "flex justify-start"}
+            >
+              <span
+                className={`max-w-[85%] rounded-lg px-3 py-1.5 text-[13px] leading-snug ${
+                  m.role === "user"
+                    ? "bg-foreground text-background"
+                    : "border border-border bg-background text-foreground"
+                }`}
+              >
+                {m.content}
+              </span>
+            </div>
+          ))}
+          {pending ? (
+            <div className="flex justify-start">
+              <span className="rounded-lg border border-border bg-background px-3 py-1.5 font-mono text-[11px] text-muted-foreground">
+                typing…
+              </span>
+            </div>
+          ) : null}
+          <div ref={endRef} />
+        </div>
+      ) : null}
+      <div className="flex items-end gap-2">
+        <textarea
+          rows={1}
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          onKeyDown={onKeyDown}
+          placeholder="ask me anything…"
+          className="max-h-24 min-h-[2rem] flex-1 resize-none border-0 border-b border-rule bg-transparent text-[13px] text-foreground outline-none placeholder:text-muted-foreground focus:border-foreground"
+        />
+        <button
+          type="button"
+          onClick={send}
+          disabled={pending || input.trim() === ""}
+          className="rounded-md border-0 bg-foreground px-3 py-1.5 font-mono text-[9.5px] uppercase tracking-[0.2em] text-background disabled:opacity-40"
+        >
+          send
+        </button>
+      </div>
+    </div>
+  )
+}
