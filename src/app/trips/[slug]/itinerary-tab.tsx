@@ -3,9 +3,9 @@
 import * as React from "react"
 
 import { Label, MonoBadge } from "@/components/together"
-import { AiSuggestion } from "@/components/ai-suggestion"
+import { AssistantBlock } from "@/components/assistant-block"
 import { EventRating } from "@/components/event-rating"
-import { FindAPlacePlanning } from "./find-a-place-planning"
+import { PlanningPlaceDoor } from "./find-a-place-planning"
 import { BudgetScopeEditor } from "./budget-scope-editor"
 import type { BudgetItem } from "@/lib/trips/budget-item-types"
 import {
@@ -303,6 +303,7 @@ export function ItineraryTab({
   tripId,
   tripSlug,
   tripName,
+  destination,
   tripStartDate,
   tripEndDate,
   today,
@@ -313,6 +314,7 @@ export function ItineraryTab({
   tripId: string
   tripSlug: string
   tripName: string
+  destination: string
   tripStartDate: string
   tripEndDate: string
   today: string
@@ -639,12 +641,18 @@ export function ItineraryTab({
           + location
         </button>
       )}
-      <AiSuggestion surface="itinerary" tripSlug={tripSlug} />
-      <FindAPlacePlanning
-        tripId={tripId}
+      <AssistantBlock
+        surface="itinerary"
         tripSlug={tripSlug}
-        locations={locations}
-        days={days}
+        door={
+          <PlanningPlaceDoor
+            tripId={tripId}
+            tripSlug={tripSlug}
+            destination={destination}
+            locations={locations}
+            days={days}
+          />
+        }
       />
     </div>
   )

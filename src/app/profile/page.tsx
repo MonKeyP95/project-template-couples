@@ -4,7 +4,6 @@ import { updateProfile } from "@/lib/auth/actions"
 import { createClient } from "@/lib/supabase/server"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { AiToggle } from "@/components/ai-mode"
 import {
   LeftRail,
   MobileHeaderNav,
@@ -108,14 +107,7 @@ export default async function ProfilePage() {
             </div>
           </dl>
 
-          <div className="mt-8 flex items-center justify-between border-t border-border pt-6">
-            <span className="text-sm text-muted-foreground">
-              AI assistant (off by default)
-            </span>
-            <AiToggle />
-          </div>
-
-          <p className="mt-8 text-sm text-muted-foreground">
+          <p className="mt-8 border-t border-border pt-8 text-sm text-muted-foreground">
             What we like (used by the AI to suggest places)
           </p>
           <div className="mt-4 flex flex-col gap-5">

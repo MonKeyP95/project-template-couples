@@ -17,11 +17,12 @@ import {
 } from "@/lib/trips/location-budget-types"
 import { type ItineraryLocation } from "@/lib/trips/location-types"
 
-import { AiSuggestion } from "@/components/ai-suggestion"
+import { AssistantBlock } from "@/components/assistant-block"
 
 import { BudgetByLocation } from "./budget-by-location"
 import { BudgetDrafter } from "./budget-drafter"
 import { BudgetScopeEditor } from "./budget-scope-editor"
+import { PlanningPlaceDoor } from "./find-a-place-planning"
 import { useAiMode } from "@/components/ai-mode"
 import type { BudgetItem } from "@/lib/trips/budget-item-types"
 import { SavedFigure, SpentFigure } from "./budget-figures"
@@ -37,6 +38,7 @@ function fmt(cents: number): string {
 export interface BudgetTabProps {
   tripId: string
   tripSlug: string
+  destination: string
   tripName: string
   tripDays: number
   expenses: Expense[]
@@ -57,6 +59,7 @@ export interface BudgetTabProps {
 export function BudgetTab({
   tripId,
   tripSlug,
+  destination,
   tripName,
   tripDays,
   expenses,
@@ -174,7 +177,17 @@ export function BudgetTab({
         <SettlementHistory expenses={expenses} members={members} />
       </CompactSettle>
       <div className="px-5 pt-4">
-        <AiSuggestion surface="budget" tripSlug={tripSlug} />
+        <AssistantBlock
+          surface="budget"
+          tripSlug={tripSlug}
+          door={
+            <PlanningPlaceDoor
+              tripId={tripId}
+              tripSlug={tripSlug}
+              destination={destination}
+            />
+          }
+        />
       </div>
       <BudgetByLocation
         tripId={tripId}
