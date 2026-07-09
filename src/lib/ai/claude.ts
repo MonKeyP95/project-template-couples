@@ -6,6 +6,7 @@ import type {
   DiscoveryQuery,
   DiscoverySuggestion,
 } from "./discovery-types"
+import type { Suggestion } from "./suggestion-types"
 
 /**
  * The single seam for Claude calls (CLAUDE.md: "AI provider is one file").
@@ -391,4 +392,57 @@ export async function draftBudgetSeeds(
   if (!proposal) return []
   const input = proposal.input as { items?: DraftedBudgetItem[] }
   return input.items ?? []
+}
+
+// --- Suggestions ---
+
+const SUGGESTION_TOOL: Anthropic.Messages.ToolUnion = {
+  name: "propose_suggestion",
+  description: "Return one short, actionable suggestion for the couple.",
+  strict: true,
+  input_schema: {
+    type: "object",
+    additionalProperties: false,
+    properties: {
+      label: {
+        type: "string",
+        description:
+          "A terse header in the app's voice, e.g. '/ suggested' or '/ assistant'.",
+      },
+      body: {
+        type: "string",
+        description:
+          "One to two sentences: a specific, actionable suggestion grounded in the given context. No preamble.",
+      },
+    },
+    required: ["label", "body"],
+  },
+}
+
+const SUGGESTION_SYSTEM =
+  "You are the in-app assistant for a couple planning and taking trips " +
+  "together. Given a surface and its current trip context, propose exactly one " +
+  "short, specific, actionable suggestion for that surface. Ground it in the " +
+  "context provided; never invent facts (place names, dates, prices) not given. " +
+  "Keep the body to one or two sentences. Return only the propose_suggestion tool."
+
+/** One real suggestion for a surface, from a context prompt the caller builds.
+ * Plain messages.create, no web_search. Suggest-only: returns text, never
+ * writes. Throws when the model returns no tool block. */
+export async function generateSuggestion(prompt: string): Promise<Suggestion> {
+  const response = await anthropic.messages.create({
+    model: MODEL,
+    max_tokens: 512,
+    system: SUGGESTION_SYSTEM,
+    tools: [SUGGESTION_TOOL],
+    tool_choice: { type: "tool", name: "propose_suggestion" },
+    messages: [{ role: "user", content: prompt }],
+  })
+  const proposal = response.content.find(
+    (block): block is Anthropic.ToolUseBlock =>
+      block.type === "tool_use" && block.name === "propose_suggestion",
+  )
+  if (!proposal) throw new Error("No suggestion returned")
+  const input = proposal.input as { label?: string; body?: string }
+  return { label: input.label ?? "/ suggested", body: input.body ?? "" }
 }
