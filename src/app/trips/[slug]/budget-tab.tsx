@@ -174,7 +174,7 @@ export function BudgetTab({
         <SettlementHistory expenses={expenses} members={members} />
       </CompactSettle>
       <div className="px-5 pt-4">
-        <AiSuggestion surface="budget" />
+        <AiSuggestion surface="budget" tripSlug={tripSlug} />
       </div>
       <BudgetByLocation
         tripId={tripId}

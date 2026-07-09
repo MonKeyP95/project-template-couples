@@ -639,7 +639,7 @@ export function ItineraryTab({
           + location
         </button>
       )}
-      <AiSuggestion surface="itinerary" />
+      <AiSuggestion surface="itinerary" tripSlug={tripSlug} />
       <FindAPlacePlanning
         tripId={tripId}
         tripSlug={tripSlug}

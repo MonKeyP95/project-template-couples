@@ -104,7 +104,7 @@ export default async function OnTheRoadPage() {
           className="mb-4"
         />
         <Label className="mb-4 block">{`On the road · ${trip.name}`}</Label>
-        <AiSuggestion surface="road" className="mb-4 block" />
+        <AiSuggestion surface="road" tripSlug={trip.slug} className="mb-4 block" />
 
       <section className="relative overflow-hidden rounded-[14px] border border-border bg-card p-5">
         <TopoBg tone={tone} opacity={0.12} />

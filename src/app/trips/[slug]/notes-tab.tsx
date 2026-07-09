@@ -121,7 +121,7 @@ export function NotesTab({
 
   return (
     <section className="px-5 pt-5 lg:px-10 lg:pt-6">
-      <AiSuggestion surface="notes" className="mb-4 block" />
+      <AiSuggestion surface="notes" tripSlug={tripSlug} className="mb-4 block" />
       <div className="flex items-baseline justify-between">
         <Label>Notes</Label>
         <span className="font-mono text-[10px] tracking-[0.06em] text-muted-foreground">

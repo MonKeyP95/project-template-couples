@@ -311,6 +311,7 @@ export function PackingTab({
         <PackingList
           key={view}
           tripId={tripId}
+          tripSlug={tripSlug}
           owner={active.owner}
           readOnly={active.readOnly}
           categories={active.scope.categories}
@@ -333,6 +334,7 @@ export function PackingTab({
 
 interface PackingListProps {
   tripId: string
+  tripSlug: string
   owner: string | null
   readOnly: boolean
   categories: PackingCategory[]
@@ -356,6 +358,7 @@ interface PackingListProps {
 
 function PackingList({
   tripId,
+  tripSlug,
   owner,
   readOnly,
   categories,
@@ -484,7 +487,7 @@ function PackingList({
 
 
       <div className="px-5 pt-4 pb-6">
-        <AiSuggestion surface="packing" />
+        <AiSuggestion surface="packing" tripSlug={tripSlug} />
       </div>
     </>
   )
