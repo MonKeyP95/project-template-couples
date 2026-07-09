@@ -39,37 +39,3 @@ export function AiModeProvider({
 export function useAiMode(): AiModeValue {
   return React.useContext(AiModeContext)
 }
-
-function persistAi(next: boolean) {
-  document.cookie = `${AI_COOKIE}=${next ? "on" : "off"}; path=/; max-age=${ONE_YEAR_SECONDS}; samesite=lax`
-}
-
-/** Per-person AI on/off switch. Off by default; writes the `ai` cookie. */
-export function AiToggle() {
-  const { enabled, setEnabled } = useAiMode()
-
-  function toggle() {
-    const next = !enabled
-    setEnabled(next)
-    persistAi(next)
-  }
-
-  return (
-    <button
-      type="button"
-      role="switch"
-      aria-checked={enabled}
-      aria-label="AI assistant"
-      onClick={toggle}
-      className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors ${
-        enabled ? "bg-sea" : "bg-border"
-      }`}
-    >
-      <span
-        className={`inline-block h-3.5 w-3.5 rounded-full bg-white shadow-sm transition-transform ${
-          enabled ? "translate-x-[19px]" : "translate-x-[3px]"
-        }`}
-      />
-    </button>
-  )
-}
