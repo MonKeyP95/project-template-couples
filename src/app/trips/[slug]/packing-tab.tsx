@@ -3,7 +3,7 @@
 import * as React from "react"
 
 import { CheckRow, Coord, Label, SegBtn, TopoBg } from "@/components/together"
-import { AiSuggestion } from "@/components/ai-suggestion"
+import { AssistantBlock } from "@/components/assistant-block"
 import {
   DndContext,
   PointerSensor,
@@ -487,7 +487,7 @@ function PackingList({
 
 
       <div className="px-5 pt-4 pb-6">
-        <AiSuggestion surface="packing" tripSlug={tripSlug} />
+        <AssistantBlock surface="packing" tripSlug={tripSlug} />
       </div>
     </>
   )

@@ -11,7 +11,7 @@ import {
   PairAvatar,
 } from "@/components/together"
 import { LeftRail, MobileHeaderNav, buildNavDestinations } from "@/components/app-nav"
-import { AiSuggestion } from "@/components/ai-suggestion"
+import { AssistantBlock } from "@/components/assistant-block"
 import { createClient } from "@/lib/supabase/server"
 import { isDarkTheme } from "@/lib/theme"
 import { getItineraryLocations } from "@/lib/trips/location-queries"
@@ -236,7 +236,7 @@ export default async function HomePage() {
         </>
       )}
 
-      <AiSuggestion surface="home" className="mt-9 block" />
+      <AssistantBlock surface="home" className="mt-9 block" />
 
       <Link
         href="/trips/new"
