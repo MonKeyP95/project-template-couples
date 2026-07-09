@@ -24,7 +24,11 @@ export function AiModeProvider({
   initialEnabled: boolean
   children: React.ReactNode
 }) {
-  const [enabled, setEnabled] = React.useState(initialEnabled)
+  const [enabled, setEnabledState] = React.useState(initialEnabled)
+  const setEnabled = React.useCallback((v: boolean) => {
+    setEnabledState(v)
+    document.cookie = `${AI_COOKIE}=${v ? "on" : "off"}; path=/; max-age=${ONE_YEAR_SECONDS}; samesite=lax`
+  }, [])
   return (
     <AiModeContext.Provider value={{ enabled, setEnabled }}>
       {children}
