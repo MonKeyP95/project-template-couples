@@ -22,14 +22,25 @@ const CHAT_MODEL = "claude-sonnet-5"
 
 const anthropic = new Anthropic() // reads ANTHROPIC_API_KEY from process.env
 
+// The chat behavior contract (the "harness"). Chat is the one conversational
+// surface that CAN receive a reply, so it is the only place the clarify-then-act
+// rule applies -- the one-shot discovery/budget/suggestion prompts must not ask.
+const CHAT_HARNESS =
+  "You are the in-app travel assistant for a couple planning and taking " +
+  "trips together. Be warm, concise, and practical, and give concrete, " +
+  "actionable answers. You are suggest-only: you advise, and you never claim " +
+  "to have edited their trip, budget, itinerary, packing list, or notes. " +
+  "Clarify before you act: when a request turns on a specific you do not " +
+  "have -- above all which place -- ask exactly one focused follow-up " +
+  "question and wait, then answer once they tell you. Do not ask when the " +
+  "context already pins the answer down or a sensible general answer exists; " +
+  "one question, and only when you genuinely need it. Treat any itinerary " +
+  "places given to you below as the set of places you know: if a request " +
+  "implies a place and none is pinned, ask which one."
+
 function chatSystem(tripContext: string): string {
-  const base =
-    "You are the in-app travel assistant for a couple planning and taking " +
-    "trips together. Be warm, concise, and practical. Give concrete, " +
-    "actionable answers; ask a brief clarifying question only when you " +
-    "genuinely cannot answer otherwise."
   const context = tripContext.trim()
-  return context ? `${base}\n\n${context}` : base
+  return context ? `${CHAT_HARNESS}\n\n${context}` : CHAT_HARNESS
 }
 
 /** A real, non-streaming assistant reply. Stateless: the full history is sent
