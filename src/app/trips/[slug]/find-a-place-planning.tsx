@@ -16,14 +16,14 @@ export function PlanningPlaceDoor({
   tripId,
   tripSlug,
   destination,
-  locations,
-  days,
+  locations = [],
+  days = [],
 }: {
   tripId: string
   tripSlug: string
   destination: string
-  locations: ItineraryLocation[]
-  days: ItineraryDay[]
+  locations?: ItineraryLocation[]
+  days?: ItineraryDay[]
 }) {
   const [locId, setLocId] = React.useState("")
 

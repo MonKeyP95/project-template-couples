@@ -17,6 +17,7 @@ import {
   updateNote,
 } from "@/lib/trips/actions"
 import { AssistantBlock } from "@/components/assistant-block"
+import { PlanningPlaceDoor } from "./find-a-place-planning"
 import { ImportFromTripControl } from "./import-from-trip"
 import type { TripNote } from "@/lib/trips/note-queries"
 import type { ItineraryLocation } from "@/lib/trips/location-types"
@@ -95,12 +96,14 @@ function buildGroups(
 export function NotesTab({
   tripId,
   tripSlug,
+  destination,
   initialNotes,
   locations,
   members,
 }: {
   tripId: string
   tripSlug: string
+  destination: string
   initialNotes: TripNote[]
   locations: ItineraryLocation[]
   members: Record<string, MemberToneEntry>
@@ -121,7 +124,18 @@ export function NotesTab({
 
   return (
     <section className="px-5 pt-5 lg:px-10 lg:pt-6">
-      <AssistantBlock surface="notes" tripSlug={tripSlug} className="mb-4 block" />
+      <AssistantBlock
+        surface="notes"
+        tripSlug={tripSlug}
+        className="mb-4 block"
+        door={
+          <PlanningPlaceDoor
+            tripId={tripId}
+            tripSlug={tripSlug}
+            destination={destination}
+          />
+        }
+      />
       <div className="flex items-baseline justify-between">
         <Label>Notes</Label>
         <span className="font-mono text-[10px] tracking-[0.06em] text-muted-foreground">

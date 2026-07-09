@@ -4,6 +4,7 @@ import * as React from "react"
 
 import { CheckRow, Coord, Label, SegBtn, TopoBg } from "@/components/together"
 import { AssistantBlock } from "@/components/assistant-block"
+import { PlanningPlaceDoor } from "./find-a-place-planning"
 import {
   DndContext,
   PointerSensor,
@@ -48,6 +49,7 @@ export interface MemberToneEntry {
 export interface PackingTabProps {
   tripId: string
   tripSlug: string
+  destination: string
   currentUserId: string
   partnerId: string | null
   initialItems: PackingItem[]
@@ -85,6 +87,7 @@ type View = "mine" | "shared" | "partner"
 export function PackingTab({
   tripId,
   tripSlug,
+  destination,
   currentUserId,
   partnerId,
   initialItems,
@@ -312,6 +315,7 @@ export function PackingTab({
           key={view}
           tripId={tripId}
           tripSlug={tripSlug}
+          destination={destination}
           owner={active.owner}
           readOnly={active.readOnly}
           categories={active.scope.categories}
@@ -335,6 +339,7 @@ export function PackingTab({
 interface PackingListProps {
   tripId: string
   tripSlug: string
+  destination: string
   owner: string | null
   readOnly: boolean
   categories: PackingCategory[]
@@ -359,6 +364,7 @@ interface PackingListProps {
 function PackingList({
   tripId,
   tripSlug,
+  destination,
   owner,
   readOnly,
   categories,
@@ -487,7 +493,17 @@ function PackingList({
 
 
       <div className="px-5 pt-4 pb-6">
-        <AssistantBlock surface="packing" tripSlug={tripSlug} />
+        <AssistantBlock
+          surface="packing"
+          tripSlug={tripSlug}
+          door={
+            <PlanningPlaceDoor
+              tripId={tripId}
+              tripSlug={tripSlug}
+              destination={destination}
+            />
+          }
+        />
       </div>
     </>
   )

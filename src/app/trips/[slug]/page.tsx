@@ -264,6 +264,7 @@ export default async function TripPage({
           <PackingTab
             tripId={header.id}
             tripSlug={header.slug}
+            destination={header.country ?? header.name}
             currentUserId={userData.user.id}
             partnerId={partnerId}
             initialItems={packingItems}
@@ -275,6 +276,7 @@ export default async function TripPage({
           <BudgetTab
             tripId={header.id}
             tripSlug={header.slug}
+            destination={header.country ?? header.name}
             tripName={header.name}
             tripDays={computeTripDays(header.startDate, header.endDate)}
             expenses={expenses}
@@ -297,6 +299,7 @@ export default async function TripPage({
             expenseCategories={expenseCategories ?? []}
             tripId={header.id}
             tripSlug={header.slug}
+            destination={header.country ?? header.name}
             initialNotes={notes ?? []}
             locations={locations ?? []}
             members={memberTones}
