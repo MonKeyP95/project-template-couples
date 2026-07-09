@@ -9,6 +9,7 @@ import {
   type BudgetGroup,
   type BudgetStep,
 } from "@/lib/ai/budget-planner"
+import { draftBudget } from "@/lib/ai/budget-actions"
 import { saveBudgetItems, type SaveBudgetItemInput } from "@/lib/trips/actions"
 import type { BudgetItem } from "@/lib/trips/budget-item-types"
 import {
@@ -136,6 +137,8 @@ export function BudgetDrafter({
   const [stepIndex, setStepIndex] = React.useState(0)
   const [error, setError] = React.useState<string | null>(null)
   const [isPending, startTransition] = React.useTransition()
+  const [drafting, setDrafting] = React.useState(false)
+  const [usedFallback, setUsedFallback] = React.useState(false)
   const itemSeq = React.useRef(0)
 
   const totalDays = tripDays > 0 ? tripDays : itineraryDays.length
@@ -145,31 +148,9 @@ export function BudgetDrafter({
     return { id: `it-${itemSeq.current++}`, subject, when, value }
   }
 
-  function open(fromScratch = false) {
-    // Per-location nights + a human date label, from the itinerary days.
-    const nightsByLoc: Record<string, number> = {}
-    const datesByLoc: Record<string, string[]> = {}
-    for (const d of itineraryDays) {
-      if (d.locationId) {
-        nightsByLoc[d.locationId] = (nightsByLoc[d.locationId] ?? 0) + 1
-        ;(datesByLoc[d.locationId] ??= []).push(d.dayDate)
-      }
-    }
-    const locInput = locations.map((l) => ({
-      id: l.id,
-      name: l.name,
-      nights: nightsByLoc[l.id] ?? 0,
-      dateLabel: locationDateLabel(l.startDate, l.endDate, datesByLoc[l.id] ?? []),
-    }))
-
-    const steps = planBudgetSteps({
-      tripName,
-      totalDays,
-      memberCount,
-      locations: locInput,
-    })
-
-    const saved = fromScratch ? null : serverToSaved(initialItems)
+  /** Seed a session from steps: saved rows when present for a bucket, else the
+   * step/group seeds (mock or AI-drafted). */
+  function seedSession(steps: BudgetStep[], saved: SavedItems | null) {
     const items: Record<string, ItemRow[]> = {}
     for (const step of steps) {
       for (const { bucketId, group } of stepBuckets(step)) {
@@ -189,6 +170,44 @@ export function BudgetDrafter({
     setError(null)
     setStepIndex(0)
     setSession({ steps, items })
+  }
+
+  async function open(fromScratch = false) {
+    // Per-location nights + a human date label, from the itinerary days.
+    const nightsByLoc: Record<string, number> = {}
+    const datesByLoc: Record<string, string[]> = {}
+    for (const d of itineraryDays) {
+      if (d.locationId) {
+        nightsByLoc[d.locationId] = (nightsByLoc[d.locationId] ?? 0) + 1
+        ;(datesByLoc[d.locationId] ??= []).push(d.dayDate)
+      }
+    }
+    const locInput = locations.map((l) => ({
+      id: l.id,
+      name: l.name,
+      nights: nightsByLoc[l.id] ?? 0,
+      dateLabel: locationDateLabel(l.startDate, l.endDate, datesByLoc[l.id] ?? []),
+    }))
+    const planInput = { tripName, totalDays, memberCount, locations: locInput }
+
+    // Edit budget: restore saved rows locally, no AI call.
+    const saved = fromScratch ? null : serverToSaved(initialItems)
+    if (saved && Object.keys(saved).length > 0) {
+      setUsedFallback(false)
+      seedSession(planBudgetSteps(planInput), saved)
+      return
+    }
+
+    // Plan a budget / Start over: draft with Claude, fall back to the scaffold.
+    setDrafting(true)
+    setUsedFallback(false)
+    try {
+      const { steps, drafted } = await draftBudget({ ...planInput, tripSlug })
+      setUsedFallback(!drafted)
+      seedSession(steps, null)
+    } finally {
+      setDrafting(false)
+    }
   }
 
   function addItem(bucketId: string) {
@@ -293,15 +312,21 @@ export function BudgetDrafter({
         <button
           type="button"
           onClick={() => open()}
-          className="rounded-full border border-border bg-transparent px-3 py-1.5 font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground hover:text-foreground"
+          disabled={drafting}
+          className="rounded-full border border-border bg-transparent px-3 py-1.5 font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground hover:text-foreground disabled:opacity-50"
         >
-          {plannedBudgetCents > 0 ? "Edit budget" : "Plan a budget"}
+          {drafting
+            ? "drafting…"
+            : plannedBudgetCents > 0
+              ? "Edit budget"
+              : "Plan a budget"}
         </button>
         {plannedBudgetCents > 0 ? (
           <button
             type="button"
             onClick={() => open(true)}
-            className="rounded-full border border-dashed border-border bg-transparent px-3 py-1.5 font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground hover:text-foreground"
+            disabled={drafting}
+            className="rounded-full border border-dashed border-border bg-transparent px-3 py-1.5 font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground hover:text-foreground disabled:opacity-50"
           >
             Start over
           </button>
@@ -401,6 +426,11 @@ export function BudgetDrafter({
         {step.hint ? (
           <div className="mt-1 font-mono text-[10px] leading-snug tracking-[0.06em] text-muted-foreground">
             {step.hint}
+          </div>
+        ) : null}
+        {usedFallback ? (
+          <div className="mt-1 font-mono text-[10px] leading-snug tracking-[0.06em] text-clay">
+            couldn&apos;t reach the assistant — using rough estimates
           </div>
         ) : null}
 
