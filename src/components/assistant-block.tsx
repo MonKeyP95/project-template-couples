@@ -208,6 +208,9 @@ function SuggestLine({
         >
           back
         </button>
+        {error ? (
+          <p className="text-[12.5px] leading-snug text-clay">{error}</p>
+        ) : null}
       </div>
     )
   }
@@ -244,6 +247,9 @@ function SuggestLine({
         >
           back
         </button>
+        {error ? (
+          <p className="text-[12.5px] leading-snug text-clay">{error}</p>
+        ) : null}
       </div>
     )
   }
