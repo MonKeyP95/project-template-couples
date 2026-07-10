@@ -29,6 +29,8 @@ import { getItineraryLocations } from "@/lib/trips/location-queries"
 import { getDreamItineraryDays } from "@/lib/trips/dream-itinerary-queries"
 import { getTripNotes } from "@/lib/trips/note-queries"
 import { getPackingCategories, getPackingItems } from "@/lib/trips/packing-queries"
+import { getWeather } from "@/lib/weather/get-weather"
+import { detectWeatherPacking } from "@/lib/nudges/weather-packing"
 import { listTripsForWorkspace } from "@/lib/trips/list-queries"
 import { getTripBySlug, type TripHeader } from "@/lib/trips/queries"
 import { getTripShareState } from "@/lib/trips/shared-trip-queries"
@@ -209,6 +211,15 @@ export default async function TripPage({
   )
   const packingTotal = myPackingItems.length
   const packingDone = myPackingItems.filter((i) => i.done).length
+  const packingWeather =
+    header.lat != null && header.lng != null
+      ? await getWeather(header.lat, header.lng, header.startDate ?? undefined)
+      : null
+  const packingNudge = detectWeatherPacking({
+    destination: header.country ?? header.name,
+    weather: packingWeather,
+    packingLabels: packingItems.map((i) => i.label.toLowerCase()),
+  })
   const dark = await isDarkTheme()
   const navTrips = await listTripsForWorkspace(workspace.id)
   const navDestinations = buildNavDestinations({
@@ -271,6 +282,7 @@ export default async function TripPage({
             initialCategories={packingCategories}
             members={memberTones}
             daysOut={computeDaysOut(header.startDate)}
+            packingNudge={packingNudge}
           />
         ) : activeTab === "budget" ? (
           <BudgetTab

@@ -5,6 +5,7 @@ import * as React from "react"
 import { CheckRow, Coord, Label, SegBtn, TopoBg } from "@/components/together"
 import { AssistantBlock } from "@/components/assistant-block"
 import { PlanningPlaceDoor } from "./find-a-place-planning"
+import type { Nudge } from "@/lib/nudges/types"
 import {
   DndContext,
   PointerSensor,
@@ -56,6 +57,7 @@ export interface PackingTabProps {
   initialCategories: PackingCategory[]
   members: Record<string, MemberToneEntry>
   daysOut: number | null
+  packingNudge?: Nudge | null
 }
 
 interface RealtimeRow {
@@ -94,6 +96,7 @@ export function PackingTab({
   initialCategories,
   members,
   daysOut,
+  packingNudge,
 }: PackingTabProps) {
   const [items, setItems] = React.useState<PackingItem[]>(initialItems)
   const [lastInitial, setLastInitial] = React.useState(initialItems)
@@ -330,6 +333,7 @@ export function PackingTab({
           onAddCategory={addCategory}
           onRemoveCategory={removeCategory}
           onReorder={reorder}
+          packingNudge={packingNudge}
         />
       </div>
     </section>
@@ -359,6 +363,7 @@ interface PackingListProps {
     owner: string | null,
   ) => void
   onReorder: (owner: string | null, orderedIds: string[]) => void
+  packingNudge?: Nudge | null
 }
 
 function PackingList({
@@ -379,6 +384,7 @@ function PackingList({
   onAddCategory,
   onRemoveCategory,
   onReorder,
+  packingNudge,
 }: PackingListProps) {
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
@@ -496,6 +502,7 @@ function PackingList({
         <AssistantBlock
           surface="packing"
           tripSlug={tripSlug}
+          nudge={packingNudge}
           door={
             <PlanningPlaceDoor
               tripId={tripId}
