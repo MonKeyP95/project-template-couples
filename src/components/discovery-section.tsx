@@ -9,6 +9,16 @@ import type {
   DiscoverySuggestion,
 } from "@/lib/ai/discovery-types"
 
+/** Normalize a typed time to "HH:MM": "18" -> "18:00", "9:5" -> "09:05".
+ * Leaves blanks and unrecognized input untouched. */
+function normalizeTime(raw: string): string {
+  const v = raw.trim()
+  if (!v) return ""
+  const m = v.match(/^(\d{1,2})(?::?(\d{1,2}))?$/)
+  if (!m) return v
+  return `${m[1].padStart(2, "0")}:${(m[2] ?? "0").padStart(2, "0")}`
+}
+
 /** Where an added pick lands: a fixed day (on-the-road today) or a chosen day
  * from a list (planning). The parent supplies exactly one shape. */
 export type AddTarget =
@@ -126,7 +136,7 @@ export function DiscoverySection({
       tripSlug,
       dayDate,
       dayId,
-      time: time.trim(),
+      time: normalizeTime(time),
       text: buildEventText(s),
       url: s.sourceUrl,
       locationId,
@@ -233,6 +243,7 @@ export function DiscoverySection({
                     type="text"
                     value={time}
                     onChange={(e) => setTime(e.target.value)}
+                    onBlur={() => setTime((t) => normalizeTime(t))}
                     placeholder="19:30"
                     className="t-num w-16 border-0 border-b border-rule bg-transparent py-1 text-[13px] text-foreground placeholder:text-muted-foreground focus:border-clay focus:outline-none"
                   />
