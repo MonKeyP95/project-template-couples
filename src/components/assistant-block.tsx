@@ -84,12 +84,13 @@ function Divider() {
   return <div className="mx-4 h-px bg-rule" />
 }
 
-type Stage = "idle" | "menu" | "day" | "free"
+type Stage = "idle" | "menu" | "day"
 
-/** On-demand suggestion with a scope picker. Press "/ suggest" to reveal scope
- * chips; page/trip run at once, "a day" opens a mode-aware day picker, "free
- * text" opens a one-line input. Result renders in SuggestionCard; "another"
- * re-runs the same scope. Suggest-only: no writes. */
+/** On-demand suggestion with a scope picker. Press "/ suggest" to reveal the
+ * scope chips (this page / trip overview / day overview) plus an always-visible
+ * "how can I help?" free-text line; "day overview" opens a mode-aware day
+ * picker. Result renders in SuggestionCard; "another" re-runs the same scope.
+ * Suggest-only: no writes. */
 function SuggestLine({
   surface,
   tripSlug,
@@ -215,66 +216,47 @@ function SuggestLine({
     )
   }
 
-  // Free-text input.
-  if (stage === "free") {
-    return (
-      <div className="flex flex-col gap-2">
-        <div className="flex items-end gap-2">
-          <input
-            type="text"
-            value={freeText}
-            onChange={(e) => setFreeText(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && freeText.trim() && !busy)
-                run({ kind: "free", text: freeText.trim() })
-            }}
-            placeholder="a sunny spot for a drink..."
-            className="flex-1 border-0 border-b border-rule bg-transparent text-[13px] text-foreground outline-none placeholder:text-muted-foreground focus:border-foreground"
-          />
-          <button
-            type="button"
-            disabled={busy || freeText.trim() === ""}
-            onClick={() => run({ kind: "free", text: freeText.trim() })}
-            className="rounded-md bg-foreground px-3 py-1.5 font-mono text-[9.5px] uppercase tracking-[0.2em] text-background disabled:opacity-40"
-          >
-            {busy ? "..." : "go"}
-          </button>
-        </div>
-        <button
-          type="button"
-          onClick={() => setStage("menu")}
-          className="self-start font-mono text-[9px] uppercase tracking-[0.16em] text-muted-foreground hover:text-foreground"
-        >
-          back
+  // Scope menu: chips on one line, the "how can I help?" ask on its own line.
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+        <button type="button" disabled={busy} onClick={() => run({ kind: "page" })} className={chip}>
+          {busy && lastScope.kind === "page" ? "thinking..." : "this page"}
         </button>
-        {error ? (
-          <p className="text-[12.5px] leading-snug text-clay">{error}</p>
+        {tripSlug ? (
+          <>
+            <button type="button" disabled={busy} onClick={() => run({ kind: "trip" })} className={chip}>
+              {busy && lastScope.kind === "trip" ? "thinking..." : "trip overview"}
+            </button>
+            <button type="button" disabled={busy} onClick={openDayPicker} className={chip}>
+              day overview
+            </button>
+          </>
         ) : null}
       </div>
-    )
-  }
-
-  // Scope menu. Trip-overview and a-day only when a trip is in context.
-  return (
-    <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-      <button type="button" disabled={busy} onClick={() => run({ kind: "page" })} className={chip}>
-        {busy && lastScope.kind === "page" ? "thinking..." : "this page"}
-      </button>
-      {tripSlug ? (
-        <>
-          <button type="button" disabled={busy} onClick={() => run({ kind: "trip" })} className={chip}>
-            {busy && lastScope.kind === "trip" ? "thinking..." : "trip overview"}
-          </button>
-          <button type="button" disabled={busy} onClick={openDayPicker} className={chip}>
-            a day
-          </button>
-        </>
-      ) : null}
-      <button type="button" disabled={busy} onClick={() => setStage("free")} className={chip}>
-        free text
-      </button>
+      <div className="flex items-end gap-2">
+        <input
+          type="text"
+          value={freeText}
+          onChange={(e) => setFreeText(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && freeText.trim() && !busy)
+              run({ kind: "free", text: freeText.trim() })
+          }}
+          placeholder="how can I help?"
+          className="flex-1 border-0 border-b border-rule bg-transparent text-[13px] text-foreground outline-none placeholder:text-muted-foreground focus:border-foreground"
+        />
+        <button
+          type="button"
+          disabled={busy || freeText.trim() === ""}
+          onClick={() => run({ kind: "free", text: freeText.trim() })}
+          className="rounded-md bg-foreground px-3 py-1.5 font-mono text-[9.5px] uppercase tracking-[0.2em] text-background disabled:opacity-40"
+        >
+          {busy && lastScope.kind === "free" ? "..." : "go"}
+        </button>
+      </div>
       {error ? (
-        <p className="w-full text-[12.5px] leading-snug text-clay">{error}</p>
+        <p className="text-[12.5px] leading-snug text-clay">{error}</p>
       ) : null}
     </div>
   )
