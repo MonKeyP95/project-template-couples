@@ -19,6 +19,7 @@ import {
 import { getNotesForDay } from "@/lib/trips/note-queries"
 import { computeLookingAhead } from "@/lib/trips/looking-ahead"
 import { localToday } from "@/lib/time/local-today"
+import { detectNearDailyCap } from "@/lib/nudges/near-daily-cap"
 
 import { AssistantBlock } from "@/components/assistant-block"
 import { RealtimeRefresh } from "@/components/realtime-refresh"
@@ -29,6 +30,7 @@ import { AddTodayEvent } from "./add-today-event"
 import { TodayUpcoming } from "./today-upcoming"
 import { TodayPast } from "./today-past"
 import { RoadPlaceDoor } from "./find-a-place"
+import { RoadNudge } from "./road-nudge"
 
 const WEEKDAY_FMT = new Intl.DateTimeFormat("en-GB", {
   weekday: "short",
@@ -67,6 +69,18 @@ export default async function OnTheRoadPage() {
   const spentTodayCents = expenses
     .filter((e) => !e.isSettlement && e.dayDate === today)
     .reduce((sum, e) => sum + e.amountCents, 0)
+  const msPerDay = 86400000
+  const tripDays =
+    trip.startDate && trip.endDate
+      ? Math.round(
+          (Date.parse(trip.endDate) - Date.parse(trip.startDate)) / msPerDay,
+        ) + 1
+      : 0
+  const capNudge = detectNearDailyCap({
+    plannedBudgetCents: trip.plannedBudgetCents,
+    tripDays,
+    spentTodayCents,
+  })
   const notes = await getNotesForDay(trip.id, today)
   const days = await getItineraryDays(trip.id)
   const ahead = computeLookingAhead(
@@ -104,20 +118,22 @@ export default async function OnTheRoadPage() {
           className="mb-4"
         />
         <Label className="mb-4 block">{`On the road · ${trip.name}`}</Label>
-        <AssistantBlock
-          surface="road"
-          tripSlug={trip.slug}
-          className="mb-4 block"
-          door={
-            <RoadPlaceDoor
-              tripId={trip.id}
-              tripSlug={trip.slug}
-              dayDate={today}
-              dayId={todayDay?.id ?? null}
-              destination={searchDestination}
-            />
-          }
-        />
+        <div id="road-assistant">
+          <AssistantBlock
+            surface="road"
+            tripSlug={trip.slug}
+            className="mb-4 block"
+            door={
+              <RoadPlaceDoor
+                tripId={trip.id}
+                tripSlug={trip.slug}
+                dayDate={today}
+                dayId={todayDay?.id ?? null}
+                destination={searchDestination}
+              />
+            }
+          />
+        </div>
 
       <section className="relative overflow-hidden rounded-[14px] border border-border bg-card p-5">
         <TopoBg tone={tone} opacity={0.12} />
@@ -161,6 +177,8 @@ export default async function OnTheRoadPage() {
           dayId={todayDay?.id ?? null}
         />
       </section>
+
+      {capNudge ? <RoadNudge nudge={capNudge} /> : null}
 
       <QuickExpense
         tripId={trip.id}
