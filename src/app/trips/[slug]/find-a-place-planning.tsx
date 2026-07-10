@@ -93,7 +93,13 @@ export function PlanningPlaceDoor({
           when="dinner"
           defaultNear={place}
           defaultWalkable={false}
-          addTarget={{ kind: "select", days: dayOptions }}
+          addTarget={{
+            kind: "select",
+            days: dayOptions,
+            locationId: location?.id ?? null,
+            newDayTitle: location?.name,
+            defaultDate: location?.startDate ?? undefined,
+          }}
           buildEventText={(s) => `Dinner · ${s.name}`}
           ctaLabel={cta}
         />
@@ -114,7 +120,13 @@ export function PlanningPlaceDoor({
           when=""
           defaultNear={place}
           defaultWalkable={false}
-          addTarget={{ kind: "select", days: dayOptions }}
+          addTarget={{
+            kind: "select",
+            days: dayOptions,
+            locationId: location?.id ?? null,
+            newDayTitle: location?.name,
+            defaultDate: location?.startDate ?? undefined,
+          }}
           buildEventText={(s) => s.name}
           ctaLabel={cta}
         />

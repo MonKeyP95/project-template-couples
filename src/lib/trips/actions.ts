@@ -1252,6 +1252,10 @@ export interface AddTodayEventInput {
   text: string
   /** Optional source/booking link stored on the event. */
   url?: string
+  /** When creating a day (dayId null), file it under this location. */
+  locationId?: string | null
+  /** Title for a created day; defaults to "Today" (the on-the-road caller). */
+  dayTitle?: string
 }
 
 /** Ascending by time; untimed events sort last. Matches the itinerary tab. */
@@ -1314,10 +1318,11 @@ export async function addTodayEvent(
     const { error } = await supabase.from("itinerary_days").insert({
       trip_id: input.tripId,
       day_date: input.dayDate,
-      title: "Today",
+      title: input.dayTitle?.trim() || "Today",
       tag: "DAY",
       tone: slugToTone(input.tripSlug),
       events: [newEvent],
+      location_id: input.locationId ?? null,
       created_by: userData.user.id,
     })
     if (error) {
