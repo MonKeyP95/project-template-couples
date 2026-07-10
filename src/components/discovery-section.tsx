@@ -9,11 +9,30 @@ import type {
   DiscoverySuggestion,
 } from "@/lib/ai/discovery-types"
 
+/** Normalize a typed time to "HH:MM": "18" -> "18:00", "9:5" -> "09:05".
+ * Leaves blanks and unrecognized input untouched. */
+function normalizeTime(raw: string): string {
+  const v = raw.trim()
+  if (!v) return ""
+  const m = v.match(/^(\d{1,2})(?::?(\d{1,2}))?$/)
+  if (!m) return v
+  return `${m[1].padStart(2, "0")}:${(m[2] ?? "0").padStart(2, "0")}`
+}
+
 /** Where an added pick lands: a fixed day (on-the-road today) or a chosen day
  * from a list (planning). The parent supplies exactly one shape. */
 export type AddTarget =
   | { kind: "fixed"; dayDate: string; dayId: string | null }
-  | { kind: "select"; days: { id: string; dayDate: string; label: string }[] }
+  | {
+      kind: "select"
+      days: { id: string; dayDate: string; label: string }[]
+      /** Location the picked/created day belongs to (for creating a new day). */
+      locationId?: string | null
+      /** Title given to a day created when none exist yet. */
+      newDayTitle?: string
+      /** Prefill for the "create a day" date input (e.g. the location's start). */
+      defaultDate?: string
+    }
 
 /** The shared discovery body for one category: craving/near/walkable inputs, the
  * web-search call to /api/ai/discover, the results list, and the add affordance.
@@ -55,8 +74,10 @@ export function DiscoverySection({
   const [near, setNear] = React.useState(defaultNear)
   const [walkable, setWalkable] = React.useState(defaultWalkable)
   const [selDayId, setSelDayId] = React.useState("")
+  const [newDate, setNewDate] = React.useState("")
 
-  const noDays = addTarget.kind === "select" && addTarget.days.length === 0
+  // A "select" target with no days yet: let the user pick a date and create one.
+  const createsDay = addTarget.kind === "select" && addTarget.days.length === 0
 
   async function find() {
     setLoading(true)
@@ -91,9 +112,18 @@ export function DiscoverySection({
   function commit(s: DiscoverySuggestion) {
     let dayDate: string
     let dayId: string | null
+    let locationId: string | null = null
+    let dayTitle: string | undefined
     if (addTarget.kind === "fixed") {
       dayDate = addTarget.dayDate
       dayId = addTarget.dayId
+    } else if (createsDay) {
+      // No day yet: create one on the chosen date, under this location.
+      if (!newDate) return
+      dayDate = newDate
+      dayId = null
+      locationId = addTarget.locationId ?? null
+      dayTitle = addTarget.newDayTitle
     } else {
       const day =
         addTarget.days.find((d) => d.id === selDayId) ?? addTarget.days[0]
@@ -106,9 +136,11 @@ export function DiscoverySection({
       tripSlug,
       dayDate,
       dayId,
-      time: time.trim(),
+      time: normalizeTime(time),
       text: buildEventText(s),
       url: s.sourceUrl,
+      locationId,
+      dayTitle,
     }).then((result) => {
       if (result.error) {
         setError(result.error)
@@ -162,8 +194,8 @@ export function DiscoverySection({
         </div>
       ) : (
         <ul className="flex flex-col gap-4">
-          {suggestions.map((s) => (
-            <li key={s.sourceUrl} className="flex flex-col gap-1">
+          {suggestions.map((s, i) => (
+            <li key={i} className="flex flex-col gap-1">
               <div className="t-display text-[16px] leading-tight text-foreground">
                 {s.name}
               </div>
@@ -185,16 +217,16 @@ export function DiscoverySection({
                 <span className="mt-1 self-start rounded-full bg-foreground/40 px-3.5 py-1.5 font-mono text-[10px] uppercase tracking-[0.2em] text-background">
                   added
                 </span>
-              ) : noDays ? (
-                <span
-                  title="Add a day to this location first"
-                  className="mt-1 self-start rounded-full bg-foreground/40 px-3.5 py-1.5 font-mono text-[10px] uppercase tracking-[0.2em] text-background"
-                >
-                  add a day first
-                </span>
               ) : confirmingName === s.name ? (
                 <div className="mt-1 flex flex-wrap items-center gap-2">
-                  {addTarget.kind === "select" ? (
+                  {createsDay ? (
+                    <input
+                      type="date"
+                      value={newDate}
+                      onChange={(e) => setNewDate(e.target.value)}
+                      className="t-num rounded-lg border border-border bg-background px-2 py-1 text-[12px] text-foreground"
+                    />
+                  ) : addTarget.kind === "select" ? (
                     <select
                       value={selDayId}
                       onChange={(e) => setSelDayId(e.target.value)}
@@ -211,6 +243,7 @@ export function DiscoverySection({
                     type="text"
                     value={time}
                     onChange={(e) => setTime(e.target.value)}
+                    onBlur={() => setTime((t) => normalizeTime(t))}
                     placeholder="19:30"
                     className="t-num w-16 border-0 border-b border-rule bg-transparent py-1 text-[13px] text-foreground placeholder:text-muted-foreground focus:border-clay focus:outline-none"
                   />
@@ -238,7 +271,9 @@ export function DiscoverySection({
                   type="button"
                   onClick={() => {
                     setConfirmingName(s.name)
-                    if (addTarget.kind === "select") {
+                    if (createsDay) {
+                      setNewDate(addTarget.defaultDate ?? "")
+                    } else if (addTarget.kind === "select") {
                       setSelDayId(addTarget.days[0].id)
                     }
                     setTime("")

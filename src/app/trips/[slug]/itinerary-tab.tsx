@@ -132,7 +132,10 @@ function daySummary(day: ItineraryDay): string {
   if (day.sub.trim()) return day.sub
   const evs = sortEvents(day.events)
   if (evs.length === 0) return ""
-  if (evs.length === 1) return evs[0].text
+  if (evs.length === 1) {
+    const e = evs[0]
+    return e.time ? `${e.time} ${e.text}` : e.text
+  }
   return `${evs.length} events`
 }
 
@@ -1446,7 +1449,7 @@ function DayEditor({
         title,
         sub,
         events: events.map((e) => ({
-          time: e.time,
+          time: normalizeTime(e.time),
           text: e.text,
           ...(e.url.trim() ? { url: e.url.trim() } : {}),
           ...(typeof e.rating === "number" ? { rating: e.rating } : {}),
@@ -1544,7 +1547,7 @@ function AddDayRow({
         title,
         sub,
         events: events.map((e) => ({
-          time: e.time,
+          time: normalizeTime(e.time),
           text: e.text,
           ...(e.url.trim() ? { url: e.url.trim() } : {}),
           ...(typeof e.rating === "number" ? { rating: e.rating } : {}),

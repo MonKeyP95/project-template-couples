@@ -6,8 +6,8 @@ import { cn } from "@/lib/utils"
 import { useAiMode } from "@/components/ai-mode"
 import { SuggestionCard } from "@/components/together"
 import { NudgeLine } from "@/components/nudge-line"
-import { suggestForSurface } from "@/lib/ai/suggestion-actions"
-import type { SurfaceKey, Suggestion } from "@/lib/ai/suggestion-types"
+import { suggestForSurface, getSuggestDays } from "@/lib/ai/suggestion-actions"
+import type { SurfaceKey, Suggestion, SuggestScope, SuggestDay } from "@/lib/ai/suggestion-types"
 import type { Nudge } from "@/lib/nudges/types"
 import { sendChatMessage } from "@/lib/ai/chat-actions"
 import type { ChatMessage } from "@/lib/ai/chat-types"
@@ -84,9 +84,13 @@ function Divider() {
   return <div className="mx-4 h-px bg-rule" />
 }
 
-/** On-demand suggestion: collapsed to "/ suggest" until pressed, then a Claude
- * card with "another" (regenerate) and "dismiss". Moved from ai-suggestion.tsx;
- * no AI-mode gate here since the block already gates. */
+type Stage = "idle" | "menu" | "day"
+
+/** On-demand suggestion with a scope picker. Press "/ suggest" to reveal the
+ * scope chips (this page / trip overview / day overview) plus an always-visible
+ * "how can I help?" free-text line; "day overview" opens a mode-aware day
+ * picker. Result renders in SuggestionCard; "another" re-runs the same scope.
+ * Suggest-only: no writes. */
 function SuggestLine({
   surface,
   tripSlug,
@@ -94,29 +98,72 @@ function SuggestLine({
   surface: SurfaceKey
   tripSlug?: string
 }) {
+  const [stage, setStage] = React.useState<Stage>("idle")
   const [suggestion, setSuggestion] = React.useState<Suggestion | null>(null)
   const [busy, setBusy] = React.useState(false)
   const [error, setError] = React.useState<string | null>(null)
+  const [lastScope, setLastScope] = React.useState<SuggestScope>({ kind: "page" })
+  const [days, setDays] = React.useState<SuggestDay[]>([])
+  const [daysLoading, setDaysLoading] = React.useState(false)
+  const [freeText, setFreeText] = React.useState("")
 
-  const run = React.useCallback(async () => {
-    setBusy(true)
+  const run = React.useCallback(
+    async (scope: SuggestScope) => {
+      setBusy(true)
+      setError(null)
+      setLastScope(scope)
+      const res = await suggestForSurface(surface, tripSlug, scope)
+      if (res.suggestion) {
+        setSuggestion(res.suggestion)
+        setStage("idle")
+      } else {
+        setError(res.error ?? "Couldn't reach the assistant.")
+      }
+      setBusy(false)
+    },
+    [surface, tripSlug],
+  )
+
+  const openDayPicker = React.useCallback(async () => {
+    if (!tripSlug) return
+    setStage("day")
+    setDaysLoading(true)
+    const { days } = await getSuggestDays(tripSlug)
+    setDays(days)
+    setDaysLoading(false)
+  }, [tripSlug])
+
+  function reset() {
+    setSuggestion(null)
     setError(null)
-    const res = await suggestForSurface(surface, tripSlug)
-    if (res.suggestion) setSuggestion(res.suggestion)
-    else setError(res.error ?? "Couldn't reach the assistant.")
-    setBusy(false)
-  }, [surface, tripSlug])
+    setFreeText("")
+    setStage("idle")
+  }
 
-  if (!suggestion) {
+  // Result card.
+  if (suggestion) {
+    return (
+      <SuggestionCard
+        label={suggestion.label}
+        applyLabel={busy ? "thinking..." : "another"}
+        dismissLabel="dismiss"
+        onApply={() => run(lastScope)}
+        onDismiss={reset}
+      >
+        {suggestion.body}
+      </SuggestionCard>
+    )
+  }
+
+  const chip =
+    "font-mono text-[9.5px] uppercase tracking-[0.2em] text-moss disabled:opacity-60"
+
+  // Collapsed entry.
+  if (stage === "idle") {
     return (
       <div>
-        <button
-          type="button"
-          onClick={run}
-          disabled={busy}
-          className="font-mono text-[9.5px] uppercase tracking-[0.2em] text-moss disabled:opacity-60"
-        >
-          {busy ? "thinking..." : "/ suggest"}
+        <button type="button" onClick={() => setStage("menu")} className={chip}>
+          / suggest
         </button>
         {error ? (
           <p className="mt-1.5 text-[12.5px] leading-snug text-clay">{error}</p>
@@ -125,19 +172,93 @@ function SuggestLine({
     )
   }
 
+  // Day picker.
+  if (stage === "day") {
+    return (
+      <div className="flex flex-col gap-2">
+        {daysLoading ? (
+          <span className="font-mono text-[9.5px] uppercase tracking-[0.2em] text-muted-foreground">
+            loading days...
+          </span>
+        ) : days.length === 0 ? (
+          <span className="text-[12.5px] text-muted-foreground">No days yet.</span>
+        ) : (
+          <div className="flex flex-wrap gap-1.5">
+            {days.map((d) => (
+              <button
+                key={d.date}
+                type="button"
+                disabled={busy}
+                onClick={() => run({ kind: "day", date: d.date })}
+                className={`rounded-full border px-2.5 py-1 font-mono text-[9.5px] uppercase tracking-[0.16em] disabled:opacity-60 ${
+                  d.isToday
+                    ? "border-moss text-moss"
+                    : "border-border text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                {d.label}
+                {d.isToday ? " · today" : ""}
+              </button>
+            ))}
+          </div>
+        )}
+        <button
+          type="button"
+          onClick={() => setStage("menu")}
+          className="self-start font-mono text-[9px] uppercase tracking-[0.16em] text-muted-foreground hover:text-foreground"
+        >
+          back
+        </button>
+        {error ? (
+          <p className="text-[12.5px] leading-snug text-clay">{error}</p>
+        ) : null}
+      </div>
+    )
+  }
+
+  // Scope menu: the "how can I help?" ask on its own line, chips below.
   return (
-    <SuggestionCard
-      label={suggestion.label}
-      applyLabel={busy ? "thinking..." : "another"}
-      dismissLabel="dismiss"
-      onApply={run}
-      onDismiss={() => {
-        setSuggestion(null)
-        setError(null)
-      }}
-    >
-      {suggestion.body}
-    </SuggestionCard>
+    <div className="flex flex-col gap-3">
+      <div className="flex items-end gap-2">
+        <input
+          type="text"
+          value={freeText}
+          onChange={(e) => setFreeText(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && freeText.trim() && !busy)
+              run({ kind: "free", text: freeText.trim() })
+          }}
+          placeholder="how can I help?"
+          className="flex-1 border-0 border-b border-rule bg-transparent text-[13px] text-foreground outline-none placeholder:text-muted-foreground focus:border-foreground"
+        />
+        <button
+          type="button"
+          disabled={busy || freeText.trim() === ""}
+          onClick={() => run({ kind: "free", text: freeText.trim() })}
+          className="rounded-md bg-foreground px-3 py-1.5 font-mono text-[9.5px] uppercase tracking-[0.2em] text-background disabled:opacity-40"
+        >
+          {busy && lastScope.kind === "free" ? "..." : "go"}
+        </button>
+      </div>
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+        <button type="button" disabled={busy} onClick={() => run({ kind: "page" })} className={chip}>
+          {busy && lastScope.kind === "page" ? "thinking..." : "this page"}
+        </button>
+        {tripSlug ? (
+          <>
+            <button type="button" disabled={busy} onClick={() => run({ kind: "trip" })} className={chip}>
+              {busy && lastScope.kind === "trip" ? "thinking..." : "trip overview"}
+            </button>
+            <button type="button" disabled={busy} onClick={openDayPicker} className={chip}>
+              day overview
+            </button>
+          </>
+        ) : null}
+      </div>
+      {error ? (
+        <p className="text-[12.5px] leading-snug text-clay">{error}</p>
+      ) : null}
+    </div>
   )
 }
 
