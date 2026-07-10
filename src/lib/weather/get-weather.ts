@@ -19,26 +19,40 @@ export interface Weather {
 }
 
 /**
- * Current weather at a coordinate. Stubbed with mock data until a real
- * provider is wired in; the signature and return type are fixed so the UI
- * never changes when the API lands. One file per integration -- no
- * provider-agnostic abstraction (see docs/TECH.md).
+ * Current weather at a coordinate, as a deterministic function of latitude and
+ * the month of `isoDate` (defaults to today). Hemisphere-aware: warmest in the
+ * local summer, colder toward the poles, seasonal swing grows with latitude.
+ * Still a stub -- no network, no key. When the real Open-Meteo call lands the
+ * body swaps out; the signature and return type stay fixed so nothing downstream
+ * changes. The planning path passes a future trip's start date so it reads that
+ * trip's season, not today's; that path is a seasonal estimate, not a forecast.
  */
-export async function getWeather(lat: number, lng: number): Promise<Weather> {
-  void lat
+export async function getWeather(
+  lat: number,
+  lng: number,
+  isoDate?: string,
+): Promise<Weather> {
   void lng
+  const month = isoDate ? Number(isoDate.slice(5, 7)) : new Date().getUTCMonth() + 1
+  // 1 at northern midsummer (July), -1 at northern midwinter (January).
+  const northSeason = Math.cos(((month - 7) / 12) * 2 * Math.PI)
+  const season = lat >= 0 ? northSeason : -northSeason
+  const absLat = Math.abs(lat)
+  const baseC = 30 - (absLat / 90) * 35 // ~30C at the equator, ~-5C at the poles
+  const swing = (absLat / 90) * 18 // tropics barely vary; high latitudes swing hard
+  const tempC = Math.round(baseC + season * swing)
   return {
-    tempC: 24,
+    tempC,
     code: 0,
-    highC: 27,
-    lowC: 21,
+    highC: tempC + 3,
+    lowC: tempC - 3,
     windKph: 12,
     humidityPct: 55,
     hourly: [
-      { time: "12:00", tempC: 25, code: 0 },
-      { time: "15:00", tempC: 27, code: 1 },
-      { time: "18:00", tempC: 24, code: 2 },
-      { time: "21:00", tempC: 22, code: 3 },
+      { time: "12:00", tempC, code: 0 },
+      { time: "15:00", tempC: tempC + 2, code: 1 },
+      { time: "18:00", tempC: tempC - 1, code: 2 },
+      { time: "21:00", tempC: tempC - 3, code: 3 },
     ],
   }
 }
