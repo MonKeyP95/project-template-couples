@@ -29,6 +29,7 @@ import { getItineraryLocations } from "@/lib/trips/location-queries"
 import { getDreamItineraryDays } from "@/lib/trips/dream-itinerary-queries"
 import { getTripNotes } from "@/lib/trips/note-queries"
 import { getPackingCategories, getPackingItems } from "@/lib/trips/packing-queries"
+import { computeTripDays } from "@/lib/trips/trip-days"
 import { getWeather } from "@/lib/weather/get-weather"
 import { detectWeatherPacking } from "@/lib/nudges/weather-packing"
 import { listTripsForWorkspace } from "@/lib/trips/list-queries"
@@ -103,18 +104,6 @@ function formatDateRange(
       ? formatDayLabel(startDate)
       : `${formatDayLabel(startDate)} ${startYear}`
   return `${start} — ${formatDayLabel(endDate)} ${endYear}`
-}
-
-/** Inclusive day count of the trip's date span; 0 for a dateless dream. */
-function computeTripDays(
-  startDate: string | null,
-  endDate: string | null,
-): number {
-  if (!startDate || !endDate) return 0
-  const ms =
-    new Date(`${endDate}T00:00:00Z`).getTime() -
-    new Date(`${startDate}T00:00:00Z`).getTime()
-  return Math.max(0, Math.round(ms / 86_400_000) + 1)
 }
 
 function computeDaysOut(startDate: string | null): number | null {
