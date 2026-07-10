@@ -216,24 +216,9 @@ function SuggestLine({
     )
   }
 
-  // Scope menu: chips on one line, the "how can I help?" ask on its own line.
+  // Scope menu: the "how can I help?" ask on its own line, chips below.
   return (
     <div className="flex flex-col gap-3">
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-        <button type="button" disabled={busy} onClick={() => run({ kind: "page" })} className={chip}>
-          {busy && lastScope.kind === "page" ? "thinking..." : "this page"}
-        </button>
-        {tripSlug ? (
-          <>
-            <button type="button" disabled={busy} onClick={() => run({ kind: "trip" })} className={chip}>
-              {busy && lastScope.kind === "trip" ? "thinking..." : "trip overview"}
-            </button>
-            <button type="button" disabled={busy} onClick={openDayPicker} className={chip}>
-              day overview
-            </button>
-          </>
-        ) : null}
-      </div>
       <div className="flex items-end gap-2">
         <input
           type="text"
@@ -254,6 +239,21 @@ function SuggestLine({
         >
           {busy && lastScope.kind === "free" ? "..." : "go"}
         </button>
+      </div>
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+        <button type="button" disabled={busy} onClick={() => run({ kind: "page" })} className={chip}>
+          {busy && lastScope.kind === "page" ? "thinking..." : "this page"}
+        </button>
+        {tripSlug ? (
+          <>
+            <button type="button" disabled={busy} onClick={() => run({ kind: "trip" })} className={chip}>
+              {busy && lastScope.kind === "trip" ? "thinking..." : "trip overview"}
+            </button>
+            <button type="button" disabled={busy} onClick={openDayPicker} className={chip}>
+              day overview
+            </button>
+          </>
+        ) : null}
       </div>
       {error ? (
         <p className="text-[12.5px] leading-snug text-clay">{error}</p>
