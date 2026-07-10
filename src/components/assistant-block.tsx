@@ -5,8 +5,10 @@ import * as React from "react"
 import { cn } from "@/lib/utils"
 import { useAiMode } from "@/components/ai-mode"
 import { SuggestionCard } from "@/components/together"
+import { NudgeLine } from "@/components/nudge-line"
 import { suggestForSurface } from "@/lib/ai/suggestion-actions"
 import type { SurfaceKey, Suggestion } from "@/lib/ai/suggestion-types"
+import type { Nudge } from "@/lib/nudges/types"
 import { sendChatMessage } from "@/lib/ai/chat-actions"
 import type { ChatMessage } from "@/lib/ai/chat-types"
 
@@ -17,11 +19,13 @@ export function AssistantBlock({
   surface,
   tripSlug,
   door,
+  nudge,
   className,
 }: {
   surface: SurfaceKey
   tripSlug?: string
   door?: React.ReactNode
+  nudge?: Nudge | null
   className?: string
 }) {
   const { enabled, setEnabled } = useAiMode()
@@ -48,6 +52,14 @@ export function AssistantBlock({
 
       {enabled ? (
         <div className="flex flex-col">
+          {nudge ? (
+            <>
+              <Divider />
+              <div className="px-4 py-3">
+                <NudgeLine nudge={nudge} />
+              </div>
+            </>
+          ) : null}
           <Divider />
           <div className="px-4 py-3">
             <SuggestLine surface={surface} tripSlug={tripSlug} />

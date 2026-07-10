@@ -9,9 +9,9 @@ import type { ItineraryLocation } from "@/lib/trips/location-types"
 
 /** Planning-mode discovery door content: Food + Activities search near a place
  * and add picks to one of its days. With itinerary locations, a picker (the
- * door's header) chooses which one; with none yet, it falls back to the trip
- * header (destination) so the door still works — searching is enabled, and
- * adding waits on a day (DiscoverySection shows "add a day first"). */
+ * door's header) chooses which one. With none yet, the harness rule applies:
+ * ask "where in {destination}?" instead of silently searching the bare trip
+ * header, and anchor the search on what they type. */
 export function PlanningPlaceDoor({
   tripId,
   tripSlug,
@@ -26,15 +26,18 @@ export function PlanningPlaceDoor({
   days?: ItineraryDay[]
 }) {
   const [locId, setLocId] = React.useState("")
+  const [askedPlace, setAskedPlace] = React.useState("")
 
   const hasLocations = locations.length > 0
   const location = hasLocations
     ? locations.find((l) => l.id === locId) ?? locations[0]
     : null
 
-  // No location yet -> search around the trip header; picks wait on a day.
-  const near = location ? location.name : destination
-  const keyBase = location ? location.id : "trip"
+  // With a location, anchor on it. Without, anchor on what they type -- never a
+  // bare country fallback.
+  const place = location ? location.name : askedPlace.trim()
+  const needsPlace = !place
+  const keyBase = location ? location.id : place
   const cta = location ? `add to ${location.name}` : "add to a day"
 
   const dayOptions = location
@@ -44,7 +47,7 @@ export function PlanningPlaceDoor({
         .map((d) => ({ id: d.id, dayDate: d.dayDate, label: `Day ${d.d} · ${d.date}` }))
     : []
 
-  // Only offer the picker when there's a choice to make.
+  // Location picker when there is a choice; otherwise the "where?" prompt field.
   const header = location ? (
     <select
       value={location.id}
@@ -57,21 +60,38 @@ export function PlanningPlaceDoor({
         </option>
       ))}
     </select>
-  ) : null
+  ) : (
+    <input
+      type="text"
+      value={askedPlace}
+      onChange={(e) => setAskedPlace(e.target.value)}
+      placeholder={`Where in ${destination} are you headed?`}
+      className="block w-full rounded-lg border border-border bg-background px-2.5 py-1.5 text-[13px] text-foreground placeholder:text-muted-foreground"
+    />
+  )
+
+  // Until a place is known, prompt instead of searching an empty destination.
+  const prompt = (
+    <p className="text-[13px] text-muted-foreground">
+      Tell me where in {destination} first.
+    </p>
+  )
 
   const categories: DoorCategory[] = [
     {
       key: "food",
       title: "Food",
-      content: (
+      content: needsPlace ? (
+        prompt
+      ) : (
         <DiscoverySection
           key={`${keyBase}-food`}
           category="food"
           tripId={tripId}
           tripSlug={tripSlug}
-          destination={near}
+          destination={place}
           when="dinner"
-          defaultNear={near}
+          defaultNear={place}
           defaultWalkable={false}
           addTarget={{ kind: "select", days: dayOptions }}
           buildEventText={(s) => `Dinner · ${s.name}`}
@@ -82,15 +102,17 @@ export function PlanningPlaceDoor({
     {
       key: "activity",
       title: "Activities",
-      content: (
+      content: needsPlace ? (
+        prompt
+      ) : (
         <DiscoverySection
           key={`${keyBase}-activity`}
           category="activity"
           tripId={tripId}
           tripSlug={tripSlug}
-          destination={near}
+          destination={place}
           when=""
-          defaultNear={near}
+          defaultNear={place}
           defaultWalkable={false}
           addTarget={{ kind: "select", days: dayOptions }}
           buildEventText={(s) => s.name}

@@ -29,6 +29,9 @@ import { getItineraryLocations } from "@/lib/trips/location-queries"
 import { getDreamItineraryDays } from "@/lib/trips/dream-itinerary-queries"
 import { getTripNotes } from "@/lib/trips/note-queries"
 import { getPackingCategories, getPackingItems } from "@/lib/trips/packing-queries"
+import { computeTripDays } from "@/lib/trips/trip-days"
+import { getWeather } from "@/lib/weather/get-weather"
+import { detectWeatherPacking } from "@/lib/nudges/weather-packing"
 import { listTripsForWorkspace } from "@/lib/trips/list-queries"
 import { getTripBySlug, type TripHeader } from "@/lib/trips/queries"
 import { getTripShareState } from "@/lib/trips/shared-trip-queries"
@@ -101,18 +104,6 @@ function formatDateRange(
       ? formatDayLabel(startDate)
       : `${formatDayLabel(startDate)} ${startYear}`
   return `${start} — ${formatDayLabel(endDate)} ${endYear}`
-}
-
-/** Inclusive day count of the trip's date span; 0 for a dateless dream. */
-function computeTripDays(
-  startDate: string | null,
-  endDate: string | null,
-): number {
-  if (!startDate || !endDate) return 0
-  const ms =
-    new Date(`${endDate}T00:00:00Z`).getTime() -
-    new Date(`${startDate}T00:00:00Z`).getTime()
-  return Math.max(0, Math.round(ms / 86_400_000) + 1)
 }
 
 function computeDaysOut(startDate: string | null): number | null {
@@ -209,6 +200,15 @@ export default async function TripPage({
   )
   const packingTotal = myPackingItems.length
   const packingDone = myPackingItems.filter((i) => i.done).length
+  const packingWeather =
+    header.lat != null && header.lng != null
+      ? await getWeather(header.lat, header.lng, header.startDate ?? undefined)
+      : null
+  const packingNudge = detectWeatherPacking({
+    destination: header.country ?? header.name,
+    weather: packingWeather,
+    packingLabels: packingItems.map((i) => i.label.toLowerCase()),
+  })
   const dark = await isDarkTheme()
   const navTrips = await listTripsForWorkspace(workspace.id)
   const navDestinations = buildNavDestinations({
@@ -271,6 +271,7 @@ export default async function TripPage({
             initialCategories={packingCategories}
             members={memberTones}
             daysOut={computeDaysOut(header.startDate)}
+            packingNudge={packingNudge}
           />
         ) : activeTab === "budget" ? (
           <BudgetTab
