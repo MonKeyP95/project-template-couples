@@ -7,6 +7,7 @@ import {
   addExpenseCategory,
   deleteExpenseCategory,
   saveTripProfile,
+  setCategoryDetails,
 } from "@/lib/trips/actions"
 import type { ExpenseCategoryRow } from "@/lib/trips/expense-types"
 import {
@@ -226,9 +227,10 @@ function OptionRow({
   )
 }
 
-/** The backbone step: the trip's expense_categories as removable rows plus an
- * add row. Writes live (add inserts, remove deletes and moves expenses to
- * "Other") — same actions and behavior as the Budget categories editor. */
+/** The backbone step: the trip's expense_categories as expandable rows. Each
+ * row can be opened to elaborate the category with describe-only detail tags
+ * (Food -> burgers, sushi). Add/remove category and details all write live
+ * (same actions/behavior as the Budget categories editor). */
 function CategoryStep({
   tripId,
   tripSlug,
@@ -240,10 +242,11 @@ function CategoryStep({
 }) {
   const router = useRouter()
   const [name, setName] = React.useState("")
+  const [expandedId, setExpandedId] = React.useState<string | null>(null)
   const [pending, startTransition] = React.useTransition()
   const [error, setError] = React.useState<string | null>(null)
 
-  function add() {
+  function addCategory() {
     const t = name.trim()
     if (!t || pending) return
     startTransition(async () => {
@@ -258,7 +261,7 @@ function CategoryStep({
     })
   }
 
-  function remove(c: ExpenseCategoryRow) {
+  function removeCategory(c: ExpenseCategoryRow) {
     if (pending) return
     if (
       !confirm(
@@ -277,24 +280,38 @@ function CategoryStep({
     })
   }
 
+  function saveDetails(c: ExpenseCategoryRow, details: string[]) {
+    startTransition(async () => {
+      const r = await setCategoryDetails(c.id, tripSlug, details)
+      if (r.error) {
+        setError(r.error)
+        return
+      }
+      setError(null)
+      router.refresh()
+    })
+  }
+
   return (
     <>
       {categories.map((c) => (
-        <div
+        <CategoryRow
           key={c.id}
-          className="flex w-full items-center justify-between rounded-xl border border-rule px-4 py-3 text-[15px] text-foreground"
-        >
-          {c.name}
-          <button
-            type="button"
-            onClick={() => remove(c)}
-            disabled={pending}
-            aria-label={`Delete ${c.name}`}
-            className="font-mono text-[15px] text-muted-foreground hover:text-clay disabled:opacity-50"
-          >
-            ×
-          </button>
-        </div>
+          category={c}
+          expanded={expandedId === c.id}
+          pending={pending}
+          onToggle={() =>
+            setExpandedId((id) => (id === c.id ? null : c.id))
+          }
+          onRemove={() => removeCategory(c)}
+          onAddDetail={(item) => saveDetails(c, [...c.details, item])}
+          onRemoveDetail={(item) =>
+            saveDetails(
+              c,
+              c.details.filter((d) => d !== item),
+            )
+          }
+        />
       ))}
       <div className="flex items-center gap-2">
         <input
@@ -304,7 +321,7 @@ function CategoryStep({
           onKeyDown={(e) => {
             if (e.key === "Enter") {
               e.preventDefault()
-              add()
+              addCategory()
             }
           }}
           placeholder="Add a category…"
@@ -313,7 +330,7 @@ function CategoryStep({
         />
         <button
           type="button"
-          onClick={add}
+          onClick={addCategory}
           disabled={pending || !name.trim()}
           className="rounded-xl border-0 bg-foreground px-4 py-3 font-mono text-[11px] uppercase tracking-[0.2em] text-background disabled:opacity-40"
         >
@@ -324,5 +341,102 @@ function CategoryStep({
         <div className="font-mono text-[10px] text-clay">{error}</div>
       ) : null}
     </>
+  )
+}
+
+/** One category: a header (name toggles expand, `×` removes the category) and,
+ * when expanded, its detail tags as removable chips plus an add input. The
+ * add-detail input owns its own text state. */
+function CategoryRow({
+  category,
+  expanded,
+  pending,
+  onToggle,
+  onRemove,
+  onAddDetail,
+  onRemoveDetail,
+}: {
+  category: ExpenseCategoryRow
+  expanded: boolean
+  pending: boolean
+  onToggle: () => void
+  onRemove: () => void
+  onAddDetail: (item: string) => void
+  onRemoveDetail: (item: string) => void
+}) {
+  const [detail, setDetail] = React.useState("")
+
+  function add() {
+    const t = detail.trim()
+    if (!t || pending) return
+    if (!category.details.includes(t)) onAddDetail(t)
+    setDetail("")
+  }
+
+  return (
+    <div className="rounded-xl border border-rule">
+      <div className="flex items-center justify-between px-4 py-3">
+        <button
+          type="button"
+          onClick={onToggle}
+          className="flex-1 text-left text-[15px] text-foreground"
+        >
+          {category.name}
+          {category.details.length ? (
+            <span className="ml-2 font-mono text-[11px] text-muted-foreground">
+              · {category.details.length}
+            </span>
+          ) : null}
+        </button>
+        <button
+          type="button"
+          onClick={onRemove}
+          disabled={pending}
+          aria-label={`Delete ${category.name}`}
+          className="font-mono text-[15px] text-muted-foreground hover:text-clay disabled:opacity-50"
+        >
+          ×
+        </button>
+      </div>
+      {expanded ? (
+        <div className="border-t border-rule px-4 py-3">
+          {category.details.length ? (
+            <div className="flex flex-wrap gap-1.5">
+              {category.details.map((d) => (
+                <span
+                  key={d}
+                  className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1 font-mono text-[11px] tracking-[0.06em] text-foreground"
+                >
+                  {d}
+                  <button
+                    type="button"
+                    onClick={() => onRemoveDetail(d)}
+                    disabled={pending}
+                    aria-label={`Remove ${d}`}
+                    className="text-muted-foreground hover:text-clay disabled:opacity-50"
+                  >
+                    ×
+                  </button>
+                </span>
+              ))}
+            </div>
+          ) : null}
+          <input
+            type="text"
+            value={detail}
+            onChange={(e) => setDetail(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault()
+                add()
+              }
+            }}
+            placeholder="add specific…"
+            disabled={pending}
+            className="mt-2 w-full rounded-lg border border-dashed border-rule bg-transparent px-3 py-2 text-[14px] text-foreground placeholder:text-muted-foreground focus:border-clay focus:outline-none disabled:opacity-50"
+          />
+        </div>
+      ) : null}
+    </div>
   )
 }
