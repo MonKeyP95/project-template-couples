@@ -94,7 +94,7 @@ function SharedDayRow({ day }: { day: SharedDay }) {
           {day.events.map((e, i) => (
             <li key={i} className="flex gap-3 text-sm text-foreground">
               {e.time ? (
-                <span className="t-num shrink-0 whitespace-nowrap text-muted-foreground">
+                <span className="t-num min-w-12 shrink-0 whitespace-nowrap text-muted-foreground">
                   {formatEventTime(e.time, e.endTime)}
                 </span>
               ) : (

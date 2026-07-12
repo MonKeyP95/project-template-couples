@@ -1851,7 +1851,7 @@ function DayForm({
                 }
                 placeholder="What happens"
                 disabled={isPending}
-                className="flex-1 border-0 border-b border-rule bg-transparent py-1.5 text-[14px] text-foreground placeholder:text-muted-foreground focus:border-clay focus:outline-none disabled:opacity-50"
+                className="min-w-0 flex-1 border-0 border-b border-rule bg-transparent py-1.5 text-[14px] text-foreground placeholder:text-muted-foreground focus:border-clay focus:outline-none disabled:opacity-50"
               />
               <button
                 type="button"
