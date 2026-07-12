@@ -4,6 +4,8 @@ export type ItineraryTone = (typeof ITINERARY_TONES)[number]
 export interface ItineraryEvent {
   /** Free "HH:MM"-style label; "" when untimed. Cosmetic, no parsing. */
   time: string
+  /** Optional "HH:MM"-style end label. Omitted when absent. Cosmetic. */
+  endTime?: string
   text: string
   /** Optional source/booking link. Omitted when absent. */
   url?: string
@@ -88,6 +90,9 @@ function parseEvents(raw: unknown): ItineraryEvent[] {
     .filter((e): e is Record<string, unknown> => typeof e === "object" && e !== null)
     .map((e) => ({
       time: typeof e.time === "string" ? e.time : "",
+      ...(typeof e.endTime === "string" && e.endTime.length > 0
+        ? { endTime: e.endTime }
+        : {}),
       text: typeof e.text === "string" ? e.text : "",
       ...(typeof e.url === "string" && e.url.length > 0 ? { url: e.url } : {}),
       ...(typeof e.rating === "number" && e.rating >= 1 && e.rating <= 5
@@ -148,6 +153,12 @@ export function gapDates(a: string, b: string): string[] {
 /** "Jun 12"-style short UTC date for a yyyy-mm-dd string. */
 export function formatShortDate(dayDate: string): string {
   return SHORT_DATE_FMT.format(new Date(`${dayDate}T00:00:00Z`))
+}
+
+/** "" when untimed, "18:00" with only a start, "18:00 → 20:00" with a range. */
+export function formatEventTime(time: string, endTime?: string): string {
+  if (!time) return ""
+  return endTime ? `${time} → ${endTime}` : time
 }
 
 /** All yyyy-mm-dd dates in [start, end] inclusive, ascending. Empty if start > end. */
