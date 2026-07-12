@@ -7,7 +7,7 @@ export async function getTripExpenseCategories(
   const supabase = await createClient()
   const { data } = await supabase
     .from("expense_categories")
-    .select("id, trip_id, name, sort_order")
+    .select("id, trip_id, name, sort_order, details")
     .eq("trip_id", tripId)
     .order("sort_order", { ascending: true })
 
@@ -16,6 +16,7 @@ export async function getTripExpenseCategories(
     tripId: row.trip_id,
     name: row.name,
     sortOrder: row.sort_order,
+    details: row.details ?? [],
   }))
 }
 

@@ -510,7 +510,7 @@ export async function addExpenseCategory(
       sort_order: nextOrder,
       created_by: userData.user.id,
     })
-    .select("id, trip_id, name, sort_order")
+    .select("id, trip_id, name, sort_order, details")
     .single()
 
   if (error) {
@@ -527,6 +527,7 @@ export async function addExpenseCategory(
       tripId: data.trip_id,
       name: data.name,
       sortOrder: data.sort_order,
+      details: data.details ?? [],
     },
   }
 }
@@ -586,6 +587,31 @@ export async function deleteExpenseCategory(
   const { error } = await supabase
     .from("expense_categories")
     .delete()
+    .eq("id", categoryId)
+  if (error) return { error: error.message }
+
+  revalidatePath(`/trips/${tripSlug}`)
+  return {}
+}
+
+/** Replace a category's describe-only detail tags. Trims, drops blanks,
+ * de-dupes, caps at 20. RLS gates the write to workspace members. */
+export async function setCategoryDetails(
+  categoryId: string,
+  tripSlug: string,
+  details: string[],
+): Promise<{ error?: string }> {
+  const supabase = await createClient()
+  const { data: userData, error: userError } = await supabase.auth.getUser()
+  if (userError || !userData.user) return { error: "Not signed in." }
+
+  const clean = Array.from(
+    new Set(details.map((d) => d.trim()).filter(Boolean)),
+  ).slice(0, 20)
+
+  const { error } = await supabase
+    .from("expense_categories")
+    .update({ details: clean })
     .eq("id", categoryId)
   if (error) return { error: error.message }
 

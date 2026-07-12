@@ -91,6 +91,7 @@ export interface ExpenseCategoryRow {
   tripId: string
   name: string
   sortOrder: number
+  details: string[]
 }
 
 /** Default set seeded into every new trip. Kept minimal; users add the rest. */
