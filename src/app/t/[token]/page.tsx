@@ -1,5 +1,6 @@
 import { Label, TopoBg, WaveGlyph } from "@/components/together"
 import { createClient } from "@/lib/supabase/server"
+import { formatEventTime } from "@/lib/trips/itinerary-types"
 import { getSharedTrip } from "@/lib/trips/shared-trip-queries"
 import type { SharedDay, SharedTrip } from "@/lib/trips/shared-trip-types"
 
@@ -93,7 +94,9 @@ function SharedDayRow({ day }: { day: SharedDay }) {
           {day.events.map((e, i) => (
             <li key={i} className="flex gap-3 text-sm text-foreground">
               {e.time ? (
-                <span className="t-num w-12 shrink-0 text-muted-foreground">{e.time}</span>
+                <span className="t-num shrink-0 whitespace-nowrap text-muted-foreground">
+                  {formatEventTime(e.time, e.endTime)}
+                </span>
               ) : (
                 <span className="w-12 shrink-0" />
               )}

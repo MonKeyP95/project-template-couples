@@ -2,7 +2,7 @@
 
 import React from "react"
 
-import type { ItineraryEvent } from "@/lib/trips/itinerary-types"
+import { formatEventTime, type ItineraryEvent } from "@/lib/trips/itinerary-types"
 import { EventRating } from "@/components/event-rating"
 
 /** Current local time as zero-padded "HH:MM" (matches event time strings). */
@@ -66,8 +66,8 @@ export function TodayPast({
         {passed.map(({ e, i }) => (
           <li key={i} className="flex flex-col gap-0.5">
             <div className="flex gap-2 text-[13px] text-foreground">
-              <span className="t-num shrink-0 text-muted-foreground">
-                {e.time}
+              <span className="t-num shrink-0 whitespace-nowrap text-muted-foreground">
+                {formatEventTime(e.time, e.endTime)}
               </span>
               <span>{e.text}</span>
             </div>

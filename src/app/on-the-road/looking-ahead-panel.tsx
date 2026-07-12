@@ -1,11 +1,11 @@
 import { Label } from "@/components/together"
-import { formatShortDate } from "@/lib/trips/itinerary-types"
+import { formatEventTime, formatShortDate } from "@/lib/trips/itinerary-types"
 import type { LookingAhead } from "@/lib/trips/looking-ahead"
 
 /** Renders the tomorrow + next-move look-ahead. Nothing to show => null. */
 export function LookingAheadPanel({ ahead }: { ahead: LookingAhead }) {
   const tomorrowText = ahead.tomorrowEvent
-    ? `${ahead.tomorrowEvent.time} · ${ahead.tomorrowEvent.text}`
+    ? `${formatEventTime(ahead.tomorrowEvent.time, ahead.tomorrowEvent.endTime)} · ${ahead.tomorrowEvent.text}`
     : ahead.tomorrowTitle
   const hasTomorrow = !ahead.collapse && !!tomorrowText
   const hasMove = !!ahead.nextMove

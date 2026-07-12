@@ -2,7 +2,7 @@
 
 import React from "react"
 
-import type { ItineraryEvent } from "@/lib/trips/itinerary-types"
+import { formatEventTime, type ItineraryEvent } from "@/lib/trips/itinerary-types"
 
 /** Current local time as a zero-padded "HH:MM" so it compares with event times. */
 function computeNow(): string {
@@ -57,7 +57,10 @@ export function TodayNextEvent({ events }: { events: ItineraryEvent[] }) {
       <span className="uppercase tracking-[0.14em] text-foreground/70">
         {label}
       </span>{" "}
-      <span className="t-num">{pick.time}</span> · {pick.text}
+      <span className="t-num whitespace-nowrap">
+        {formatEventTime(pick.time, pick.endTime)}
+      </span>{" "}
+      · {pick.text}
     </div>
   )
 }

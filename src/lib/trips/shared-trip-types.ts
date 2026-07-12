@@ -30,6 +30,9 @@ function parseEvents(raw: unknown): ItineraryEvent[] {
     .filter((e): e is Record<string, unknown> => typeof e === "object" && e !== null)
     .map((e) => ({
       time: typeof e.time === "string" ? e.time : "",
+      ...(typeof e.endTime === "string" && e.endTime.length > 0
+        ? { endTime: e.endTime }
+        : {}),
       text: typeof e.text === "string" ? e.text : "",
     }))
     .filter((e) => e.text.length > 0)
