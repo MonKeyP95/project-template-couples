@@ -14,7 +14,6 @@ import { LeftRail, MobileHeaderNav, buildNavDestinations } from "@/components/ap
 import { AssistantBlock } from "@/components/assistant-block"
 import { createClient } from "@/lib/supabase/server"
 import { isDarkTheme } from "@/lib/theme"
-import { getItineraryLocations } from "@/lib/trips/location-queries"
 import { getTodayForTrip } from "@/lib/trips/itinerary-queries"
 import { listTripsForWorkspace } from "@/lib/trips/list-queries"
 import { localToday } from "@/lib/time/local-today"
@@ -26,7 +25,6 @@ import {
 
 import { daysUntil, dayWithinTrip } from "./format-helpers"
 import { CompactRow, DreamTile, HeroCard, TripCard } from "./trip-cards"
-import { TripRoutePanel } from "./trip-route-panel"
 
 function formatDateLabel(date: Date) {
   const mm = String(date.getMonth() + 1).padStart(2, "0")
@@ -74,9 +72,6 @@ export default async function HomePage() {
     onTheRoad: buckets.now.length > 0,
     tripSlug: hero?.slug ?? null,
   })
-  const heroLocations = hero
-    ? (await getItineraryLocations(hero.id)).map((l) => l.name)
-    : []
   const heroToday =
     hero && hero.state === "now"
       ? await getTodayForTrip(hero.id, await localToday())
@@ -195,12 +190,7 @@ export default async function HomePage() {
                   </span>
                 ) : null}
               </div>
-              <div className="md:grid md:grid-cols-2 md:gap-5">
-                <HeroCard trip={hero} today={heroToday} />
-                <div className="hidden md:block md:h-full">
-                  <TripRoutePanel slug={hero.slug} locations={heroLocations} />
-                </div>
-              </div>
+              <HeroCard trip={hero} today={heroToday} />
             </section>
           ) : null}
 

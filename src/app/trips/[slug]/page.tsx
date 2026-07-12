@@ -52,6 +52,7 @@ import { BudgetTab } from "./budget-tab"
 import { ItineraryTab } from "./itinerary-tab"
 import { DreamItineraryTab } from "./dream-itinerary-tab"
 import { ProfileTab } from "./profile-tab"
+import { TripRoutePanel } from "./trip-route-panel"
 import {
   PackingTab,
   type MemberToneEntry,
@@ -192,11 +193,7 @@ export default async function TripPage({
         ? getItineraryDays(header.id)
         : Promise.resolve(null),
       showItinerary && isDream ? getDreamItineraryDays(header.id) : Promise.resolve(null),
-      (showItinerary && !isDream) ||
-      activeTab === "budget" ||
-      activeTab === "profile"
-        ? getItineraryLocations(header.id)
-        : Promise.resolve(null),
+      getItineraryLocations(header.id),
       activeTab === "profile" ? getTripNotes(header.id) : Promise.resolve(null),
       getPackingItems(header.id),
       getPackingCategories(header.id),
@@ -326,6 +323,8 @@ export default async function TripPage({
       </div>
 
       <DesktopRightRail
+        slug={header.slug}
+        locations={(locations ?? []).map((l) => l.name)}
         forecast={weekForecast}
         packing={{ done: packingDone, total: packingTotal }}
         budget={{
@@ -520,11 +519,15 @@ function DesktopTabs({ slug, active }: { slug: string; active: TabId }) {
 }
 
 function DesktopRightRail({
+  slug,
+  locations,
   forecast,
   packing,
   budget,
   saved,
 }: {
+  slug: string
+  locations: string[]
   forecast: DayForecast[] | null
   packing: { done: number; total: number }
   budget: { spentCents: number; plannedCents: number }
@@ -542,6 +545,10 @@ function DesktopRightRail({
       : Math.min(100, Math.round((saved.savedCents / saved.plannedCents) * 100))
   return (
     <aside className="hidden lg:flex lg:w-[280px] lg:flex-shrink-0 lg:flex-col lg:gap-8 lg:border-l lg:border-border lg:bg-card lg:px-6 lg:py-8">
+      <div className="h-[200px]">
+        <TripRoutePanel slug={slug} locations={locations} />
+      </div>
+
       <div>
         <Label>Pre-trip</Label>
         <div className="mt-3 flex flex-col gap-3.5">
