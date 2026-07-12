@@ -11,9 +11,9 @@ export type DoorCategory = {
   content?: React.ReactNode
 }
 
-/** The bare discovery door: a single unlabelled ⌕ line that presses open to a
+/** The bare discovery door: a single "find" line that presses open to a
  * vertical category list; picking a live category reveals its search UI, with a
- * breadcrumb of the picked title next to the ⌕ and a link back to the list.
+ * breadcrumb of the picked title next to the "find" label and a link back to the list.
  * Press-only (no hover) — mobile-first. `header` renders above the list when open
  * (planning uses it for the location picker). */
 export function PlaceDoor({
@@ -37,8 +37,8 @@ export function PlaceDoor({
         aria-label="Find a place"
         className="flex w-full items-center gap-2.5 py-1 text-left"
       >
-        <span aria-hidden className="text-[15px] text-moss">
-          ⌕
+        <span className="font-mono text-[11px] uppercase tracking-[0.18em] text-moss">
+          find
         </span>
         {active ? (
           <span className="font-serif text-[15px] text-muted-foreground">
