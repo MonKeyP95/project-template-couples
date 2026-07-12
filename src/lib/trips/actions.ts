@@ -31,8 +31,8 @@ import {
 } from "@/lib/trips/location-types"
 import { slugToTone } from "@/lib/trips/slug-tone"
 import {
+  TRIP_TRANSPORT,
   TRIP_VIBES,
-  TRIP_WHO,
   type TripProfile,
 } from "@/lib/trips/trip-profile-types"
 
@@ -1426,9 +1426,9 @@ export interface SaveTripProfileInput {
   profile: TripProfile
 }
 
-/** Writes the per-trip profile (headline + chips + brief) to trips.trip_profile.
- * Activities are free strings (trim/dedupe/cap); vibe/who filtered to the allowed
- * sets; text capped. RLS gates the write to workspace members. Manual — no AI. */
+/** Writes the per-trip profile (idea + transport + vibe) to trips.trip_profile.
+ * Values filtered to their allowed sets; idea capped. RLS gates the write to
+ * workspace members. Manual — no AI. (Categories live in expense_categories.) */
 export async function saveTripProfile(
   input: SaveTripProfileInput,
 ): Promise<{ error?: string }> {
@@ -1438,10 +1438,11 @@ export async function saveTripProfile(
 
   const p = input.profile
   const clean = {
-    headline: p.headline.trim().slice(0, 80),
+    idea: p.idea.trim().slice(0, 2000),
+    transport: p.transport.filter((t) =>
+      (TRIP_TRANSPORT as readonly string[]).includes(t),
+    ),
     vibe: p.vibe.filter((v) => (TRIP_VIBES as readonly string[]).includes(v)),
-    who: (TRIP_WHO as readonly string[]).includes(p.who) ? p.who : "",
-    brief: p.brief.trim().slice(0, 2000),
   }
 
   const { error } = await supabase
