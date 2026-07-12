@@ -1196,9 +1196,7 @@ export async function addItineraryDay(
   }
 
   const sub = input.sub.trim()
-  const events = input.events
-    .map((e) => ({ time: e.time.trim(), text: e.text.trim() }))
-    .filter((e) => e.text.length > 0)
+  const events = normalizeDayEvents(input.events)
 
   // A multi-day span shares one group_id so the UI can mark "added together".
   const groupId = dates.length > 1 ? crypto.randomUUID() : null
@@ -1266,6 +1264,24 @@ function sortDayEvents(a: ItineraryEvent, b: ItineraryEvent): number {
   return a.time < b.time ? -1 : a.time > b.time ? 1 : 0
 }
 
+/** Normalize client-supplied events to the stored jsonb shape, dropping empties.
+ * Preserves every optional field (endTime, url, rating, note) so a save never
+ * discards them. Shared by all itinerary write paths. */
+function normalizeDayEvents(events: ItineraryEvent[]): ItineraryEvent[] {
+  return events
+    .map((e) => ({
+      time: (e.time ?? "").trim(),
+      ...(e.endTime?.trim() ? { endTime: e.endTime.trim() } : {}),
+      text: (e.text ?? "").trim(),
+      ...(typeof e.url === "string" && e.url.trim() ? { url: e.url.trim() } : {}),
+      ...(typeof e.rating === "number" && e.rating >= 1 && e.rating <= 5
+        ? { rating: Math.round(e.rating) }
+        : {}),
+      ...(typeof e.note === "string" && e.note.trim() ? { note: e.note.trim() } : {}),
+    }))
+    .filter((e) => e.text.length > 0)
+}
+
 /**
  * Appends one event to a day's `events`, re-sorted by time. Used by the On the
  * Road page's quick "add event" on today. When the day doesn't exist yet
@@ -1295,18 +1311,7 @@ export async function addTodayEvent(
     const existing = Array.isArray(row.events)
       ? (row.events as ItineraryEvent[])
       : []
-    const events = [...existing, newEvent]
-      .map((e) => ({
-        time: (e.time ?? "").trim(),
-        text: (e.text ?? "").trim(),
-        ...(typeof e.url === "string" && e.url.trim() ? { url: e.url.trim() } : {}),
-        ...(typeof e.rating === "number" && e.rating >= 1 && e.rating <= 5
-          ? { rating: Math.round(e.rating) }
-          : {}),
-        ...(typeof e.note === "string" && e.note.trim() ? { note: e.note.trim() } : {}),
-      }))
-      .filter((e) => e.text.length > 0)
-      .sort(sortDayEvents)
+    const events = normalizeDayEvents([...existing, newEvent]).sort(sortDayEvents)
 
     const { error } = await supabase
       .from("itinerary_days")
@@ -1461,9 +1466,7 @@ export async function insertItineraryDayWithShift(
   const endDate = input.endDate?.trim() || input.dayDate
   const count = enumerateDates(input.dayDate, endDate).length
 
-  const events = input.events
-    .map((e) => ({ time: e.time.trim(), text: e.text.trim() }))
-    .filter((e) => e.text.length > 0)
+  const events = normalizeDayEvents(input.events)
 
   const supabase = await createClient()
   const { error } = await supabase.rpc("shift_and_insert_itinerary", {
@@ -1517,9 +1520,7 @@ export async function updateItineraryDay(
 
   const supabase = await createClient()
   const sub = input.sub.trim()
-  const events = input.events
-    .map((e) => ({ time: e.time.trim(), text: e.text.trim() }))
-    .filter((e) => e.text.length > 0)
+  const events = normalizeDayEvents(input.events)
 
   // Lower bound (mirrors addItineraryDay): can't move a day before trip start.
   const { data: dayRow } = await supabase
