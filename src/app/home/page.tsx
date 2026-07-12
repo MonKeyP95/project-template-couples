@@ -130,9 +130,9 @@ export default async function HomePage() {
           <Label className="mb-2.5 block md:hidden">{dateLabel}</Label>
           <Label className="hidden md:block">Together · Workspace</Label>
           <h1 className="t-display text-[58px] text-foreground md:mt-2.5 md:text-[80px] md:leading-[0.95]">
-            Hello,
+            Hello,{" "}
             <br className="md:hidden" />
-            <em>{profile?.display_name ?? "friend"}</em>.
+            <em>{profile?.display_name?.split(" ")[0] ?? "friend"}</em>.
           </h1>
         </div>
         <div className="hidden text-right md:block">
