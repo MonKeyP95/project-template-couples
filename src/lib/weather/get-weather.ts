@@ -18,6 +18,41 @@ export interface Weather {
   hourly: WeatherHour[]
 }
 
+export interface DayForecast {
+  /** "YYYY-MM-DD". */
+  date: string
+  /** WMO weather code (Open-Meteo's scheme). */
+  code: number
+  highC: number
+  lowC: number
+}
+
+/**
+ * Real 7-day daily forecast from Open-Meteo (free, no key), starting today at
+ * the given coordinate. Cached for an hour. Returns null if the call fails --
+ * the caller just hides the bar.
+ */
+export async function getWeekForecast(
+  lat: number,
+  lng: number,
+): Promise<DayForecast[] | null> {
+  const url =
+    `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}` +
+    `&daily=weather_code,temperature_2m_max,temperature_2m_min` +
+    `&forecast_days=7&timezone=auto`
+  const res = await fetch(url, { next: { revalidate: 3600 } })
+  if (!res.ok) return null
+  const data = await res.json()
+  const daily = data.daily
+  if (!daily) return null
+  return daily.time.map((date: string, i: number) => ({
+    date,
+    code: daily.weather_code[i],
+    highC: daily.temperature_2m_max[i],
+    lowC: daily.temperature_2m_min[i],
+  }))
+}
+
 /**
  * Current weather at a coordinate, as a deterministic function of latitude and
  * the month of `isoDate` (defaults to today). Hemisphere-aware: warmest in the

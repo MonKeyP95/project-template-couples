@@ -23,14 +23,15 @@ import { getTripSavings } from "@/lib/trips/savings-queries"
 import { getTripBudgetMoves } from "@/lib/trips/budget-move-queries"
 import { getBudgetItems } from "@/lib/trips/budget-item-queries"
 import { summarizeBudget } from "@/lib/trips/expense-types"
-import { getTripDetailBySlug, type TripDetail } from "@/lib/trips/fixtures"
+import { getTripDetailBySlug } from "@/lib/trips/fixtures"
 import { getItineraryDays } from "@/lib/trips/itinerary-queries"
 import { getItineraryLocations } from "@/lib/trips/location-queries"
 import { getDreamItineraryDays } from "@/lib/trips/dream-itinerary-queries"
 import { getTripNotes } from "@/lib/trips/note-queries"
 import { getPackingCategories, getPackingItems } from "@/lib/trips/packing-queries"
 import { computeTripDays } from "@/lib/trips/trip-days"
-import { getTripWeather } from "@/lib/weather/get-trip-weather"
+import { getTripWeather, getTripWeekForecast } from "@/lib/weather/get-trip-weather"
+import type { DayForecast } from "@/lib/weather/get-weather"
 import { detectWeatherPacking } from "@/lib/nudges/weather-packing"
 import { listTripsForWorkspace } from "@/lib/trips/list-queries"
 import { getTripBySlug, type TripHeader } from "@/lib/trips/queries"
@@ -89,6 +90,22 @@ const SHORT_MONTH = new Intl.DateTimeFormat("en-GB", {
 
 function formatDayLabel(date: string): string {
   return SHORT_MONTH.format(new Date(date)).toUpperCase()
+}
+
+const WEEKDAY = new Intl.DateTimeFormat("en-GB", {
+  weekday: "short",
+  timeZone: "UTC",
+})
+
+function formatWeekday(date: string): string {
+  return WEEKDAY.format(new Date(`${date}T00:00:00Z`)).toUpperCase()
+}
+
+/** Maps a WMO weather code to one of DayChip's three glyphs. */
+function glyphFor(code: number): "sun" | "haze" | "rain" {
+  if (code >= 51) return "rain"
+  if (code === 0 || code === 1) return "sun"
+  return "haze"
 }
 
 function formatDateRange(
@@ -200,10 +217,10 @@ export default async function TripPage({
   )
   const packingTotal = myPackingItems.length
   const packingDone = myPackingItems.filter((i) => i.done).length
-  const packingWeather = await getTripWeather(
-    header,
-    header.startDate ?? undefined,
-  )
+  const [packingWeather, weekForecast] = await Promise.all([
+    getTripWeather(header, header.startDate ?? undefined),
+    getTripWeekForecast(header),
+  ])
   const packingNudge = detectWeatherPacking({
     destination: header.country ?? header.name,
     weather: packingWeather,
@@ -309,7 +326,7 @@ export default async function TripPage({
       </div>
 
       <DesktopRightRail
-        detail={header.startDate ? detail : null}
+        forecast={weekForecast}
         packing={{ done: packingDone, total: packingTotal }}
         budget={{
           spentCents: budgetSummary.expenseTotalCents,
@@ -503,12 +520,12 @@ function DesktopTabs({ slug, active }: { slug: string; active: TabId }) {
 }
 
 function DesktopRightRail({
-  detail,
+  forecast,
   packing,
   budget,
   saved,
 }: {
-  detail: TripDetail | null
+  forecast: DayForecast[] | null
   packing: { done: number; total: number }
   budget: { spentCents: number; plannedCents: number }
   saved: { savedCents: number; plannedCents: number }
@@ -549,18 +566,18 @@ function DesktopRightRail({
         </div>
       </div>
 
-      {detail ? (
+      {forecast && forecast.length > 0 ? (
         <div>
           <Label>Weather · 7 day</Label>
           <div className="mt-2.5 overflow-hidden rounded-lg border border-border">
             <div className="grid grid-cols-7">
-              {detail.weather.map((day, i) => (
+              {forecast.map((day, i) => (
                 <DayChip
-                  key={day.d + i}
-                  d={day.d}
-                  t={day.t}
-                  glyph={day.glyph}
-                  active={i === detail.weatherActive}
+                  key={day.date}
+                  d={formatWeekday(day.date)}
+                  t={Math.round(day.highC)}
+                  glyph={glyphFor(day.code)}
+                  active={i === 0}
                 />
               ))}
             </div>
