@@ -13,7 +13,8 @@ import {
 import { TripCountdown } from "@/components/trip-countdown"
 import type { TripListItem } from "@/lib/trips/list-queries"
 import { slugToTone, type CardTone } from "@/lib/trips/slug-tone"
-import { getWeather, type Weather } from "@/lib/weather/get-weather"
+import { type Weather } from "@/lib/weather/get-weather"
+import { getTripWeather } from "@/lib/weather/get-trip-weather"
 import { daySummary, type ItineraryDay } from "@/lib/trips/itinerary-types"
 import { TodayNextEvent } from "./today-next-event"
 
@@ -109,10 +110,7 @@ export async function HeroCard({
   const tone = slugToTone(trip.slug)
   const coord = formatCoord(trip.lat, trip.lng)
   const dateRange = formatDateRange(trip.startDate, trip.endDate)
-  const weather =
-    trip.lat != null && trip.lng != null
-      ? await getWeather(trip.lat, trip.lng)
-      : null
+  const weather = await getTripWeather(trip)
   return (
     <Link
       href={`/trips/${trip.slug}`}

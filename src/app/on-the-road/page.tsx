@@ -10,7 +10,7 @@ import { getTodayForTrip, getItineraryDays } from "@/lib/trips/itinerary-queries
 import { getItineraryLocations } from "@/lib/trips/location-queries"
 import { slugToTone } from "@/lib/trips/slug-tone"
 import { formatShortDate, daySummary } from "@/lib/trips/itinerary-types"
-import { getWeather } from "@/lib/weather/get-weather"
+import { getTripWeather } from "@/lib/weather/get-trip-weather"
 import { WeatherCard } from "@/components/weather-card"
 import {
   getTripExpenseCategories,
@@ -60,10 +60,7 @@ export default async function OnTheRoadPage() {
     tripSlug: trip.slug,
   })
 
-  const weather =
-    trip.lat != null && trip.lng != null
-      ? await getWeather(trip.lat, trip.lng)
-      : null
+  const weather = await getTripWeather(trip)
 
   const categories = await getTripExpenseCategories(trip.id)
   const expenses = await getTripExpenses(trip.id)
