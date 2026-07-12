@@ -30,6 +30,7 @@ import {
 import {
   ITINERARY_TONES,
   dateRange,
+  formatEventTime,
   formatShortDate,
   rowToItineraryDay,
   tripActive,
@@ -85,6 +86,7 @@ interface DaySegment {
 interface EventDraft {
   key: string
   time: string
+  endTime: string
   text: string
   url: string
   /** Pass-through only — the planning form never edits these, but must not drop
@@ -93,8 +95,8 @@ interface EventDraft {
   note?: string
 }
 
-function newEventDraft(time = "", text = "", url = ""): EventDraft {
-  return { key: crypto.randomUUID(), time, text, url }
+function newEventDraft(time = "", endTime = "", text = "", url = ""): EventDraft {
+  return { key: crypto.randomUUID(), time, endTime, text, url }
 }
 
 /** Normalize a typed time to "HH:MM": "11" -> "11:00", "9:5" -> "09:05".
@@ -120,7 +122,7 @@ function sortEvents<T extends { time: string }>(list: T[]): T[] {
 
 function toEventDrafts(events: ItineraryEvent[]): EventDraft[] {
   return events.map((e) => ({
-    ...newEventDraft(e.time, e.text, e.url ?? ""),
+    ...newEventDraft(e.time, e.endTime ?? "", e.text, e.url ?? ""),
     rating: e.rating,
     note: e.note,
   }))
@@ -134,7 +136,8 @@ function daySummary(day: ItineraryDay): string {
   if (evs.length === 0) return ""
   if (evs.length === 1) {
     const e = evs[0]
-    return e.time ? `${e.time} ${e.text}` : e.text
+    const label = formatEventTime(e.time, e.endTime)
+    return label ? `${label} ${e.text}` : e.text
   }
   return `${evs.length} events`
 }
@@ -1340,8 +1343,8 @@ function DayView({
                 <div key={i}>
                   <div className="flex gap-1.5 text-[12.5px] leading-snug text-muted-foreground">
                     {ev.time ? (
-                      <span className="t-num shrink-0 text-foreground/70">
-                        {ev.time}
+                      <span className="t-num shrink-0 whitespace-nowrap text-foreground/70">
+                        {formatEventTime(ev.time, ev.endTime)}
                       </span>
                     ) : null}
                     <span>{ev.text}</span>
@@ -1450,6 +1453,7 @@ function DayEditor({
         sub,
         events: events.map((e) => ({
           time: normalizeTime(e.time),
+          ...(e.endTime.trim() ? { endTime: normalizeTime(e.endTime.trim()) } : {}),
           text: e.text,
           ...(e.url.trim() ? { url: e.url.trim() } : {}),
           ...(typeof e.rating === "number" ? { rating: e.rating } : {}),
@@ -1548,6 +1552,7 @@ function AddDayRow({
         sub,
         events: events.map((e) => ({
           time: normalizeTime(e.time),
+          ...(e.endTime.trim() ? { endTime: normalizeTime(e.endTime.trim()) } : {}),
           text: e.text,
           ...(e.url.trim() ? { url: e.url.trim() } : {}),
           ...(typeof e.rating === "number" ? { rating: e.rating } : {}),
@@ -1808,6 +1813,29 @@ function DayForm({
                   )
                 }
                 placeholder="09:00"
+                disabled={isPending}
+                className="t-num w-16 shrink-0 border-0 border-b border-rule bg-transparent py-1.5 text-[13px] text-foreground placeholder:text-muted-foreground focus:border-clay focus:outline-none disabled:opacity-50"
+              />
+              <input
+                type="text"
+                value={ev.endTime}
+                onChange={(e) =>
+                  setEvents(
+                    events.map((x) =>
+                      x.key === ev.key ? { ...x, endTime: e.target.value } : x,
+                    ),
+                  )
+                }
+                onBlur={() =>
+                  setEvents(
+                    events.map((x) =>
+                      x.key === ev.key
+                        ? { ...x, endTime: normalizeTime(x.endTime) }
+                        : x,
+                    ),
+                  )
+                }
+                placeholder="end"
                 disabled={isPending}
                 className="t-num w-16 shrink-0 border-0 border-b border-rule bg-transparent py-1.5 text-[13px] text-foreground placeholder:text-muted-foreground focus:border-clay focus:outline-none disabled:opacity-50"
               />
