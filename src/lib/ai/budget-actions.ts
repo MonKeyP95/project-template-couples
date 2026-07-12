@@ -88,7 +88,7 @@ export async function draftBudget(
         dateLabel: l.dateLabel,
       })),
       vibe: trip.tripProfile.vibe,
-      brief: trip.tripProfile.brief,
+      brief: trip.tripProfile.idea,
       budgetBand: prefs.budgetBand,
     })
 

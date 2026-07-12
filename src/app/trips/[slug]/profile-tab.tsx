@@ -10,16 +10,10 @@ import {
   saveTripProfile,
 } from "@/lib/trips/actions"
 import type { ExpenseCategoryRow } from "@/lib/trips/expense-types"
-import {
-  TRIP_VIBES,
-  TRIP_WHO,
-  type TripProfile,
-} from "@/lib/trips/trip-profile-types"
+import { TRIP_VIBES, type TripProfile } from "@/lib/trips/trip-profile-types"
 
-/** The trip "Profile" tab: headline + About + the trip's shared categories +
- * vibe/who chips, above the existing notes feature (reused unchanged).
- * Categories are the same expense_categories edited in Budget — this is just a
- * second access point. Manual — no AI. */
+/** The trip "Profile" tab: interim single-page form above the reused Categories
+ * and Notes features. The guided wizard replaces this top section next. */
 export function ProfileTab({
   profile,
   expenseCategories,
@@ -30,16 +24,16 @@ export function ProfileTab({
 }) {
   const router = useRouter()
   const { tripId, tripSlug } = notesProps
-  const [headline, setHeadline] = React.useState(profile.headline)
-  const [brief, setBrief] = React.useState(profile.brief)
+  const [idea, setIdea] = React.useState(profile.idea)
   const [vibe, setVibe] = React.useState<string[]>(profile.vibe)
-  const [who, setWho] = React.useState(profile.who)
   const [saving, setSaving] = React.useState(false)
   const [saved, setSaved] = React.useState(false)
 
-  function toggle(list: string[], setList: (v: string[]) => void, tag: string) {
+  function toggleVibe(tag: string) {
     setSaved(false)
-    setList(list.includes(tag) ? list.filter((t) => t !== tag) : [...list, tag])
+    setVibe((list) =>
+      list.includes(tag) ? list.filter((t) => t !== tag) : [...list, tag],
+    )
   }
 
   function save() {
@@ -47,7 +41,7 @@ export function ProfileTab({
     saveTripProfile({
       tripId,
       tripSlug,
-      profile: { headline, vibe, who, brief },
+      profile: { idea, vibe, transport: profile.transport },
     }).then((r) => {
       setSaving(false)
       if (r.error) return
@@ -59,61 +53,42 @@ export function ProfileTab({
   return (
     <>
       <section className="px-5 pt-5 lg:px-10 lg:pt-6">
-        <input
-          type="text"
-          value={headline}
+        <span className="block font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
+          The idea
+        </span>
+        <textarea
+          value={idea}
           onChange={(e) => {
-            setHeadline(e.target.value)
+            setIdea(e.target.value)
             setSaved(false)
           }}
-          placeholder="Trip headline — e.g. Surfing trip · 2 weeks"
-          className="t-display w-full border-0 bg-transparent text-[22px] text-foreground placeholder:text-muted-foreground focus:outline-none"
+          placeholder="Sum up this trip in a line — e.g. 2 weeks surfing in Portugal"
+          rows={3}
+          className="mt-1.5 w-full resize-y rounded-lg border border-rule bg-transparent p-2.5 text-[14px] text-foreground placeholder:text-muted-foreground focus:border-clay focus:outline-none"
         />
 
         <div className="mt-4">
           <span className="block font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
-            About this trip
+            Vibe
           </span>
-          <textarea
-            value={brief}
-            onChange={(e) => {
-              setBrief(e.target.value)
-              setSaved(false)
-            }}
-            placeholder="What's this trip about?"
-            rows={3}
-            className="mt-1.5 w-full resize-y rounded-lg border border-rule bg-transparent p-2.5 text-[14px] text-foreground placeholder:text-muted-foreground focus:border-clay focus:outline-none"
-          />
+          <div className="mt-1.5 flex flex-wrap gap-1.5">
+            {TRIP_VIBES.map((v) => (
+              <button
+                key={v}
+                type="button"
+                onClick={() => toggleVibe(v)}
+                aria-pressed={vibe.includes(v)}
+                className={`rounded-full border px-3 py-1 font-mono text-[11px] tracking-[0.06em] ${
+                  vibe.includes(v)
+                    ? "border-foreground bg-foreground text-background"
+                    : "border-rule text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                {v}
+              </button>
+            ))}
+          </div>
         </div>
-
-        <TripCategories
-          tripId={tripId}
-          tripSlug={tripSlug}
-          categories={expenseCategories}
-        />
-
-        <ChipGroup label="Vibe">
-          {TRIP_VIBES.map((v) => (
-            <Chip key={v} on={vibe.includes(v)} onClick={() => toggle(vibe, setVibe, v)}>
-              {v}
-            </Chip>
-          ))}
-        </ChipGroup>
-
-        <ChipGroup label="Who's coming">
-          {TRIP_WHO.map((w) => (
-            <Chip
-              key={w}
-              on={who === w}
-              onClick={() => {
-                setSaved(false)
-                setWho(who === w ? "" : w)
-              }}
-            >
-              {w}
-            </Chip>
-          ))}
-        </ChipGroup>
 
         <button
           type="button"
@@ -123,6 +98,12 @@ export function ProfileTab({
         >
           {saving ? "saving…" : saved ? "saved" : "save profile"}
         </button>
+
+        <TripCategories
+          tripId={tripId}
+          tripSlug={tripSlug}
+          categories={expenseCategories}
+        />
       </section>
 
       <NotesTab {...notesProps} />
@@ -240,47 +221,5 @@ function TripCategories({
         <div className="mt-1 font-mono text-[10px] text-clay">{error}</div>
       ) : null}
     </div>
-  )
-}
-
-function ChipGroup({
-  label,
-  children,
-}: {
-  label: string
-  children: React.ReactNode
-}) {
-  return (
-    <div className="mt-4">
-      <span className="block font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
-        {label}
-      </span>
-      <div className="mt-1.5 flex flex-wrap gap-1.5">{children}</div>
-    </div>
-  )
-}
-
-function Chip({
-  on,
-  onClick,
-  children,
-}: {
-  on: boolean
-  onClick: () => void
-  children: React.ReactNode
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-pressed={on}
-      className={`rounded-full border px-3 py-1 font-mono text-[11px] tracking-[0.06em] ${
-        on
-          ? "border-foreground bg-foreground text-background"
-          : "border-rule text-muted-foreground hover:text-foreground"
-      }`}
-    >
-      {children}
-    </button>
   )
 }

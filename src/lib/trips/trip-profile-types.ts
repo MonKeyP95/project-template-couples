@@ -1,3 +1,11 @@
+export const TRIP_TRANSPORT = [
+  "Own car",
+  "Rental car",
+  "Public transport",
+  "Flights between stops",
+  "Taxis & walking",
+] as const
+
 export const TRIP_VIBES = [
   "Romantic",
   "Adventurous",
@@ -8,40 +16,38 @@ export const TRIP_VIBES = [
   "Luxe",
 ] as const
 
-export const TRIP_WHO = ["Just us", "+ kids", "+ friends", "+ family"] as const
-
 export interface TripProfile {
-  headline: string
+  idea: string
+  transport: string[]
   vibe: string[]
-  who: string
-  brief: string
 }
 
 export const EMPTY_TRIP_PROFILE: TripProfile = {
-  headline: "",
+  idea: "",
+  transport: [],
   vibe: [],
-  who: "",
-  brief: "",
 }
 
-/** Tolerant parse of the jsonb `trip_profile` column. Vibe/who keep only allowed
- * values; never throws on legacy/malformed data. (Activities are not stored here
- * — the trip's categories are the shared expense_categories, edited via Budget
- * and the Profile tab alike.) */
+/** Tolerant parse of the jsonb `trip_profile` column. Filters transport/vibe to
+ * allowed sets; never throws on legacy/malformed data. Legacy trips: `idea`
+ * falls back to the old `headline` then `brief` so their text is not lost.
+ * (Categories are their own expense_categories rows, not stored here.) */
 export function parseTripProfile(raw: unknown): TripProfile {
   if (typeof raw !== "object" || raw === null) return { ...EMPTY_TRIP_PROFILE }
   const r = raw as Record<string, unknown>
-  const pick = (v: unknown, allowed: readonly string[]): string[] =>
+  const pickArr = (v: unknown, allowed: readonly string[]): string[] =>
     Array.isArray(v)
       ? v.filter((x): x is string => typeof x === "string" && allowed.includes(x))
       : []
+  const legacyHeadline = typeof r.headline === "string" ? r.headline : ""
+  const legacyBrief = typeof r.brief === "string" ? r.brief : ""
+  const idea =
+    typeof r.idea === "string" && r.idea.trim()
+      ? r.idea
+      : legacyHeadline || legacyBrief
   return {
-    headline: typeof r.headline === "string" ? r.headline : "",
-    vibe: pick(r.vibe, TRIP_VIBES),
-    who:
-      typeof r.who === "string" && (TRIP_WHO as readonly string[]).includes(r.who)
-        ? r.who
-        : "",
-    brief: typeof r.brief === "string" ? r.brief : "",
+    idea,
+    transport: pickArr(r.transport, TRIP_TRANSPORT),
+    vibe: pickArr(r.vibe, TRIP_VIBES),
   }
 }

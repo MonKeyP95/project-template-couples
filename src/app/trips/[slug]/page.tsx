@@ -407,9 +407,9 @@ function TripHeaderView({
               {header.country}
             </div>
           ) : null}
-          {header.tripProfile.headline ? (
-            <div className="mt-1.5 font-mono text-[11px] tracking-[0.06em] text-muted-foreground">
-              {header.tripProfile.headline}
+          {header.tripProfile.idea ? (
+            <div className="mt-1.5 truncate font-mono text-[11px] tracking-[0.06em] text-muted-foreground">
+              {header.tripProfile.idea}
             </div>
           ) : null}
         </div>
