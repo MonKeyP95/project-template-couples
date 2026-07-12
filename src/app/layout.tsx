@@ -10,7 +10,6 @@ import { WorldMapBg } from "@/components/together"
 import { TimezoneCookie } from "@/components/timezone-cookie"
 import { AiModeProvider } from "@/components/ai-mode"
 import { isDarkTheme } from "@/lib/theme"
-import { isAiEnabled } from "@/lib/ai/ai-mode"
 
 const sans = IBM_Plex_Sans({
   variable: "--font-sans",
@@ -46,7 +45,6 @@ export default async function RootLayout({
   children: React.ReactNode
 }>) {
   const dark = await isDarkTheme()
-  const aiEnabled = await isAiEnabled()
   return (
     <html
       lang="en"
@@ -59,7 +57,7 @@ export default async function RootLayout({
       >
         <TimezoneCookie />
         <WorldMapBg className="fixed inset-0 -z-10 text-foreground/[0.07]" />
-        <AiModeProvider initialEnabled={aiEnabled}>
+        <AiModeProvider initialEnabled={false}>
           {children}
         </AiModeProvider>
       </body>

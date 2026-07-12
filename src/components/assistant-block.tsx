@@ -14,7 +14,8 @@ import type { ChatMessage } from "@/lib/ai/chat-types"
 
 /** The single AI access point. One inline collapsible block whose header IS the
  * AI on/off: collapsed = off (just the label), expanded = on (suggest + optional
- * door + inline chat). State persists per-person via useAiMode / the ai cookie. */
+ * door + inline chat). Always starts collapsed on load; toggling writes the ai
+ * cookie for the session and gates AI features (e.g. profile learned summaries). */
 export function AssistantBlock({
   surface,
   tripSlug,
