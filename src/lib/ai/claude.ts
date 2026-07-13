@@ -8,6 +8,7 @@ import type {
 } from "./discovery-types"
 import type { Suggestion } from "./suggestion-types"
 import { TASTE_DIRECTIVE } from "./taste-types"
+import type { TasteSignal } from "@/lib/preferences/couple-summary-types"
 
 /**
  * The single seam for Claude calls (CLAUDE.md: "AI provider is one file").
@@ -82,15 +83,22 @@ export async function pingClaude(): Promise<string> {
  * their current summary (which may contain hand-edits) rather than replacing it.
  * Plain messages.create — no web_search. Suggest-only: returns text; the caller
  * persists it. */
+function signalToLine(s: TasteSignal): string {
+  if (s.kind === "rated") {
+    const note = s.note ? ` · ${s.note}` : ""
+    return `- ${s.text} · rated ${s.rating}/5${note}`
+  }
+  if (s.kind === "planned") return `- ${s.text} · planned (not rated)`
+  return `- ${s.text} · wanted`
+}
+
 export async function summarizeTaste(
   category: DiscoveryCategory,
   currentSummaryMd: string,
-  ratings: { text: string; rating: number; note: string }[],
+  signals: TasteSignal[],
 ): Promise<string> {
   const noun = category === "activity" ? "activities" : "food"
-  const lines = ratings
-    .map((r) => `- ${r.text} · ${r.rating}/5${r.note ? ` · ${r.note}` : ""}`)
-    .join("\n")
+  const lines = signals.map(signalToLine).join("\n")
   const current = currentSummaryMd.trim()
     ? `Their current ${noun} summary (may include their own hand-edits — respect ` +
       `them):\n\n${currentSummaryMd.trim()}`
@@ -103,12 +111,15 @@ export async function summarizeTaste(
       {
         role: "user",
         content:
-          `A couple has been rating ${noun} on their trips. ${current}\n\n` +
-          `Here are their ${noun} ratings (place · rating · note):\n${lines}\n\n` +
-          `Write a short markdown summary (a few bullet points) of what this ` +
-          `couple likes and dislikes in ${noun}. Evolve the current summary ` +
-          `rather than discarding it; keep any hand-edits that still hold. ` +
-          `Return only the markdown, no preamble.`,
+          `A couple leaves signals about their ${noun} taste across their trips: ` +
+          `places they rated, places they planned but never rated, and ${noun} ` +
+          `they said they wanted. ${current}\n\n` +
+          `Here are the signals:\n${lines}\n\n` +
+          `Weight the rated places most; treat "planned" and "wanted" as lighter ` +
+          `hints about direction, not firm evidence. Write a short markdown ` +
+          `summary (a few bullet points) of what this couple likes and dislikes ` +
+          `in ${noun}. Evolve the current summary rather than discarding it; keep ` +
+          `any hand-edits that still hold. Return only the markdown, no preamble.`,
       },
     ],
   })

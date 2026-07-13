@@ -6,7 +6,7 @@ import { createClient } from "@/lib/supabase/server"
 import { isAiEnabled } from "@/lib/ai/ai-mode"
 import { summarizeTaste } from "@/lib/ai/claude"
 import { getCurrentWorkspace } from "@/lib/workspace/queries"
-import { getCoupleSummary } from "./couple-summary-queries"
+import { getCoupleSummary, gatherTasteSignals } from "./couple-summary-queries"
 import type { LearnedCategory } from "./couple-summary-types"
 
 /** Regenerates a category's learned summary from its ratings (AI-gated). Evolves
@@ -20,31 +20,19 @@ export async function refreshCoupleSummary(
   const workspace = await getCurrentWorkspace()
   if (!workspace) return { error: "Not signed in." }
 
-  const supabase = await createClient()
-  const { data: rows, error: loadError } = await supabase
-    .from("event_ratings")
-    .select("event_text, rating, note")
-    .eq("workspace_id", workspace.id)
-    .eq("category", category)
-    .order("created_at", { ascending: true })
-  if (loadError) return { error: loadError.message }
-
-  const ratings = (rows ?? []).map((r) => ({
-    text: r.event_text as string,
-    rating: r.rating as number,
-    note: (r.note as string | null) ?? "",
-  }))
-  if (ratings.length === 0) return { error: "No ratings yet." }
+  const signals = await gatherTasteSignals(workspace.id, category)
+  if (signals.length === 0) return { error: "Nothing to learn from yet." }
 
   const current = await getCoupleSummary(workspace.id, category)
-  const summaryMd = await summarizeTaste(category, current.summaryMd, ratings)
+  const summaryMd = await summarizeTaste(category, current.summaryMd, signals)
 
+  const supabase = await createClient()
   await supabase.from("couple_summaries").upsert(
     {
       workspace_id: workspace.id,
       category,
       summary_md: summaryMd,
-      rating_count_at_generation: ratings.length,
+      rating_count_at_generation: signals.length,
       updated_at: new Date().toISOString(),
     },
     { onConflict: "workspace_id,category" },
