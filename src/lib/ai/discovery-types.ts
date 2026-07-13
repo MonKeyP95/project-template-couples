@@ -15,6 +15,15 @@ export function mapDiscoveryCategory(category: DiscoveryCategory): string {
   return category === "food" ? "Food" : "Activities"
 }
 
+/** Reverse of mapDiscoveryCategory: an expense-category name back to a learned
+ * category. Only Food/Activities are learnable in this slice; everything else
+ * (Transport, Accommodation, Other, ...) returns null and is ignored. */
+export function expenseCategoryToLearned(name: string): DiscoveryCategory | null {
+  if (name === "Food") return "food"
+  if (name === "Activities") return "activity"
+  return null
+}
+
 /** What we ask Claude to find — the category, a trip's facts, the couple's
  * tastes, and the in-the-moment inputs (craving + walkable-from-anchor). */
 export interface DiscoveryQuery {

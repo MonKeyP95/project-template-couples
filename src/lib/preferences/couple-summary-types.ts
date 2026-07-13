@@ -48,3 +48,15 @@ export function isSummaryStale(
   if (ratingCount <= 0) return false
   return (ratingCount - countAtGeneration) / ratingCount >= STALE_FRACTION
 }
+
+/** One piece of evidence about the couple's taste in a category. A rating is the
+ * strong kind; "planned" (added to an itinerary, not rated) and "wanted" (a
+ * category detail tag) are lighter hints. The summariser weights them accordingly. */
+export interface TasteSignal {
+  text: string
+  kind: "rated" | "planned" | "wanted"
+  /** Present only when kind === "rated" (1-5). */
+  rating?: number
+  /** Free note captured with a rating; absent otherwise. */
+  note?: string
+}
