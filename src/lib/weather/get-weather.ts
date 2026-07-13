@@ -14,6 +14,8 @@ export interface Weather {
   lowC: number
   windKph: number
   humidityPct: number
+  /** Chance of rain, 0-100. */
+  rainPct: number
   /** Next few hours, soonest first. */
   hourly: WeatherHour[]
 }
@@ -25,6 +27,10 @@ export interface DayForecast {
   code: number
   highC: number
   lowC: number
+  /** Peak wind speed for the day, km/h. */
+  windKph: number
+  /** Chance of rain for the day, 0-100. */
+  rainPct: number
 }
 
 /**
@@ -38,7 +44,8 @@ export async function getWeekForecast(
 ): Promise<DayForecast[] | null> {
   const url =
     `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}` +
-    `&daily=weather_code,temperature_2m_max,temperature_2m_min` +
+    `&daily=weather_code,temperature_2m_max,temperature_2m_min,` +
+    `wind_speed_10m_max,precipitation_probability_max` +
     `&forecast_days=7&timezone=auto`
   const res = await fetch(url, { next: { revalidate: 3600 } })
   if (!res.ok) return null
@@ -50,6 +57,8 @@ export async function getWeekForecast(
     code: daily.weather_code[i],
     highC: daily.temperature_2m_max[i],
     lowC: daily.temperature_2m_min[i],
+    windKph: daily.wind_speed_10m_max[i],
+    rainPct: daily.precipitation_probability_max[i] ?? 0,
   }))
 }
 
@@ -83,6 +92,7 @@ export async function getWeather(
     lowC: tempC - 3,
     windKph: 12,
     humidityPct: 55,
+    rainPct: 10,
     hourly: [
       { time: "12:00", tempC, code: 0 },
       { time: "15:00", tempC: tempC + 2, code: 1 },

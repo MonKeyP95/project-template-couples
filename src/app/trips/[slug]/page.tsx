@@ -12,6 +12,7 @@ import {
 } from "@/components/together"
 import { RefreshOnVisible } from "@/components/refresh-on-visible"
 import { TripCountdown } from "@/components/trip-countdown"
+import { WeekForecast } from "@/components/week-forecast"
 import { createClient } from "@/lib/supabase/server"
 import { isDarkTheme } from "@/lib/theme"
 import { localToday } from "@/lib/time/local-today"
@@ -91,22 +92,6 @@ const SHORT_MONTH = new Intl.DateTimeFormat("en-GB", {
 
 function formatDayLabel(date: string): string {
   return SHORT_MONTH.format(new Date(date)).toUpperCase()
-}
-
-const WEEKDAY = new Intl.DateTimeFormat("en-GB", {
-  weekday: "short",
-  timeZone: "UTC",
-})
-
-function formatWeekday(date: string): string {
-  return WEEKDAY.format(new Date(`${date}T00:00:00Z`)).toUpperCase()
-}
-
-/** Maps a WMO weather code to one of DayChip's three glyphs. */
-function glyphFor(code: number): "sun" | "haze" | "rain" {
-  if (code >= 51) return "rain"
-  if (code === 0 || code === 1) return "sun"
-  return "haze"
 }
 
 function formatDateRange(
@@ -578,24 +563,7 @@ function DesktopRightRail({
         </div>
       </div>
 
-      {forecast && forecast.length > 0 ? (
-        <div>
-          <Label>Weather · 7 day</Label>
-          <div className="mt-2.5 overflow-hidden rounded-lg border border-border">
-            <div className="grid grid-cols-7">
-              {forecast.map((day, i) => (
-                <DayChip
-                  key={day.date}
-                  d={formatWeekday(day.date)}
-                  t={Math.round(day.highC)}
-                  glyph={glyphFor(day.code)}
-                  active={i === 0}
-                />
-              ))}
-            </div>
-          </div>
-        </div>
-      ) : null}
+      {forecast ? <WeekForecast forecast={forecast} /> : null}
     </aside>
   )
 }

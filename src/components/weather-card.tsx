@@ -10,6 +10,7 @@ import {
 } from "lucide-react"
 
 import type { Weather } from "@/lib/weather/get-weather"
+import { labelFor } from "@/lib/weather/wmo"
 
 /** Maps a WMO weather code to one of five condition icons. */
 function iconFor(code: number) {
@@ -32,20 +33,6 @@ function colorFor(code: number): string {
   if (code === 1 || code === 2) return "oklch(0.74 0.10 75)" // mostly clear — warm
   if (code === 45 || code === 48) return "oklch(0.66 0.02 240)" // fog — gray
   return "oklch(0.62 0.035 240)" // cloudy — slate
-}
-
-/** Short human label for a WMO weather code. */
-function labelFor(code: number): string {
-  if (code === 0) return "Clear"
-  if (code === 1) return "Mainly clear"
-  if (code === 2) return "Partly cloudy"
-  if (code === 3) return "Overcast"
-  if (code === 45 || code === 48) return "Fog"
-  if (code >= 51 && code <= 67) return "Rain"
-  if ((code >= 71 && code <= 77) || code === 85 || code === 86) return "Snow"
-  if (code >= 80 && code <= 82) return "Showers"
-  if (code >= 95) return "Storm"
-  return "Cloudy"
 }
 
 /**
@@ -94,6 +81,7 @@ export function WeatherCard({
             <Stat label="Low" value={`${Math.round(weather.lowC)}°`} />
             <Stat label="Wind" value={`${Math.round(weather.windKph)} km/h`} />
             <Stat label="Humidity" value={`${Math.round(weather.humidityPct)}%`} />
+            <Stat label="Rain" value={`${Math.round(weather.rainPct)}%`} />
           </div>
           {weather.hourly.length > 0 ? (
             <div className="mt-3 flex gap-3 border-t border-border pt-3">
