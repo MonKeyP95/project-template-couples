@@ -25,6 +25,49 @@ are a **new, additive display layer** — a trip-by-trip breakdown — not a rol
 general summary is rebuilt from. The summary-of-summaries model was considered and
 deferred: it rewrites a working pipeline for scaling the profile does not yet need.
 
+## Why per-trip summaries also future-proof the general summary
+
+The current general summary reads **all raw signals across all trips, flat** — no
+recency weighting, no notion of trip style. That is correct at a handful of trips.
+Over many years it degrades in three ways, plus one mechanical limit:
+
+1. **Blur** — averaging hundreds of places into a few bullets regresses to the mean;
+   everything reads as "they like good food and nice views."
+2. **No recency** — a place loved nine years ago counts the same as one from last
+   month, though taste drifts.
+3. **No context** — a backpacking trip and a luxury anniversary trip blend into one
+   incoherent "taste" that describes neither.
+4. **Scale/cost** — feeding thousands of raw signals to Claude eventually exceeds the
+   context window and gets expensive. "Read everything" has a hard ceiling.
+
+Slice 2 does **not** solve blur, and should not try. Its value here is that it makes
+the per-trip summary a **stable, dated, context-carrying unit**, which is the
+primitive the eventual fix needs:
+
+- **Recency** — a trip summary is stamped with the trip's date, so a future general
+  rollup can window (last ~N years / N trips) or weight recent trips heavier —
+  impossible to do cleanly over raw signals.
+- **Style** — each trip summary is tied to that trip's idea/vibe, so a future rollup
+  can group by style ("on beach trips you like X; on city trips Y") instead of
+  flattening it away.
+- **Scale** — the general summary can later switch from "read all raw signals" to
+  "read the N relevant trip summaries": bounded input regardless of how many years
+  accrue.
+
+That eventual switch **is** the deferred summary-of-summaries model. It is not built
+here on purpose: a recency window or a style-clustering rule cannot be tuned with no
+trip history — it would be guessing. Building the primitive now lets that decision be
+deferred without repainting into a corner; flipping the general summary over later is
+a small, non-destructive change because the dated, context-carrying unit already
+exists. Per-trip summaries are the escape hatch for when the flat general summary
+stops being correct.
+
+**Cheap thing done now to keep the door open:** a trip summary must stay queryable
+with its **trip date** and a pointer to the **trip idea/vibe**. No schema cost —
+`trip_summaries.trip_id` joins straight to `trips` (which holds `start_date` and the
+trip profile) — but the queries and display must not discard that join, so a future
+rollup has date + style available for free.
+
 ## The model
 
 ### Scope and which trips qualify
