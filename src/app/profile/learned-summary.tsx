@@ -10,6 +10,8 @@ import {
 import {
   refreshCoupleSummary,
   saveCoupleSummary,
+  refreshTripSummary,
+  saveTripSummary,
 } from "@/lib/preferences/couple-summary-actions"
 
 /** The "What we've learned" block for one category on the couple profile. Shows
@@ -21,12 +23,14 @@ export function LearnedSummary({
   ratingCount,
   countAtGeneration,
   aiOn,
+  tripId,
 }: {
   category: LearnedCategory
   summaryMd: string
   ratingCount: number
   countAtGeneration: number
   aiOn: boolean
+  tripId?: string
 }) {
   const [text, setText] = React.useState(summaryMd)
   const [busy, setBusy] = React.useState(false)
@@ -39,10 +43,12 @@ export function LearnedSummary({
 
   const refresh = React.useCallback(async () => {
     setBusy(true)
-    const res = await refreshCoupleSummary(category)
+    const res = tripId
+      ? await refreshTripSummary(tripId, category)
+      : await refreshCoupleSummary(category)
     if (res.summaryMd !== undefined) setText(res.summaryMd)
     setBusy(false)
-  }, [category])
+  }, [category, tripId])
 
   // Background-regenerate once on mount when stale and AI is on. The current
   // summary shows instantly; the fresh one swaps in when ready.
@@ -56,7 +62,8 @@ export function LearnedSummary({
 
   async function save() {
     setBusy(true)
-    await saveCoupleSummary(category, text)
+    if (tripId) await saveTripSummary(tripId, category, text)
+    else await saveCoupleSummary(category, text)
     setBusy(false)
   }
 
