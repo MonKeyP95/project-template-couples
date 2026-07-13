@@ -120,7 +120,7 @@ export async function HeroCard({
         className={`relative overflow-hidden ${surface[tone]} md:h-auto ${
           today
             ? "h-[104px] md:aspect-[2/1]"
-            : "h-[132px] md:aspect-[16/10]"
+            : "h-[132px] md:aspect-[16/9]"
         }`}
       >
         <TopoBg tone={tone} opacity={0.16} />

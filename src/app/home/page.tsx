@@ -112,7 +112,7 @@ export default async function HomePage() {
           className="mb-6"
         />
       ) : null}
-      <header className="mb-14 flex items-center justify-between md:hidden">
+      <header className="mb-9 flex items-center justify-between md:hidden">
         <Label>Together · Workspace</Label>
         {members.length >= 2 ? (
           <PairAvatar
@@ -129,7 +129,7 @@ export default async function HomePage() {
         <div>
           <Label className="mb-2.5 block md:hidden">{dateLabel}</Label>
           <Label className="hidden md:block">Together · Workspace</Label>
-          <h1 className="t-display text-[58px] text-foreground md:mt-2.5 md:text-[80px] md:leading-[0.95]">
+          <h1 className="t-display text-[44px] text-foreground md:mt-2 md:text-[62px] md:leading-[0.95]">
             Hello,{" "}
             <br className="md:hidden" />
             <em>{profile?.display_name?.split(" ")[0] ?? "friend"}</em>.
@@ -177,7 +177,7 @@ export default async function HomePage() {
       ) : (
         <>
           {hero ? (
-            <section className="mt-10 md:mt-12">
+            <section className="mt-10 md:mt-12 md:max-w-[540px]">
               <div className="mb-2.5 flex items-center justify-between md:mb-4">
                 <Label>
                   {hero.state === "now"
