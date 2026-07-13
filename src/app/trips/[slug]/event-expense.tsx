@@ -98,7 +98,6 @@ export function EventExpense({
           disabled={isPending}
           className="flex-1 rounded-lg border border-border bg-background px-2 py-1 text-[12px] text-foreground"
         >
-          <option value="">Category (optional)</option>
           {categories.map((c) => (
             <option key={c.id} value={c.name}>
               {c.name}
