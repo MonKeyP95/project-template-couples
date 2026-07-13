@@ -59,6 +59,9 @@ export function AssistantBlock({
 
       {enabled ? (
         <div className="flex flex-col">
+          <div className="px-4 py-3">
+            <TasteDial />
+          </div>
           {nudge ? (
             <>
               <Divider />
@@ -260,7 +263,6 @@ function SuggestLine({
   // Scope menu: the "how can I help?" ask on its own line, chips below.
   return (
     <div className="flex flex-col gap-3">
-      <TasteDial />
       <div className="flex items-end gap-2">
         <input
           type="text"
