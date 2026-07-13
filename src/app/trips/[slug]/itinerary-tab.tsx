@@ -274,19 +274,6 @@ function groupZone(group: DayGroup, today: string): DayZone {
   return "today"
 }
 
-/** During an active trip, today's day(s) start expanded; otherwise none do. */
-function defaultExpandedDays(
-  days: ItineraryDay[],
-  today: string,
-  start: string,
-  end: string,
-): Set<string> {
-  const s = new Set<string>()
-  if (!tripActive(today, start, end)) return s
-  for (const d of days) if (d.dayDate === today) s.add(d.id)
-  return s
-}
-
 /** During an active trip, future location groups start collapsed (past ones go
  * into the Past bar, current stays open). Outside a trip, nothing is collapsed. */
 function defaultCollapsed(
@@ -346,9 +333,8 @@ export function ItineraryTab({
     defaultCollapsed(initialLocations, initialItems, today, tripStartDate, tripEndDate),
   )
   const [expandedRuns, setExpandedRuns] = React.useState<Set<string>>(new Set())
-  const [expandedDays, setExpandedDays] = React.useState<Set<string>>(() =>
-    defaultExpandedDays(initialItems, today, tripStartDate, tripEndDate),
-  )
+  // Days show their events by default; this tracks the ones the user collapsed.
+  const [collapsedDays, setCollapsedDays] = React.useState<Set<string>>(new Set())
   const [pastBarOpen, setPastBarOpen] = React.useState(false)
   const [earlierOpen, setEarlierOpen] = React.useState<Set<string>>(new Set())
 
@@ -362,7 +348,7 @@ export function ItineraryTab({
   }
 
   function toggleDay(id: string) {
-    setExpandedDays((prev) => {
+    setCollapsedDays((prev) => {
       const next = new Set(prev)
       if (next.has(id)) next.delete(id)
       else next.add(id)
@@ -712,7 +698,7 @@ export function ItineraryTab({
                     editingId={editingId}
                     setEditingId={setEditingId}
                     locations={locations}
-                    expandedDays={expandedDays}
+                    collapsedDays={collapsedDays}
                     toggleDay={toggleDay}
                     dimBefore={active ? today : null}
                     today={today}
@@ -986,7 +972,7 @@ export function ItineraryTab({
                             editingId={editingId}
                             setEditingId={setEditingId}
                             locations={locations}
-                            expandedDays={expandedDays}
+                            collapsedDays={collapsedDays}
                             toggleDay={toggleDay}
                             dimBefore={active ? today : null}
                             today={today}
@@ -1126,7 +1112,7 @@ function DaySegmentView({
   editingId,
   setEditingId,
   locations,
-  expandedDays,
+  collapsedDays,
   toggleDay,
   dimBefore,
   today,
@@ -1138,7 +1124,7 @@ function DaySegmentView({
   editingId: string | null
   setEditingId: (id: string | null) => void
   locations: ItineraryLocation[]
-  expandedDays: Set<string>
+  collapsedDays: Set<string>
   toggleDay: (id: string) => void
   dimBefore: string | null
   today: string
@@ -1148,7 +1134,7 @@ function DaySegmentView({
       key={day.id}
       day={day}
       tripSlug={tripSlug}
-      expanded={expandedDays.has(day.id)}
+      expanded={!collapsedDays.has(day.id)}
       onToggle={() => toggleDay(day.id)}
       dimBefore={dimBefore}
       today={today}
