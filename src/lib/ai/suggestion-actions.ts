@@ -2,6 +2,9 @@
 
 import { generateSuggestion } from "@/lib/ai/claude"
 import { isAiEnabled } from "@/lib/ai/ai-mode"
+import { buildProfileBlock } from "@/lib/ai/profile-context"
+import { getTasteLevel } from "@/lib/ai/taste-level"
+import { TASTE_DIRECTIVE } from "@/lib/ai/taste-types"
 import { getCurrentWorkspace } from "@/lib/workspace/queries"
 import { getTripBySlug } from "@/lib/trips/queries"
 import { getBudgetItems } from "@/lib/trips/budget-item-queries"
@@ -224,6 +227,24 @@ async function buildScopedPrompt(
   return buildFreePrompt(header, modeLine, scope.text)
 }
 
+/** Appends the profile background + taste-dial directive when there is any profile
+ * to lean on. With no profile the base prompt is returned unchanged (today's
+ * behavior), and no dial directive is added. */
+async function withProfile(
+  base: string,
+  workspaceId: string,
+  tripId: string | undefined,
+): Promise<string> {
+  const block = await buildProfileBlock(workspaceId, tripId)
+  if (!block) return base
+  const taste = await getTasteLevel()
+  return [
+    base,
+    `Who they are (background - a lens, not a checklist): ${block}`,
+    TASTE_DIRECTIVE[taste],
+  ].join(" ")
+}
+
 /** One real suggestion for a surface. AI-gated + workspace-guarded. Suggest-only:
  * reads context, writes nothing. */
 export async function suggestForSurface(
@@ -238,7 +259,11 @@ export async function suggestForSurface(
   try {
     const prompt = await buildScopedPrompt(surface, workspace.id, tripSlug, scope)
     if (!prompt) return { error: "No trip in context." }
-    const suggestion = await generateSuggestion(prompt)
+    const tripId = tripSlug
+      ? (await getTripBySlug(workspace.id, tripSlug))?.id
+      : undefined
+    const enriched = await withProfile(prompt, workspace.id, tripId)
+    const suggestion = await generateSuggestion(enriched)
     return { suggestion }
   } catch {
     return { error: "Couldn't reach the assistant." }
