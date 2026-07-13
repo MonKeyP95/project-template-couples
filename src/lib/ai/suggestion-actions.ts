@@ -2,9 +2,7 @@
 
 import { generateSuggestion } from "@/lib/ai/claude"
 import { isAiEnabled } from "@/lib/ai/ai-mode"
-import { buildProfileBlock } from "@/lib/ai/profile-context"
-import { getTasteLevel } from "@/lib/ai/taste-level"
-import { TASTE_DIRECTIVE } from "@/lib/ai/taste-types"
+import { buildAssistantContext } from "@/lib/ai/assistant-context"
 import { getCurrentWorkspace } from "@/lib/workspace/queries"
 import { getTripBySlug } from "@/lib/trips/queries"
 import { getBudgetItems } from "@/lib/trips/budget-item-queries"
@@ -235,13 +233,15 @@ async function withProfile(
   workspaceId: string,
   tripId: string | undefined,
 ): Promise<string> {
-  const block = await buildProfileBlock(workspaceId, tripId)
-  if (!block) return base
-  const taste = await getTasteLevel()
+  const { profileBlock, tasteDirective } = await buildAssistantContext(
+    workspaceId,
+    tripId,
+  )
+  if (!profileBlock) return base
   return [
     base,
-    `Who they are (background - a lens, not a checklist): ${block}`,
-    TASTE_DIRECTIVE[taste],
+    `Who they are (background - a lens, not a checklist): ${profileBlock}`,
+    tasteDirective,
   ].join(" ")
 }
 
