@@ -2,44 +2,64 @@
 
 import { chatReply } from "@/lib/ai/claude"
 import type { ChatMessage } from "@/lib/ai/chat-types"
+import { buildAssistantContext } from "@/lib/ai/assistant-context"
 import { getCurrentWorkspace } from "@/lib/workspace/queries"
 import { getItineraryLocations } from "@/lib/trips/location-queries"
 import { getTripBySlug } from "@/lib/trips/queries"
 
-/** Server Action behind the floating assistant. Builds basic trip context when
- * a trip slug is supplied, then calls the real model. Any failure (missing key,
- * network, model error) returns one honest inline message. */
+/** Server Action behind the assistant chat. Builds the shared assistant context
+ * (trip facts when a slug is supplied, plus the profile block + taste dial) then
+ * calls the real model. Any failure returns one honest inline message. */
 export async function sendChatMessage(
   messages: ChatMessage[],
   tripSlug?: string,
 ): Promise<string> {
   try {
-    const context = tripSlug ? await tripContextFor(tripSlug) : ""
+    const context = await chatContext(tripSlug)
     return await chatReply(messages, context)
   } catch {
     return "I couldn't reach the assistant just now — try again in a moment."
   }
 }
 
-async function tripContextFor(slug: string): Promise<string> {
+async function chatContext(slug?: string): Promise<string> {
   const workspace = await getCurrentWorkspace()
   if (!workspace) return ""
-  const trip = await getTripBySlug(workspace.id, slug)
-  if (!trip) return ""
 
-  const locations = await getItineraryLocations(trip.id)
-  const lines: string[] = [`The user is looking at their trip "${trip.name}".`]
-  if (trip.country) lines.push(`Destination: ${trip.country}.`)
-  if (trip.startDate && trip.endDate) {
-    lines.push(`Dates: ${trip.startDate} to ${trip.endDate}.`)
-  } else if (trip.fuzzyWhen) {
-    lines.push(`When: ${trip.fuzzyWhen}.`)
+  const lines: string[] = []
+  let tripId: string | undefined
+  if (slug) {
+    const trip = await getTripBySlug(workspace.id, slug)
+    if (trip) {
+      tripId = trip.id
+      lines.push(`The user is looking at their trip "${trip.name}".`)
+      if (trip.country) lines.push(`Destination: ${trip.country}.`)
+      if (trip.startDate && trip.endDate) {
+        lines.push(`Dates: ${trip.startDate} to ${trip.endDate}.`)
+      } else if (trip.fuzzyWhen) {
+        lines.push(`When: ${trip.fuzzyWhen}.`)
+      }
+      const locations = await getItineraryLocations(trip.id)
+      if (locations.length) {
+        lines.push(
+          `Itinerary places: ${locations.map((l) => l.name).join(", ")}.`,
+        )
+      }
+      const mode = tripMode(trip.startDate, trip.endDate)
+      if (mode) lines.push(mode)
+    }
   }
-  if (locations.length) {
-    lines.push(`Itinerary places: ${locations.map((l) => l.name).join(", ")}.`)
+
+  const { profileBlock, tasteDirective } = await buildAssistantContext(
+    workspace.id,
+    tripId,
+  )
+  if (profileBlock) {
+    lines.push(
+      `Who they are (background - a lens, not a checklist): ${profileBlock}`,
+    )
+    lines.push(tasteDirective)
   }
-  const mode = tripMode(trip.startDate, trip.endDate)
-  if (mode) lines.push(mode)
   return lines.join(" ")
 }
 
