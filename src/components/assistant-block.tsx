@@ -8,6 +8,12 @@ import { SuggestionCard } from "@/components/together"
 import { NudgeLine } from "@/components/nudge-line"
 import { suggestForSurface, getSuggestDays } from "@/lib/ai/suggestion-actions"
 import type { SurfaceKey, Suggestion, SuggestScope, SuggestDay } from "@/lib/ai/suggestion-types"
+import {
+  TASTE_LEVELS,
+  TASTE_COOKIE,
+  normalizeTaste,
+  type TasteLevel,
+} from "@/lib/ai/taste-types"
 import type { Nudge } from "@/lib/nudges/types"
 import { sendChatMessage } from "@/lib/ai/chat-actions"
 import type { ChatMessage } from "@/lib/ai/chat-types"
@@ -83,6 +89,40 @@ export function AssistantBlock({
 
 function Divider() {
   return <div className="mx-4 h-px bg-rule" />
+}
+
+function readTaste(): TasteLevel {
+  if (typeof document === "undefined") return "balanced"
+  const m = document.cookie.match(/(?:^|; )taste=([^;]+)/)
+  return normalizeTaste(m?.[1])
+}
+
+/** Three-stop taste dial. Writes the `taste` cookie on pick; the next suggest
+ * action reads it server-side, so no refresh is needed. */
+function TasteDial() {
+  const [level, setLevel] = React.useState<TasteLevel>(readTaste)
+  const pick = React.useCallback((v: TasteLevel) => {
+    setLevel(v)
+    document.cookie = `${TASTE_COOKIE}=${v}; path=/; max-age=${60 * 60 * 24 * 365}; samesite=lax`
+  }, [])
+  return (
+    <div className="flex flex-wrap items-center gap-1.5">
+      {TASTE_LEVELS.map((t) => (
+        <button
+          key={t.value}
+          type="button"
+          onClick={() => pick(t.value)}
+          className={`rounded-full border px-2.5 py-1 font-mono text-[9px] uppercase tracking-[0.16em] ${
+            level === t.value
+              ? "border-moss text-moss"
+              : "border-border text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          {t.label}
+        </button>
+      ))}
+    </div>
+  )
 }
 
 type Stage = "idle" | "menu" | "day"
@@ -220,6 +260,7 @@ function SuggestLine({
   // Scope menu: the "how can I help?" ask on its own line, chips below.
   return (
     <div className="flex flex-col gap-3">
+      <TasteDial />
       <div className="flex items-end gap-2">
         <input
           type="text"
