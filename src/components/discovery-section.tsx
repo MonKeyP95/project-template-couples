@@ -4,9 +4,10 @@ import * as React from "react"
 import { useRouter } from "next/navigation"
 
 import { addTodayEvent } from "@/lib/trips/actions"
-import type {
-  DiscoveryCategory,
-  DiscoverySuggestion,
+import {
+  mapDiscoveryCategory,
+  type DiscoveryCategory,
+  type DiscoverySuggestion,
 } from "@/lib/ai/discovery-types"
 
 /** Normalize a typed time to "HH:MM": "18" -> "18:00", "9:5" -> "09:05".
@@ -139,6 +140,7 @@ export function DiscoverySection({
       time: normalizeTime(time),
       text: buildEventText(s),
       url: s.sourceUrl,
+      category: mapDiscoveryCategory(category),
       locationId,
       dayTitle,
     }).then((result) => {

@@ -6,6 +6,13 @@
  * show other categories as inactive. */
 export type DiscoveryCategory = "food" | "activity"
 
+/** The expense category an event gets when added from the discovery door.
+ * Resolved against the trip's real categories at expense time; falls back to
+ * Other when the trip has no category by this name. */
+export function mapDiscoveryCategory(category: DiscoveryCategory): string {
+  return category === "food" ? "Food" : "Activities"
+}
+
 /** What we ask Claude to find — the category, a trip's facts, the couple's
  * tastes, and the in-the-moment inputs (craving + walkable-from-anchor). */
 export interface DiscoveryQuery {

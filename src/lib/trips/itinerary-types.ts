@@ -13,6 +13,9 @@ export interface ItineraryEvent {
   rating?: number
   /** Optional free note captured with a rating. Omitted when empty. */
   note?: string
+  /** Optional expense category tag from the discovery door (e.g. "Food"). Drives
+   * the default in the event's expense form; omitted when absent. */
+  category?: string
 }
 
 export interface ItineraryDay {
@@ -99,6 +102,9 @@ function parseEvents(raw: unknown): ItineraryEvent[] {
         ? { rating: Math.round(e.rating) }
         : {}),
       ...(typeof e.note === "string" && e.note.length > 0 ? { note: e.note } : {}),
+      ...(typeof e.category === "string" && e.category.length > 0
+        ? { category: e.category }
+        : {}),
     }))
     .filter((e) => e.text.length > 0)
 }

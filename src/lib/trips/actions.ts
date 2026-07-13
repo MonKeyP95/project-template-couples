@@ -1292,6 +1292,8 @@ export interface AddTodayEventInput {
   text: string
   /** Optional source/booking link stored on the event. */
   url?: string
+  /** Optional expense category tag from the discovery door. */
+  category?: string
   /** When creating a day (dayId null), file it under this location. */
   locationId?: string | null
   /** Title for a created day; defaults to "Today" (the on-the-road caller). */
@@ -1320,6 +1322,9 @@ function normalizeDayEvents(events: ItineraryEvent[]): ItineraryEvent[] {
         ? { rating: Math.round(e.rating) }
         : {}),
       ...(typeof e.note === "string" && e.note.trim() ? { note: e.note.trim() } : {}),
+      ...(typeof e.category === "string" && e.category.trim()
+        ? { category: e.category.trim() }
+        : {}),
     }))
     .filter((e) => e.text.length > 0)
 }
@@ -1335,7 +1340,13 @@ export async function addTodayEvent(
   const text = input.text.trim()
   if (!text) return { error: "Event text required." }
   const url = (input.url ?? "").trim()
-  const newEvent: ItineraryEvent = { time: input.time.trim(), text, ...(url ? { url } : {}) }
+  const category = (input.category ?? "").trim()
+  const newEvent: ItineraryEvent = {
+    time: input.time.trim(),
+    text,
+    ...(url ? { url } : {}),
+    ...(category ? { category } : {}),
+  }
 
   const supabase = await createClient()
   const { data: userData, error: userError } = await supabase.auth.getUser()
