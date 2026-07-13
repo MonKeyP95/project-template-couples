@@ -5,10 +5,10 @@ import * as React from "react"
 import type { ExpenseCategoryRow } from "@/lib/trips/expense-types"
 import type { TripProfile } from "@/lib/trips/trip-profile-types"
 
-/** Read-only summary of the trip profile. Each section is hidden when its data
- * is empty. When idea/transport/vibe are all empty the card shows a quiet
- * set-up prompt and the button reads "Set up profile". Categories are always
- * seeded, so that section is effectively always present. */
+/** Read-only summary of the trip profile. The idea/transport/vibe sections are
+ * each hidden when empty; when all three are empty a quiet set-up prompt shows
+ * and the button reads "Set up profile". Categories render independently
+ * whenever any exist (they are seeded on every trip). */
 export function ProfileOverview({
   profile,
   categories,
@@ -25,49 +25,49 @@ export function ProfileOverview({
 
   return (
     <section className="px-5 pt-5 lg:px-10 lg:pt-6">
-      {isEmpty ? (
-        <p className="t-display text-[20px] text-muted-foreground">
-          No profile yet — add a few details
-        </p>
-      ) : (
-        <div className="flex flex-col gap-6">
-          {profile.idea.trim() ? (
-            <h3 className="t-display text-[22px] text-foreground">
-              {profile.idea}
-            </h3>
-          ) : null}
+      <div className="flex flex-col gap-6">
+        {profile.idea.trim() ? (
+          <h3 className="t-display text-[22px] text-foreground">
+            {profile.idea}
+          </h3>
+        ) : null}
 
-          {categories.length ? (
-            <Section label="Categories">
-              <div className="flex flex-col gap-2">
-                {categories.map((c) => (
-                  <div key={c.id} className="text-[15px] text-foreground">
-                    {c.name}
-                    {c.details.length ? (
-                      <span className="text-muted-foreground">
-                        {" · "}
-                        {c.details.join(", ")}
-                      </span>
-                    ) : null}
-                  </div>
-                ))}
-              </div>
-            </Section>
-          ) : null}
+        {isEmpty ? (
+          <p className="t-display text-[20px] text-muted-foreground">
+            No profile yet — add a few details
+          </p>
+        ) : null}
 
-          {profile.transport.length ? (
-            <Section label="Getting around">
-              <Chips items={profile.transport} />
-            </Section>
-          ) : null}
+        {categories.length ? (
+          <Section label="Categories">
+            <div className="flex flex-col gap-2">
+              {categories.map((c) => (
+                <div key={c.id} className="text-[15px] text-foreground">
+                  {c.name}
+                  {c.details.length ? (
+                    <span className="text-muted-foreground">
+                      {" · "}
+                      {c.details.join(", ")}
+                    </span>
+                  ) : null}
+                </div>
+              ))}
+            </div>
+          </Section>
+        ) : null}
 
-          {profile.vibe.length ? (
-            <Section label="Vibe">
-              <Chips items={profile.vibe} />
-            </Section>
-          ) : null}
-        </div>
-      )}
+        {profile.transport.length ? (
+          <Section label="Getting around">
+            <Chips items={profile.transport} />
+          </Section>
+        ) : null}
+
+        {profile.vibe.length ? (
+          <Section label="Vibe">
+            <Chips items={profile.vibe} />
+          </Section>
+        ) : null}
+      </div>
 
       <div className="mt-6 flex justify-end">
         <button
