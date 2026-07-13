@@ -27,11 +27,13 @@ export function ProfileWizard({
   tripSlug,
   profile,
   categories,
+  onDone,
 }: {
   tripId: string
   tripSlug: string
   profile: TripProfile
   categories: ExpenseCategoryRow[]
+  onDone?: () => void
 }) {
   const router = useRouter()
   const [step, setStep] = React.useState(0)
@@ -55,6 +57,7 @@ export function ProfileWizard({
       if (r.error) return
       setSaved(true)
       router.refresh()
+      onDone?.()
     })
   }
 
@@ -144,11 +147,17 @@ export function ProfileWizard({
       <div className="mt-6 flex items-center justify-between">
         <button
           type="button"
-          onClick={() => setStep((s) => Math.max(0, s - 1))}
-          disabled={step === 0}
+          onClick={() => {
+            if (step === 0) {
+              onDone?.()
+              return
+            }
+            setStep((s) => Math.max(0, s - 1))
+          }}
+          disabled={step === 0 && !onDone}
           className="rounded-full border border-rule px-4 py-2 font-mono text-[11px] uppercase tracking-[0.2em] text-muted-foreground hover:text-foreground disabled:opacity-30"
         >
-          back
+          {step === 0 && onDone ? "cancel" : "back"}
         </button>
         {isLast ? (
           <button
