@@ -6,7 +6,12 @@ import { createClient } from "@/lib/supabase/server"
 import { isAiEnabled } from "@/lib/ai/ai-mode"
 import { summarizeTaste } from "@/lib/ai/claude"
 import { getCurrentWorkspace } from "@/lib/workspace/queries"
-import { getCoupleSummary, gatherTasteSignals } from "./couple-summary-queries"
+import {
+  getCoupleSummary,
+  gatherTasteSignals,
+  gatherTripTasteSignals,
+  getTripSummary,
+} from "./couple-summary-queries"
 import type { LearnedCategory } from "./couple-summary-types"
 
 /** Regenerates a category's learned summary from its ratings (AI-gated). Evolves
@@ -61,6 +66,65 @@ export async function saveCoupleSummary(
       updated_at: new Date().toISOString(),
     },
     { onConflict: "workspace_id,category" },
+  )
+
+  revalidatePath("/profile")
+  return {}
+}
+
+/** Regenerates one trip's learned summary from that trip's signals (AI-gated).
+ * Evolves the current summary, stamps the signal count so staleness resets.
+ * Membership is enforced by trip_summaries RLS. */
+export async function refreshTripSummary(
+  tripId: string,
+  category: LearnedCategory,
+): Promise<{ summaryMd?: string; error?: string }> {
+  if (!(await isAiEnabled())) return { error: "AI mode is off." }
+
+  const workspace = await getCurrentWorkspace()
+  if (!workspace) return { error: "Not signed in." }
+
+  const signals = await gatherTripTasteSignals(tripId, category)
+  if (signals.length === 0) return { error: "Nothing to learn from yet." }
+
+  const current = await getTripSummary(tripId, category)
+  const summaryMd = await summarizeTaste(category, current.summaryMd, signals)
+
+  const supabase = await createClient()
+  await supabase.from("trip_summaries").upsert(
+    {
+      trip_id: tripId,
+      category,
+      summary_md: summaryMd,
+      signal_count_at_generation: signals.length,
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: "trip_id,category" },
+  )
+
+  revalidatePath("/profile")
+  return { summaryMd }
+}
+
+/** Saves a hand-edited per-trip summary (no AI). Leaves the stamp untouched so a
+ * manual edit does not clear staleness. */
+export async function saveTripSummary(
+  tripId: string,
+  category: LearnedCategory,
+  md: string,
+): Promise<{ error?: string }> {
+  const workspace = await getCurrentWorkspace()
+  if (!workspace) return { error: "Not signed in." }
+
+  const supabase = await createClient()
+  await supabase.from("trip_summaries").upsert(
+    {
+      trip_id: tripId,
+      category,
+      summary_md: md,
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: "trip_id,category" },
   )
 
   revalidatePath("/profile")
