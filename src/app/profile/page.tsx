@@ -20,7 +20,7 @@ import {
 } from "@/lib/preferences/dining-actions"
 import {
   getCoupleSummary,
-  countRatings,
+  countSignals,
 } from "@/lib/preferences/couple-summary-queries"
 import { RATING_FLOOR } from "@/lib/preferences/couple-summary-types"
 import { isAiEnabled } from "@/lib/ai/ai-mode"
@@ -45,9 +45,9 @@ export default async function ProfilePage() {
   const dining = await getDiningPreferences(workspace.id)
   const aiOn = await isAiEnabled()
   const foodSummary = await getCoupleSummary(workspace.id, "food")
-  const foodRatings = await countRatings(workspace.id, "food")
+  const foodRatings = await countSignals(workspace.id, "food")
   const activitySummary = await getCoupleSummary(workspace.id, "activity")
-  const activityRatings = await countRatings(workspace.id, "activity")
+  const activityRatings = await countSignals(workspace.id, "activity")
   const buckets = await listTripsForWorkspace(workspace.id)
   const hero = buckets.now[0] ?? buckets.upcoming[0] ?? null
   const navDestinations = buildNavDestinations({

@@ -67,7 +67,7 @@ export function LearnedSummary({
         value={text}
         onChange={(e) => setText(e.target.value)}
         rows={5}
-        placeholder="Rate places on your trips and a summary appears here."
+        placeholder="Rate or plan places on your trips and a summary appears here."
         className="mt-2 block w-full rounded-md border border-border bg-transparent px-3 py-2 text-sm"
       />
       <div className="mt-3 flex items-center gap-3">
@@ -92,7 +92,7 @@ export function LearnedSummary({
           </Button>
         ) : (
           <span className="text-xs text-muted-foreground">
-            Turn on AI to refresh from your {newCount} new ratings.
+            Turn on AI to fold in your {newCount} new.
           </span>
         )}
       </div>
