@@ -96,6 +96,9 @@ interface EventDraft {
    * them when saving other fields (they carry the post-experience rating). */
   rating?: number
   note?: string
+  /** Pass-through only — the discovery door stamps this expense-category tag;
+   * the edit form never shows it but must not drop it on save. */
+  category?: string
 }
 
 function newEventDraft(time = "", endTime = "", text = "", url = ""): EventDraft {
@@ -128,6 +131,7 @@ function toEventDrafts(events: ItineraryEvent[]): EventDraft[] {
     ...newEventDraft(e.time, e.endTime ?? "", e.text, e.url ?? ""),
     rating: e.rating,
     note: e.note,
+    category: e.category,
   }))
 }
 
@@ -1513,6 +1517,7 @@ function DayEditor({
           ...(e.url.trim() ? { url: e.url.trim() } : {}),
           ...(typeof e.rating === "number" ? { rating: e.rating } : {}),
           ...(e.note && e.note.trim() ? { note: e.note.trim() } : {}),
+          ...(e.category && e.category.trim() ? { category: e.category.trim() } : {}),
         })),
         tag,
         tone,
@@ -1612,6 +1617,7 @@ function AddDayRow({
           ...(e.url.trim() ? { url: e.url.trim() } : {}),
           ...(typeof e.rating === "number" ? { rating: e.rating } : {}),
           ...(e.note && e.note.trim() ? { note: e.note.trim() } : {}),
+          ...(e.category && e.category.trim() ? { category: e.category.trim() } : {}),
         })),
         tag,
         tone,
