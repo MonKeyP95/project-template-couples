@@ -11,6 +11,9 @@ export interface EventExpenseProps {
   tripSlug: string
   /** Expense title; the event's own text. */
   eventText: string
+  /** Optional category stamped on the event by the discovery door; used as the
+   * default expense category when the trip still has a category by this name. */
+  eventCategory?: string
   /** Inherited from the event's day. */
   dayDate: string
   locationId: string | null
@@ -32,6 +35,7 @@ export function EventExpense({
   tripId,
   tripSlug,
   eventText,
+  eventCategory,
   dayDate,
   locationId,
   currentUserId,
@@ -40,10 +44,13 @@ export function EventExpense({
   onClose,
 }: EventExpenseProps) {
   const [amount, setAmount] = React.useState("")
-  // Default to "Other" when the trip has it (it is seeded by default); the
-  // field stays editable and still resolves to "Other" if cleared.
+  // Default to the event's stamped category when the trip still has one by that
+  // name (discovery picks), else "Other" (seeded by default); the field stays
+  // editable and still resolves to "Other" if cleared.
   const [category, setCategory] = React.useState(
-    categories.find((c) => c.name === "Other")?.name ?? "",
+    (eventCategory && categories.find((c) => c.name === eventCategory)?.name) ??
+      categories.find((c) => c.name === "Other")?.name ??
+      "",
   )
   const [paidBy, setPaidBy] = React.useState(currentUserId)
   const [error, setError] = React.useState<string | null>(null)

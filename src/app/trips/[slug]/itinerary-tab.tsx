@@ -1405,6 +1405,7 @@ function DayView({
                       tripId={tripId}
                       tripSlug={tripSlug}
                       eventText={ev.text}
+                      eventCategory={ev.category}
                       dayDate={day.dayDate}
                       locationId={day.locationId}
                       currentUserId={currentUserId}
