@@ -198,7 +198,9 @@ export default async function TripPage({
       getPackingItems(header.id),
       getPackingCategories(header.id),
       getTripExpenses(header.id),
-      activeTab === "budget" || activeTab === "profile"
+      activeTab === "budget" ||
+      activeTab === "profile" ||
+      (showItinerary && !isDream)
         ? getTripExpenseCategories(header.id)
         : Promise.resolve(null),
       getTripSavings(header.id, memberIds),
