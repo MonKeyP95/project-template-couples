@@ -7,7 +7,10 @@ import { AssistantBlock } from "@/components/assistant-block"
 import { EventRating } from "@/components/event-rating"
 import { PlanningPlaceDoor } from "./find-a-place-planning"
 import { BudgetScopeEditor } from "./budget-scope-editor"
+import { EventExpense } from "./event-expense"
 import type { BudgetItem } from "@/lib/trips/budget-item-types"
+import type { ExpenseCategoryRow } from "@/lib/trips/expense-types"
+import type { MemberToneEntry } from "./packing-tab"
 import {
   Select,
   SelectContent,
@@ -303,6 +306,9 @@ export function ItineraryTab({
   initialItems,
   initialLocations,
   budgetItems,
+  categories,
+  members,
+  currentUserId,
 }: {
   tripId: string
   tripSlug: string
@@ -314,6 +320,9 @@ export function ItineraryTab({
   initialItems: ItineraryDay[]
   initialLocations: ItineraryLocation[]
   budgetItems: BudgetItem[]
+  categories: ExpenseCategoryRow[]
+  members: Record<string, MemberToneEntry>
+  currentUserId: string
 }) {
   const [days, setDays] = React.useState<ItineraryDay[]>(initialItems)
   const [lastInitial, setLastInitial] = React.useState(initialItems)
@@ -702,6 +711,9 @@ export function ItineraryTab({
                     toggleDay={toggleDay}
                     dimBefore={active ? today : null}
                     today={today}
+                    categories={categories}
+                    members={members}
+                    currentUserId={currentUserId}
                   />
                 </div>
               )
@@ -976,6 +988,9 @@ export function ItineraryTab({
                             toggleDay={toggleDay}
                             dimBefore={active ? today : null}
                             today={today}
+                            categories={categories}
+                            members={members}
+                            currentUserId={currentUserId}
                           />
                         )
                       }
@@ -1116,6 +1131,9 @@ function DaySegmentView({
   toggleDay,
   dimBefore,
   today,
+  categories,
+  members,
+  currentUserId,
 }: {
   seg: DaySegment
   tripId: string
@@ -1128,11 +1146,15 @@ function DaySegmentView({
   toggleDay: (id: string) => void
   dimBefore: string | null
   today: string
+  categories: ExpenseCategoryRow[]
+  members: Record<string, MemberToneEntry>
+  currentUserId: string
 }) {
   const cards = seg.days.map((day) => (
     <DayCard
       key={day.id}
       day={day}
+      tripId={tripId}
       tripSlug={tripSlug}
       expanded={!collapsedDays.has(day.id)}
       onToggle={() => toggleDay(day.id)}
@@ -1143,6 +1165,9 @@ function DaySegmentView({
       onStartEdit={() => setEditingId(day.id)}
       onStopEdit={() => setEditingId(null)}
       locations={locations}
+      categories={categories}
+      members={members}
+      currentUserId={currentUserId}
     />
   ))
   if (seg.groupId && seg.days.length > 1) {
@@ -1211,6 +1236,7 @@ function EmptyDayButton({
 
 interface DayCardProps {
   day: ItineraryDay
+  tripId: string
   tripSlug: string
   isLast: boolean
   isEditing: boolean
@@ -1222,10 +1248,14 @@ interface DayCardProps {
   onStopEdit: () => void
   dragHandle?: React.ReactNode
   locations: ItineraryLocation[]
+  categories: ExpenseCategoryRow[]
+  members: Record<string, MemberToneEntry>
+  currentUserId: string
 }
 
 function DayCard({
   day,
+  tripId,
   tripSlug,
   isLast,
   isEditing,
@@ -1237,6 +1267,9 @@ function DayCard({
   onStopEdit,
   dragHandle,
   locations,
+  categories,
+  members,
+  currentUserId,
 }: DayCardProps) {
   if (isEditing) {
     return (
@@ -1251,6 +1284,7 @@ function DayCard({
   return (
     <DayView
       day={day}
+      tripId={tripId}
       tripSlug={tripSlug}
       isLast={isLast}
       expanded={expanded}
@@ -1259,12 +1293,16 @@ function DayCard({
       today={today}
       onStartEdit={onStartEdit}
       dragHandle={dragHandle}
+      categories={categories}
+      members={members}
+      currentUserId={currentUserId}
     />
   )
 }
 
 function DayView({
   day,
+  tripId,
   tripSlug,
   isLast,
   expanded,
@@ -1273,8 +1311,12 @@ function DayView({
   today,
   onStartEdit,
   dragHandle,
+  categories,
+  members,
+  currentUserId,
 }: {
   day: ItineraryDay
+  tripId: string
   tripSlug: string
   isLast: boolean
   expanded: boolean
@@ -1283,6 +1325,9 @@ function DayView({
   today: string
   onStartEdit: () => void
   dragHandle?: React.ReactNode
+  categories: ExpenseCategoryRow[]
+  members: Record<string, MemberToneEntry>
+  currentUserId: string
 }) {
   return (
     <div className="relative flex gap-3.5 py-3.5">
@@ -1345,6 +1390,16 @@ function DayView({
                       </a>
                     ) : null}
                   </div>
+                  <EventExpense
+                    tripId={tripId}
+                    tripSlug={tripSlug}
+                    eventText={ev.text}
+                    dayDate={day.dayDate}
+                    locationId={day.locationId}
+                    currentUserId={currentUserId}
+                    categories={categories}
+                    members={members}
+                  />
                   {day.dayDate < today ? (
                     <EventRating
                       tripSlug={tripSlug}

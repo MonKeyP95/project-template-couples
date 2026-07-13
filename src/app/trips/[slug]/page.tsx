@@ -272,6 +272,9 @@ export default async function TripPage({
               initialItems={datedItinerary ?? []}
               initialLocations={locations ?? []}
               budgetItems={budgetItems ?? []}
+              categories={expenseCategories ?? []}
+              members={memberTones}
+              currentUserId={userData.user.id}
             />
           )
         ) : activeTab === "packing" ? (
