@@ -87,7 +87,7 @@ function toUtc(dayDate: string): Date {
 
 /** Parse the raw jsonb `events` array into clean ItineraryEvent[]. Tolerates
  * null/malformed values and drops events with empty text. */
-function parseEvents(raw: unknown): ItineraryEvent[] {
+export function parseEvents(raw: unknown): ItineraryEvent[] {
   if (!Array.isArray(raw)) return []
   return raw
     .filter((e): e is Record<string, unknown> => typeof e === "object" && e !== null)
