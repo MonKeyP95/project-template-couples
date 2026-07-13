@@ -40,7 +40,11 @@ export function EventExpense({
   onClose,
 }: EventExpenseProps) {
   const [amount, setAmount] = React.useState("")
-  const [category, setCategory] = React.useState("")
+  // Default to "Other" when the trip has it (it is seeded by default); the
+  // field stays editable and still resolves to "Other" if cleared.
+  const [category, setCategory] = React.useState(
+    categories.find((c) => c.name === "Other")?.name ?? "",
+  )
   const [paidBy, setPaidBy] = React.useState(currentUserId)
   const [error, setError] = React.useState<string | null>(null)
   const [isPending, startTransition] = React.useTransition()
