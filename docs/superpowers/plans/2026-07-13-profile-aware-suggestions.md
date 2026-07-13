@@ -415,3 +415,426 @@ Add the shipped entry to `docs/TODO.md` and, if any non-obvious choice stands (e
 
 **Type consistency:** `TasteLevel`, `TASTE_COOKIE`, `TASTE_LEVELS`, `normalizeTaste`, `TASTE_DIRECTIVE`, `getTasteLevel`, `buildProfileBlock` names match across Tasks 1–4. `getCoupleSummary` uses lowercase `"food"`/`"activity"` per the real `LearnedCategory`. `getTripBySlug(...).id` typed `string | undefined`, matching `buildProfileBlock`'s optional `tripId`. ✓
 
+---
+
+## Revision (assistant-wide): Tasks 5–8
+
+Tasks 1–4 shipped enrich-`/ suggest`-only with the dial inside the `/ suggest`
+menu. This revision (see the updated spec's "Shared context, per-sub harness"
+section) generalizes it: one shared context builder, consumed by each sub's own
+harness, and the dial promoted to the assistant-block level. No engine merge, no
+migration, no new deps.
+
+### Task 5: Shared assistant context + refactor /suggest to consume it
+
+Introduce the one "reads everything" builder and make the existing suggest harness
+consume it instead of calling the pieces itself.
+
+**Files:**
+- Create: `src/lib/ai/assistant-context.ts`
+- Modify: `src/lib/ai/suggestion-actions.ts`
+
+**Interfaces:**
+- Consumes: `buildProfileBlock` (Task 2), `getTasteLevel` (Task 1), `TASTE_DIRECTIVE` + `TasteLevel` (Task 1).
+- Produces: `interface AssistantContext { profileBlock: string; taste: TasteLevel; tasteDirective: string }` and `async function buildAssistantContext(workspaceId: string, tripId?: string): Promise<AssistantContext>`.
+
+- [ ] **Step 1: Create the shared builder**
+
+Create `src/lib/ai/assistant-context.ts`:
+
+```ts
+import { buildProfileBlock } from "./profile-context"
+import { getTasteLevel } from "./taste-level"
+import { TASTE_DIRECTIVE, type TasteLevel } from "./taste-types"
+
+/** The shared "everything we know" context every assistant sub consumes: the
+ * profile block plus the taste dial. Each sub's harness picks the fields it
+ * needs. Suggest-only: reads, never writes. */
+export interface AssistantContext {
+  profileBlock: string
+  taste: TasteLevel
+  tasteDirective: string
+}
+
+export async function buildAssistantContext(
+  workspaceId: string,
+  tripId?: string,
+): Promise<AssistantContext> {
+  const profileBlock = await buildProfileBlock(workspaceId, tripId)
+  const taste = await getTasteLevel()
+  return { profileBlock, taste, tasteDirective: TASTE_DIRECTIVE[taste] }
+}
+```
+
+- [ ] **Step 2: Point suggestion-actions at the shared builder**
+
+In `src/lib/ai/suggestion-actions.ts`, replace the three imports added in Task 3:
+
+```ts
+import { buildProfileBlock } from "@/lib/ai/profile-context"
+import { getTasteLevel } from "@/lib/ai/taste-level"
+import { TASTE_DIRECTIVE } from "@/lib/ai/taste-types"
+```
+
+with the single shared-context import:
+
+```ts
+import { buildAssistantContext } from "@/lib/ai/assistant-context"
+```
+
+- [ ] **Step 3: Rewrite `withProfile` to consume the object**
+
+Replace the current `withProfile` helper body:
+
+```ts
+async function withProfile(
+  base: string,
+  workspaceId: string,
+  tripId: string | undefined,
+): Promise<string> {
+  const block = await buildProfileBlock(workspaceId, tripId)
+  if (!block) return base
+  const taste = await getTasteLevel()
+  return [
+    base,
+    `Who they are (background - a lens, not a checklist): ${block}`,
+    TASTE_DIRECTIVE[taste],
+  ].join(" ")
+}
+```
+
+with:
+
+```ts
+async function withProfile(
+  base: string,
+  workspaceId: string,
+  tripId: string | undefined,
+): Promise<string> {
+  const { profileBlock, tasteDirective } = await buildAssistantContext(
+    workspaceId,
+    tripId,
+  )
+  if (!profileBlock) return base
+  return [
+    base,
+    `Who they are (background - a lens, not a checklist): ${profileBlock}`,
+    tasteDirective,
+  ].join(" ")
+}
+```
+
+The appended string is byte-identical to Task 3's output, so /suggest behavior is unchanged.
+
+- [ ] **Step 4: Lint + typecheck**
+
+Run: `pnpm lint && pnpm exec tsc --noEmit`
+Expected: no errors.
+
+- [ ] **Step 5: Commit** — the controller commits; the implementer stops here.
+
+### Task 6: Chat harness reads the shared context
+
+Make "ask me anything" profile-aware and dial-honoring by folding the shared
+context into the chat context string.
+
+**Files:**
+- Modify: `src/lib/ai/chat-actions.ts`
+
+**Interfaces:**
+- Consumes: `buildAssistantContext` (Task 5).
+- Produces: no new exported symbol; `sendChatMessage` keeps its signature.
+
+- [ ] **Step 1: Replace the file body**
+
+Replace the whole of `src/lib/ai/chat-actions.ts` with (this folds the old
+`tripContextFor` into a `chatContext` that also resolves the workspace for the
+no-trip case, then appends the profile block + dial directive):
+
+```ts
+"use server"
+
+import { chatReply } from "@/lib/ai/claude"
+import type { ChatMessage } from "@/lib/ai/chat-types"
+import { buildAssistantContext } from "@/lib/ai/assistant-context"
+import { getCurrentWorkspace } from "@/lib/workspace/queries"
+import { getItineraryLocations } from "@/lib/trips/location-queries"
+import { getTripBySlug } from "@/lib/trips/queries"
+
+/** Server Action behind the assistant chat. Builds the shared assistant context
+ * (trip facts when a slug is supplied, plus the profile block + taste dial) then
+ * calls the real model. Any failure returns one honest inline message. */
+export async function sendChatMessage(
+  messages: ChatMessage[],
+  tripSlug?: string,
+): Promise<string> {
+  try {
+    const context = await chatContext(tripSlug)
+    return await chatReply(messages, context)
+  } catch {
+    return "I couldn't reach the assistant just now — try again in a moment."
+  }
+}
+
+async function chatContext(slug?: string): Promise<string> {
+  const workspace = await getCurrentWorkspace()
+  if (!workspace) return ""
+
+  const lines: string[] = []
+  let tripId: string | undefined
+  if (slug) {
+    const trip = await getTripBySlug(workspace.id, slug)
+    if (trip) {
+      tripId = trip.id
+      lines.push(`The user is looking at their trip "${trip.name}".`)
+      if (trip.country) lines.push(`Destination: ${trip.country}.`)
+      if (trip.startDate && trip.endDate) {
+        lines.push(`Dates: ${trip.startDate} to ${trip.endDate}.`)
+      } else if (trip.fuzzyWhen) {
+        lines.push(`When: ${trip.fuzzyWhen}.`)
+      }
+      const locations = await getItineraryLocations(trip.id)
+      if (locations.length) {
+        lines.push(
+          `Itinerary places: ${locations.map((l) => l.name).join(", ")}.`,
+        )
+      }
+      const mode = tripMode(trip.startDate, trip.endDate)
+      if (mode) lines.push(mode)
+    }
+  }
+
+  const { profileBlock, tasteDirective } = await buildAssistantContext(
+    workspace.id,
+    tripId,
+  )
+  if (profileBlock) {
+    lines.push(
+      `Who they are (background - a lens, not a checklist): ${profileBlock}`,
+    )
+    lines.push(tasteDirective)
+  }
+  return lines.join(" ")
+}
+
+/** Planning vs on-the-road, dates-driven (the app's mode rule). Coarse server
+ * Date compare on ISO YYYY-MM-DD strings; a same-day timezone edge is
+ * irrelevant to this hint. Null when the trip has no dates. */
+function tripMode(
+  startDate: string | null,
+  endDate: string | null,
+): string | null {
+  if (!startDate || !endDate) return null
+  const today = new Date().toISOString().slice(0, 10)
+  if (today >= startDate && today <= endDate) {
+    return "They are on this trip right now — give present, in-the-moment help."
+  }
+  if (today < startDate) {
+    return "This trip has not started yet — help them prepare and plan."
+  }
+  return "This trip is in the past — help them reflect or plan a future one."
+}
+```
+
+- [ ] **Step 2: Lint + typecheck**
+
+Run: `pnpm lint && pnpm exec tsc --noEmit`
+Expected: no errors.
+
+- [ ] **Step 3: Commit** — the controller commits; the implementer stops here.
+
+### Task 7: Discovery harness gets the dial
+
+The door already reads the profile structurally, so it takes the dial ONLY — no
+profile block (that would duplicate).
+
+**Files:**
+- Modify: `src/lib/ai/discovery-types.ts`
+- Modify: `src/app/api/ai/discover/route.ts`
+- Modify: `src/lib/ai/claude.ts` (the `discoveryPrompt` function only)
+
+**Interfaces:**
+- Consumes: `getTasteLevel` (Task 1), `TASTE_DIRECTIVE` + `TasteLevel` (Task 1).
+- Produces: a new `taste: TasteLevel` field on `DiscoveryQuery`.
+
+- [ ] **Step 1: Add `taste` to the query type**
+
+In `src/lib/ai/discovery-types.ts`, add this import directly under the header comment block (before `export type DiscoveryCategory`):
+
+```ts
+import type { TasteLevel } from "./taste-types"
+```
+
+and add this field to the `DiscoveryQuery` interface, immediately after the `learned` field:
+
+```ts
+  /** How adventurous to be, from the assistant-wide taste dial. */
+  taste: TasteLevel
+```
+
+- [ ] **Step 2: Populate `taste` in the route**
+
+In `src/app/api/ai/discover/route.ts`, add the import alongside the other `@/lib/ai` imports:
+
+```ts
+import { getTasteLevel } from "@/lib/ai/taste-level"
+```
+
+Read it just before building the query (right after the `const summary = ...` line):
+
+```ts
+    const taste = await getTasteLevel()
+```
+
+and add `taste,` to the `query` object literal, right after `learned: summary.summaryMd,`:
+
+```ts
+      learned: summary.summaryMd,
+      taste,
+```
+
+- [ ] **Step 3: Render the dial in `discoveryPrompt`**
+
+In `src/lib/ai/claude.ts`, add `TASTE_DIRECTIVE` to the imports from `./taste-types`
+(create the import line if none exists yet):
+
+```ts
+import { TASTE_DIRECTIVE } from "./taste-types"
+```
+
+In `discoveryPrompt(query)`, immediately after the `learnedLine` declaration, add:
+
+```ts
+  const dialLine = TASTE_DIRECTIVE[query.taste]
+```
+
+Then add `dialLine` to BOTH returned arrays, on the line immediately after
+`learnedLine,`. The activity branch:
+
+```ts
+  if (query.category === "activity") {
+    return [
+      `Find things to do in ${query.destination}.`,
+      ...moment,
+      learnedLine,
+      dialLine,
+      "The couple generally —",
+      list("Activities they enjoy", query.activities),
+      list("Vibe", query.vibeTags),
+      ...(tripLines.length ? ["This trip —", ...tripLines] : []),
+    ]
+      .filter(Boolean)
+      .join(" ")
+  }
+```
+
+and the restaurant branch:
+
+```ts
+  return [
+    `Find restaurants in ${query.destination} for ${query.when}.`,
+    ...moment,
+    learnedLine,
+    dialLine,
+    "The couple generally —",
+    `Budget: ${query.budgetBand}.`,
+    list("Vibe", query.vibeTags),
+    list("Dietary needs", query.dietary),
+    list("Cuisines they love", query.cuisines),
+    list("Activities they enjoy", query.activities),
+    ...(tripLines.length ? ["This trip —", ...tripLines] : []),
+  ]
+    .filter(Boolean)
+    .join(" ")
+```
+
+(`dialLine` is always a non-empty sentence, so `.filter(Boolean)` keeps it.)
+
+- [ ] **Step 4: Lint + typecheck**
+
+Run: `pnpm lint && pnpm exec tsc --noEmit`
+Expected: no errors. The typecheck proves every `DiscoveryQuery` construction now
+supplies `taste`; the route is the only production caller. If a smoke/throwaway
+caller elsewhere fails to compile, add `taste` there too.
+
+- [ ] **Step 5: Commit** — the controller commits; the implementer stops here.
+
+### Task 8: Move the dial toggle to the assistant-block level
+
+The toggle leaves the `/ suggest` menu and renders once at the top of the expanded
+assistant block, so it reads as the assistant's overall setting.
+
+**Files:**
+- Modify: `src/components/assistant-block.tsx`
+
+**Interfaces:**
+- Consumes: the existing `TasteDial` component (Task 4), unchanged.
+- Produces: nothing new.
+
+- [ ] **Step 1: Render `TasteDial` at the block level**
+
+In `src/components/assistant-block.tsx`, the expanded region currently opens:
+
+```tsx
+      {enabled ? (
+        <div className="flex flex-col">
+          {nudge ? (
+```
+
+Insert the dial as the first child of that `flex flex-col` container, above the nudge:
+
+```tsx
+      {enabled ? (
+        <div className="flex flex-col">
+          <div className="px-4 py-3">
+            <TasteDial />
+          </div>
+          {nudge ? (
+```
+
+(`TasteDial` is a function declaration later in the file, so it is hoisted and
+usable here. No divider above it — it sits directly under the header button.)
+
+- [ ] **Step 2: Remove `TasteDial` from the /suggest menu**
+
+In `SuggestLine`'s final `return` (the scope menu), delete the `<TasteDial />` line
+so it is not rendered twice:
+
+```tsx
+    <div className="flex flex-col gap-3">
+      <TasteDial />
+      <div className="flex items-end gap-2">
+```
+
+becomes:
+
+```tsx
+    <div className="flex flex-col gap-3">
+      <div className="flex items-end gap-2">
+```
+
+- [ ] **Step 3: Lint + typecheck**
+
+Run: `pnpm lint && pnpm exec tsc --noEmit`
+Expected: no errors.
+
+- [ ] **Step 4: Commit** — the controller commits; the implementer stops here.
+
+### Revision final validation
+
+- [ ] Full `pnpm build` clean.
+- [ ] In-app smoke (logged in, AI on): the dial shows at the top of the expanded
+  assistant block (not in the `/ suggest` menu); changing it visibly shifts a
+  `/ suggest` result, a chat recommendation, and a find-a-place result; with a bare
+  profile the three subs behave as before.
+- [ ] Extend the TODO entry to note the assistant-wide generalization.
+
+### Revision self-review
+
+- Shared context (spec "Shared context, per-sub harness") → Task 5 `buildAssistantContext` returns the structured object; suggest refactored to consume it. ✓
+- Chat harness reads profile + dial → Task 6. ✓
+- Discovery harness gets dial only (no profile block) → Task 7 adds `taste` to the query + prompt, no profile block. ✓
+- Dial promoted to block level, removed from suggest menu → Task 8. ✓
+- No engine merge, no migration, no new deps → confirmed across tasks. ✓
+- Type consistency: `AssistantContext` / `buildAssistantContext` (Task 5) consumed verbatim in Task 6; `taste: TasteLevel` field name consistent across `discovery-types`, the route, and `discoveryPrompt` (Task 7). ✓
+

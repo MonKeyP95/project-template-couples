@@ -1,20 +1,30 @@
-# Profile-aware suggestions — design
+# Profile-aware assistant — design
 
 Date: 2026-07-13
-Status: approved, ready for a plan
+Status: revised (assistant-wide) — ready for a plan
+
+> **Increment history.** The first increment shipped enrich-`/ suggest`-only with
+> the taste dial living inside the `/ suggest` menu (commits `ad365a3`..`5eff729`
+> on `feat/profile-aware-suggestions`). This revision generalizes it to the whole
+> assistant: one shared context, consumed by each sub's own harness, and the dial
+> promoted to the assistant-block level. Sections below reflect the revised target.
 
 ## Goal
 
-Make the on-demand `/ suggest` engine read the couple's profiles so its cards are
-specific to who they are, instead of the current generic per-surface suggestions.
-Today the introspective suggestion engine (`suggestForSurface` /
-`buildScopedPrompt` in `src/lib/ai/suggestion-actions.ts`) reads only operational
-trip data (budget items, packing labels, itinerary days, etc.); it never touches
-any profile. The discovery engine already reads all the profile sources — this
-brings `/ suggest` to parity.
+Make the **whole assistant** — `/ suggest`, the "ask me anything" chat, and the
+find-a-place discovery door — read the couple's profiles and honor one shared
+"taste" setting, so every sub-tool is specific to who they are instead of generic.
 
-Scope is **enrich `/ suggest` only**: no writes, no apply, no new proactive
-triggers, no change to discovery.
+Mental model (the user's framing): the assistant is a **high-level thing that reads
+everything we know** (the shared context); the three subs are **lower-level
+harnesses** that each decide how to consume that context, and each harness is
+expected to grow/refine independently later (proactive triggers, clarify-then-act,
+etc.). We unify the **context**, not the **engines** — the three engines stay
+separate on purpose (a one-shot structured suggestion, a multi-turn conversation,
+and a cited web search are different calls; merging them was rejected 2026-07-10).
+
+Scope: **enrich only** — no writes/apply, no new proactive triggers, no engine
+merge, no change to how the couple profile *grows* (that is its own future slice).
 
 ## Core principle: profile is a prior, not a filter
 
@@ -43,18 +53,22 @@ gradations. Three intents map to three prompt framings the model reliably honors
 
 ### Persistence and placement
 
-Cookie-persisted per person, exactly mirroring the existing `ai` mode cookie
+The dial is an **assistant-wide** setting, not a suggest-only one. It is
+cookie-persisted per person, mirroring the existing `ai` mode cookie
 (`src/lib/ai/ai-mode.ts` + `src/components/ai-mode.tsx`):
 
 - New cookie `taste`, values `surprise | balanced | feels-like-us`, default
   `balanced` when unset or unrecognized.
-- Server read: a new `getTasteLevel()` in a small module (e.g.
-  `src/lib/ai/taste-level.ts`), reading `cookies()` like `isAiEnabled()`.
-- Client write: a 3-way toggle at the top of the `/ suggest` scope menu in
-  `assistant-block.tsx`, writing `document.cookie` (path `/`, one-year max-age,
-  samesite lax) the same way `useAiMode().setEnabled` does, then `router.refresh()`.
-- It rides the existing AI on/off gate: the dial only renders inside the expanded
-  assistant block (AI on), alongside the scope chips it already shows.
+- Server read: `getTasteLevel()` in `src/lib/ai/taste-level.ts`, reading
+  `cookies()` like `isAiEnabled()`. (Already built.)
+- Client write: a 3-way toggle at the **assistant-block level** (`assistant-block.tsx`),
+  rendered once whenever the block is expanded (AI on) — above all three sub-tools,
+  not inside the `/ suggest` menu. It writes `document.cookie` (path `/`,
+  one-year max-age, samesite lax). No `router.refresh()` — each sub reads the
+  cookie fresh on its next server call.
+- It rides the existing AI on/off gate: hidden while the block is collapsed (off),
+  visible the moment the assistant is pressed open. This reads as "the assistant's
+  overall taste," which is the point.
 
 ## The profile block
 
@@ -67,9 +81,10 @@ from the real query layer:
   names and their `details[]` tags (Food -> burgers, sushi)
 - `getDiningPreferences(workspaceId)` (`src/lib/preferences/dining-queries.ts`) —
   budget band, cuisines, dietary, activities
-- `getCoupleSummary(workspaceId, "Food")` and `("Activities")`
+- `getCoupleSummary(workspaceId, "food")` and `("activity")`
   (`src/lib/preferences/couple-summary-queries.ts`) — the learned "what we've
-  learned" text; included only when `summaryMd` is non-empty
+  learned" text; included only when `summaryMd` is non-empty. Note the category
+  values are the lowercase `LearnedCategory` union (`"food" | "activity"`).
 
 Rules:
 
@@ -105,16 +120,56 @@ are omitted: a taste dial over no taste data is meaningless, so the prompt falls
 back to exactly today's behavior. The dial line is added only alongside a non-empty
 profile block.
 
-## Wiring
+## Shared context, per-sub harness
 
-- `suggestForSurface(surface, tripSlug?, scope?)` additionally reads
-  `getTasteLevel()`, resolves the trip id when a `tripSlug` is in play (it already
-  loads the trip via `getTripBySlug`), calls `buildProfileBlock`, and threads both
-  the block and the dial level into `buildScopedPrompt`.
-- `buildScopedPrompt` (and the per-surface `buildPrompt` it falls through to)
-  append the background section + dial line after their existing content.
-- `generateSuggestion(prompt)` in `claude.ts` is **unchanged** — it already accepts
-  an arbitrary prompt string.
+The heart of the revision. One builder assembles "everything we know" once; each
+sub's harness picks the fields it needs.
+
+### The shared context
+
+New `buildAssistantContext(workspaceId, tripId?)` in `src/lib/ai/assistant-context.ts`
+returns a small **structured object**, not a pre-baked string, so each harness can
+consume selectively:
+
+```ts
+interface AssistantContext {
+  profileBlock: string      // buildProfileBlock(...) — "" when no profile
+  taste: TasteLevel         // getTasteLevel()
+  tasteDirective: string    // TASTE_DIRECTIVE[taste]
+}
+```
+
+It reuses the already-built `buildProfileBlock` and `getTasteLevel` + `TASTE_DIRECTIVE`.
+It reads only; no writes (suggest-only invariant). This function *is* "the assistant
+reads everything"; the subs below are the harnesses.
+
+### Harness 1 — `/ suggest` (already built, refactored)
+
+`suggestForSurface` calls `buildAssistantContext` and, when `profileBlock` is
+non-empty, appends the labelled background section + `tasteDirective` to the prompt
+(the current `withProfile` logic, lifted to consume the shared object instead of
+calling `buildProfileBlock`/`getTasteLevel` itself). Empty profile → prompt
+byte-identical to today (both lines omitted). `generateSuggestion` unchanged.
+
+### Harness 2 — chat ("ask me anything")
+
+`sendChatMessage` / `tripContextFor` (`src/lib/ai/chat-actions.ts`) today build only
+basic trip facts. They additionally fold in `profileBlock` (labelled as background,
+same wording as suggest) and `tasteDirective`, so chat is genuinely profile-aware
+and honors the dial. Chat can be opened with no trip slug: it still resolves the
+workspace and pulls workspace-level profile + dial. `chatReply` in `claude.ts` takes
+the enriched context string unchanged (already a `(messages, context)` signature).
+
+### Harness 3 — discovery door (dial only)
+
+The door already reads the profile *structurally* (dining prefs, trip profile,
+learned summary become `DiscoveryQuery` fields in `/api/ai/discover`), so it must
+**not** also receive `profileBlock` — that would duplicate. It consumes only the
+dial: the route reads `getTasteLevel()` and passes the level onto the query; a new
+`taste` field on `DiscoveryQuery`; `discoveryPrompt` in `claude.ts` renders the
+matching directive so `surprise` widens the picks and `feels-like-us` keeps them
+safely on-taste. This layers on top of discovery's existing precedence ladder
+(craving > this trip > couple defaults > learned) as an adventurousness weight.
 
 ## Two modes
 
@@ -123,24 +178,32 @@ on-the-road, dates-driven). The profile block and dial line layer on top unchang
 so a `feels-like-us` on-the-road suggestion and a `balanced` planning suggestion
 both work without a mode branch of their own.
 
-## Out of scope (holds the line on scope-1)
+## Out of scope
 
-- No writes / no "apply" (suggestions stay advisory; discovery keeps the only write
-  path).
-- No new proactive triggers (the slice-2 nudge framework is untouched).
-- No per-surface source gating — the dial handles domination, so every surface gets
-  the one shared block and the model judges relevance.
-- No change to the discovery engine or its own profile assembly (accepted mild
-  duplication over a premature shared abstraction).
+- No writes / no "apply" (all three subs stay advisory; the door's accept-to-event
+  is its existing, separate write path).
+- No new proactive triggers (the slice-2 nudge framework is untouched). The per-sub
+  harnesses are the place those grow later, but not in this slice.
+- **No engine merge** — the three subs stay separate calls; only the context is
+  shared.
+- No change to how the couple profile *grows* — item databases / extended learning
+  to accommodation/transport are a separate future brainstorm.
+- Discovery does not receive the profile block (it already reads the profile
+  structurally); it gets the dial only.
 - No new tables and no migration — the dial is a cookie; all data sources already
-  exist.
-- No streaming.
+  exist. No streaming.
 
 ## Files
 
-- New: `src/lib/ai/profile-context.ts` (`buildProfileBlock`), `src/lib/ai/taste-level.ts`
-  (`getTasteLevel` + the `TasteLevel` type / `TASTE_COOKIE`).
-- Changed: `src/lib/ai/suggestion-actions.ts` (read dial, build block, thread into
-  the prompt), `src/components/assistant-block.tsx` (the 3-way dial toggle in the
-  suggest menu).
-- Unchanged: `src/lib/ai/claude.ts`, the discovery engine, all query-layer modules.
+- New: `src/lib/ai/assistant-context.ts` (`buildAssistantContext` + `AssistantContext`).
+- Already built (first increment): `src/lib/ai/profile-context.ts` (`buildProfileBlock`),
+  `src/lib/ai/taste-types.ts` (`TasteLevel`, `TASTE_COOKIE`, `TASTE_LEVELS`,
+  `normalizeTaste`, `TASTE_DIRECTIVE`), `src/lib/ai/taste-level.ts` (`getTasteLevel`).
+- Changed by this revision:
+  - `src/lib/ai/suggestion-actions.ts` — `withProfile` consumes the shared context.
+  - `src/lib/ai/chat-actions.ts` — chat harness folds in profile block + dial.
+  - `src/app/api/ai/discover/route.ts` + `src/lib/ai/discovery-types.ts` +
+    `src/lib/ai/claude.ts` (`discoveryPrompt`) — discovery harness gets the dial.
+  - `src/components/assistant-block.tsx` — move the dial toggle out of the `/ suggest`
+    menu up to the block level.
+- Unchanged: `generateSuggestion` and `chatReply` signatures; all query-layer modules.
