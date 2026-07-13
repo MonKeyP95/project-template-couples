@@ -170,9 +170,30 @@ take an **optional `tripId`**:
   floor, under the trip name. Trips are sourced from the started/finished buckets of
   `listTripsForWorkspace` (the exact bucket keys are confirmed in the plan).
 
+## The assistant retrieval harness (named north star, not built here)
+
+The eventual payoff of this corpus: at scale the assistant should assemble
+suggestion context by **relevance-ranked retrieval**, not a flat read. Per suggestion
+it (1) reads the current trip profile to derive its style, (2) **cheaply and
+deterministically** selects the top-K most similar past trips by vibe/transport/budget
+overlap (no model call for selection — the style key already lives on the trip
+profile), (3) reads those trips' per-trip summaries, and (4) synthesizes from a
+**bounded** context: current trip + one coarse couple backdrop (the
+summary-of-summaries) + K neighbour summaries. Raw signals never reach the model.
+Context stays O(1) regardless of trip count, which is the real answer to "is it too
+much data at ten years?" — retrieval *replaces* reading everything.
+
+Slice 2 is the corpus this stands on. Two layers sit above it and are **not built
+here**: the summary-of-summaries backdrop, then the retrieval harness itself (only
+worth building once there are enough trips that style-matching is selective — at a
+few trips it returns all of them). The one obligation slice 2 carries for it: the
+trip summary must stay queryable with its **vibe/idea — that is the retrieval key**,
+never stored as a bare blob.
+
 ## Out of scope
 
 - The rollup / summary-of-summaries model (general keeps reading raw signals).
+- The retrieval harness above (style-matched top-K selection + synthesis).
 - Sharing, export, or cross-couple import of a trip summary — future; this slice
   only makes the per-trip unit exist and persist cleanly.
 - Any trip-page surface for the summary.
