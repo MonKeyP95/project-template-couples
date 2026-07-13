@@ -71,6 +71,26 @@ mode-specific branching.
 - No editing/removing the expense from the itinerary — managed in the Budget tab.
 - No per-event or per-day running total shown on the itinerary.
 
+## Follow-up slice (separate, after this ships): carry discovery category
+
+Today a discovered pick knows its `category` (`"food"` / `"activity"`) but the
+event stores only `text` + `url` — the category is dropped. A tight second slice
+makes the expense category **default** to the event's origin:
+
+1. Add optional `category?: string` to `ItineraryEvent` (JSONB — no migration).
+2. `DiscoverySection.commit` passes a category hint through `addTodayEvent`,
+   mapping `"food" -> "Food"`, `"activity" -> "Activities"`.
+3. `addTodayEvent` and any event-reshaping action must **preserve** the new
+   field on the write path (itinerary actions have dropped new event fields
+   before — validate this in isolation, which is why it is its own slice).
+4. Expense form defaults `category` to `event.category` when present.
+
+Caveats: expense categories are renameable per-trip rows, so the string mapping
+only lands if a category with that exact name exists; otherwise it falls back to
+first-category. Manually-typed events have no category and fall back too. Both
+acceptable — it is an editable default, not a lock. Kept separate from the base
+feature to isolate the discovery write-path risk (point 3).
+
 ## Files likely touched
 
 - `src/app/trips/[slug]/page.tsx` — pass `categories`, `members`,
