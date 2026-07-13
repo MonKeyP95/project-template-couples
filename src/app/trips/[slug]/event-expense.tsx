@@ -17,13 +17,16 @@ export interface EventExpenseProps {
   currentUserId: string
   categories: ExpenseCategoryRow[]
   members: Record<string, MemberToneEntry>
+  /** Collapse the form (parent controls visibility, via pressing the event). */
+  onClose: () => void
 }
 
 /**
- * Compact "log a real expense against this event" control. Collapsed to a small
- * button; expands to amount + category + paid-by. Title, day, and location are
- * inherited from the event and its day, so they are not shown. Writes an
- * `expenses` row via `logExpense`; the itinerary itself does not change.
+ * The expense form for one event: amount + optional category + paid-by. Shown
+ * only when the parent reveals it (pressing the event). Title, day, and
+ * location are inherited from the event and its day, so they are not shown;
+ * category is optional and defaults to "Other". Writes an `expenses` row via
+ * `logExpense`; the itinerary itself does not change.
  */
 export function EventExpense({
   tripId,
@@ -34,10 +37,10 @@ export function EventExpense({
   currentUserId,
   categories,
   members,
+  onClose,
 }: EventExpenseProps) {
-  const [open, setOpen] = React.useState(false)
   const [amount, setAmount] = React.useState("")
-  const [category, setCategory] = React.useState(categories[0]?.name ?? "")
+  const [category, setCategory] = React.useState("")
   const [paidBy, setPaidBy] = React.useState(currentUserId)
   const [error, setError] = React.useState<string | null>(null)
   const [isPending, startTransition] = React.useTransition()
@@ -53,7 +56,7 @@ export function EventExpense({
         tripSlug,
         title: eventText.trim() || "Expense",
         amount,
-        category,
+        category: category || "Other",
         paidBy,
         dayDate,
         locationId,
@@ -64,21 +67,8 @@ export function EventExpense({
       }
       setAmount("")
       setError(null)
-      setOpen(false)
+      onClose()
     })
-  }
-
-  if (!open) {
-    return (
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        aria-label="Add an expense for this event"
-        className="mt-0.5 border-0 bg-transparent p-0 font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground hover:text-foreground"
-      >
-        + expense
-      </button>
-    )
   }
 
   const memberEntries = Object.entries(members)
@@ -104,6 +94,7 @@ export function EventExpense({
           disabled={isPending}
           className="flex-1 rounded-lg border border-border bg-background px-2 py-1 text-[12px] text-foreground"
         >
+          <option value="">Category (optional)</option>
           {categories.map((c) => (
             <option key={c.id} value={c.name}>
               {c.name}
@@ -160,8 +151,8 @@ export function EventExpense({
         <button
           type="button"
           onClick={() => {
-            setOpen(false)
             setError(null)
+            onClose()
           }}
           disabled={isPending}
           aria-label="Cancel"

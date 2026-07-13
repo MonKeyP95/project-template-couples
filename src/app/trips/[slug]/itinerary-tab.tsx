@@ -1329,6 +1329,7 @@ function DayView({
   members: Record<string, MemberToneEntry>
   currentUserId: string
 }) {
+  const [openExpense, setOpenExpense] = React.useState<number | null>(null)
   return (
     <div className="relative flex gap-3.5 py-3.5">
       <div className="relative w-9 flex-shrink-0">
@@ -1373,12 +1374,21 @@ function DayView({
               {sortEvents(day.events).map((ev, i) => (
                 <div key={i}>
                   <div className="flex gap-1.5 text-[12.5px] leading-snug text-muted-foreground">
-                    {ev.time ? (
-                      <span className="t-num shrink-0 whitespace-nowrap text-foreground/70">
-                        {formatEventTime(ev.time, ev.endTime)}
-                      </span>
-                    ) : null}
-                    <span>{ev.text}</span>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setOpenExpense(openExpense === i ? null : i)
+                      }
+                      aria-expanded={openExpense === i}
+                      className="flex gap-1.5 border-0 bg-transparent p-0 text-left text-[12.5px] leading-snug text-muted-foreground"
+                    >
+                      {ev.time ? (
+                        <span className="t-num shrink-0 whitespace-nowrap text-foreground/70">
+                          {formatEventTime(ev.time, ev.endTime)}
+                        </span>
+                      ) : null}
+                      <span>{ev.text}</span>
+                    </button>
                     {ev.url ? (
                       <a
                         href={ev.url}
@@ -1390,16 +1400,19 @@ function DayView({
                       </a>
                     ) : null}
                   </div>
-                  <EventExpense
-                    tripId={tripId}
-                    tripSlug={tripSlug}
-                    eventText={ev.text}
-                    dayDate={day.dayDate}
-                    locationId={day.locationId}
-                    currentUserId={currentUserId}
-                    categories={categories}
-                    members={members}
-                  />
+                  {openExpense === i ? (
+                    <EventExpense
+                      tripId={tripId}
+                      tripSlug={tripSlug}
+                      eventText={ev.text}
+                      dayDate={day.dayDate}
+                      locationId={day.locationId}
+                      currentUserId={currentUserId}
+                      categories={categories}
+                      members={members}
+                      onClose={() => setOpenExpense(null)}
+                    />
+                  ) : null}
                   {day.dayDate < today ? (
                     <EventRating
                       tripSlug={tripSlug}
