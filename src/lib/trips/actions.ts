@@ -1373,10 +1373,26 @@ export async function addTodayEvent(
       created_by: userData.user.id,
     })
     if (error) {
-      if (error.code === "23505") {
-        return { error: "Another day already uses that date." }
-      }
-      return { error: error.message }
+      // A day already exists on this date: append the pick to it instead of
+      // failing. "Find" should land the event on that date's day, not error out.
+      if (error.code !== "23505") return { error: error.message }
+      const { data: existing, error: findError } = await supabase
+        .from("itinerary_days")
+        .select("id, events")
+        .eq("trip_id", input.tripId)
+        .eq("day_date", input.dayDate)
+        .maybeSingle()
+      if (findError) return { error: findError.message }
+      if (!existing) return { error: "Another day already uses that date." }
+      const prior = Array.isArray(existing.events)
+        ? (existing.events as ItineraryEvent[])
+        : []
+      const events = normalizeDayEvents([...prior, newEvent]).sort(sortDayEvents)
+      const { error: updateError } = await supabase
+        .from("itinerary_days")
+        .update({ events })
+        .eq("id", existing.id)
+      if (updateError) return { error: updateError.message }
     }
   }
 
