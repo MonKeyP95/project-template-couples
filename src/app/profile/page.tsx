@@ -21,6 +21,7 @@ import {
 import {
   getCoupleSummary,
   countSignals,
+  getTripLearnedBlocks,
 } from "@/lib/preferences/couple-summary-queries"
 import { RATING_FLOOR } from "@/lib/preferences/couple-summary-types"
 import { isAiEnabled } from "@/lib/ai/ai-mode"
@@ -54,6 +55,16 @@ export default async function ProfilePage() {
     onTheRoad: buckets.now.length > 0,
     tripSlug: hero?.slug ?? null,
   })
+
+  const startedTrips = [...buckets.now, ...buckets.past]
+  const tripBlocks = (
+    await Promise.all(
+      startedTrips.map(async (trip) => ({
+        trip,
+        blocks: await getTripLearnedBlocks(trip.id),
+      })),
+    )
+  ).filter((tb) => tb.blocks.length > 0)
 
   const foodKey = [
     dining.budgetBand,
@@ -195,6 +206,38 @@ export default async function ProfilePage() {
               </p>
             </CategorySection>
           </div>
+
+          {tripBlocks.length > 0 ? (
+            <div className="mt-10 border-t border-border pt-8">
+              <p className="text-sm text-muted-foreground">
+                By trip (what each trip taught us)
+              </p>
+              <div className="mt-4 flex flex-col gap-8">
+                {tripBlocks.map(({ trip, blocks }) => (
+                  <div key={trip.id}>
+                    <h3 className="font-serif text-lg tracking-tight">
+                      {trip.name}
+                    </h3>
+                    {blocks.map((b) => (
+                      <div key={b.category}>
+                        <p className="mt-4 font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+                          {b.category === "food" ? "Food" : "Activities"}
+                        </p>
+                        <LearnedSummary
+                          category={b.category}
+                          summaryMd={b.summaryMd}
+                          ratingCount={b.signalCount}
+                          countAtGeneration={b.countAtGeneration}
+                          aiOn={aiOn}
+                          tripId={trip.id}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : null}
         </div>
       </main>
     </div>
