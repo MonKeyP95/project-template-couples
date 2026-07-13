@@ -2,6 +2,8 @@
 // SDK import — so a client component can import DiscoverySuggestion to render
 // results (the *-types.ts split rule).
 
+import type { TasteLevel } from "./taste-types"
+
 /** Which kind of place we are finding. Food and activity are live; the door may
  * show other categories as inactive. */
 export type DiscoveryCategory = "food" | "activity"
@@ -39,6 +41,8 @@ export interface DiscoveryQuery {
   /** Learned couple summary markdown from past-trip ratings; "" when none. A
    * strong, evidence-based couple signal. */
   learned: string
+  /** How adventurous to be, from the assistant-wide taste dial. */
+  taste: TasteLevel
 }
 
 /** One grounded, cited suggestion. */

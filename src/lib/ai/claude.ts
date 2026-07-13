@@ -7,6 +7,7 @@ import type {
   DiscoverySuggestion,
 } from "./discovery-types"
 import type { Suggestion } from "./suggestion-types"
+import { TASTE_DIRECTIVE } from "./taste-types"
 
 /**
  * The single seam for Claude calls (CLAUDE.md: "AI provider is one file").
@@ -208,12 +209,14 @@ function discoveryPrompt(query: DiscoveryQuery): string {
   const learnedLine = query.learned.trim()
     ? `From past trips, this couple has especially enjoyed: ${query.learned.trim()}`
     : ""
+  const dialLine = TASTE_DIRECTIVE[query.taste]
 
   if (query.category === "activity") {
     return [
       `Find things to do in ${query.destination}.`,
       ...moment,
       learnedLine,
+      dialLine,
       "The couple generally —",
       list("Activities they enjoy", query.activities),
       list("Vibe", query.vibeTags),
@@ -227,6 +230,7 @@ function discoveryPrompt(query: DiscoveryQuery): string {
     `Find restaurants in ${query.destination} for ${query.when}.`,
     ...moment,
     learnedLine,
+    dialLine,
     "The couple generally —",
     `Budget: ${query.budgetBand}.`,
     list("Vibe", query.vibeTags),

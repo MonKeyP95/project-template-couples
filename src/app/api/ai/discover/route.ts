@@ -7,6 +7,7 @@ import { getDiningPreferences } from "@/lib/preferences/dining-queries"
 import { getTripProfile } from "@/lib/trips/queries"
 import { EMPTY_TRIP_PROFILE } from "@/lib/trips/trip-profile-types"
 import { getCoupleSummary } from "@/lib/preferences/couple-summary-queries"
+import { getTasteLevel } from "@/lib/ai/taste-level"
 import type {
   DiscoveryCategory,
   DiscoveryQuery,
@@ -52,6 +53,7 @@ export async function POST(request: Request) {
     const tripId = String(body.tripId ?? "").trim()
     const profile = tripId ? await getTripProfile(tripId) : EMPTY_TRIP_PROFILE
     const summary = await getCoupleSummary(workspace.id, category)
+    const taste = await getTasteLevel()
 
     const query: DiscoveryQuery = {
       category,
@@ -67,6 +69,7 @@ export async function POST(request: Request) {
       near: String(body.near ?? "").trim(),
       walkable: Boolean(body.walkable),
       learned: summary.summaryMd,
+      taste,
     }
 
     const suggestions = await discover(query)
