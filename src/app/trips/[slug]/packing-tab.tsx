@@ -190,6 +190,22 @@ export function PackingTab({
     if (result.error) setItems(snapshot)
   }
 
+  async function addItem(
+    category: string,
+    owner: string | null,
+    label: string,
+  ): Promise<{ error?: string }> {
+    const result = await addPackingItem(tripId, category, label, owner)
+    if (result.error) return { error: result.error }
+    if (result.item) {
+      const created = result.item
+      setItems((prev) =>
+        prev.some((i) => i.id === created.id) ? prev : [...prev, created],
+      )
+    }
+    return {}
+  }
+
   async function addCategory(
     name: string,
     owner: string | null,
@@ -330,6 +346,7 @@ export function PackingTab({
           onStopEdit={() => setEditingId(null)}
           onUpdate={update}
           onDelete={remove}
+          onAddItem={addItem}
           onAddCategory={addCategory}
           onRemoveCategory={removeCategory}
           onReorder={reorder}
@@ -355,6 +372,11 @@ interface PackingListProps {
   onStopEdit: () => void
   onUpdate: (id: string, label: string) => Promise<{ error?: string }>
   onDelete: (id: string) => void
+  onAddItem: (
+    category: string,
+    owner: string | null,
+    label: string,
+  ) => Promise<{ error?: string }>
   onAddCategory: (name: string, owner: string | null) => Promise<{ error?: string }>
   onRemoveCategory: (
     id: string,
@@ -381,6 +403,7 @@ function PackingList({
   onStopEdit,
   onUpdate,
   onDelete,
+  onAddItem,
   onAddCategory,
   onRemoveCategory,
   onReorder,
@@ -418,7 +441,6 @@ function PackingList({
         {groups.map((g) => (
           <CategoryGroup
             key={g.categoryId ?? `orphan:${g.category}`}
-            tripId={tripId}
             owner={owner}
             readOnly
             categoryId={g.categoryId}
@@ -431,6 +453,7 @@ function PackingList({
             onStopEdit={onStopEdit}
             onUpdate={onUpdate}
             onDelete={onDelete}
+            onAddItem={onAddItem}
             onDeleteCategory={onRemoveCategory}
           />
         ))}
@@ -454,7 +477,6 @@ function PackingList({
             <SortableCategoryGroup
               key={g.categoryId as string}
               id={g.categoryId as string}
-              tripId={tripId}
               owner={owner}
               readOnly={false}
               categoryId={g.categoryId}
@@ -467,6 +489,7 @@ function PackingList({
               onStopEdit={onStopEdit}
               onUpdate={onUpdate}
               onDelete={onDelete}
+              onAddItem={onAddItem}
               onDeleteCategory={onRemoveCategory}
             />
           ))}
@@ -476,7 +499,6 @@ function PackingList({
       {orphanGroups.map((g) => (
         <CategoryGroup
           key={`orphan:${g.category}`}
-          tripId={tripId}
           owner={owner}
           readOnly={false}
           categoryId={null}
@@ -489,6 +511,7 @@ function PackingList({
           onStopEdit={onStopEdit}
           onUpdate={onUpdate}
           onDelete={onDelete}
+          onAddItem={onAddItem}
           onDeleteCategory={onRemoveCategory}
         />
       ))}
@@ -517,7 +540,6 @@ function PackingList({
 }
 
 interface CategoryGroupProps {
-  tripId: string
   owner: string | null
   readOnly: boolean
   categoryId: string | null
@@ -530,6 +552,11 @@ interface CategoryGroupProps {
   onStopEdit: () => void
   onUpdate: (id: string, label: string) => Promise<{ error?: string }>
   onDelete: (id: string) => void
+  onAddItem: (
+    category: string,
+    owner: string | null,
+    label: string,
+  ) => Promise<{ error?: string }>
   onDeleteCategory: (
     id: string,
     name: string,
@@ -540,7 +567,6 @@ interface CategoryGroupProps {
 }
 
 function CategoryGroup({
-  tripId,
   owner,
   readOnly,
   categoryId,
@@ -553,6 +579,7 @@ function CategoryGroup({
   onStopEdit,
   onUpdate,
   onDelete,
+  onAddItem,
   onDeleteCategory,
   dragHandle,
 }: CategoryGroupProps) {
@@ -597,7 +624,7 @@ function CategoryGroup({
         />
       ))}
       {readOnly ? null : (
-        <AddItemRow tripId={tripId} owner={owner} category={category} />
+        <AddItemRow owner={owner} category={category} onAddItem={onAddItem} />
       )}
     </div>
   )
@@ -773,13 +800,17 @@ function ItemEditor({
 }
 
 function AddItemRow({
-  tripId,
   owner,
   category,
+  onAddItem,
 }: {
-  tripId: string
   owner: string | null
   category: string
+  onAddItem: (
+    category: string,
+    owner: string | null,
+    label: string,
+  ) => Promise<{ error?: string }>
 }) {
   const [expanded, setExpanded] = React.useState(false)
   const [value, setValue] = React.useState("")
@@ -803,7 +834,7 @@ function AddItemRow({
     if (!label || pending) return
     setPending(true)
     setError(null)
-    const result = await addPackingItem(tripId, category, label, owner)
+    const result = await onAddItem(category, owner, label)
     setPending(false)
     if (result.error) {
       setError(result.error)
@@ -837,7 +868,6 @@ function AddItemRow({
             if (e.key === "Escape") reset()
           }}
           placeholder={`Add to ${category.toLowerCase()}…`}
-          disabled={pending}
           className="flex-1 border-0 border-b border-rule bg-transparent py-1 text-[14px] text-foreground placeholder:text-muted-foreground focus:border-clay focus:outline-none disabled:opacity-50"
         />
         <button

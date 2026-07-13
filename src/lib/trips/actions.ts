@@ -12,7 +12,7 @@ import {
 import { getCurrentWorkspace } from "@/lib/workspace/queries"
 import { inferRatingCategory } from "@/lib/preferences/couple-summary-types"
 import { listChecklists } from "@/lib/checklists/queries"
-import type { PackingCategory } from "@/lib/trips/packing-types"
+import type { PackingCategory, PackingItem } from "@/lib/trips/packing-types"
 import { rowToNote, type TripNote } from "@/lib/trips/note-queries"
 import {
   ITINERARY_TONES,
@@ -42,6 +42,7 @@ export interface ToggleResult {
 
 export interface AddPackingItemResult {
   error?: string
+  item?: PackingItem
 }
 
 /**
@@ -122,16 +123,31 @@ export async function addPackingItem(
   const { data: userData, error: userError } = await supabase.auth.getUser()
   if (userError || !userData.user) return { error: "Not signed in." }
 
-  const { error } = await supabase.from("packing_items").insert({
-    trip_id: tripId,
-    category,
-    label: trimmed,
-    added_by: userData.user.id,
-    owner_id: owner,
-  })
+  const { data, error } = await supabase
+    .from("packing_items")
+    .insert({
+      trip_id: tripId,
+      category,
+      label: trimmed,
+      added_by: userData.user.id,
+      owner_id: owner,
+    })
+    .select()
+    .single()
 
   if (error) return { error: error.message }
-  return {}
+  return {
+    item: {
+      id: data.id,
+      tripId: data.trip_id,
+      category: data.category,
+      label: data.label,
+      done: data.done,
+      addedBy: data.added_by,
+      ownerId: data.owner_id,
+      createdAt: data.created_at,
+    },
+  }
 }
 
 export interface UpdatePackingItemResult {
