@@ -1,7 +1,10 @@
 import { createClient } from "@/lib/supabase/server"
-import type { LearnedCategory } from "./couple-summary-types"
-import { inferRatingCategory } from "./couple-summary-types"
-import type { TasteSignal } from "./couple-summary-types"
+import {
+  inferRatingCategory,
+  RATING_FLOOR,
+  type LearnedCategory,
+  type TasteSignal,
+} from "./couple-summary-types"
 import { expenseCategoryToLearned } from "@/lib/ai/discovery-types"
 import { parseEvents } from "@/lib/trips/itinerary-types"
 
@@ -126,4 +129,138 @@ export async function countSignals(
   category: LearnedCategory,
 ): Promise<number> {
   return (await gatherTasteSignals(workspaceId, category)).length
+}
+
+/** Rated places on one trip (strong signal). */
+async function gatherTripRatingSignals(
+  tripId: string,
+  category: LearnedCategory,
+): Promise<TasteSignal[]> {
+  const supabase = await createClient()
+  const { data } = await supabase
+    .from("event_ratings")
+    .select("event_text, rating, note")
+    .eq("trip_id", tripId)
+    .eq("category", category)
+    .order("created_at", { ascending: true })
+  return (data ?? []).map((r) => ({
+    text: r.event_text as string,
+    kind: "rated" as const,
+    rating: r.rating as number,
+    note: (r.note as string | null) ?? undefined,
+  }))
+}
+
+/** Un-rated itinerary events on one trip (weak "we did this" signal). */
+async function gatherTripPlannedSignals(
+  tripId: string,
+  category: LearnedCategory,
+): Promise<TasteSignal[]> {
+  const supabase = await createClient()
+  const { data } = await supabase
+    .from("itinerary_days")
+    .select("events")
+    .eq("trip_id", tripId)
+  const signals: TasteSignal[] = []
+  for (const row of data ?? []) {
+    for (const e of parseEvents((row as { events: unknown }).events)) {
+      if (e.rating !== undefined) continue
+      if (inferRatingCategory(e.text) !== category) continue
+      signals.push({ text: e.text, kind: "planned" })
+    }
+  }
+  return signals
+}
+
+/** Category detail tags on one trip (weak intent signal). */
+async function gatherTripWantedSignals(
+  tripId: string,
+  category: LearnedCategory,
+): Promise<TasteSignal[]> {
+  const supabase = await createClient()
+  const { data } = await supabase
+    .from("expense_categories")
+    .select("name, details")
+    .eq("trip_id", tripId)
+  const signals: TasteSignal[] = []
+  for (const row of data ?? []) {
+    const r = row as { name: string; details: string[] | null }
+    if (expenseCategoryToLearned(r.name) !== category) continue
+    for (const tag of r.details ?? []) signals.push({ text: tag, kind: "wanted" })
+  }
+  return signals
+}
+
+/** The full corpus for one trip + category: rated + planned + wanted. */
+export async function gatherTripTasteSignals(
+  tripId: string,
+  category: LearnedCategory,
+): Promise<TasteSignal[]> {
+  const [rated, planned, wanted] = await Promise.all([
+    gatherTripRatingSignals(tripId, category),
+    gatherTripPlannedSignals(tripId, category),
+    gatherTripWantedSignals(tripId, category),
+  ])
+  return [...rated, ...planned, ...wanted]
+}
+
+/** How many signals of any kind this trip holds for a category. */
+export async function countTripSignals(
+  tripId: string,
+  category: LearnedCategory,
+): Promise<number> {
+  return (await gatherTripTasteSignals(tripId, category)).length
+}
+
+export interface TripSummary {
+  summaryMd: string
+  signalCountAtGeneration: number
+}
+
+/** The stored per-trip summary for a category, or empty defaults when none. */
+export async function getTripSummary(
+  tripId: string,
+  category: LearnedCategory,
+): Promise<TripSummary> {
+  const supabase = await createClient()
+  const { data } = await supabase
+    .from("trip_summaries")
+    .select("summary_md, signal_count_at_generation")
+    .eq("trip_id", tripId)
+    .eq("category", category)
+    .maybeSingle()
+  if (!data) return { summaryMd: "", signalCountAtGeneration: 0 }
+  return {
+    summaryMd: data.summary_md ?? "",
+    signalCountAtGeneration: data.signal_count_at_generation ?? 0,
+  }
+}
+
+export interface TripLearnedBlock {
+  category: LearnedCategory
+  summaryMd: string
+  signalCount: number
+  countAtGeneration: number
+}
+
+/** The renderable per-trip blocks: food and/or activity, only where the trip
+ * clears the signal floor. Empty array when the trip has too little signal. */
+export async function getTripLearnedBlocks(
+  tripId: string,
+): Promise<TripLearnedBlock[]> {
+  const categories: LearnedCategory[] = ["food", "activity"]
+  const blocks = await Promise.all(
+    categories.map(async (category) => {
+      const signalCount = await countTripSignals(tripId, category)
+      if (signalCount < RATING_FLOOR) return null
+      const summary = await getTripSummary(tripId, category)
+      return {
+        category,
+        summaryMd: summary.summaryMd,
+        signalCount,
+        countAtGeneration: summary.signalCountAtGeneration,
+      }
+    }),
+  )
+  return blocks.filter((b): b is TripLearnedBlock => b !== null)
 }
