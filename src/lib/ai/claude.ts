@@ -8,7 +8,10 @@ import type {
 } from "./discovery-types"
 import type { Suggestion } from "./suggestion-types"
 import { TASTE_DIRECTIVE } from "./taste-types"
-import type { TasteSignal } from "@/lib/preferences/couple-summary-types"
+import type {
+  LearnedCategory,
+  TasteSignal,
+} from "@/lib/preferences/couple-summary-types"
 
 /**
  * The single seam for Claude calls (CLAUDE.md: "AI provider is one file").
@@ -89,15 +92,23 @@ function signalToLine(s: TasteSignal): string {
     return `- ${s.text} · rated ${s.rating}/5${note}`
   }
   if (s.kind === "planned") return `- ${s.text} · planned (not rated)`
+  if (s.kind === "used") return `- ${s.text} · booked & paid on a trip (real)`
   return `- ${s.text} · wanted`
 }
 
+const LEARNED_NOUN: Record<LearnedCategory, string> = {
+  food: "food",
+  activity: "activities",
+  accommodation: "places to stay",
+  transport: "ways of getting around",
+}
+
 export async function summarizeTaste(
-  category: DiscoveryCategory,
+  category: LearnedCategory,
   currentSummaryMd: string,
   signals: TasteSignal[],
 ): Promise<string> {
-  const noun = category === "activity" ? "activities" : "food"
+  const noun = LEARNED_NOUN[category]
   const lines = signals.map(signalToLine).join("\n")
   const current = currentSummaryMd.trim()
     ? `Their current ${noun} summary (may include their own hand-edits — respect ` +
@@ -111,15 +122,16 @@ export async function summarizeTaste(
       {
         role: "user",
         content:
-          `A couple leaves signals about their ${noun} taste across their trips: ` +
-          `places they rated, places they planned but never rated, and ${noun} ` +
-          `they said they wanted. ${current}\n\n` +
+          `A couple leaves signals about their ${noun} across their trips: places ` +
+          `they rated, places they planned but never rated, things they said they ` +
+          `wanted, and places or modes they actually booked and paid for. ${current}\n\n` +
           `Here are the signals:\n${lines}\n\n` +
-          `Weight the rated places most; treat "planned" and "wanted" as lighter ` +
-          `hints about direction, not firm evidence. Write a short markdown ` +
-          `summary (a few bullet points) of what this couple likes and dislikes ` +
-          `in ${noun}. Evolve the current summary rather than discarding it; keep ` +
-          `any hand-edits that still hold. Return only the markdown, no preamble.`,
+          `Weight rated highest and actually-booked ("booked & paid") next as real ` +
+          `behaviour; treat "planned" and "wanted" as lighter hints about direction. ` +
+          `Write a short markdown summary (a few bullet points) of what this couple ` +
+          `likes and dislikes in ${noun}. Evolve the current summary rather than ` +
+          `discarding it; keep any hand-edits that still hold. Return only the ` +
+          `markdown, no preamble.`,
       },
     ],
   })

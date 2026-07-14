@@ -2,7 +2,7 @@
 // import so the profile client component can share the staleness rule and the
 // category type (the *-types.ts split rule).
 
-export type LearnedCategory = "food" | "activity"
+export type LearnedCategory = "food" | "activity" | "accommodation" | "transport"
 
 /** Fraction of new ratings (relative to corpus size) that makes a summary stale.
  * Early ratings each carry more weight: at 5 ratings one more is 20%; at 30 it is
@@ -54,9 +54,20 @@ export function isSummaryStale(
  * category detail tag) are lighter hints. The summariser weights them accordingly. */
 export interface TasteSignal {
   text: string
-  kind: "rated" | "planned" | "wanted"
+  kind: "rated" | "planned" | "wanted" | "used"
   /** Present only when kind === "rated" (1-5). */
   rating?: number
   /** Free note captured with a rating; absent otherwise. */
   note?: string
+}
+
+/** The budget expense-category name whose real expenses feed a learned category,
+ * for the two categories that learn from actual spending. Food/Activity return
+ * null — they learn from ratings/plans/detail tags, not expenses. */
+export function learnedCategoryToExpenseName(
+  category: LearnedCategory,
+): string | null {
+  if (category === "accommodation") return "Accommodation"
+  if (category === "transport") return "Transportation"
+  return null
 }
