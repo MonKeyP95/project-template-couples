@@ -291,7 +291,7 @@ export interface TripLearnedBlock {
   countAtGeneration: number
 }
 
-/** The renderable per-trip blocks: food and/or activity, only where the trip
+/** The renderable per-trip blocks across all four categories, only where the trip
  * clears the signal floor. Empty array when the trip has too little signal. */
 export async function getTripLearnedBlocks(
   tripId: string,
