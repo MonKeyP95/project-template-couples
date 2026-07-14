@@ -34,6 +34,7 @@ export async function applyItinerarySkeleton(
   let locations = 0
   let days = 0
   for (const place of input.skeleton.places) {
+    if (place.days.length === 0) continue
     const key = place.name.trim().toLowerCase()
     let locationId = byName.get(key) ?? null
     if (!locationId) {
@@ -55,8 +56,12 @@ export async function applyItinerarySkeleton(
         tone: day.tone,
         locationId,
       })
-      // Additive: a taken date rejects with a friendly error; skip it and go on.
-      if (!res.error) days++
+      // Additive: skip an already-taken date; surface any other error.
+      if (res.error) {
+        if (res.dateTaken) continue
+        return { error: res.error }
+      }
+      days++
     }
   }
   return { created: { locations, days } }

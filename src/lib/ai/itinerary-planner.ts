@@ -55,9 +55,9 @@ export function planItinerarySkeleton(input: ItineraryPlanInput): ItinerarySkele
   const out: SkeletonPlace[] = []
   let offset = 0
   places.forEach((name, pi) => {
-    const nights = base + (pi < extra ? 1 : 0)
+    const count = base + (pi < extra ? 1 : 0)
     const days: SkeletonDay[] = []
-    for (let i = 0; i < nights; i++) {
+    for (let i = 0; i < count; i++) {
       const date = addDays(input.startDate, offset)
       days.push({
         date,
