@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server"
 import {
   inferRatingCategory,
+  learnedCategoryToExpenseName,
   RATING_FLOOR,
   type LearnedCategory,
   type TasteSignal,
@@ -109,17 +110,42 @@ async function gatherWantedSignals(
   return signals
 }
 
-/** The full corpus for a category: rated + planned + wanted. */
+/** Real expenses in the category's budget bucket (Accommodation / Transportation)
+ * — a "we actually booked this" signal. Reads the title text, never the amount;
+ * skips settlement rows. Returns [] for categories that do not learn from
+ * expenses (food, activity). */
+async function gatherSpentSignals(
+  workspaceId: string,
+  category: LearnedCategory,
+): Promise<TasteSignal[]> {
+  const name = learnedCategoryToExpenseName(category)
+  if (!name) return []
+  const supabase = await createClient()
+  const { data } = await supabase
+    .from("expenses")
+    .select("title, trips!inner(workspace_id)")
+    .eq("trips.workspace_id", workspaceId)
+    .eq("category", name)
+    .eq("is_settlement", false)
+  return (data ?? []).map((r) => ({
+    text: (r as { title: string }).title,
+    kind: "used" as const,
+  }))
+}
+
+/** The full corpus for a category: rated + planned + wanted + used (used is only
+ * non-empty for accommodation/transport). */
 export async function gatherTasteSignals(
   workspaceId: string,
   category: LearnedCategory,
 ): Promise<TasteSignal[]> {
-  const [rated, planned, wanted] = await Promise.all([
+  const [rated, planned, wanted, used] = await Promise.all([
     gatherRatingSignals(workspaceId, category),
     gatherPlannedSignals(workspaceId, category),
     gatherWantedSignals(workspaceId, category),
+    gatherSpentSignals(workspaceId, category),
   ])
-  return [...rated, ...planned, ...wanted]
+  return [...rated, ...planned, ...wanted, ...used]
 }
 
 /** How many signals of any kind the corpus holds for a category. Drives the
@@ -191,17 +217,39 @@ async function gatherTripWantedSignals(
   return signals
 }
 
-/** The full corpus for one trip + category: rated + planned + wanted. */
+/** Real expenses on one trip in the category's budget bucket (title only, no
+ * amount; settlements skipped). Empty for food/activity. */
+async function gatherTripSpentSignals(
+  tripId: string,
+  category: LearnedCategory,
+): Promise<TasteSignal[]> {
+  const name = learnedCategoryToExpenseName(category)
+  if (!name) return []
+  const supabase = await createClient()
+  const { data } = await supabase
+    .from("expenses")
+    .select("title")
+    .eq("trip_id", tripId)
+    .eq("category", name)
+    .eq("is_settlement", false)
+  return (data ?? []).map((r) => ({
+    text: (r as { title: string }).title,
+    kind: "used" as const,
+  }))
+}
+
+/** The full corpus for one trip + category: rated + planned + wanted + used. */
 export async function gatherTripTasteSignals(
   tripId: string,
   category: LearnedCategory,
 ): Promise<TasteSignal[]> {
-  const [rated, planned, wanted] = await Promise.all([
+  const [rated, planned, wanted, used] = await Promise.all([
     gatherTripRatingSignals(tripId, category),
     gatherTripPlannedSignals(tripId, category),
     gatherTripWantedSignals(tripId, category),
+    gatherTripSpentSignals(tripId, category),
   ])
-  return [...rated, ...planned, ...wanted]
+  return [...rated, ...planned, ...wanted, ...used]
 }
 
 /** How many signals of any kind this trip holds for a category. */
@@ -243,12 +291,17 @@ export interface TripLearnedBlock {
   countAtGeneration: number
 }
 
-/** The renderable per-trip blocks: food and/or activity, only where the trip
+/** The renderable per-trip blocks across all four categories, only where the trip
  * clears the signal floor. Empty array when the trip has too little signal. */
 export async function getTripLearnedBlocks(
   tripId: string,
 ): Promise<TripLearnedBlock[]> {
-  const categories: LearnedCategory[] = ["food", "activity"]
+  const categories: LearnedCategory[] = [
+    "food",
+    "activity",
+    "accommodation",
+    "transport",
+  ]
   const blocks = await Promise.all(
     categories.map(async (category) => {
       const signalCount = await countTripSignals(tripId, category)
