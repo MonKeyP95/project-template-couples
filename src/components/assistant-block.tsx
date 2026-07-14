@@ -36,6 +36,7 @@ export function AssistantBlock({
   className?: string
 }) {
   const { enabled, setEnabled } = useAiMode()
+  const [chatSeed, setChatSeed] = React.useState<string | null>(null)
   return (
     <div
       className={cn(
@@ -66,7 +67,14 @@ export function AssistantBlock({
             <>
               <Divider />
               <div className="px-4 py-3">
-                <NudgeLine nudge={nudge} />
+                <NudgeLine
+                  nudge={nudge}
+                  onHelp={
+                    nudge.help?.seed
+                      ? () => setChatSeed(nudge.help!.seed!)
+                      : undefined
+                  }
+                />
               </div>
             </>
           ) : null}
@@ -82,7 +90,11 @@ export function AssistantBlock({
           ) : null}
           <Divider />
           <div className="px-4 py-3">
-            <AskLine tripSlug={tripSlug} />
+            <AskLine
+              key={chatSeed ?? "chat"}
+              tripSlug={tripSlug}
+              initialInput={chatSeed ?? ""}
+            />
           </div>
         </div>
       ) : null}
@@ -307,9 +319,15 @@ function SuggestLine({
 }
 
 /** Inline chat. Same server seam (sendChatMessage) the floating panel used. */
-function AskLine({ tripSlug }: { tripSlug?: string }) {
+function AskLine({
+  tripSlug,
+  initialInput,
+}: {
+  tripSlug?: string
+  initialInput?: string
+}) {
   const [messages, setMessages] = React.useState<ChatMessage[]>([])
-  const [input, setInput] = React.useState("")
+  const [input, setInput] = React.useState(initialInput ?? "")
   const [pending, setPending] = React.useState(false)
   const endRef = React.useRef<HTMLDivElement>(null)
 
