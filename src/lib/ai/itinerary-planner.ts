@@ -1,11 +1,17 @@
 import { ITINERARY_TONES, type ItineraryTone } from "@/lib/trips/itinerary-types"
 
-export const ITINERARY_CATEGORIES = ["Activities", "Food", "Transportation"] as const
+export const ITINERARY_CATEGORIES = [
+  "Accommodation",
+  "Transportation",
+  "Activities",
+  "Food",
+  "Other",
+] as const
 
 export interface SkeletonEvent {
   text: string
   time: string
-  /** Activities | Food | Transportation; optional so a blank draft event stays valid. */
+  /** One of ITINERARY_CATEGORIES; optional so a blank draft event stays valid. */
   category?: string
 }
 export interface SkeletonDay {
