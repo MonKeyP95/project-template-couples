@@ -51,7 +51,7 @@ export async function applyItinerarySkeleton(
         dayDate: day.date,
         title: day.title,
         sub: "",
-        events: day.events.map((e) => ({ text: e.text, time: e.time })),
+        events: day.events.map((e) => ({ text: e.text, time: e.time, category: e.category })),
         tag: day.tag,
         tone: day.tone,
         locationId,
