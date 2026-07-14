@@ -90,7 +90,23 @@ export function BudgetTab({
         </div>
       </div>
 
-      {/* Budget bar + add expense */}
+      {/* Saved bar */}
+      <div className="mx-5 my-4 overflow-hidden rounded-xl border border-border bg-card">
+        <div className="px-5 pt-4 pb-4">
+          <SavedFigure
+            tripId={tripId}
+            tripSlug={tripSlug}
+            plannedBudgetCents={plannedBudgetCents}
+            savedCents={savedCents}
+            contributions={savingsContributions}
+            perUser={savedPerUser}
+            members={members}
+            currentUserId={currentUserId}
+          />
+        </div>
+      </div>
+
+      {/* Spent bar + add expense */}
       <div className="mx-5 my-4 overflow-hidden rounded-xl border border-border bg-card">
         <div className="px-5 pt-4 pb-4">
           <SpentFigure
@@ -119,33 +135,23 @@ export function BudgetTab({
         />
       </div>
 
-      {/* Saved + planned budget */}
+      {/* Plan a budget */}
       <div className="mx-5 my-4 overflow-hidden rounded-xl border border-border bg-card">
-        <div className="px-5 pt-4 pb-4">
-          <SavedFigure
-            tripId={tripId}
-            tripSlug={tripSlug}
-            plannedBudgetCents={plannedBudgetCents}
-            savedCents={savedCents}
-            contributions={savingsContributions}
-            perUser={savedPerUser}
-            members={members}
-            currentUserId={currentUserId}
-          />
+        <div className="px-5 pt-4 pb-1">
+          <Label>Plan a budget</Label>
         </div>
-        {aiEnabled ? (
-          <BudgetDrafter
-            tripId={tripId}
-            tripSlug={tripSlug}
-            tripName={tripName}
-            tripDays={tripDays}
-            plannedBudgetCents={plannedBudgetCents}
-            locations={locations}
-            itineraryDays={itineraryDays}
-            memberCount={Object.keys(members).length}
-            initialItems={budgetItems}
-          />
-        ) : null}
+        <BudgetDrafter
+          aiEnabled={aiEnabled}
+          tripId={tripId}
+          tripSlug={tripSlug}
+          tripName={tripName}
+          tripDays={tripDays}
+          plannedBudgetCents={plannedBudgetCents}
+          locations={locations}
+          itineraryDays={itineraryDays}
+          memberCount={Object.keys(members).length}
+          initialItems={budgetItems}
+        />
         <PlannedBudget
           tripId={tripId}
           tripSlug={tripSlug}
@@ -259,7 +265,6 @@ function PlannedBudget({
 
   return (
     <div className="border-t border-border px-5 pt-4 pb-5">
-      <Label>Planned budget</Label>
       {locations.map((loc) => (
         <BudgetScopeEditor
           key={loc.id}

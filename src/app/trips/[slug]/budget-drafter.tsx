@@ -120,6 +120,8 @@ export interface BudgetDrafterProps {
   itineraryDays: DayLocation[]
   memberCount: number
   initialItems: BudgetItem[]
+  /** When false, the drafter edits locally only -- no AI seed call. */
+  aiEnabled: boolean
 }
 
 export function BudgetDrafter({
@@ -132,6 +134,7 @@ export function BudgetDrafter({
   itineraryDays,
   memberCount,
   initialItems,
+  aiEnabled,
 }: BudgetDrafterProps) {
   const [session, setSession] = React.useState<Session | null>(null)
   const [stepIndex, setStepIndex] = React.useState(0)
@@ -195,6 +198,13 @@ export function BudgetDrafter({
     if (saved && Object.keys(saved).length > 0) {
       setUsedFallback(false)
       seedSession(planBudgetSteps(planInput), saved)
+      return
+    }
+
+    // Assistant off: seed the deterministic scaffold locally, no AI call.
+    if (!aiEnabled) {
+      setUsedFallback(false)
+      seedSession(planBudgetSteps(planInput), null)
       return
     }
 
@@ -321,7 +331,7 @@ export function BudgetDrafter({
               ? "Edit budget"
               : "Plan a budget"}
         </button>
-        {plannedBudgetCents > 0 ? (
+        {plannedBudgetCents > 0 && aiEnabled ? (
           <button
             type="button"
             onClick={() => open(true)}
