@@ -432,6 +432,128 @@ export async function draftBudgetSeeds(
   return input.items ?? []
 }
 
+export interface DraftedItineraryEvent {
+  /** One of: Activities, Food, Transportation. */
+  category: string
+  /** The exact itinerary location name this event belongs to. */
+  place: string
+  /** Short label, e.g. "Surf lesson at the point" or "Dinner - seafood". */
+  text: string
+  /** YYYY-MM-DD within the trip; may be empty if undated. */
+  date: string
+  /** HH:MM, may be empty. */
+  time: string
+}
+
+export interface ItineraryDraftContext {
+  destination: string
+  startDate: string
+  dayCount: number
+  locations: { name: string; nights: number; dateLabel: string | null }[]
+  vibe: string[]
+  brief: string
+  activityTypes: string[]
+  freeText: string
+  profileBlock: string
+  tasteDirective: string
+}
+
+const ITINERARY_TOOL: Anthropic.Messages.ToolUnion = {
+  name: "propose_itinerary",
+  description: "Return the drafted itinerary events.",
+  strict: true,
+  input_schema: {
+    type: "object",
+    additionalProperties: false,
+    properties: {
+      events: {
+        type: "array",
+        items: {
+          type: "object",
+          additionalProperties: false,
+          properties: {
+            category: {
+              type: "string",
+              enum: ["Activities", "Food", "Transportation"],
+              description: "Which kind of event this is.",
+            },
+            place: {
+              type: "string",
+              description: "The exact itinerary location name given for this event.",
+            },
+            text: {
+              type: "string",
+              description: "Short label for the event, e.g. 'Surf lesson' or 'Dinner - seafood'.",
+            },
+            date: {
+              type: "string",
+              description: "YYYY-MM-DD within the trip dates. Empty if you can't place it.",
+            },
+            time: {
+              type: "string",
+              description: "HH:MM 24h, or empty.",
+            },
+          },
+          required: ["category", "place", "text", "date", "time"],
+        },
+      },
+    },
+    required: ["events"],
+  },
+}
+
+const ITINERARY_SYSTEM =
+  "You draft a trip itinerary for a couple or family. You never ask questions " +
+  "or reply conversationally - you cannot receive a reply. You MUST call " +
+  "propose_itinerary with concrete events. For each itinerary place, propose a " +
+  "few Activities, a couple of Food ideas (a notable meal, a market), and any " +
+  "Transportation between places. Set place to the exact location name given. " +
+  "Spread events across that place's dates (set date to a real YYYY-MM-DD in " +
+  "range); leave date empty only if you truly cannot place it. Keep each event a " +
+  "short label, not a paragraph. Weight the couple's stated taste and vibe as a " +
+  "lens, never a checklist. Do not invent exact prices or booking details."
+
+function itineraryPrompt(c: ItineraryDraftContext): string {
+  const list = (label: string, items: string[]) =>
+    items.length ? `${label}: ${items.join(", ")}.` : ""
+  const places = c.locations.length
+    ? c.locations.map((l) => `${l.name} (${l.dateLabel ?? `${l.nights} nights`})`).join("; ")
+    : c.destination
+  return [
+    `Draft a ${c.dayCount}-day itinerary for ${c.destination}, starting ${c.startDate}.`,
+    `Places in order: ${places}.`,
+    list("Trip vibe", c.vibe),
+    c.brief ? `Trip brief: ${c.brief}.` : "",
+    list("Activity types they want", c.activityTypes),
+    c.freeText ? `They also said: ${c.freeText}.` : "",
+    c.profileBlock ? `Who they are (a lens, not a checklist): ${c.profileBlock}` : "",
+    c.tasteDirective,
+  ]
+    .filter(Boolean)
+    .join(" ")
+}
+
+/** Real Claude itinerary draft. Returns [] if the model finishes without proposing. */
+export async function draftItinerary(
+  context: ItineraryDraftContext,
+): Promise<DraftedItineraryEvent[]> {
+  const response = await anthropic.messages.create({
+    model: MODEL,
+    max_tokens: 2048,
+    system: ITINERARY_SYSTEM,
+    tools: [ITINERARY_TOOL],
+    tool_choice: { type: "tool", name: "propose_itinerary" },
+    messages: [{ role: "user", content: itineraryPrompt(context) }],
+  })
+  const proposal = response.content.find(
+    (block): block is Anthropic.ToolUseBlock =>
+      block.type === "tool_use" && block.name === "propose_itinerary",
+  )
+  if (!proposal) return []
+  const input = proposal.input as { events?: DraftedItineraryEvent[] }
+  return input.events ?? []
+}
+
 // --- Suggestions ---
 
 const SUGGESTION_TOOL: Anthropic.Messages.ToolUnion = {
