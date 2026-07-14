@@ -27,6 +27,8 @@ import { signalFloor, type LearnedCategory } from "@/lib/preferences/couple-summ
 import { isAiEnabled } from "@/lib/ai/ai-mode"
 import { LearnedSummary } from "./learned-summary"
 import { CategorySection } from "@/components/category-section"
+import { getBudgetHistory } from "@/lib/trips/budget-history-queries"
+import { BudgetHistory } from "./budget-history"
 
 const CATEGORY_LABEL: Record<LearnedCategory, string> = {
   food: "Food",
@@ -76,6 +78,8 @@ export default async function ProfilePage() {
       })),
     )
   ).filter((tb) => tb.blocks.length > 0)
+
+  const budgetHistory = await getBudgetHistory(startedTrips)
 
   const foodKey = [
     dining.budgetBand,
@@ -276,6 +280,8 @@ export default async function ProfilePage() {
               </div>
             </div>
           ) : null}
+
+          <BudgetHistory categories={budgetHistory} />
         </div>
       </main>
     </div>
