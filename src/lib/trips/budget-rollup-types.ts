@@ -1,12 +1,22 @@
-import type { Expense } from "@/lib/trips/expense-types"
-import type { BudgetItem } from "@/lib/trips/budget-item-types"
-
 export interface CategoryRollup {
   category: string
   /** Sum of budget items in this category. */
   plannedCents: number
   /** Sum of non-settlement expenses in this category. */
   actualCents: number
+}
+
+/** Minimal expense shape the rollup reads; full `Expense` is assignable. */
+export interface ExpenseSpend {
+  category: string
+  amountCents: number
+  isSettlement: boolean
+}
+
+/** Minimal budget-item shape the rollup reads; full `BudgetItem` is assignable. */
+export interface PlannedSpend {
+  category: string
+  amountCents: number
 }
 
 /**
@@ -16,8 +26,8 @@ export interface CategoryRollup {
  * order. Settlements are excluded from actual spend.
  */
 export function perCategoryRollup(
-  expenses: Expense[],
-  budgetItems: BudgetItem[],
+  expenses: ExpenseSpend[],
+  budgetItems: PlannedSpend[],
   catOrder: string[],
 ): CategoryRollup[] {
   const planned = new Map<string, number>()
