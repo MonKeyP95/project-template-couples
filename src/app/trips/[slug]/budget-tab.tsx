@@ -35,6 +35,14 @@ function fmt(cents: number): string {
   return (cents / 100).toFixed(2)
 }
 
+/** A key that changes when a scope's item set changes. The guided drafter's
+ * Apply (saveBudgetItems) replaces every row with a fresh id, so this remounts
+ * the editor and re-seeds it from the new items; inline amount edits keep ids
+ * and don't remount, so they stay smooth. */
+function scopeKey(prefix: string, items: BudgetItem[]): string {
+  return `${prefix}:${items.map((i) => i.id).join(",")}`
+}
+
 export interface BudgetTabProps {
   tripId: string
   tripSlug: string
@@ -255,7 +263,7 @@ function PlannedBudget({
     <div className="border-t border-border px-5 pt-4 pb-5">
       {locations.map((loc) => (
         <BudgetScopeEditor
-          key={loc.id}
+          key={scopeKey(loc.id, byLoc.get(loc.id) ?? [])}
           tripId={tripId}
           tripSlug={tripSlug}
           locationId={loc.id}
@@ -269,6 +277,7 @@ function PlannedBudget({
       ))}
       {locations.length === 0 ? (
         <BudgetScopeEditor
+          key={scopeKey("trip", tripWide)}
           tripId={tripId}
           tripSlug={tripSlug}
           locationId={null}
@@ -281,6 +290,7 @@ function PlannedBudget({
         />
       ) : (
         <BudgetScopeEditor
+          key={scopeKey("trip", tripWide)}
           tripId={tripId}
           tripSlug={tripSlug}
           locationId={null}
