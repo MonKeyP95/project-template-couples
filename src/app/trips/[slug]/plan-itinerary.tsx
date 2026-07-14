@@ -148,16 +148,21 @@ export function PlanItinerary({
   function generateDraft() {
     const names = placeNames.map((n) => n.trim()).filter((n) => n.length > 0)
     const types = activityTypes.map((t) => t.trim()).filter((t) => t.length > 0)
+    setError(null)
     startTransition(async () => {
-      const result = await draftItineraryForTrip({
-        tripSlug,
-        dayCount: days,
-        placeNames: names,
-        activityTypes: types,
-        freeText,
-      })
-      setSkeleton(result.skeleton)
-      setDrafted(result.drafted)
+      try {
+        const result = await draftItineraryForTrip({
+          tripSlug,
+          dayCount: days,
+          placeNames: names,
+          activityTypes: types,
+          freeText,
+        })
+        setSkeleton(result.skeleton)
+        setDrafted(result.drafted)
+      } catch {
+        setError("Couldn't draft right now — try again.")
+      }
     })
   }
 
@@ -455,6 +460,7 @@ export function PlanItinerary({
               >
                 Cancel
               </button>
+              {error ? <span className="font-mono text-[9px] text-clay">{error}</span> : null}
             </div>
           </>
         )}
