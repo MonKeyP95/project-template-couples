@@ -8,6 +8,7 @@ import { EventRating } from "@/components/event-rating"
 import { PlanningPlaceDoor } from "./find-a-place-planning"
 import { BudgetScopeEditor } from "./budget-scope-editor"
 import { EventExpense } from "./event-expense"
+import { PlanItinerary } from "./plan-itinerary"
 import type { BudgetItem } from "@/lib/trips/budget-item-types"
 import type { ExpenseCategoryRow } from "@/lib/trips/expense-types"
 import type { MemberToneEntry } from "./packing-tab"
@@ -672,7 +673,18 @@ export function ItineraryTab({
       </div>
 
       <div className="px-5 pt-4 pb-6 lg:px-10">
-        {active ? null : planningBlock}
+        {active ? null : (
+          <>
+            {planningBlock}
+            <PlanItinerary
+              tripId={tripId}
+              tripSlug={tripSlug}
+              destination={destination}
+              startDate={tripStartDate}
+              dayCount={dateRange(tripStartDate, tripEndDate).length}
+            />
+          </>
+        )}
 
         {timeline.length === 0 ? (
           <p className="font-serif text-[15px] italic text-muted-foreground">
