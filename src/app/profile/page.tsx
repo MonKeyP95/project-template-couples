@@ -23,7 +23,7 @@ import {
   countSignals,
   getTripLearnedBlocks,
 } from "@/lib/preferences/couple-summary-queries"
-import { RATING_FLOOR, type LearnedCategory } from "@/lib/preferences/couple-summary-types"
+import { signalFloor, type LearnedCategory } from "@/lib/preferences/couple-summary-types"
 import { isAiEnabled } from "@/lib/ai/ai-mode"
 import { LearnedSummary } from "./learned-summary"
 import { CategorySection } from "@/components/category-section"
@@ -171,7 +171,7 @@ export default async function ProfilePage() {
                   Save food
                 </Button>
               </form>
-              {foodRatings >= RATING_FLOOR ? (
+              {foodRatings >= signalFloor("food") ? (
                 <LearnedSummary
                   category="food"
                   summaryMd={foodSummary.summaryMd}
@@ -193,7 +193,7 @@ export default async function ProfilePage() {
                   Save activities
                 </Button>
               </form>
-              {activityRatings >= RATING_FLOOR ? (
+              {activityRatings >= signalFloor("activity") ? (
                 <LearnedSummary
                   category="activity"
                   summaryMd={activitySummary.summaryMd}
@@ -206,9 +206,9 @@ export default async function ProfilePage() {
 
             <CategorySection
               title="Accommodation"
-              hint={accommodationSignals >= RATING_FLOOR ? undefined : "empty"}
+              hint={accommodationSignals >= signalFloor("accommodation") ? undefined : "empty"}
             >
-              {accommodationSignals >= RATING_FLOOR ? (
+              {accommodationSignals >= signalFloor("accommodation") ? (
                 <LearnedSummary
                   category="accommodation"
                   summaryMd={accommodationSummary.summaryMd}
@@ -226,9 +226,9 @@ export default async function ProfilePage() {
 
             <CategorySection
               title="Transport"
-              hint={transportSignals >= RATING_FLOOR ? undefined : "empty"}
+              hint={transportSignals >= signalFloor("transport") ? undefined : "empty"}
             >
-              {transportSignals >= RATING_FLOOR ? (
+              {transportSignals >= signalFloor("transport") ? (
                 <LearnedSummary
                   category="transport"
                   summaryMd={transportSummary.summaryMd}

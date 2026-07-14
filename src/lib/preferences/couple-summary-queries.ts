@@ -2,7 +2,7 @@ import { createClient } from "@/lib/supabase/server"
 import {
   inferRatingCategory,
   learnedCategoryToExpenseName,
-  RATING_FLOOR,
+  signalFloor,
   type LearnedCategory,
   type TasteSignal,
 } from "./couple-summary-types"
@@ -305,7 +305,7 @@ export async function getTripLearnedBlocks(
   const blocks = await Promise.all(
     categories.map(async (category) => {
       const signalCount = await countTripSignals(tripId, category)
-      if (signalCount < RATING_FLOOR) return null
+      if (signalCount < signalFloor(category)) return null
       const summary = await getTripSummary(tripId, category)
       return {
         category,

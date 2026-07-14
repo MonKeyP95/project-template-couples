@@ -9,8 +9,15 @@ export type LearnedCategory = "food" | "activity" | "accommodation" | "transport
  * 3% and not worth a refresh. */
 const STALE_FRACTION = 0.2
 
-/** Minimum ratings in a category before any learned summary is shown. */
+/** Default minimum signals before a learned summary is shown (food, activity). */
 export const RATING_FLOOR = 3
+
+/** Minimum signals in a category before its learned summary is shown. Accommodation
+ * and transport learn from a thinner source (real expenses, no ratings), so they
+ * surface at a single signal; food and activity keep the higher floor. */
+export function signalFloor(category: LearnedCategory): number {
+  return category === "accommodation" || category === "transport" ? 1 : RATING_FLOOR
+}
 
 /** Meal words -> food; everything else -> activity. Best-effort tag set when a
  * rating is logged; the summariser still reads the text, so a mis-tag is low
