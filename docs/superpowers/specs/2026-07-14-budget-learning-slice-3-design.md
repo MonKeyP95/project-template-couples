@@ -1,7 +1,12 @@
 # Budget learning — Slice 3: the budget suggestion harness (v1: raise-the-buffer)
 
 **Date:** 2026-07-14
-**Status:** design, ready to plan
+**Status:** SHELVED — built and reverted 2026-07-14 (commit `f678fa6`). In-app
+verification showed the detector can't fire on real usage: it needs per-category
+*planned* budgets on >= 2 past started trips, but real trips log expenses without
+per-category plans. Kept as a recorded idea. If resumed, prefer the actuals-baseline
+detector (no per-category plan required) as the first signal. Rest of the doc is the
+original design.
 **Part of:** the budget-learning arc ([[project-budget-learning-vision]]). Follows Slice 1
 (per-trip lens), Slice 2 (cross-trip history on /profile), Slice 2.5 (per-trip summary on
 /profile). This is the third and final slice: the numbers start to **advise**.
