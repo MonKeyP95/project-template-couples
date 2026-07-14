@@ -8,8 +8,10 @@ import {
 } from "@/lib/trips/budget-rollup-types"
 import {
   buildBudgetHistory,
+  buildTripBudgetSummary,
   dayCountInclusive,
   type CategoryHistory,
+  type TripBudgetSummary,
   type TripRollupInput,
 } from "@/lib/trips/budget-history-types"
 
@@ -26,14 +28,12 @@ interface ItemRow {
 }
 
 /**
- * Cross-trip category history for the given trips (pass the started ones).
- * Live aggregation, no snapshot: reads current expenses + budget items and
- * folds each trip's Slice-1 rollup into a category-first history. RLS-scoped
- * by the caller's session.
+ * Per-trip Slice-1 rollups for the given trips (pass the started ones). One
+ * batched read of expenses + budget items; RLS-scoped by the caller's session.
  */
-export async function getBudgetHistory(
+export async function getTripRollups(
   trips: TripListItem[],
-): Promise<CategoryHistory[]> {
+): Promise<TripRollupInput[]> {
   const dated = trips.filter((t) => t.startDate && t.endDate)
   const tripIds = dated.map((t) => t.id)
   if (tripIds.length === 0) return []
@@ -71,7 +71,7 @@ export async function getBudgetHistory(
   }
 
   const catOrder = [...EXPENSE_CATEGORIES]
-  const inputs: TripRollupInput[] = dated.map((t) => ({
+  return dated.map((t) => ({
     tripId: t.id,
     tripName: t.name,
     startDate: t.startDate as string,
@@ -82,6 +82,21 @@ export async function getBudgetHistory(
       catOrder,
     ),
   }))
+}
 
-  return buildBudgetHistory(inputs, catOrder)
+/**
+ * Both /profile budget lenses from a single fetch: the cross-trip category
+ * history and the per-trip summaries (trips with real spend only).
+ */
+export async function getProfileBudgetData(
+  trips: TripListItem[],
+): Promise<{ history: CategoryHistory[]; summaries: TripBudgetSummary[] }> {
+  const rollups = await getTripRollups(trips)
+  const catOrder = [...EXPENSE_CATEGORIES]
+  return {
+    history: buildBudgetHistory(rollups, catOrder),
+    summaries: rollups
+      .map(buildTripBudgetSummary)
+      .filter((s) => s.totalActualCents > 0),
+  }
 }

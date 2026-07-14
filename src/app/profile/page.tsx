@@ -27,8 +27,9 @@ import { signalFloor, type LearnedCategory } from "@/lib/preferences/couple-summ
 import { isAiEnabled } from "@/lib/ai/ai-mode"
 import { LearnedSummary } from "./learned-summary"
 import { CategorySection } from "@/components/category-section"
-import { getBudgetHistory } from "@/lib/trips/budget-history-queries"
+import { getProfileBudgetData } from "@/lib/trips/budget-history-queries"
 import { BudgetHistory } from "./budget-history"
+import { TripBudget } from "./trip-budget"
 
 const CATEGORY_LABEL: Record<LearnedCategory, string> = {
   food: "Food",
@@ -79,7 +80,17 @@ export default async function ProfilePage() {
     )
   ).filter((tb) => tb.blocks.length > 0)
 
-  const budgetHistory = await getBudgetHistory(startedTrips)
+  const { history: budgetHistory, summaries: budgetSummaries } =
+    await getProfileBudgetData(startedTrips)
+  const tasteByTrip = new Map(tripBlocks.map((tb) => [tb.trip.id, tb.blocks]))
+  const budgetByTrip = new Map(budgetSummaries.map((s) => [s.tripId, s]))
+  const byTripRows = startedTrips
+    .filter((t) => tasteByTrip.has(t.id) || budgetByTrip.has(t.id))
+    .map((t) => ({
+      trip: t,
+      blocks: tasteByTrip.get(t.id) ?? [],
+      budget: budgetByTrip.get(t.id) ?? null,
+    }))
 
   const foodKey = [
     dining.budgetBand,
@@ -249,13 +260,11 @@ export default async function ProfilePage() {
             </CategorySection>
           </div>
 
-          {tripBlocks.length > 0 ? (
+          {byTripRows.length > 0 ? (
             <div className="mt-10 border-t border-border pt-8">
-              <p className="text-sm text-muted-foreground">
-                By trip (what each trip taught us)
-              </p>
+              <p className="text-sm text-muted-foreground">By trip</p>
               <div className="mt-4 flex flex-col gap-8">
-                {tripBlocks.map(({ trip, blocks }) => (
+                {byTripRows.map(({ trip, blocks, budget }) => (
                   <div key={trip.id}>
                     <h3 className="font-serif text-lg tracking-tight">
                       {trip.name}
@@ -275,6 +284,7 @@ export default async function ProfilePage() {
                         />
                       </div>
                     ))}
+                    {budget ? <TripBudget summary={budget} /> : null}
                   </div>
                 ))}
               </div>
