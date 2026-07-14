@@ -474,12 +474,12 @@ const ITINERARY_TOOL: Anthropic.Messages.ToolUnion = {
           properties: {
             category: {
               type: "string",
-              enum: ["Activities", "Food", "Transportation"],
+              enum: ["Accommodation", "Transportation", "Activities", "Food", "Other"],
               description: "Which kind of event this is.",
             },
             place: {
               type: "string",
-              description: "The exact itinerary location name given for this event.",
+              description: "The exact itinerary place name given for this event, or empty.",
             },
             text: {
               type: "string",
@@ -497,21 +497,30 @@ const ITINERARY_TOOL: Anthropic.Messages.ToolUnion = {
           required: ["category", "place", "text", "date", "time"],
         },
       },
+      question: {
+        type: "string",
+        description:
+          "Empty when you proposed events. When the input is too thin to ground on, leave events empty and put ONE short clarifying question here.",
+      },
     },
-    required: ["events"],
+    required: ["events", "question"],
   },
 }
 
 const ITINERARY_SYSTEM =
-  "You draft a trip itinerary for a couple or family. You never ask questions " +
-  "or reply conversationally - you cannot receive a reply. You MUST call " +
-  "propose_itinerary with concrete events. For each itinerary place, propose a " +
-  "few Activities, a couple of Food ideas (a notable meal, a market), and any " +
-  "Transportation between places. Set place to the exact location name given. " +
-  "Spread events across that place's dates (set date to a real YYYY-MM-DD in " +
-  "range); leave date empty only if you truly cannot place it. Keep each event a " +
-  "short label, not a paragraph. Weight the couple's stated taste and vibe as a " +
-  "lens, never a checklist. Do not invent exact prices or booking details."
+  "You draft a trip itinerary for a couple or family by calling propose_itinerary. " +
+  "Be SPARSE: propose only a few genuinely grounded items per category (roughly one " +
+  "or two), and leave a category empty if you have nothing concrete. Do not pad with " +
+  "generic filler like 'explore the old town'. Leave room for the user to fill the rest. " +
+  "GROUNDING: stay strictly on the specific place names given; never leap from a country " +
+  "to a city the user did not name; never invent a place or date from the trip's name. " +
+  "Set place to one of the exact place names given (or empty). Set date to a real " +
+  "YYYY-MM-DD within range, or empty if you cannot place it. Keep each event a short " +
+  "label, not a paragraph. Weight the couple's taste and vibe as a lens, never a checklist. " +
+  "Do not invent prices or booking details. " +
+  "If what you were given is too thin to ground on (for example no usable place), do NOT " +
+  "guess: return an empty events array and put ONE short clarifying question in question. " +
+  "Otherwise return your events and leave question empty."
 
 function itineraryPrompt(c: ItineraryDraftContext): string {
   const list = (label: string, items: string[]) =>
@@ -533,10 +542,11 @@ function itineraryPrompt(c: ItineraryDraftContext): string {
     .join(" ")
 }
 
-/** Real Claude itinerary draft. Returns [] if the model finishes without proposing. */
+/** Real Claude itinerary draft. Returns sparse, grounded events, OR an empty
+ * events array plus one clarifying question when the input is too thin. */
 export async function draftItinerary(
   context: ItineraryDraftContext,
-): Promise<DraftedItineraryEvent[]> {
+): Promise<{ events: DraftedItineraryEvent[]; question: string }> {
   const response = await anthropic.messages.create({
     model: MODEL,
     max_tokens: 2048,
@@ -549,9 +559,9 @@ export async function draftItinerary(
     (block): block is Anthropic.ToolUseBlock =>
       block.type === "tool_use" && block.name === "propose_itinerary",
   )
-  if (!proposal) return []
-  const input = proposal.input as { events?: DraftedItineraryEvent[] }
-  return input.events ?? []
+  if (!proposal) return { events: [], question: "" }
+  const input = proposal.input as { events?: DraftedItineraryEvent[]; question?: string }
+  return { events: input.events ?? [], question: input.question ?? "" }
 }
 
 // --- Suggestions ---
