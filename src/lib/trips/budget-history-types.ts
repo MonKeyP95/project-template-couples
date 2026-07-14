@@ -93,3 +93,29 @@ export function buildBudgetHistory(
     return { category, trips: list, avgPerDayCents, avgVariancePct }
   })
 }
+
+export interface TripBudgetSummary {
+  tripId: string
+  tripName: string
+  /** The trip's per-category rollup (categories with a plan or spend), ordered by catOrder. */
+  categories: CategoryRollup[]
+  totalPlannedCents: number
+  totalActualCents: number
+}
+
+/**
+ * Trip-first view: the trip's full rollup plus totals. Render only when
+ * totalActualCents > 0 (real spend) — the /profile query filters on that.
+ */
+export function buildTripBudgetSummary(
+  input: TripRollupInput,
+): TripBudgetSummary {
+  const categories = input.rollup
+  return {
+    tripId: input.tripId,
+    tripName: input.tripName,
+    categories,
+    totalPlannedCents: categories.reduce((s, c) => s + c.plannedCents, 0),
+    totalActualCents: categories.reduce((s, c) => s + c.actualCents, 0),
+  }
+}
