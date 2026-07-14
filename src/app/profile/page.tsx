@@ -23,10 +23,17 @@ import {
   countSignals,
   getTripLearnedBlocks,
 } from "@/lib/preferences/couple-summary-queries"
-import { RATING_FLOOR } from "@/lib/preferences/couple-summary-types"
+import { RATING_FLOOR, type LearnedCategory } from "@/lib/preferences/couple-summary-types"
 import { isAiEnabled } from "@/lib/ai/ai-mode"
 import { LearnedSummary } from "./learned-summary"
 import { CategorySection } from "@/components/category-section"
+
+const CATEGORY_LABEL: Record<LearnedCategory, string> = {
+  food: "Food",
+  activity: "Activities",
+  accommodation: "Accommodation",
+  transport: "Transport",
+}
 
 export default async function ProfilePage() {
   const supabase = await createClient()
@@ -49,6 +56,10 @@ export default async function ProfilePage() {
   const foodRatings = await countSignals(workspace.id, "food")
   const activitySummary = await getCoupleSummary(workspace.id, "activity")
   const activityRatings = await countSignals(workspace.id, "activity")
+  const accommodationSummary = await getCoupleSummary(workspace.id, "accommodation")
+  const accommodationSignals = await countSignals(workspace.id, "accommodation")
+  const transportSummary = await getCoupleSummary(workspace.id, "transport")
+  const transportSignals = await countSignals(workspace.id, "transport")
   const buckets = await listTripsForWorkspace(workspace.id)
   const hero = buckets.now[0] ?? buckets.upcoming[0] ?? null
   const navDestinations = buildNavDestinations({
@@ -193,17 +204,44 @@ export default async function ProfilePage() {
               ) : null}
             </CategorySection>
 
-            <CategorySection title="Accommodation" hint="empty">
-              <p className="text-sm text-muted-foreground">
-                Nothing here yet — this will hold what you look for in a place to
-                stay.
-              </p>
+            <CategorySection
+              title="Accommodation"
+              hint={accommodationSignals >= RATING_FLOOR ? undefined : "empty"}
+            >
+              {accommodationSignals >= RATING_FLOOR ? (
+                <LearnedSummary
+                  category="accommodation"
+                  summaryMd={accommodationSummary.summaryMd}
+                  ratingCount={accommodationSignals}
+                  countAtGeneration={accommodationSummary.ratingCountAtGeneration}
+                  aiOn={aiOn}
+                />
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  Nothing here yet — this grows from what you book to stay in on
+                  your trips.
+                </p>
+              )}
             </CategorySection>
 
-            <CategorySection title="Transport" hint="empty">
-              <p className="text-sm text-muted-foreground">
-                Nothing here yet — this will hold how you like to get around.
-              </p>
+            <CategorySection
+              title="Transport"
+              hint={transportSignals >= RATING_FLOOR ? undefined : "empty"}
+            >
+              {transportSignals >= RATING_FLOOR ? (
+                <LearnedSummary
+                  category="transport"
+                  summaryMd={transportSummary.summaryMd}
+                  ratingCount={transportSignals}
+                  countAtGeneration={transportSummary.ratingCountAtGeneration}
+                  aiOn={aiOn}
+                />
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  Nothing here yet — this grows from how you get around on your
+                  trips.
+                </p>
+              )}
             </CategorySection>
           </div>
 
@@ -221,7 +259,7 @@ export default async function ProfilePage() {
                     {blocks.map((b) => (
                       <div key={b.category}>
                         <p className="mt-4 font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
-                          {b.category === "food" ? "Food" : "Activities"}
+                          {CATEGORY_LABEL[b.category]}
                         </p>
                         <LearnedSummary
                           category={b.category}
