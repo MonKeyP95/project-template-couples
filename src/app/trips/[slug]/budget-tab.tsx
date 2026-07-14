@@ -20,7 +20,6 @@ import { type ItineraryLocation } from "@/lib/trips/location-types"
 import { AssistantBlock } from "@/components/assistant-block"
 
 import { BudgetByCategory } from "./budget-by-category"
-import { BudgetByLocation } from "./budget-by-location"
 import { BudgetDrafter } from "./budget-drafter"
 import { BudgetScopeEditor } from "./budget-scope-editor"
 import { PlanningPlaceDoor } from "./find-a-place-planning"
@@ -193,17 +192,6 @@ export function BudgetTab({
           }
         />
       </div>
-      <BudgetByLocation
-        tripId={tripId}
-        tripSlug={tripSlug}
-        masterBudgetCents={plannedBudgetCents}
-        locations={locations}
-        expenses={expenses}
-        itineraryDays={itineraryDays}
-        members={members}
-        moves={moves}
-        categories={expenseCategories}
-      />
       <Ledger
         expenses={expenses}
         moves={moves}

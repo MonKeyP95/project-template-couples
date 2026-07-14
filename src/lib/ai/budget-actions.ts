@@ -28,37 +28,38 @@ function toSeed(item: DraftedBudgetItem): SeedItem {
   }
 }
 
-/** Overlay Claude's items onto the deterministic scaffold. A bucket that
- * receives >= 1 item has its seed replaced; a bucket with no items keeps its
- * mock seed. Grouped steps (Accommodation/Activities) match `place` to a group
- * by case-insensitive title; unmatched grouped items are dropped. */
+/** Category keys whose steps are per-location; the rest are trip-wide. */
+const PER_LOCATION = new Set(["accommodation", "food", "activities"])
+
+/** Overlay Claude's items onto the deterministic scaffold. Each step is one
+ * (category, place); a step that receives >= 1 item has its seed replaced, one
+ * with none keeps its mock seed. A per-location item is matched to its step by
+ * category + place name (case-insensitive); trip-wide items ignore place.
+ * Unmatched items are dropped. */
 function mergeSeeds(steps: BudgetStep[], items: DraftedBudgetItem[]): BudgetStep[] {
-  // stepKey -> (groupTitleLower | "") -> SeedItem[]
-  const byBucket = new Map<string, Map<string, SeedItem[]>>()
+  // (catKey, placeLower) -> the step's bucket key. Trip-wide steps key on "".
+  const bucketByCatPlace = new Map<string, string>()
+  for (const step of steps) {
+    const catKey = step.key.split(":")[0]
+    const placeLower = step.place ? step.place.trim().toLowerCase() : ""
+    bucketByCatPlace.set(`${catKey}::${placeLower}`, step.key)
+  }
+
+  const byBucket = new Map<string, SeedItem[]>()
   for (const item of items) {
-    const stepKey = STEP_KEY_BY_CATEGORY[item.category]
-    if (!stepKey) continue
-    const groupKey = item.place.trim().toLowerCase()
-    const stepMap = byBucket.get(stepKey) ?? new Map<string, SeedItem[]>()
-    const rows = stepMap.get(groupKey) ?? []
+    const catKey = STEP_KEY_BY_CATEGORY[item.category]
+    if (!catKey) continue
+    const placeLower = PER_LOCATION.has(catKey) ? item.place.trim().toLowerCase() : ""
+    const bucketKey = bucketByCatPlace.get(`${catKey}::${placeLower}`)
+    if (!bucketKey) continue
+    const rows = byBucket.get(bucketKey) ?? []
     rows.push(toSeed(item))
-    stepMap.set(groupKey, rows)
-    byBucket.set(stepKey, stepMap)
+    byBucket.set(bucketKey, rows)
   }
 
   return steps.map((step) => {
-    const stepMap = byBucket.get(step.key)
-    if (!stepMap) return step
-    if (step.groups) {
-      const groups = step.groups.map((g) => {
-        const rows = stepMap.get(g.title.trim().toLowerCase())
-        return rows && rows.length ? { ...g, seed: rows } : g
-      })
-      return { ...step, groups }
-    }
-    // Flat step: gather all items for this step regardless of place.
-    const rows = Array.from(stepMap.values()).flat()
-    return rows.length ? { ...step, seed: rows } : step
+    const rows = byBucket.get(step.key)
+    return rows && rows.length ? { ...step, seed: rows } : step
   })
 }
 

@@ -6,7 +6,6 @@ import { Label } from "@/components/together"
 import {
   estimateItemCents,
   planBudgetSteps,
-  type BudgetGroup,
   type BudgetStep,
 } from "@/lib/ai/budget-planner"
 import { draftBudget } from "@/lib/ai/budget-actions"
@@ -40,16 +39,6 @@ interface Session {
   items: Record<string, ItemRow[]>
 }
 
-/** The buckets a step holds: one per group, or a single one for a flat step. */
-function stepBuckets(
-  step: BudgetStep,
-): { bucketId: string; group: BudgetGroup | null }[] {
-  if (step.groups) {
-    return step.groups.map((g) => ({ bucketId: `${step.key}:${g.key}`, group: g }))
-  }
-  return [{ bucketId: step.key, group: null }]
-}
-
 type SavedItems = Record<string, { subject: string; when: string; value: string }[]>
 
 const CATEGORY_BY_STEP: Record<string, string> = {
@@ -66,18 +55,24 @@ const STEP_BY_CATEGORY: Record<string, string> = {
   Activities: "activities",
   Other: "other",
 }
-const GROUPED_STEPS = new Set(["accommodation", "activities"])
+const PER_LOCATION = new Set(["accommodation", "food", "activities"])
 
-/** Server items -> the drafter's bucket-keyed saved shape. */
-function serverToSaved(items: BudgetItem[]): SavedItems {
+/** Server items -> the drafter's bucket-keyed saved shape. Per-location items
+ * whose location isn't current (legacy trip-wide food, a deleted place) fall to
+ * the first place so nothing is silently lost. */
+function serverToSaved(items: BudgetItem[], places: { id: string }[]): SavedItems {
+  const ids = new Set(places.map((p) => p.id))
+  const fallback = places[0]?.id ?? "trip"
   const out: SavedItems = {}
   for (const it of items) {
-    const stepKey = STEP_BY_CATEGORY[it.category]
-    if (!stepKey) continue
-    const bucketId = GROUPED_STEPS.has(stepKey)
-      ? `${stepKey}:${it.locationId ?? "trip"}`
-      : stepKey
-    ;(out[bucketId] ??= []).push({
+    const catKey = STEP_BY_CATEGORY[it.category]
+    if (!catKey) continue
+    const locKey = PER_LOCATION.has(catKey)
+      ? it.locationId && ids.has(it.locationId)
+        ? it.locationId
+        : fallback
+      : "trip"
+    ;(out[`${catKey}:${locKey}`] ??= []).push({
       subject: it.subject,
       when: it.whenLabel,
       value: it.amountCents ? fmt(it.amountCents) : "",
@@ -151,24 +146,21 @@ export function BudgetDrafter({
     return { id: `it-${itemSeq.current++}`, subject, when, value }
   }
 
-  /** Seed a session from steps: saved rows when present for a bucket, else the
-   * step/group seeds (mock or AI-drafted). */
+  /** Seed a session from steps: saved rows when present for a step, else the
+   * step seeds (mock or AI-drafted). */
   function seedSession(steps: BudgetStep[], saved: SavedItems | null) {
     const items: Record<string, ItemRow[]> = {}
     for (const step of steps) {
-      for (const { bucketId, group } of stepBuckets(step)) {
-        const seed = group ? group.seed : step.seed ?? []
-        const savedRows = saved?.[bucketId]
-        items[bucketId] = savedRows
-          ? savedRows.map((r) => newRow(r.subject, r.when, r.value))
-          : seed.map((s) =>
-              newRow(
-                s.subject,
-                s.when,
-                s.suggestedCents != null ? fmt(s.suggestedCents) : "",
-              ),
-            )
-      }
+      const savedRows = saved?.[step.key]
+      items[step.key] = savedRows
+        ? savedRows.map((r) => newRow(r.subject, r.when, r.value))
+        : step.seed.map((s) =>
+            newRow(
+              s.subject,
+              s.when,
+              s.suggestedCents != null ? fmt(s.suggestedCents) : "",
+            ),
+          )
     }
     setError(null)
     setStepIndex(0)
@@ -194,7 +186,9 @@ export function BudgetDrafter({
     const planInput = { tripName, totalDays, memberCount, locations: locInput }
 
     // Edit budget: restore saved rows locally, no AI call.
-    const saved = fromScratch ? null : serverToSaved(initialItems)
+    const placeList =
+      locations.length > 0 ? locations.map((l) => ({ id: l.id })) : [{ id: "trip" }]
+    const saved = fromScratch ? null : serverToSaved(initialItems, placeList)
     if (saved && Object.keys(saved).length > 0) {
       setUsedFallback(false)
       seedSession(planBudgetSteps(planInput), saved)
@@ -266,23 +260,20 @@ export function BudgetDrafter({
   function normalizeStep(step: BudgetStep) {
     setSession((s) => {
       if (!s) return s
-      const items = { ...s.items }
-      for (const { bucketId } of stepBuckets(step)) {
-        items[bucketId] = (s.items[bucketId] ?? [])
-          .filter(
-            (r) =>
-              r.subject.trim() !== "" ||
-              r.when.trim() !== "" ||
-              r.value.trim() !== "",
-          )
-          .map((r) =>
-            (r.subject.trim() !== "" || r.when.trim() !== "") &&
-            r.value.trim() === ""
-              ? { ...r, value: fmt(estimateItemCents()) }
-              : r,
-          )
-      }
-      return { ...s, items }
+      const rows = (s.items[step.key] ?? [])
+        .filter(
+          (r) =>
+            r.subject.trim() !== "" ||
+            r.when.trim() !== "" ||
+            r.value.trim() !== "",
+        )
+        .map((r) =>
+          (r.subject.trim() !== "" || r.when.trim() !== "") &&
+          r.value.trim() === ""
+            ? { ...r, value: fmt(estimateItemCents()) }
+            : r,
+        )
+      return { ...s, items: { ...s.items, [step.key]: rows } }
     })
   }
 
@@ -429,8 +420,15 @@ export function BudgetDrafter({
           </span>
         </div>
 
-        <div className="mt-2 font-serif text-[15px] italic text-foreground">
-          {step.title}
+        <div className="mt-2 flex flex-wrap items-baseline gap-2">
+          <span className="font-serif text-[15px] italic text-foreground">
+            {step.place ? `${step.place} · ${step.title}` : step.title}
+          </span>
+          {step.placeWhen ? (
+            <span className="font-mono text-[9px] uppercase tracking-[0.14em] text-muted-foreground">
+              {step.placeWhen}
+            </span>
+          ) : null}
         </div>
         <div className="mt-1 text-[13px] text-foreground">{step.question}</div>
         {step.hint ? (
@@ -444,43 +442,10 @@ export function BudgetDrafter({
           </div>
         ) : null}
 
-        {step.groups ? (
-          <div className="mt-3 space-y-3">
-            {step.groups.map((g) => {
-              const bucketId = `${step.key}:${g.key}`
-              const rows = session!.items[bucketId] ?? []
-              return (
-                <div key={g.key}>
-                  <div className="flex items-baseline gap-2">
-                    <span className="font-serif text-[13px] italic text-foreground">
-                      {g.title}
-                    </span>
-                    {g.when ? (
-                      <span className="font-mono text-[9px] uppercase tracking-[0.14em] text-muted-foreground">
-                        {g.when}
-                      </span>
-                    ) : null}
-                  </div>
-                  <div className="mt-1.5 space-y-2">
-                    {rows.map((row) => renderRow(bucketId, row))}
-                  </div>
-                  <div className="mt-1.5">
-                    {renderAddButton(bucketId, step.addNoun, true)}
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-        ) : (
-          <>
-            <div className="mt-3 space-y-2">
-              {(session!.items[step.key] ?? []).map((row) =>
-                renderRow(step.key, row),
-              )}
-            </div>
-            <div className="mt-2">{renderAddButton(step.key, step.addNoun, false)}</div>
-          </>
-        )}
+        <div className="mt-3 space-y-2">
+          {(session!.items[step.key] ?? []).map((row) => renderRow(step.key, row))}
+        </div>
+        <div className="mt-2">{renderAddButton(step.key, step.addNoun, false)}</div>
 
         <div className="mt-4 flex items-center justify-between">
           <button
@@ -521,22 +486,20 @@ export function BudgetDrafter({
       onChange: (v: string) => void
     }[] = []
     for (const step of session!.steps) {
-      for (const { bucketId, group } of stepBuckets(step)) {
-        for (const row of session!.items[bucketId] ?? []) {
-          const subject = row.subject.trim()
-          const primary = group
-            ? subject
-              ? `${group.title} · ${subject}`
-              : group.title
-            : subject || step.title
-          lines.push({
-            id: row.id,
-            primary,
-            when: row.when,
-            value: row.value,
-            onChange: (v) => patchItem(bucketId, row.id, { value: v }),
-          })
-        }
+      for (const row of session!.items[step.key] ?? []) {
+        const subject = row.subject.trim()
+        const primary = step.place
+          ? subject
+            ? `${step.place} · ${subject}`
+            : `${step.place} · ${step.title}`
+          : subject || step.title
+        lines.push({
+          id: row.id,
+          primary,
+          when: row.when,
+          value: row.value,
+          onChange: (v) => patchItem(step.key, row.id, { value: v }),
+        })
       }
     }
 
