@@ -34,6 +34,8 @@ import { computeTripDays } from "@/lib/trips/trip-days"
 import { getTripWeather, getTripWeekForecast } from "@/lib/weather/get-trip-weather"
 import type { DayForecast } from "@/lib/weather/get-weather"
 import { detectWeatherPacking } from "@/lib/nudges/weather-packing"
+import { detectRaiseTheBuffer } from "@/lib/nudges/raise-the-buffer"
+import { getTripRollups } from "@/lib/trips/budget-history-queries"
 import { listTripsForWorkspace } from "@/lib/trips/list-queries"
 import { getTripBySlug, type TripHeader } from "@/lib/trips/queries"
 import { getTripShareState } from "@/lib/trips/shared-trip-queries"
@@ -217,6 +219,22 @@ export default async function TripPage({
     tripSlug: header.slug,
   })
 
+  const budgetNudge =
+    activeTab === "budget"
+      ? detectRaiseTheBuffer({
+          thisTripPlan: (budgetItems ?? []).reduce<Record<string, number>>(
+            (acc, it) => {
+              acc[it.category] = (acc[it.category] ?? 0) + it.amountCents
+              return acc
+            },
+            {},
+          ),
+          pastRollups: await getTripRollups(
+            [...navTrips.now, ...navTrips.past].filter((t) => t.id !== header.id),
+          ),
+        })
+      : null
+
   return (
     <main className="relative mx-auto min-h-screen w-full max-w-[440px] pb-32 lg:flex lg:max-w-none lg:items-stretch lg:pb-0">
       <RefreshOnVisible />
@@ -297,6 +315,7 @@ export default async function TripPage({
             moves={budgetMoves ?? []}
             budgetItems={budgetItems ?? []}
             currentUserId={userData.user.id}
+            budgetNudge={budgetNudge}
           />
         ) : (
           <ProfileTab

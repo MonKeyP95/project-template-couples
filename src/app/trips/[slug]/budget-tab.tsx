@@ -16,6 +16,7 @@ import {
   type DayLocation,
 } from "@/lib/trips/location-budget-types"
 import { type ItineraryLocation } from "@/lib/trips/location-types"
+import type { Nudge } from "@/lib/nudges/types"
 
 import { AssistantBlock } from "@/components/assistant-block"
 
@@ -55,6 +56,7 @@ export interface BudgetTabProps {
   moves: BudgetMove[]
   budgetItems: BudgetItem[]
   currentUserId: string
+  budgetNudge?: Nudge | null
 }
 
 export function BudgetTab({
@@ -76,6 +78,7 @@ export function BudgetTab({
   moves,
   budgetItems,
   currentUserId,
+  budgetNudge,
 }: BudgetTabProps) {
   const { enabled: aiEnabled } = useAiMode()
   const [settleOpen, setSettleOpen] = React.useState(false)
@@ -178,6 +181,7 @@ export function BudgetTab({
         <AssistantBlock
           surface="budget"
           tripSlug={tripSlug}
+          nudge={budgetNudge}
           door={
             <PlanningPlaceDoor
               tripId={tripId}
