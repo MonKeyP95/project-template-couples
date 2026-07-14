@@ -19,6 +19,7 @@ import { type ItineraryLocation } from "@/lib/trips/location-types"
 
 import { AssistantBlock } from "@/components/assistant-block"
 
+import { BudgetByCategory } from "./budget-by-category"
 import { BudgetByLocation } from "./budget-by-location"
 import { BudgetDrafter } from "./budget-drafter"
 import { BudgetScopeEditor } from "./budget-scope-editor"
@@ -107,17 +108,14 @@ export function BudgetTab({
           locations={locations}
           categories={expenseCategories}
         />
-        <Ledger
+        <BudgetByCategory
           expenses={expenses}
-          moves={[]}
+          budgetItems={budgetItems}
+          categories={expenseCategories}
           members={members}
           tripSlug={tripSlug}
           locations={locations}
           itineraryDays={itineraryDays}
-          categories={expenseCategories}
-          label="Expenses"
-          defaultExpanded={false}
-          bare
         />
       </div>
 
