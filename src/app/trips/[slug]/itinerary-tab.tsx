@@ -680,6 +680,7 @@ export function ItineraryTab({
               tripId={tripId}
               tripSlug={tripSlug}
               destination={destination}
+              tripName={tripName}
               startDate={tripStartDate}
               dayCount={dateRange(tripStartDate, tripEndDate).length}
             />

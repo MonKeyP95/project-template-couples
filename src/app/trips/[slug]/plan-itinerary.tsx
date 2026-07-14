@@ -16,6 +16,8 @@ export interface PlanItineraryProps {
   tripId: string
   tripSlug: string
   destination: string
+  /** The trip's own name — the location fallback when no place is typed (never the country). */
+  tripName: string
   startDate: string
   dayCount: number
 }
@@ -33,6 +35,7 @@ export function PlanItinerary({
   tripId,
   tripSlug,
   destination,
+  tripName,
   startDate,
   dayCount,
 }: PlanItineraryProps) {
@@ -116,7 +119,7 @@ export function PlanItinerary({
 
   function apply() {
     if (isPending) return
-    const skeleton = itemsToSkeleton(items, trimmedPlaces, destination, startDate, dayCount)
+    const skeleton = itemsToSkeleton(items, trimmedPlaces, tripName, startDate, dayCount)
     startTransition(async () => {
       const r = await applyItinerarySkeleton({ tripId, tripSlug, skeleton })
       if (r.error) {

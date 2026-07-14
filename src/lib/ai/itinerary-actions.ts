@@ -94,7 +94,8 @@ export async function draftItineraryItems(input: {
 
   try {
     const scaffold = planItinerarySkeleton({
-      destination,
+      // No place typed -> the location is the trip's own name, never the country.
+      destination: trip.name,
       startDate: trip.startDate,
       dayCount: input.dayCount,
       placeNames: names,
