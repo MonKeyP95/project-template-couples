@@ -38,12 +38,18 @@ spine. Day-to-day editing continues in the existing itinerary UI, on the same
   - a **free-text** "anything else."
 - **Draft.** Send the context **+** `buildAssistantContext(workspaceId, tripId)`
   (couple profile + trip profile + taste dial — already built) to a new
-  `draftItinerary` seam. Claude returns a structured skeleton: **places**
-  (locations, each with a span / night count) and a **day-by-day plan** (days,
-  each with proposed **events**).
-- **Refine.** The draft renders grouped `place → day → events`. Accept / edit /
-  delete proposed events, add your own. This is the "then-refine" half — the AI
-  does the first pass, you correct it.
+  `draftItinerary` seam. Claude returns, **per place, its events grouped by
+  category** (Activities / Food / Transportation — the budget blueprint applied
+  to events, reusing the event `category` field), each event carrying an
+  optional **day + time**, and a multi-day activity expressed as a **block**
+  ("surfing · 3 days").
+- **Refine.** The draft renders **per place, walked by category** (like the
+  budget planner's per-category flow), events under each. Accept / edit / delete,
+  set a day/time, add your own. **Malleable rearranging is NOT rebuilt here** —
+  moving a block, growing/shrinking a day, shifting the rest lives in the
+  **existing itinerary editor** after Apply (multi-day "added-together" blocks,
+  spans, and gap-aware push already exist). The guide drafts; the itinerary
+  editor rearranges.
 - **Review → Apply.** Write the accepted draft to the itinerary (locations +
   days + events) via the existing itinerary mutation actions, then drop into the
   normal itinerary UI to keep refining.
@@ -52,7 +58,10 @@ spine. Day-to-day editing continues in the existing itinerary UI, on the same
 
 No new tables. Reuse `itinerary_locations`, `itinerary_days`, and the day
 `events` jsonb, written through the existing itinerary actions (add location /
-add day / append events). Apply maps the accepted draft onto those.
+add day / append events). Apply maps the accepted draft onto those. Events carry
+the existing optional **`category`** (`Food` / `Activities` / …); a **multi-day
+activity block** maps to the itinerary's existing multi-day "added-together"
+block via `addItineraryDay`'s `endDate` + `groupName` — no new mechanism.
 
 **Apply semantics (key decision — see Open #1):** additive / merge, **not**
 replace-all. First run populates an empty itinerary; a re-run **augments** (fills
@@ -82,11 +91,17 @@ Mirror the budget planner exactly (`DECISIONS.md` 2026-06-15, 2026-07-09):
 
 ## Slice plan (design-first, then execute)
 
-1. **Shell + write path.** The guided flow with a deterministic skeleton (no AI),
-   one access (itinerary-tab button), trips **and** dreams. Proves the harness
-   and the additive write path end-to-end.
-2. **AI feed.** Context preamble + `buildAssistantContext` + the `draftItinerary`
-   seam. The profile-fed generation — the "wow."
+1. **Shell + write path — SHIPPED 2026-07-14 (dated trips only; in-app verified).**
+   The guided flow with a deterministic skeleton (no AI), one access
+   (itinerary-tab button). Proved the harness + additive write end-to-end.
+   Dreams deferred (separate write path). Note: the shipped skeleton is
+   place→day with empty events — the category-organized structure below lands in
+   slice 2.
+2. **AI feed + category-organized draft.** Context preamble +
+   `buildAssistantContext` + the `draftItinerary` seam, returning events grouped
+   **per place by category** (Activities / Food / Transportation) with an
+   optional day/time and multi-day blocks. The profile-fed generation — the
+   "wow," and the budget-blueprint flow the shipped shell was missing.
 3. **Onboarding routing.** New trip/dream routes profile-first → guided itinerary.
 4. **Two-access + polish.** Inline access on the spine, per-section free text,
    dream/trip parity refinements.
@@ -97,9 +112,12 @@ Parked (separate follow-up): rebuild "Plan a budget" to share this harness.
 
 1. **Apply semantics** — additive/merge (recommended: first-run populate, re-run
    augment, never blind-replace) vs replace-on-explicit-confirm.
-2. **Refine granularity** — a deep stepper (place → day → events, many screens)
-   vs a **single scrollable draft** grouped by place→day that you edit inline
-   (recommended: lighter, and the whole proposed trip is visible at once).
+2. **Refine granularity** — RESOLVED (2026-07-14, post-slice-1): **category-first
+   per place** (Activities / Food / Transportation, the budget blueprint), events
+   carrying an optional day + time (days are an event field, not a walk level),
+   and multi-day activities as blocks. Malleable move/resize is **not** rebuilt in
+   the guide — it reuses the existing itinerary editor. (Supersedes the earlier
+   "single scrollable draft grouped by place→day.")
 3. **Free text** — captured as AI context only (recommended) vs also saved as a
    day/location note.
 4. **Profile step gating** — does Step 1 block creation, or is it skippable?
@@ -113,3 +131,6 @@ Parked (separate follow-up): rebuild "Plan a budget" to share this harness.
 - Not rebuilding "Plan a budget" in this feature (parked).
 - Not replacing the hand-editing itinerary UI — the guided flow drafts and
   augments; the day UI stays the fine-grained editor.
+- **Not building a parallel move/resize/timeline editor in the guide.** Moving a
+  block, adding/reducing a day, and shifting the rest reuse the itinerary's
+  existing multi-day blocks, spans, and gap-aware push. The guide only drafts.
