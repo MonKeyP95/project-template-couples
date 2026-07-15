@@ -23,6 +23,9 @@ import {
 import { getTripSavings } from "@/lib/trips/savings-queries"
 import { getTripBudgetMoves } from "@/lib/trips/budget-move-queries"
 import { getBudgetItems } from "@/lib/trips/budget-item-queries"
+import { budgetBucketFor } from "@/lib/ai/budget-planner"
+import { getProfileBudgetData } from "@/lib/trips/budget-history-queries"
+import { recommendBufferPct } from "@/lib/trips/budget-history-types"
 import { summarizeBudget } from "@/lib/trips/expense-types"
 import { getTripDetailBySlug } from "@/lib/trips/fixtures"
 import { getItineraryDays } from "@/lib/trips/itinerary-queries"
@@ -217,6 +220,31 @@ export default async function TripPage({
     tripSlug: header.slug,
   })
 
+  // Budget-drafter inputs: seed the walk from the itinerary (categorized events
+  // per location), and recommend a buffer from the couple's past overspend.
+  const itinerarySeeds: Record<string, string[]> = {}
+  let bufferRec = { pct: 10, reason: "a typical starting buffer" }
+  if (activeTab === "budget") {
+    const seen = new Set<string>()
+    for (const day of datedItinerary ?? []) {
+      for (const ev of day.events) {
+        if (!ev.category) continue
+        const bucket = budgetBucketFor(ev.category, day.locationId)
+        const text = ev.text.trim()
+        if (!bucket || !text) continue
+        const dedupe = `${bucket}::${text.toLowerCase()}`
+        if (seen.has(dedupe)) continue
+        seen.add(dedupe)
+        ;(itinerarySeeds[bucket] ??= []).push(text)
+      }
+    }
+    const { summaries } = await getProfileBudgetData([
+      ...navTrips.now,
+      ...navTrips.past,
+    ])
+    bufferRec = recommendBufferPct(summaries)
+  }
+
   return (
     <main className="relative mx-auto min-h-screen w-full max-w-[440px] pb-32 lg:flex lg:max-w-none lg:items-stretch lg:pb-0">
       <RefreshOnVisible />
@@ -296,6 +324,8 @@ export default async function TripPage({
             itineraryDays={datedItinerary ?? []}
             moves={budgetMoves ?? []}
             budgetItems={budgetItems ?? []}
+            itinerarySeeds={itinerarySeeds}
+            bufferRec={bufferRec}
             currentUserId={userData.user.id}
           />
         ) : (

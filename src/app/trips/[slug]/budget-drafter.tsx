@@ -3,12 +3,11 @@
 import * as React from "react"
 
 import { Label } from "@/components/together"
+import { planBudgetSteps, type BudgetStep } from "@/lib/ai/budget-planner"
 import {
-  estimateItemCents,
-  planBudgetSteps,
-  type BudgetStep,
-} from "@/lib/ai/budget-planner"
-import { draftBudget } from "@/lib/ai/budget-actions"
+  draftAndFillBudget,
+  type EnteredLine,
+} from "@/lib/ai/budget-actions"
 import { saveBudgetItems, type SaveBudgetItemInput } from "@/lib/trips/actions"
 import type { BudgetItem } from "@/lib/trips/budget-item-types"
 import {
@@ -30,16 +29,21 @@ interface ItemRow {
   id: string
   subject: string
   when: string
+  /** Euros, "" when blank or no reliable price. */
   value: string
+  /** The assistant supplied this amount. */
+  estimated?: boolean
+  /** Backing web-search URL, when it found one. */
+  sourceUrl?: string | null
+  /** The assistant couldn't price this; value stays "". */
+  priceUnknown?: boolean
 }
 
 interface Session {
   steps: BudgetStep[]
-  /** bucket id -> rows. Bucket = step.key (flat) or `${step.key}:${group.key}`. */
+  /** bucket id (`${stepKey}:${locId|trip}`) -> rows. */
   items: Record<string, ItemRow[]>
 }
-
-type SavedItems = Record<string, { subject: string; when: string; value: string }[]>
 
 const CATEGORY_BY_STEP: Record<string, string> = {
   accommodation: "Accommodation",
@@ -56,53 +60,7 @@ const STEP_BY_CATEGORY: Record<string, string> = {
   Other: "other",
 }
 const PER_LOCATION = new Set(["accommodation", "food", "activities"])
-
-/** Server items -> the drafter's bucket-keyed saved shape. Per-location items
- * whose location isn't current (legacy trip-wide food, a deleted place) fall to
- * the first place so nothing is silently lost. */
-function serverToSaved(items: BudgetItem[], places: { id: string }[]): SavedItems {
-  const ids = new Set(places.map((p) => p.id))
-  const fallback = places[0]?.id ?? "trip"
-  const out: SavedItems = {}
-  for (const it of items) {
-    const catKey = STEP_BY_CATEGORY[it.category]
-    if (!catKey) continue
-    const locKey = PER_LOCATION.has(catKey)
-      ? it.locationId && ids.has(it.locationId)
-        ? it.locationId
-        : fallback
-      : "trip"
-    ;(out[`${catKey}:${locKey}`] ??= []).push({
-      subject: it.subject,
-      when: it.whenLabel,
-      value: it.amountCents ? fmt(it.amountCents) : "",
-    })
-  }
-  return out
-}
-
-/** The drafter's session -> server items (drops blank rows). */
-function sessionToServerItems(session: Session): SaveBudgetItemInput[] {
-  const out: SaveBudgetItemInput[] = []
-  for (const [bucketId, rows] of Object.entries(session.items)) {
-    const [stepKey, locKey] = bucketId.split(":")
-    const category = CATEGORY_BY_STEP[stepKey]
-    if (!category) continue
-    const locationId = locKey && locKey !== "trip" ? locKey : null
-    for (const r of rows) {
-      const cents = asCents(r.value)
-      if (r.subject.trim() === "" && cents === 0) continue
-      out.push({
-        category,
-        subject: r.subject,
-        whenLabel: r.when,
-        amountCents: cents,
-        locationId,
-      })
-    }
-  }
-  return out
-}
+const isBufferSubject = (s: string) => /^buffer \(/i.test(s.trim())
 
 export interface BudgetDrafterProps {
   tripId: string
@@ -115,6 +73,10 @@ export interface BudgetDrafterProps {
   itineraryDays: DayLocation[]
   memberCount: number
   initialItems: BudgetItem[]
+  /** Walk seeds from the itinerary: bucket id -> candidate subjects. */
+  itinerarySeeds: Record<string, string[]>
+  /** Recommended buffer % + one-line reason, from the couple's history. */
+  bufferRec: { pct: number; reason: string }
 }
 
 export function BudgetDrafter({
@@ -127,45 +89,29 @@ export function BudgetDrafter({
   itineraryDays,
   memberCount,
   initialItems,
+  itinerarySeeds,
+  bufferRec,
 }: BudgetDrafterProps) {
   const [session, setSession] = React.useState<Session | null>(null)
   const [stepIndex, setStepIndex] = React.useState(0)
+  const [bufferPct, setBufferPct] = React.useState(bufferRec.pct)
+  const [generated, setGenerated] = React.useState(false)
   const [error, setError] = React.useState<string | null>(null)
   const [isPending, startTransition] = React.useTransition()
-  const [drafting, setDrafting] = React.useState(false)
-  const [usedFallback, setUsedFallback] = React.useState(false)
   const itemSeq = React.useRef(0)
 
   const totalDays = tripDays > 0 ? tripDays : itineraryDays.length
   if (totalDays === 0 && locations.length === 0) return null
 
-  function newRow(subject = "", when = "", value = ""): ItemRow {
-    return { id: `it-${itemSeq.current++}`, subject, when, value }
+  const bufferIndex = session ? session.steps.length : 0
+  const reviewIndex = bufferIndex + 1
+
+  function newRow(fields: Partial<ItemRow> = {}): ItemRow {
+    return { id: `it-${itemSeq.current++}`, subject: "", when: "", value: "", ...fields }
   }
 
-  /** Seed a session from steps: saved rows when present for a step, else the
-   * step seeds (mock or AI-drafted). */
-  function seedSession(steps: BudgetStep[], saved: SavedItems | null) {
-    const items: Record<string, ItemRow[]> = {}
-    for (const step of steps) {
-      const savedRows = saved?.[step.key]
-      items[step.key] = savedRows
-        ? savedRows.map((r) => newRow(r.subject, r.when, r.value))
-        : step.seed.map((s) =>
-            newRow(
-              s.subject,
-              s.when,
-              s.suggestedCents != null ? fmt(s.suggestedCents) : "",
-            ),
-          )
-    }
-    setError(null)
-    setStepIndex(0)
-    setSession({ steps, items })
-  }
-
-  async function open(fromScratch = false) {
-    // Per-location nights + a human date label, from the itinerary days.
+  /** Per-location nights + date label, and an id->name map, from the itinerary. */
+  function locContext() {
     const nightsByLoc: Record<string, number> = {}
     const datesByLoc: Record<string, string[]> = {}
     for (const d of itineraryDays) {
@@ -175,44 +121,82 @@ export function BudgetDrafter({
       }
     }
     const locInput = locations.map((l) => ({
-      id: l.id,
       name: l.name,
       nights: nightsByLoc[l.id] ?? 0,
       dateLabel: locationDateLabel(l.startDate, l.endDate, datesByLoc[l.id] ?? []),
     }))
-    const planInput = { tripName, totalDays, memberCount, locations: locInput }
+    const nameById: Record<string, string> = {}
+    for (const l of locations) nameById[l.id] = l.name
+    return { locInput, nameById }
+  }
 
-    // Edit budget: restore saved rows locally, no AI call.
-    const placeList =
-      locations.length > 0 ? locations.map((l) => ({ id: l.id })) : [{ id: "trip" }]
-    const saved = fromScratch ? null : serverToSaved(initialItems, placeList)
-    if (saved && Object.keys(saved).length > 0) {
-      setUsedFallback(false)
-      seedSession(planBudgetSteps(planInput), saved)
-      return
+  /** Existing budget items -> saved rows per bucket (drops the derived buffer
+   * line; keeps marks). Per-location items on a missing place fall to the first. */
+  function savedRows(): Record<string, Partial<ItemRow>[]> {
+    const ids = new Set(locations.map((l) => l.id))
+    const fallback = locations[0]?.id ?? "trip"
+    const out: Record<string, Partial<ItemRow>[]> = {}
+    for (const it of initialItems) {
+      if (isBufferSubject(it.subject)) continue
+      const catKey = STEP_BY_CATEGORY[it.category]
+      if (!catKey) continue
+      const locKey = PER_LOCATION.has(catKey)
+        ? it.locationId && ids.has(it.locationId)
+          ? it.locationId
+          : fallback
+        : "trip"
+      ;(out[`${catKey}:${locKey}`] ??= []).push({
+        subject: it.subject,
+        when: it.whenLabel,
+        value: it.priceUnknown ? "" : it.amountCents ? fmt(it.amountCents) : "",
+        estimated: it.estimated,
+        sourceUrl: it.sourceUrl,
+        priceUnknown: it.priceUnknown,
+      })
     }
+    return out
+  }
 
-    // Plan a budget / Start over: draft with Claude, fall back to the scaffold.
-    // Pressing the draft button is explicit consent, so it always calls the
-    // model regardless of the global assistant toggle.
-    setDrafting(true)
-    setUsedFallback(false)
-    try {
-      const { steps, drafted } = await draftBudget({ ...planInput, tripSlug })
-      setUsedFallback(!drafted)
-      seedSession(steps, null)
-    } finally {
-      setDrafting(false)
+  function seedFromItinerary(): Record<string, Partial<ItemRow>[]> {
+    const out: Record<string, Partial<ItemRow>[]> = {}
+    for (const [bucket, subjects] of Object.entries(itinerarySeeds)) {
+      out[bucket] = subjects.map((subject) => ({ subject }))
     }
+    return out
+  }
+
+  function seedSession(seed: Record<string, Partial<ItemRow>[]>) {
+    const steps = planBudgetSteps({
+      tripName,
+      totalDays,
+      memberCount,
+      locations: locContext().locInput.map((l, i) => ({
+        id: locations[i]?.id ?? "trip",
+        name: l.name,
+        nights: l.nights,
+        dateLabel: l.dateLabel,
+      })),
+    })
+    const items: Record<string, ItemRow[]> = {}
+    for (const step of steps) {
+      items[step.key] = (seed[step.key] ?? []).map((r) => newRow(r))
+    }
+    setError(null)
+    setGenerated(false)
+    setBufferPct(bufferRec.pct)
+    setStepIndex(0)
+    setSession({ steps, items })
+  }
+
+  function open(fromScratch = false) {
+    const restore = !fromScratch && plannedBudgetCents > 0
+    seedSession(restore ? savedRows() : seedFromItinerary())
   }
 
   function addItem(bucketId: string) {
     setSession((s) =>
       s
-        ? {
-            ...s,
-            items: { ...s.items, [bucketId]: [...(s.items[bucketId] ?? []), newRow()] },
-          }
+        ? { ...s, items: { ...s.items, [bucketId]: [...(s.items[bucketId] ?? []), newRow()] } }
         : s,
     )
   }
@@ -233,6 +217,11 @@ export function BudgetDrafter({
     )
   }
 
+  /** Editing a price makes the line the couple's own — clears the marks. */
+  function editValue(bucketId: string, id: string, value: string) {
+    patchItem(bucketId, id, { value, estimated: false, sourceUrl: null, priceUnknown: false })
+  }
+
   function removeItem(bucketId: string, id: string) {
     setSession((s) =>
       s
@@ -247,35 +236,105 @@ export function BudgetDrafter({
     )
   }
 
-  // Leaving a step: in each of its buckets drop empty rows, and for a row with a
-  // subject/when but no cost let the assistant estimate it (explicit 0 is kept).
+  /** Leaving a category step: drop rows that are entirely empty. */
   function normalizeStep(step: BudgetStep) {
     setSession((s) => {
       if (!s) return s
-      const rows = (s.items[step.key] ?? [])
-        .filter(
-          (r) =>
-            r.subject.trim() !== "" ||
-            r.when.trim() !== "" ||
-            r.value.trim() !== "",
-        )
-        .map((r) =>
-          (r.subject.trim() !== "" || r.when.trim() !== "") &&
-          r.value.trim() === ""
-            ? { ...r, value: fmt(estimateItemCents()) }
-            : r,
-        )
+      const rows = (s.items[step.key] ?? []).filter(
+        (r) => r.subject.trim() !== "" || r.when.trim() !== "" || r.value.trim() !== "",
+      )
       return { ...s, items: { ...s.items, [step.key]: rows } }
     })
   }
 
   function goNext() {
     if (!session) return
-    normalizeStep(session.steps[stepIndex])
+    if (stepIndex < session.steps.length) normalizeStep(session.steps[stepIndex])
     setStepIndex((i) => i + 1)
   }
 
-  function totalCents(s: Session): number {
+  function collectLines(s: Session): EnteredLine[] {
+    const { nameById } = locContext()
+    const lines: EnteredLine[] = []
+    for (const [bucketId, rows] of Object.entries(s.items)) {
+      const [stepKey, locKey] = bucketId.split(":")
+      const category = CATEGORY_BY_STEP[stepKey]
+      if (!category) continue
+      const place = locKey && locKey !== "trip" ? nameById[locKey] ?? "" : ""
+      for (const r of rows) {
+        if (r.subject.trim() === "" && r.value.trim() === "") continue
+        const cents = asCents(r.value)
+        lines.push({
+          category,
+          place,
+          subject: r.subject.trim(),
+          whenLabel: r.when.trim(),
+          amountEuros: cents > 0 ? cents / 100 : null,
+        })
+      }
+    }
+    return lines
+  }
+
+  /** Filled review lines -> bucket-keyed rows, matching by place name. */
+  function filledToItems(
+    lines: {
+      category: string
+      place: string
+      subject: string
+      whenLabel: string
+      amountCents: number
+      estimated: boolean
+      sourceUrl: string | null
+      priceUnknown: boolean
+    }[],
+  ): Record<string, ItemRow[]> {
+    const idByName = new Map(locations.map((l) => [l.name.trim().toLowerCase(), l.id]))
+    const fallback = locations[0]?.id ?? "trip"
+    const out: Record<string, ItemRow[]> = {}
+    for (const line of lines) {
+      const catKey = STEP_BY_CATEGORY[line.category]
+      if (!catKey) continue
+      const bucket = PER_LOCATION.has(catKey)
+        ? `${catKey}:${(line.place && idByName.get(line.place.trim().toLowerCase())) || fallback}`
+        : `${catKey}:trip`
+      ;(out[bucket] ??= []).push(
+        newRow({
+          subject: line.subject,
+          when: line.whenLabel,
+          value: line.priceUnknown ? "" : fmt(line.amountCents),
+          estimated: line.estimated,
+          sourceUrl: line.sourceUrl,
+          priceUnknown: line.priceUnknown,
+        }),
+      )
+    }
+    return out
+  }
+
+  function generate() {
+    if (!session || isPending) return
+    setError(null)
+    const { locInput } = locContext()
+    const lines = collectLines(session)
+    startTransition(async () => {
+      const r = await draftAndFillBudget({
+        tripId,
+        tripSlug,
+        lines,
+        locations: locInput,
+        memberCount,
+      })
+      if (r.error) {
+        setError(r.error)
+        return
+      }
+      setSession((s) => (s ? { ...s, items: filledToItems(r.lines ?? []) } : s))
+      setGenerated(true)
+    })
+  }
+
+  function subtotalCents(s: Session): number {
     let sum = 0
     for (const rows of Object.values(s.items)) {
       for (const r of rows) sum += asCents(r.value)
@@ -283,14 +342,49 @@ export function BudgetDrafter({
     return sum
   }
 
+  function unknownCount(s: Session): number {
+    let n = 0
+    for (const rows of Object.values(s.items)) {
+      for (const r of rows) if (r.priceUnknown) n++
+    }
+    return n
+  }
+
   function apply() {
     if (!session || isPending) return
-    startTransition(async () => {
-      const r = await saveBudgetItems({
-        tripId,
-        tripSlug,
-        items: sessionToServerItems(session),
+    const items: SaveBudgetItemInput[] = []
+    for (const [bucketId, rows] of Object.entries(session.items)) {
+      const [stepKey, locKey] = bucketId.split(":")
+      const category = CATEGORY_BY_STEP[stepKey]
+      if (!category) continue
+      const locationId = locKey && locKey !== "trip" ? locKey : null
+      for (const r of rows) {
+        const cents = asCents(r.value)
+        if (r.subject.trim() === "" && cents === 0 && !r.priceUnknown) continue
+        items.push({
+          category,
+          subject: r.subject,
+          whenLabel: r.when,
+          amountCents: cents,
+          locationId,
+          estimated: r.estimated ?? false,
+          sourceUrl: r.sourceUrl ?? null,
+          priceUnknown: r.priceUnknown ?? false,
+        })
+      }
+    }
+    const buffer = Math.round((subtotalCents(session) * bufferPct) / 100)
+    if (buffer > 0) {
+      items.push({
+        category: "Other",
+        subject: `Buffer (${bufferPct}%)`,
+        whenLabel: "",
+        amountCents: buffer,
+        locationId: null,
       })
+    }
+    startTransition(async () => {
+      const r = await saveBudgetItems({ tripId, tripSlug, items })
       if (r.error) {
         setError(r.error)
         return
@@ -305,21 +399,15 @@ export function BudgetDrafter({
         <button
           type="button"
           onClick={() => open()}
-          disabled={drafting}
-          className="rounded-full border border-border bg-transparent px-3 py-1.5 font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground hover:text-foreground disabled:opacity-50"
+          className="rounded-full border border-border bg-transparent px-3 py-1.5 font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground hover:text-foreground"
         >
-          {drafting
-            ? "drafting…"
-            : plannedBudgetCents > 0
-              ? "Edit budget"
-              : "Plan a budget"}
+          {plannedBudgetCents > 0 ? "Edit budget" : "Plan a budget"}
         </button>
         {plannedBudgetCents > 0 ? (
           <button
             type="button"
             onClick={() => open(true)}
-            disabled={drafting}
-            className="rounded-full border border-dashed border-border bg-transparent px-3 py-1.5 font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground hover:text-foreground disabled:opacity-50"
+            className="rounded-full border border-dashed border-border bg-transparent px-3 py-1.5 font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground hover:text-foreground"
           >
             Start over
           </button>
@@ -328,12 +416,14 @@ export function BudgetDrafter({
     )
   }
 
-  const onSummary = stepIndex >= session.steps.length
-
   return (
     <div className="border-t border-border px-5 pt-4 pb-2">
       <div className="rounded-lg border border-border bg-card px-3.5 py-3">
-        {onSummary ? renderSummary() : renderStep(session.steps[stepIndex])}
+        {stepIndex < session.steps.length
+          ? renderStep(session.steps[stepIndex])
+          : stepIndex === bufferIndex
+            ? renderBuffer()
+            : renderReview()}
       </div>
     </div>
   )
@@ -377,7 +467,7 @@ export function BudgetDrafter({
               min={0}
               placeholder="0"
               value={row.value}
-              onChange={(e) => patchItem(bucketId, row.id, { value: e.target.value })}
+              onChange={(e) => editValue(bucketId, row.id, e.target.value)}
               disabled={isPending}
               className="t-num w-20 border-0 border-b border-border bg-transparent text-right text-[14px] text-foreground outline-none focus:border-foreground"
             />
@@ -387,22 +477,7 @@ export function BudgetDrafter({
     )
   }
 
-  function renderAddButton(bucketId: string, addNoun: string, here: boolean) {
-    return (
-      <button
-        type="button"
-        onClick={() => addItem(bucketId)}
-        disabled={isPending}
-        className="rounded-full border border-dashed border-border bg-transparent px-2.5 py-1 font-mono text-[9.5px] uppercase tracking-[0.12em] text-muted-foreground hover:text-foreground"
-      >
-        + add {addNoun}
-        {here ? " here" : ""}
-      </button>
-    )
-  }
-
   function renderStep(step: BudgetStep) {
-    const isLast = stepIndex === session!.steps.length - 1
     return (
       <>
         <div className="flex items-center justify-between">
@@ -428,16 +503,20 @@ export function BudgetDrafter({
             {step.hint}
           </div>
         ) : null}
-        {usedFallback ? (
-          <div className="mt-1 font-mono text-[10px] leading-snug tracking-[0.06em] text-clay">
-            couldn&apos;t reach the assistant — using rough estimates
-          </div>
-        ) : null}
 
         <div className="mt-3 space-y-2">
           {(session!.items[step.key] ?? []).map((row) => renderRow(step.key, row))}
         </div>
-        <div className="mt-2">{renderAddButton(step.key, step.addNoun, false)}</div>
+        <div className="mt-2">
+          <button
+            type="button"
+            onClick={() => addItem(step.key)}
+            disabled={isPending}
+            className="rounded-full border border-dashed border-border bg-transparent px-2.5 py-1 font-mono text-[9.5px] uppercase tracking-[0.12em] text-muted-foreground hover:text-foreground"
+          >
+            + add {step.addNoun}
+          </button>
+        </div>
 
         <div className="mt-4 flex items-center justify-between">
           <button
@@ -461,7 +540,7 @@ export function BudgetDrafter({
               onClick={goNext}
               className="rounded-md border-0 bg-foreground px-3 py-1.5 font-mono text-[9.5px] uppercase tracking-[0.2em] text-background"
             >
-              {isLast ? "review" : "next"}
+              next
             </button>
           </div>
         </div>
@@ -469,14 +548,71 @@ export function BudgetDrafter({
     )
   }
 
-  function renderSummary() {
-    const lines: {
-      id: string
-      primary: string
-      when: string
-      value: string
-      onChange: (v: string) => void
-    }[] = []
+  function renderBuffer() {
+    const choices = [5, 10, 15]
+    const isPreset = choices.includes(bufferPct)
+    return (
+      <>
+        <Label>Buffer</Label>
+        <div className="mt-2 font-serif text-[15px] italic text-foreground">
+          How much buffer?
+        </div>
+        <div className="mt-1 font-mono text-[10px] leading-snug tracking-[0.06em] text-muted-foreground">
+          A cushion on top of the total — {bufferRec.reason}.
+        </div>
+
+        <div className="mt-3 flex items-center gap-1.5">
+          {choices.map((c) => (
+            <button
+              key={c}
+              type="button"
+              onClick={() => setBufferPct(c)}
+              className={`rounded-md border px-3 py-1.5 font-mono text-[11px] ${
+                bufferPct === c
+                  ? "border-0 bg-foreground text-background"
+                  : "border-border bg-transparent text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              {c}%
+            </button>
+          ))}
+          <span className="inline-flex items-baseline gap-1 pl-1">
+            <input
+              type="number"
+              inputMode="numeric"
+              min={0}
+              max={100}
+              value={isPreset ? "" : String(bufferPct)}
+              placeholder="custom"
+              onChange={(e) => setBufferPct(Math.max(0, Math.min(100, Number(e.target.value) || 0)))}
+              className="t-num w-16 border-0 border-b border-border bg-transparent text-right text-[13px] text-foreground outline-none focus:border-foreground"
+            />
+            <span className="font-mono text-[12px] text-muted-foreground">%</span>
+          </span>
+        </div>
+
+        <div className="mt-4 flex items-center justify-between">
+          <button
+            type="button"
+            onClick={() => setStepIndex(session!.steps.length - 1)}
+            className="border-0 bg-transparent p-0 font-mono text-[10px] uppercase tracking-[0.2em] text-muted-foreground hover:text-foreground"
+          >
+            back
+          </button>
+          <button
+            type="button"
+            onClick={() => setStepIndex(reviewIndex)}
+            className="rounded-md border-0 bg-foreground px-3 py-1.5 font-mono text-[9.5px] uppercase tracking-[0.2em] text-background"
+          >
+            review
+          </button>
+        </div>
+      </>
+    )
+  }
+
+  function renderReview() {
+    const lines: { bucketId: string; row: ItemRow; primary: string }[] = []
     for (const step of session!.steps) {
       for (const row of session!.items[step.key] ?? []) {
         const subject = row.subject.trim()
@@ -485,15 +621,12 @@ export function BudgetDrafter({
             ? `${step.place} · ${subject}`
             : `${step.place} · ${step.title}`
           : subject || step.title
-        lines.push({
-          id: row.id,
-          primary,
-          when: row.when,
-          value: row.value,
-          onChange: (v) => patchItem(step.key, row.id, { value: v }),
-        })
+        lines.push({ bucketId: step.key, row, primary })
       }
     }
+    const subtotal = subtotalCents(session!)
+    const buffer = Math.round((subtotal * bufferPct) / 100)
+    const toPrice = unknownCount(session!)
 
     return (
       <>
@@ -501,7 +634,7 @@ export function BudgetDrafter({
           <Label>Your budget</Label>
           <button
             type="button"
-            onClick={() => setStepIndex(session!.steps.length - 1)}
+            onClick={() => setStepIndex(bufferIndex)}
             disabled={isPending}
             className="border-0 bg-transparent p-0 font-mono text-[9px] uppercase tracking-[0.16em] text-muted-foreground hover:text-foreground"
           >
@@ -515,55 +648,110 @@ export function BudgetDrafter({
               Nothing added yet
             </div>
           ) : (
-            lines.map((line) => (
+            lines.map(({ bucketId, row, primary }) => (
               <div
-                key={line.id}
+                key={row.id}
                 className="flex items-center justify-between gap-3 border-t border-rule py-2 first:border-t-0"
               >
                 <span className="min-w-0">
-                  <span className="text-[13px] text-foreground">{line.primary}</span>
-                  {line.when ? (
+                  <span className="text-[13px] text-foreground">{primary}</span>
+                  {row.when ? (
                     <span className="ml-2 font-mono text-[10px] tracking-[0.04em] text-muted-foreground">
-                      {line.when}
+                      {row.when}
                     </span>
                   ) : null}
+                  {row.estimated ? (
+                    <span className="ml-2 font-mono text-[9px] uppercase tracking-[0.14em] text-clay">
+                      est.
+                    </span>
+                  ) : null}
+                  {row.sourceUrl ? (
+                    <a
+                      href={row.sourceUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="ml-1.5 font-mono text-[9px] uppercase tracking-[0.14em] text-sea underline"
+                    >
+                      source
+                    </a>
+                  ) : null}
                 </span>
-                <span className="inline-flex items-baseline gap-1">
-                  <span className="font-mono text-[12px] text-muted-foreground">€</span>
-                  <input
-                    type="number"
-                    inputMode="numeric"
-                    min={0}
-                    placeholder="0"
-                    value={line.value}
-                    onChange={(e) => line.onChange(e.target.value)}
-                    disabled={isPending}
-                    className="t-num w-20 border-0 border-b border-border bg-transparent text-right text-[13px] text-foreground outline-none focus:border-foreground"
-                  />
-                </span>
+                {row.priceUnknown ? (
+                  <span className="inline-flex items-baseline gap-1">
+                    <span className="font-mono text-[9px] uppercase tracking-[0.12em] text-muted-foreground">
+                      no price
+                    </span>
+                    <span className="font-mono text-[12px] text-muted-foreground">€</span>
+                    <input
+                      type="number"
+                      inputMode="numeric"
+                      min={0}
+                      placeholder="add"
+                      value={row.value}
+                      onChange={(e) => editValue(bucketId, row.id, e.target.value)}
+                      disabled={isPending}
+                      className="t-num w-16 border-0 border-b border-border bg-transparent text-right text-[13px] text-foreground outline-none focus:border-foreground"
+                    />
+                  </span>
+                ) : (
+                  <span className="inline-flex items-baseline gap-1">
+                    <span className="font-mono text-[12px] text-muted-foreground">€</span>
+                    <input
+                      type="number"
+                      inputMode="numeric"
+                      min={0}
+                      placeholder="0"
+                      value={row.value}
+                      onChange={(e) => editValue(bucketId, row.id, e.target.value)}
+                      disabled={isPending}
+                      className="t-num w-20 border-0 border-b border-border bg-transparent text-right text-[13px] text-foreground outline-none focus:border-foreground"
+                    />
+                  </span>
+                )}
               </div>
             ))
           )}
         </div>
 
+        {buffer > 0 ? (
+          <div className="mt-2 flex items-center justify-between border-t border-rule pt-2 font-mono text-[11px] text-muted-foreground">
+            <span>Buffer ({bufferPct}%)</span>
+            <span className="t-num">€{fmt(buffer)}</span>
+          </div>
+        ) : null}
+
         <div className="mt-3 flex items-center justify-between border-t border-border pt-3">
           <span className="font-serif text-[15px] italic text-foreground">Total</span>
-          <span className="t-num text-[18px] text-foreground">
-            €{fmt(totalCents(session!))}
-          </span>
+          <span className="t-num text-[18px] text-foreground">€{fmt(subtotal + buffer)}</span>
         </div>
+        {toPrice > 0 ? (
+          <div className="mt-1 text-right font-mono text-[9px] uppercase tracking-[0.14em] text-clay">
+            + {toPrice} still to price
+          </div>
+        ) : null}
+
         <div className="mt-2 font-mono text-[9px] uppercase tracking-[0.16em] text-muted-foreground">
-          Applying sets your trip budget.
+          {generated
+            ? "Applying sets your trip budget."
+            : "Generate fills the gaps, then apply to save."}
         </div>
 
         <div className="mt-3 flex items-center gap-1.5">
+          <button
+            type="button"
+            onClick={generate}
+            disabled={isPending}
+            className="rounded-md border border-border bg-transparent px-3 py-1.5 font-mono text-[9.5px] uppercase tracking-[0.2em] text-foreground disabled:opacity-40"
+          >
+            {isPending ? "…" : generated ? "regenerate" : "generate"}
+          </button>
           <button
             type="button"
             onClick={apply}
             disabled={isPending}
             className="rounded-md border-0 bg-foreground px-3 py-1.5 font-mono text-[9.5px] uppercase tracking-[0.2em] text-background disabled:opacity-40"
           >
-            {isPending ? "…" : "apply"}
+            apply
           </button>
           <button
             type="button"
@@ -573,9 +761,7 @@ export function BudgetDrafter({
           >
             dismiss
           </button>
-          {error ? (
-            <span className="font-mono text-[9px] text-clay">{error}</span>
-          ) : null}
+          {error ? <span className="font-mono text-[9px] text-clay">{error}</span> : null}
         </div>
       </>
     )

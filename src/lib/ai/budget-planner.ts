@@ -51,6 +51,30 @@ export function estimateItemCents(): number {
   return ITEM_ESTIMATE_CENTS
 }
 
+const STEP_KEY_BY_CATEGORY: Record<string, string> = {
+  Accommodation: "accommodation",
+  Transportation: "transport",
+  Food: "food",
+  Activities: "activities",
+  Other: "other",
+}
+const PER_LOCATION_KEYS = new Set(["accommodation", "food", "activities"])
+
+/**
+ * The walk bucket an itinerary event seeds, matching planBudgetSteps' keys:
+ * per-location categories key on the location id, trip-wide on "trip". Returns
+ * null for an unmapped category or a per-location event with no location.
+ */
+export function budgetBucketFor(
+  category: string,
+  locationId: string | null,
+): string | null {
+  const key = STEP_KEY_BY_CATEGORY[category]
+  if (!key) return null
+  if (PER_LOCATION_KEYS.has(key)) return locationId ? `${key}:${locationId}` : null
+  return `${key}:trip`
+}
+
 export function planBudgetSteps(input: BudgetPlanInput): BudgetStep[] {
   const totalDays = Math.max(1, input.totalDays)
 

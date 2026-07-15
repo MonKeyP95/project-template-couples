@@ -60,6 +60,8 @@ export interface BudgetTabProps {
   itineraryDays: DayLocation[]
   moves: BudgetMove[]
   budgetItems: BudgetItem[]
+  itinerarySeeds: Record<string, string[]>
+  bufferRec: { pct: number; reason: string }
   currentUserId: string
 }
 
@@ -81,6 +83,8 @@ export function BudgetTab({
   itineraryDays,
   moves,
   budgetItems,
+  itinerarySeeds,
+  bufferRec,
   currentUserId,
 }: BudgetTabProps) {
   const [settleOpen, setSettleOpen] = React.useState(false)
@@ -155,6 +159,8 @@ export function BudgetTab({
           itineraryDays={itineraryDays}
           memberCount={Object.keys(members).length}
           initialItems={budgetItems}
+          itinerarySeeds={itinerarySeeds}
+          bufferRec={bufferRec}
         />
         <PlannedBudget
           tripId={tripId}
