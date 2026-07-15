@@ -83,6 +83,91 @@ export function planItinerarySkeleton(input: ItineraryPlanInput): ItinerarySkele
   return { places: out }
 }
 
+/** One thing the couple entered in the guided walk: a category + place + a
+ * free-text subject and an optional "when" (dates or number of nights). These
+ * are the facts the assistant drafts the itinerary from. Client-safe. */
+export interface PlanEntry {
+  category: string
+  /** Place name, or "" for a trip-wide entry (transport, other). */
+  place: string
+  subject: string
+  when: string
+}
+
+/** One step of the guided itinerary walk. Mirrors budget's BudgetStep: per-place
+ * Accommodation/Food/Activities, then trip-wide Transportation/Other. */
+export interface ItineraryPlanStep {
+  /** `${categoryKey}:${placeIndex|"trip"}`. */
+  key: string
+  /** One of ITINERARY_CATEGORIES. */
+  category: string
+  title: string
+  question: string
+  hint: string
+  addNoun: string
+  /** Place name for a per-place step; null for a trip-wide step. */
+  place: string | null
+}
+
+/**
+ * Build the guided walk from the places the couple entered: for each place one
+ * step per Accommodation, Food, Activities, then two trip-wide steps
+ * (Transportation, Anything else). The itinerary twin of planBudgetSteps.
+ */
+export function planItinerarySteps(placeNames: string[]): ItineraryPlanStep[] {
+  const places = placeNames.map((n) => n.trim()).filter((n) => n.length > 0)
+  const list = places.length > 0 ? places : ["Trip"]
+  const steps: ItineraryPlanStep[] = []
+  list.forEach((name, i) => {
+    steps.push({
+      key: `accommodation:${i}`,
+      category: "Accommodation",
+      title: "Accommodation",
+      question: "Where are you staying?",
+      hint: "Add each place to stay, with dates or number of nights.",
+      addNoun: "stay",
+      place: name,
+    })
+    steps.push({
+      key: `food:${i}`,
+      category: "Food",
+      title: "Food",
+      question: "Places to eat or drink?",
+      hint: "A restaurant, a cafe, a market... add each. Skip if none.",
+      addNoun: "food",
+      place: name,
+    })
+    steps.push({
+      key: `activities:${i}`,
+      category: "Activities",
+      title: "Activities",
+      question: "Anything you'd like to do here?",
+      hint: "A surf lesson, a hike, a show... add each. Skip if none.",
+      addNoun: "activity",
+      place: name,
+    })
+  })
+  steps.push({
+    key: "transportation:trip",
+    category: "Transportation",
+    title: "Transportation",
+    question: "Getting there and around?",
+    hint: "Flights, ferries, a rental car... add each. Skip if none.",
+    addNoun: "transport",
+    place: null,
+  })
+  steps.push({
+    key: "other:trip",
+    category: "Other",
+    title: "Anything else",
+    question: "Anything else to plan?",
+    hint: "Add each. Skip if none.",
+    addNoun: "item",
+    place: null,
+  })
+  return steps
+}
+
 /** A flat, per-item draft: category + optional place/date, the wizard's staging
  * unit. Structurally the same as claude.ts's DraftedItineraryEvent; kept here
  * (client-safe) so the stepper and the converter never import the server seam. */

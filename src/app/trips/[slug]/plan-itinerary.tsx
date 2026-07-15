@@ -6,140 +6,137 @@ import { useRouter, useSearchParams } from "next/navigation"
 import { Label } from "@/components/together"
 import { useAiMode } from "@/components/ai-mode"
 import {
-  ITINERARY_CATEGORIES,
-  itemsToSkeleton,
-  type DraftItem,
+  planItinerarySteps,
+  type ItineraryPlanStep,
+  type PlanEntry,
 } from "@/lib/ai/itinerary-planner"
-import { applyItinerarySkeleton, draftItineraryItems } from "@/lib/ai/itinerary-actions"
-import { formatShortDate } from "@/lib/trips/itinerary-types"
+import { draftAndApplyItinerary } from "@/lib/ai/itinerary-actions"
 
 export interface PlanItineraryProps {
   tripId: string
   tripSlug: string
   destination: string
-  /** The trip's own name — the location fallback when no place is typed (never the country). */
-  tripName: string
-  startDate: string
-  dayCount: number
 }
 
-type Phase = "setup" | "walk"
-
-/** Advance a YYYY-MM-DD date by n days (UTC, no tz drift). */
-function addDays(date: string, n: number): string {
-  const d = new Date(`${date}T00:00:00Z`)
-  d.setUTCDate(d.getUTCDate() + n)
-  return d.toISOString().slice(0, 10)
+interface ItemRow {
+  id: string
+  subject: string
+  when: string
 }
 
-export function PlanItinerary({
-  tripId,
-  tripSlug,
-  destination,
-  tripName,
-  startDate,
-  dayCount,
-}: PlanItineraryProps) {
+type Phase = "places" | "walk" | "review"
+
+/**
+ * Guided itinerary planner, the itinerary twin of the budget drafter. A places
+ * question first, then per-place category steps (Accommodation, Food,
+ * Activities) plus trip-wide (Transportation, Anything else), walked with
+ * Back/Next. At the end, Generate hands everything to the assistant, which
+ * drafts a day-by-day itinerary from the entered plans + the trip/couple
+ * profile and writes it. Auto-opens on `?plan=1` (the onboarding hand-off).
+ */
+export function PlanItinerary({ tripId, tripSlug, destination }: PlanItineraryProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const { setEnabled } = useAiMode()
   const [open, setOpen] = React.useState(searchParams.get("plan") === "1")
-  const [aiOff, setAiOff] = React.useState(false)
-  const [phase, setPhase] = React.useState<Phase>("setup")
-  const [catIdx, setCatIdx] = React.useState(0)
+  const [phase, setPhase] = React.useState<Phase>("places")
   const [placeNames, setPlaceNames] = React.useState<string[]>([""])
-  const [freeText, setFreeText] = React.useState("")
-  const [answer, setAnswer] = React.useState("")
-  const [question, setQuestion] = React.useState("")
-  const [items, setItems] = React.useState<DraftItem[]>([])
-  const [drafted, setDrafted] = React.useState(true)
+  const [steps, setSteps] = React.useState<ItineraryPlanStep[]>([])
+  const [items, setItems] = React.useState<Record<string, ItemRow[]>>({})
+  const [stepIndex, setStepIndex] = React.useState(0)
+  const [aiOff, setAiOff] = React.useState(false)
   const [error, setError] = React.useState<string | null>(null)
   const [isPending, startTransition] = React.useTransition()
+  const seq = React.useRef(0)
 
-  const tripDates = React.useMemo(
-    () => Array.from({ length: dayCount }, (_, i) => addDays(startDate, i)),
-    [startDate, dayCount],
-  )
   const trimmedPlaces = placeNames.map((n) => n.trim()).filter((n) => n.length > 0)
+
+  function newRow(): ItemRow {
+    return { id: `r-${seq.current++}`, subject: "", when: "" }
+  }
 
   function reset() {
     setOpen(false)
-    setPhase("setup")
-    setCatIdx(0)
+    setPhase("places")
     setPlaceNames([""])
-    setFreeText("")
-    setAnswer("")
-    setQuestion("")
-    setItems([])
-    setDrafted(true)
+    setSteps([])
+    setItems({})
+    setStepIndex(0)
     setAiOff(false)
     setError(null)
+  }
+
+  function startWalk() {
+    if (trimmedPlaces.length === 0) return
+    const nextSteps = planItinerarySteps(trimmedPlaces)
+    setItems((prev) => {
+      const next: Record<string, ItemRow[]> = {}
+      for (const s of nextSteps) next[s.key] = prev[s.key] ?? []
+      return next
+    })
+    setSteps(nextSteps)
+    setStepIndex(0)
+    setAiOff(false)
+    setError(null)
+    setPhase("walk")
+  }
+
+  function addItem(key: string) {
+    setItems((prev) => ({ ...prev, [key]: [...(prev[key] ?? []), newRow()] }))
+  }
+  function patchItem(key: string, id: string, patch: Partial<ItemRow>) {
+    setItems((prev) => ({
+      ...prev,
+      [key]: (prev[key] ?? []).map((r) => (r.id === id ? { ...r, ...patch } : r)),
+    }))
+  }
+  function removeItem(key: string, id: string) {
+    setItems((prev) => ({ ...prev, [key]: (prev[key] ?? []).filter((r) => r.id !== id) }))
+  }
+
+  function walkBack() {
+    if (stepIndex === 0) {
+      setPhase("places")
+      return
+    }
+    setStepIndex((i) => i - 1)
+  }
+  function walkNext() {
+    if (stepIndex >= steps.length - 1) {
+      setAiOff(false)
+      setError(null)
+      setPhase("review")
+      return
+    }
+    setStepIndex((i) => i + 1)
+  }
+
+  function collectEntries(): PlanEntry[] {
+    const entries: PlanEntry[] = []
+    for (const step of steps) {
+      for (const row of items[step.key] ?? []) {
+        if (row.subject.trim() === "" && row.when.trim() === "") continue
+        entries.push({
+          category: step.category,
+          place: step.place ?? "",
+          subject: row.subject.trim(),
+          when: row.when.trim(),
+        })
+      }
+    }
+    return entries
   }
 
   function generate() {
-    const combined = [freeText.trim(), answer.trim()].filter(Boolean).join(" ")
-    setError(null)
-    startTransition(async () => {
-      try {
-        const res = await draftItineraryItems({
-          tripSlug,
-          dayCount,
-          placeNames: trimmedPlaces,
-          freeText: combined,
-        })
-        if (res.aiOff) {
-          setAiOff(true)
-          return
-        }
-        setAiOff(false)
-        if (res.question) {
-          setQuestion(res.question)
-          return
-        }
-        setItems(res.items)
-        setDrafted(res.drafted)
-        setQuestion("")
-        setPhase("walk")
-        setCatIdx(0)
-      } catch {
-        setError("Couldn't draft right now — try again.")
-      }
-    })
-  }
-
-  /** The assistant is off. Turn it on (explicit opt-in) and draft in one press;
-   * the freshly-written cookie is read by the next server action. */
-  function enableAndGenerate() {
-    setEnabled(true)
-    setAiOff(false)
-    generate()
-  }
-
-  function skip() {
-    setItems([])
-    setDrafted(true)
-    setQuestion("")
-    setPhase("walk")
-    setCatIdx(0)
-  }
-
-  function editItem(index: number, patch: Partial<DraftItem>) {
-    setItems((prev) => prev.map((it, idx) => (idx === index ? { ...it, ...patch } : it)))
-  }
-
-  function addItem(category: string) {
-    setItems((prev) => [...prev, { category, place: "", text: "", date: "", time: "" }])
-  }
-
-  function removeItem(index: number) {
-    setItems((prev) => prev.filter((_, idx) => idx !== index))
-  }
-
-  function apply() {
     if (isPending) return
-    const skeleton = itemsToSkeleton(items, trimmedPlaces, tripName, startDate, dayCount)
+    setError(null)
+    const entries = collectEntries()
     startTransition(async () => {
-      const r = await applyItinerarySkeleton({ tripId, tripSlug, skeleton })
+      const r = await draftAndApplyItinerary({ tripId, tripSlug, places: trimmedPlaces, entries })
+      if (r.aiOff) {
+        setAiOff(true)
+        return
+      }
       if (r.error) {
         setError(r.error)
         return
@@ -147,6 +144,14 @@ export function PlanItinerary({
       router.refresh()
       reset()
     })
+  }
+
+  /** Turn the assistant on (explicit opt-in) and generate in one press; the
+   * freshly-written cookie is read by the server action. */
+  function enableAndGenerate() {
+    setEnabled(true)
+    setAiOff(false)
+    generate()
   }
 
   if (!open) {
@@ -166,368 +171,267 @@ export function PlanItinerary({
   return (
     <div className="border-t border-border px-5 pt-4 pb-2">
       <div className="rounded-lg border border-border bg-card px-3.5 py-3">
-        {phase === "setup" ? (
-          <SetupStep
-            destination={destination}
-            placeNames={placeNames}
-            freeText={freeText}
-            question={question}
-            answer={answer}
-            aiOff={aiOff}
-            isPending={isPending}
-            error={error}
-            onEnableAi={enableAndGenerate}
-            onPlaceName={(i, v) =>
-              setPlaceNames((prev) => prev.map((n, idx) => (idx === i ? v : n)))
-            }
-            onAddPlace={() => setPlaceNames((prev) => [...prev, ""])}
-            onRemovePlace={(i) => setPlaceNames((prev) => prev.filter((_, idx) => idx !== i))}
-            onFreeText={setFreeText}
-            onAnswer={setAnswer}
-            onGenerate={generate}
-            onSkip={skip}
-            onCancel={reset}
-          />
-        ) : (
-          <CategoryStep
-            category={ITINERARY_CATEGORIES[catIdx]}
-            stepNo={catIdx + 1}
-            stepCount={ITINERARY_CATEGORIES.length}
-            items={items}
-            placeNames={trimmedPlaces}
-            tripDates={tripDates}
-            drafted={drafted}
-            isPending={isPending}
-            error={error}
-            isLast={catIdx === ITINERARY_CATEGORIES.length - 1}
-            onEdit={editItem}
-            onAdd={addItem}
-            onRemove={removeItem}
-            onBack={() => (catIdx === 0 ? setPhase("setup") : setCatIdx((c) => c - 1))}
-            onNext={() => setCatIdx((c) => c + 1)}
-            onApply={apply}
-            onCancel={reset}
-          />
-        )}
+        {phase === "places"
+          ? renderPlaces()
+          : phase === "walk"
+            ? renderStep(steps[stepIndex])
+            : renderReview()}
       </div>
     </div>
   )
-}
 
-function SetupStep({
-  destination,
-  placeNames,
-  freeText,
-  question,
-  answer,
-  aiOff,
-  isPending,
-  error,
-  onPlaceName,
-  onAddPlace,
-  onRemovePlace,
-  onFreeText,
-  onAnswer,
-  onEnableAi,
-  onGenerate,
-  onSkip,
-  onCancel,
-}: {
-  destination: string
-  placeNames: string[]
-  freeText: string
-  question: string
-  answer: string
-  aiOff: boolean
-  isPending: boolean
-  error: string | null
-  onPlaceName: (i: number, v: string) => void
-  onAddPlace: () => void
-  onRemovePlace: (i: number) => void
-  onFreeText: (v: string) => void
-  onAnswer: (v: string) => void
-  onEnableAi: () => void
-  onGenerate: () => void
-  onSkip: () => void
-  onCancel: () => void
-}) {
-  return (
-    <>
-      <Label>Plan your itinerary</Label>
-      <div className="mt-2 font-mono text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
-        {destination}
-      </div>
-
-      <div className="mt-3 font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
-        Places
-      </div>
-      <div className="mt-1.5 space-y-1.5">
-        {placeNames.map((name, i) => (
-          <div key={i} className="flex items-center gap-2">
-            <input
-              type="text"
-              value={name}
-              placeholder={`Place ${i + 1}`}
-              onChange={(e) => onPlaceName(i, e.target.value)}
-              className="min-w-0 flex-1 border-0 border-b border-border bg-transparent text-[13px] text-foreground outline-none focus:border-foreground"
-            />
-            <button
-              type="button"
-              onClick={() => onRemovePlace(i)}
-              aria-label="Remove place"
-              className="border-0 bg-transparent font-mono text-[13px] text-muted-foreground hover:text-foreground"
-            >
-              ×
-            </button>
-          </div>
-        ))}
-      </div>
-      <div className="mt-2">
-        <button
-          type="button"
-          onClick={onAddPlace}
-          className="rounded-full border border-dashed border-border bg-transparent px-2.5 py-1 font-mono text-[9.5px] uppercase tracking-[0.12em] text-muted-foreground hover:text-foreground"
-        >
-          + add place
-        </button>
-      </div>
-
-      <div className="mt-3 font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
-        Anything else
-      </div>
-      <textarea
-        value={freeText}
-        onChange={(e) => onFreeText(e.target.value)}
-        rows={2}
-        placeholder="Notes for the assistant…"
-        className="mt-1.5 w-full rounded-md border border-border bg-transparent px-2.5 py-1.5 text-[13px] text-foreground outline-none focus:border-foreground"
-      />
-
-      {question ? (
-        <div className="mt-3 rounded-md border border-l-2 border-border border-l-moss bg-background px-2.5 py-2">
-          <p className="text-[12.5px] leading-snug text-moss">{question}</p>
-          <input
-            type="text"
-            value={answer}
-            onChange={(e) => onAnswer(e.target.value)}
-            placeholder="your answer (optional)…"
-            className="mt-1.5 w-full border-0 border-b border-border bg-transparent text-[13px] text-foreground outline-none focus:border-foreground"
-          />
+  function renderPlaces() {
+    return (
+      <>
+        <Label>Plan your itinerary</Label>
+        <div className="mt-2 font-mono text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+          {destination}
         </div>
-      ) : null}
 
-      {aiOff ? (
-        <div className="mt-3 rounded-md border border-l-2 border-border border-l-clay bg-background px-2.5 py-2">
-          <p className="text-[12.5px] leading-snug text-foreground">
-            The assistant is off. Turn it on to draft for you — or Skip to add your own.
-          </p>
+        <div className="mt-3 text-[13px] text-foreground">Where are you going?</div>
+        <div className="mt-2 space-y-1.5">
+          {placeNames.map((name, i) => (
+            <div key={i} className="flex items-center gap-2">
+              <input
+                type="text"
+                value={name}
+                placeholder={`Place ${i + 1}`}
+                onChange={(e) =>
+                  setPlaceNames((prev) => prev.map((n, idx) => (idx === i ? e.target.value : n)))
+                }
+                className="min-w-0 flex-1 border-0 border-b border-border bg-transparent text-[13px] text-foreground outline-none focus:border-foreground"
+              />
+              {placeNames.length > 1 ? (
+                <button
+                  type="button"
+                  onClick={() => setPlaceNames((prev) => prev.filter((_, idx) => idx !== i))}
+                  aria-label="Remove place"
+                  className="border-0 bg-transparent font-mono text-[13px] text-muted-foreground hover:text-foreground"
+                >
+                  ×
+                </button>
+              ) : null}
+            </div>
+          ))}
+        </div>
+        <div className="mt-2">
           <button
             type="button"
-            onClick={onEnableAi}
-            disabled={isPending}
-            className="mt-1.5 rounded-md border-0 bg-foreground px-3 py-1.5 font-mono text-[9.5px] uppercase tracking-[0.2em] text-background disabled:opacity-40"
+            onClick={() => setPlaceNames((prev) => [...prev, ""])}
+            className="rounded-full border border-dashed border-border bg-transparent px-2.5 py-1 font-mono text-[9.5px] uppercase tracking-[0.12em] text-muted-foreground hover:text-foreground"
           >
-            {isPending ? "Drafting…" : "Turn on & draft"}
+            + add place
           </button>
         </div>
-      ) : null}
 
-      <div className="mt-4 flex flex-wrap items-center gap-1.5">
-        <button
-          type="button"
-          onClick={onGenerate}
-          disabled={isPending}
-          className="rounded-md border-0 bg-foreground px-3 py-1.5 font-mono text-[9.5px] uppercase tracking-[0.2em] text-background disabled:opacity-40"
-        >
-          {isPending ? "Drafting…" : question ? "Answer & generate" : "Generate"}
-        </button>
-        <button
-          type="button"
-          onClick={onSkip}
-          disabled={isPending}
-          className="rounded-md border border-border bg-transparent px-3 py-1.5 font-mono text-[9.5px] uppercase tracking-[0.2em] text-muted-foreground disabled:opacity-40"
-        >
-          Skip
-        </button>
-        <button
-          type="button"
-          onClick={onCancel}
-          disabled={isPending}
-          className="rounded-md border border-border bg-transparent px-3 py-1.5 font-mono text-[9.5px] uppercase tracking-[0.2em] text-muted-foreground disabled:opacity-40"
-        >
-          Cancel
-        </button>
-        {error ? <span className="font-mono text-[9px] text-clay">{error}</span> : null}
-      </div>
-    </>
-  )
-}
+        <div className="mt-4 flex items-center justify-between">
+          <span />
+          <div className="flex items-center gap-1.5">
+            <button
+              type="button"
+              onClick={reset}
+              className="rounded-md border border-border bg-transparent px-3 py-1.5 font-mono text-[9.5px] uppercase tracking-[0.2em] text-muted-foreground"
+            >
+              cancel
+            </button>
+            <button
+              type="button"
+              onClick={startWalk}
+              disabled={trimmedPlaces.length === 0}
+              className="rounded-md border-0 bg-foreground px-3 py-1.5 font-mono text-[9.5px] uppercase tracking-[0.2em] text-background disabled:opacity-40"
+            >
+              next
+            </button>
+          </div>
+        </div>
+      </>
+    )
+  }
 
-function CategoryStep({
-  category,
-  stepNo,
-  stepCount,
-  items,
-  placeNames,
-  tripDates,
-  drafted,
-  isPending,
-  error,
-  isLast,
-  onEdit,
-  onAdd,
-  onRemove,
-  onBack,
-  onNext,
-  onApply,
-  onCancel,
-}: {
-  category: string
-  stepNo: number
-  stepCount: number
-  items: DraftItem[]
-  placeNames: string[]
-  tripDates: string[]
-  drafted: boolean
-  isPending: boolean
-  error: string | null
-  isLast: boolean
-  onEdit: (index: number, patch: Partial<DraftItem>) => void
-  onAdd: (category: string) => void
-  onRemove: (index: number) => void
-  onBack: () => void
-  onNext: () => void
-  onApply: () => void
-  onCancel: () => void
-}) {
-  // Keep each item's real index in the full array so edits target the right one.
-  const rows = items
-    .map((item, index) => ({ item, index }))
-    .filter(({ item }) => item.category === category)
+  function renderStep(step: ItineraryPlanStep) {
+    const isLast = stepIndex === steps.length - 1
+    const rows = items[step.key] ?? []
+    return (
+      <>
+        <div className="flex items-center justify-between">
+          <Label>Plan your itinerary</Label>
+          <span className="font-mono text-[9px] uppercase tracking-[0.16em] text-muted-foreground">
+            step {stepIndex + 1} of {steps.length}
+          </span>
+        </div>
 
-  return (
-    <>
-      <div className="flex items-center justify-between">
-        <Label>{category}</Label>
-        <span className="font-mono text-[9px] uppercase tracking-[0.16em] text-muted-foreground">
-          {stepNo} of {stepCount}
-        </span>
-      </div>
-      {!drafted ? (
-        <p className="mt-1 font-mono text-[10px] text-muted-foreground">
-          blank draft — turn the assistant on for suggestions.
-        </p>
-      ) : null}
+        <div className="mt-2 flex flex-wrap items-baseline gap-2">
+          <span className="font-serif text-[15px] italic text-foreground">
+            {step.place ? `${step.place} · ${step.title}` : step.title}
+          </span>
+        </div>
+        <div className="mt-1 text-[13px] text-foreground">{step.question}</div>
+        <div className="mt-1 font-mono text-[10px] leading-snug tracking-[0.06em] text-muted-foreground">
+          {step.hint}
+        </div>
 
-      <div className="mt-2 space-y-2">
-        {rows.length === 0 ? (
-          <p className="font-serif text-[14px] italic text-muted-foreground">Nothing here yet.</p>
-        ) : (
-          rows.map(({ item, index }) => (
-            <div key={index} className="space-y-1">
+        <div className="mt-3 space-y-2">
+          {rows.map((row) => (
+            <div key={row.id} className="rounded-md border border-rule px-2.5 py-2">
               <div className="flex items-center gap-2">
                 <input
                   type="text"
-                  value={item.text}
+                  value={row.subject}
                   placeholder="What"
-                  onChange={(e) => onEdit(index, { text: e.target.value })}
+                  onChange={(e) => patchItem(step.key, row.id, { subject: e.target.value })}
                   className="min-w-0 flex-1 border-0 border-b border-border bg-transparent text-[13px] text-foreground outline-none focus:border-foreground"
                 />
                 <button
                   type="button"
-                  onClick={() => onRemove(index)}
-                  aria-label="Remove item"
-                  className="border-0 bg-transparent font-mono text-[12px] text-muted-foreground hover:text-foreground"
+                  onClick={() => removeItem(step.key, row.id)}
+                  aria-label="Remove"
+                  className="border-0 bg-transparent font-mono text-[13px] text-muted-foreground hover:text-foreground"
                 >
                   ×
                 </button>
               </div>
-              <div className="flex items-center gap-2">
-                <select
-                  value={item.place}
-                  onChange={(e) => onEdit(index, { place: e.target.value })}
-                  className="min-w-0 flex-1 border-0 border-b border-border bg-transparent font-mono text-[10px] uppercase tracking-[0.1em] text-muted-foreground outline-none focus:border-foreground"
-                >
-                  <option value="">(no place)</option>
-                  {placeNames.map((p) => (
-                    <option key={p} value={p}>
-                      {p}
-                    </option>
-                  ))}
-                </select>
-                <select
-                  value={item.date}
-                  onChange={(e) => onEdit(index, { date: e.target.value })}
-                  className="t-num shrink-0 border-0 border-b border-border bg-transparent font-mono text-[10px] text-muted-foreground outline-none focus:border-foreground"
-                >
-                  <option value="">no date</option>
-                  {tripDates.map((d) => (
-                    <option key={d} value={d}>
-                      {formatShortDate(d)}
-                    </option>
-                  ))}
-                </select>
-                <input
-                  type="text"
-                  value={item.time}
-                  placeholder="time"
-                  onChange={(e) => onEdit(index, { time: e.target.value })}
-                  className="t-num w-14 shrink-0 border-0 border-b border-border bg-transparent font-mono text-[11px] text-muted-foreground outline-none focus:border-foreground"
-                />
-              </div>
+              <input
+                type="text"
+                value={row.when}
+                placeholder="when (optional) — e.g. 3 nights, 12-14 Jan"
+                onChange={(e) => patchItem(step.key, row.id, { when: e.target.value })}
+                className="mt-1.5 w-full border-0 border-b border-border bg-transparent font-mono text-[11px] tracking-[0.04em] text-muted-foreground outline-none focus:border-foreground"
+              />
             </div>
-          ))
-        )}
-      </div>
-
-      <div className="mt-2">
-        <button
-          type="button"
-          onClick={() => onAdd(category)}
-          className="rounded-full border border-dashed border-border bg-transparent px-2.5 py-1 font-mono text-[9.5px] uppercase tracking-[0.12em] text-muted-foreground hover:text-foreground"
-        >
-          + add {category.toLowerCase()}
-        </button>
-      </div>
-
-      <div className="mt-4 flex flex-wrap items-center gap-1.5">
-        <button
-          type="button"
-          onClick={onBack}
-          disabled={isPending}
-          className="rounded-md border border-border bg-transparent px-3 py-1.5 font-mono text-[9.5px] uppercase tracking-[0.2em] text-muted-foreground disabled:opacity-40"
-        >
-          Back
-        </button>
-        {isLast ? (
+          ))}
+        </div>
+        <div className="mt-2">
           <button
             type="button"
-            onClick={onApply}
+            onClick={() => addItem(step.key)}
+            className="rounded-full border border-dashed border-border bg-transparent px-2.5 py-1 font-mono text-[9.5px] uppercase tracking-[0.12em] text-muted-foreground hover:text-foreground"
+          >
+            + add {step.addNoun}
+          </button>
+        </div>
+
+        <div className="mt-4 flex items-center justify-between">
+          <button
+            type="button"
+            onClick={walkBack}
+            className="border-0 bg-transparent p-0 font-mono text-[10px] uppercase tracking-[0.2em] text-muted-foreground hover:text-foreground"
+          >
+            back
+          </button>
+          <div className="flex items-center gap-1.5">
+            <button
+              type="button"
+              onClick={reset}
+              className="rounded-md border border-border bg-transparent px-3 py-1.5 font-mono text-[9.5px] uppercase tracking-[0.2em] text-muted-foreground"
+            >
+              cancel
+            </button>
+            <button
+              type="button"
+              onClick={walkNext}
+              className="rounded-md border-0 bg-foreground px-3 py-1.5 font-mono text-[9.5px] uppercase tracking-[0.2em] text-background"
+            >
+              {isLast ? "review" : "next"}
+            </button>
+          </div>
+        </div>
+      </>
+    )
+  }
+
+  function renderReview() {
+    const lines: { id: string; primary: string; when: string }[] = []
+    for (const step of steps) {
+      for (const row of items[step.key] ?? []) {
+        const subject = row.subject.trim()
+        if (subject === "" && row.when.trim() === "") continue
+        const primary = step.place
+          ? subject
+            ? `${step.place} · ${subject}`
+            : `${step.place} · ${step.title}`
+          : subject || step.title
+        lines.push({ id: row.id, primary, when: row.when.trim() })
+      }
+    }
+
+    return (
+      <>
+        <div className="flex items-center justify-between">
+          <Label>Your plans</Label>
+          <button
+            type="button"
+            onClick={() => {
+              setStepIndex(steps.length - 1)
+              setPhase("walk")
+            }}
+            className="border-0 bg-transparent p-0 font-mono text-[9px] uppercase tracking-[0.16em] text-muted-foreground hover:text-foreground"
+          >
+            back
+          </button>
+        </div>
+
+        <div className="mt-2 border-t border-rule">
+          {lines.length === 0 ? (
+            <div className="py-3 font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
+              Nothing added — the assistant will draft from your places and profile.
+            </div>
+          ) : (
+            lines.map((line) => (
+              <div
+                key={line.id}
+                className="flex items-center justify-between gap-3 border-t border-rule py-2 first:border-t-0"
+              >
+                <span className="min-w-0 text-[13px] text-foreground">{line.primary}</span>
+                {line.when ? (
+                  <span className="shrink-0 font-mono text-[10px] tracking-[0.04em] text-muted-foreground">
+                    {line.when}
+                  </span>
+                ) : null}
+              </div>
+            ))
+          )}
+        </div>
+
+        <div className="mt-2 font-mono text-[9px] uppercase tracking-[0.16em] text-muted-foreground">
+          Generate drafts a day-by-day itinerary you can then edit.
+        </div>
+
+        {aiOff ? (
+          <div className="mt-3 rounded-md border border-l-2 border-border border-l-clay bg-background px-2.5 py-2">
+            <p className="text-[12.5px] leading-snug text-foreground">
+              The assistant is off. Turn it on to draft your itinerary.
+            </p>
+            <button
+              type="button"
+              onClick={enableAndGenerate}
+              disabled={isPending}
+              className="mt-1.5 rounded-md border-0 bg-foreground px-3 py-1.5 font-mono text-[9.5px] uppercase tracking-[0.2em] text-background disabled:opacity-40"
+            >
+              {isPending ? "Generating…" : "Turn on & generate"}
+            </button>
+          </div>
+        ) : null}
+
+        <div className="mt-3 flex items-center gap-1.5">
+          <button
+            type="button"
+            onClick={generate}
             disabled={isPending}
             className="rounded-md border-0 bg-foreground px-3 py-1.5 font-mono text-[9.5px] uppercase tracking-[0.2em] text-background disabled:opacity-40"
           >
-            {isPending ? "…" : "Apply"}
+            {isPending ? "Generating…" : "Generate"}
           </button>
-        ) : (
           <button
             type="button"
-            onClick={onNext}
+            onClick={reset}
             disabled={isPending}
-            className="rounded-md border-0 bg-foreground px-3 py-1.5 font-mono text-[9.5px] uppercase tracking-[0.2em] text-background disabled:opacity-40"
+            className="rounded-md border border-border bg-transparent px-3 py-1.5 font-mono text-[9.5px] uppercase tracking-[0.2em] text-muted-foreground"
           >
-            Next →
+            cancel
           </button>
-        )}
-        <button
-          type="button"
-          onClick={onCancel}
-          disabled={isPending}
-          className="rounded-md border border-border bg-transparent px-3 py-1.5 font-mono text-[9.5px] uppercase tracking-[0.2em] text-muted-foreground disabled:opacity-40"
-        >
-          Cancel
-        </button>
-        {error ? <span className="font-mono text-[9px] text-clay">{error}</span> : null}
-      </div>
-    </>
-  )
+          {error ? <span className="font-mono text-[9px] text-clay">{error}</span> : null}
+        </div>
+      </>
+    )
+  }
 }

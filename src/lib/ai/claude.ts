@@ -454,6 +454,9 @@ export interface ItineraryDraftContext {
   brief: string
   activityTypes: string[]
   freeText: string
+  /** What the couple already chose in the guided walk; the itinerary is built
+   * around these, then gaps filled sparsely. */
+  knownPlans: { category: string; place: string; subject: string; when: string }[]
   profileBlock: string
   tasteDirective: string
 }
@@ -518,9 +521,10 @@ const ITINERARY_SYSTEM =
   "YYYY-MM-DD within range, or empty if you cannot place it. Keep each event a short " +
   "label, not a paragraph. Weight the couple's taste and vibe as a lens, never a checklist. " +
   "Do not invent prices or booking details. " +
-  "If what you were given is too thin to ground on (for example no usable place), do NOT " +
-  "guess: return an empty events array and put ONE short clarifying question in question. " +
-  "Otherwise return your events and leave question empty."
+  "If what you were given is too thin or ambiguous to ground on — no usable place, or a " +
+  "place name you cannot confidently locate or understand — do NOT guess: return an empty " +
+  "events array and put ONE short, specific clarifying question in question (name what you " +
+  "need, e.g. which town or region). Otherwise return your events and leave question empty."
 
 function itineraryPrompt(c: ItineraryDraftContext): string {
   const list = (label: string, items: string[]) =>
@@ -528,9 +532,20 @@ function itineraryPrompt(c: ItineraryDraftContext): string {
   const places = c.locations.length
     ? c.locations.map((l) => `${l.name} (${l.dateLabel ?? `${l.nights} nights`})`).join("; ")
     : c.destination
+  const known = c.knownPlans.length
+    ? c.knownPlans
+        .map(
+          (k) =>
+            `${k.subject}${k.place ? ` in ${k.place}` : ""}${k.when ? ` (${k.when})` : ""} [${k.category}]`,
+        )
+        .join("; ")
+    : ""
   return [
     `Draft a ${c.dayCount}-day itinerary for ${c.destination}, starting ${c.startDate}.`,
     `Places in order: ${places}.`,
+    known
+      ? `Plans they already chose (include each of these in the itinerary, on the dates or nights they gave, then fill the gaps sparsely): ${known}.`
+      : "",
     list("Trip vibe", c.vibe),
     c.brief ? `Trip brief: ${c.brief}.` : "",
     list("Activity types they want", c.activityTypes),

@@ -12,9 +12,18 @@ import { buildAssistantContext } from "@/lib/ai/assistant-context"
 import { draftItinerary } from "@/lib/ai/claude"
 import {
   planItinerarySkeleton,
+  itemsToSkeleton,
   type ItinerarySkeleton,
   type DraftItem,
+  type PlanEntry,
 } from "@/lib/ai/itinerary-planner"
+
+/** Inclusive day count between two YYYY-MM-DD dates (UTC, no tz drift). */
+function inclusiveDays(start: string, end: string): number {
+  const s = new Date(`${start}T00:00:00Z`).getTime()
+  const e = new Date(`${end}T00:00:00Z`).getTime()
+  return Math.max(1, Math.round((e - s) / 86_400_000) + 1)
+}
 
 export interface ApplyItineraryInput {
   tripId: string
@@ -74,32 +83,34 @@ export async function applyItinerarySkeleton(
   return { created: { locations, days } }
 }
 
-/** Sparse, grounded AI draft as flat items for the stepper. Builds the scaffold
- * only to hand the AI each place's real date ranges to ground on; returns the
- * AI's events as flat DraftItems, or a single clarifying question, or nothing.
- * AI off / failure -> empty items, drafted:false. Never throws. Suggest-only. */
-export async function draftItineraryItems(input: {
+/**
+ * The guided walk's terminal action: draft a day-by-day itinerary from the
+ * places + the couple's entered plans + their trip/couple profile, then write
+ * it (reusing applyItinerarySkeleton). Pressing Generate is the human's
+ * approval. AI off -> { aiOff }. Never throws.
+ */
+export async function draftAndApplyItinerary(input: {
+  tripId: string
   tripSlug: string
-  dayCount: number
-  placeNames: string[]
-  freeText: string
-}): Promise<{ items: DraftItem[]; drafted: boolean; question: string; aiOff: boolean }> {
+  places: string[]
+  entries: PlanEntry[]
+}): Promise<{ error?: string; aiOff?: boolean; created?: { locations: number; days: number } }> {
   const workspace = await getCurrentWorkspace()
-  const trip = workspace ? await getTripBySlug(workspace.id, input.tripSlug) : null
-  if (!workspace || !trip || !trip.startDate)
-    return { items: [], drafted: false, question: "", aiOff: false }
-  if (!(await isAiEnabled()))
-    return { items: [], drafted: false, question: "", aiOff: true }
+  if (!workspace) return { error: "Not signed in." }
+  const trip = await getTripBySlug(workspace.id, input.tripSlug)
+  if (!trip || !trip.startDate) return { error: "Trip not found." }
+  if (!(await isAiEnabled())) return { aiOff: true }
 
-  const destination = trip.country ?? trip.name
-  const names = input.placeNames.map((n) => n.trim()).filter((n) => n.length > 0)
+  const startDate = trip.startDate
+  const dayCount = inclusiveDays(startDate, trip.endDate ?? startDate)
+  const names = input.places.map((n) => n.trim()).filter((n) => n.length > 0)
 
   try {
+    // Scaffold only to learn each place's real date range for grounding.
     const scaffold = planItinerarySkeleton({
-      // No place typed -> the location is the trip's own name, never the country.
       destination: trip.name,
-      startDate: trip.startDate,
-      dayCount: input.dayCount,
+      startDate,
+      dayCount,
       placeNames: names,
     })
     const locations = scaffold.places.map((p) => {
@@ -115,15 +126,21 @@ export async function draftItineraryItems(input: {
 
     const { profileBlock, tasteDirective } = await buildAssistantContext(workspace.id, trip.id)
 
-    const { events, question } = await draftItinerary({
-      destination,
-      startDate: trip.startDate,
-      dayCount: input.dayCount,
+    const { events } = await draftItinerary({
+      destination: trip.country ?? trip.name,
+      startDate,
+      dayCount,
       locations,
       vibe: trip.tripProfile.vibe,
       brief: trip.tripProfile.idea,
       activityTypes: [],
-      freeText: input.freeText,
+      freeText: "",
+      knownPlans: input.entries.map((e) => ({
+        category: e.category,
+        place: e.place,
+        subject: e.subject,
+        when: e.when,
+      })),
       profileBlock,
       tasteDirective,
     })
@@ -135,8 +152,13 @@ export async function draftItineraryItems(input: {
       date: e.date,
       time: e.time,
     }))
-    return { items, drafted: items.length > 0, question, aiOff: false }
+    const skeleton = itemsToSkeleton(items, names, trip.name, startDate, dayCount)
+    return await applyItinerarySkeleton({
+      tripId: input.tripId,
+      tripSlug: input.tripSlug,
+      skeleton,
+    })
   } catch {
-    return { items: [], drafted: false, question: "", aiOff: false }
+    return { error: "Couldn't draft right now — try again." }
   }
 }

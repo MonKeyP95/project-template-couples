@@ -676,14 +676,7 @@ export function ItineraryTab({
         {active ? null : (
           <>
             {planningBlock}
-            <PlanItinerary
-              tripId={tripId}
-              tripSlug={tripSlug}
-              destination={destination}
-              tripName={tripName}
-              startDate={tripStartDate}
-              dayCount={dateRange(tripStartDate, tripEndDate).length}
-            />
+            <PlanItinerary tripId={tripId} tripSlug={tripSlug} destination={destination} />
           </>
         )}
 
