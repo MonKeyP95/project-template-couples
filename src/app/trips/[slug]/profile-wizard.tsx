@@ -27,12 +27,14 @@ export function ProfileWizard({
   tripSlug,
   profile,
   categories,
+  onboarding = false,
   onDone,
 }: {
   tripId: string
   tripSlug: string
   profile: TripProfile
   categories: ExpenseCategoryRow[]
+  onboarding?: boolean
   onDone?: () => void
 }) {
   const router = useRouter()
@@ -56,6 +58,10 @@ export function ProfileWizard({
       setSaving(false)
       if (r.error) return
       setSaved(true)
+      if (onboarding) {
+        router.push(`/trips/${tripSlug}?tab=itinerary&plan=1`)
+        return
+      }
       router.refresh()
       onDone?.()
     })
@@ -166,7 +172,13 @@ export function ProfileWizard({
             disabled={saving}
             className="rounded-full border-0 bg-foreground px-4 py-2 font-mono text-[11px] uppercase tracking-[0.2em] text-background disabled:opacity-40"
           >
-            {saving ? "saving…" : saved ? "saved" : "save profile"}
+            {saving
+              ? "saving…"
+              : saved
+                ? "saved"
+                : onboarding
+                  ? "save & plan itinerary →"
+                  : "save profile"}
           </button>
         ) : (
           <button
