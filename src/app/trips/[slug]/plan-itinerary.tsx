@@ -4,6 +4,7 @@ import * as React from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 
 import { Label } from "@/components/together"
+import { useAiMode } from "@/components/ai-mode"
 import {
   ITINERARY_CATEGORIES,
   itemsToSkeleton,
@@ -41,7 +42,9 @@ export function PlanItinerary({
 }: PlanItineraryProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
+  const { setEnabled } = useAiMode()
   const [open, setOpen] = React.useState(searchParams.get("plan") === "1")
+  const [aiOff, setAiOff] = React.useState(false)
   const [phase, setPhase] = React.useState<Phase>("setup")
   const [catIdx, setCatIdx] = React.useState(0)
   const [placeNames, setPlaceNames] = React.useState<string[]>([""])
@@ -69,6 +72,7 @@ export function PlanItinerary({
     setQuestion("")
     setItems([])
     setDrafted(true)
+    setAiOff(false)
     setError(null)
   }
 
@@ -83,6 +87,11 @@ export function PlanItinerary({
           placeNames: trimmedPlaces,
           freeText: combined,
         })
+        if (res.aiOff) {
+          setAiOff(true)
+          return
+        }
+        setAiOff(false)
         if (res.question) {
           setQuestion(res.question)
           return
@@ -96,6 +105,14 @@ export function PlanItinerary({
         setError("Couldn't draft right now — try again.")
       }
     })
+  }
+
+  /** The assistant is off. Turn it on (explicit opt-in) and draft in one press;
+   * the freshly-written cookie is read by the next server action. */
+  function enableAndGenerate() {
+    setEnabled(true)
+    setAiOff(false)
+    generate()
   }
 
   function skip() {
@@ -156,8 +173,10 @@ export function PlanItinerary({
             freeText={freeText}
             question={question}
             answer={answer}
+            aiOff={aiOff}
             isPending={isPending}
             error={error}
+            onEnableAi={enableAndGenerate}
             onPlaceName={(i, v) =>
               setPlaceNames((prev) => prev.map((n, idx) => (idx === i ? v : n)))
             }
@@ -201,6 +220,7 @@ function SetupStep({
   freeText,
   question,
   answer,
+  aiOff,
   isPending,
   error,
   onPlaceName,
@@ -208,6 +228,7 @@ function SetupStep({
   onRemovePlace,
   onFreeText,
   onAnswer,
+  onEnableAi,
   onGenerate,
   onSkip,
   onCancel,
@@ -217,6 +238,7 @@ function SetupStep({
   freeText: string
   question: string
   answer: string
+  aiOff: boolean
   isPending: boolean
   error: string | null
   onPlaceName: (i: number, v: string) => void
@@ -224,6 +246,7 @@ function SetupStep({
   onRemovePlace: (i: number) => void
   onFreeText: (v: string) => void
   onAnswer: (v: string) => void
+  onEnableAi: () => void
   onGenerate: () => void
   onSkip: () => void
   onCancel: () => void
@@ -290,6 +313,22 @@ function SetupStep({
             placeholder="your answer (optional)…"
             className="mt-1.5 w-full border-0 border-b border-border bg-transparent text-[13px] text-foreground outline-none focus:border-foreground"
           />
+        </div>
+      ) : null}
+
+      {aiOff ? (
+        <div className="mt-3 rounded-md border border-l-2 border-border border-l-clay bg-background px-2.5 py-2">
+          <p className="text-[12.5px] leading-snug text-foreground">
+            The assistant is off. Turn it on to draft for you — or Skip to add your own.
+          </p>
+          <button
+            type="button"
+            onClick={onEnableAi}
+            disabled={isPending}
+            className="mt-1.5 rounded-md border-0 bg-foreground px-3 py-1.5 font-mono text-[9.5px] uppercase tracking-[0.2em] text-background disabled:opacity-40"
+          >
+            {isPending ? "Drafting…" : "Turn on & draft"}
+          </button>
         </div>
       ) : null}
 

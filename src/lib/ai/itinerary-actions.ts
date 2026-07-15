@@ -83,11 +83,13 @@ export async function draftItineraryItems(input: {
   dayCount: number
   placeNames: string[]
   freeText: string
-}): Promise<{ items: DraftItem[]; drafted: boolean; question: string }> {
+}): Promise<{ items: DraftItem[]; drafted: boolean; question: string; aiOff: boolean }> {
   const workspace = await getCurrentWorkspace()
   const trip = workspace ? await getTripBySlug(workspace.id, input.tripSlug) : null
-  if (!workspace || !trip || !trip.startDate) return { items: [], drafted: false, question: "" }
-  if (!(await isAiEnabled())) return { items: [], drafted: false, question: "" }
+  if (!workspace || !trip || !trip.startDate)
+    return { items: [], drafted: false, question: "", aiOff: false }
+  if (!(await isAiEnabled()))
+    return { items: [], drafted: false, question: "", aiOff: true }
 
   const destination = trip.country ?? trip.name
   const names = input.placeNames.map((n) => n.trim()).filter((n) => n.length > 0)
@@ -133,8 +135,8 @@ export async function draftItineraryItems(input: {
       date: e.date,
       time: e.time,
     }))
-    return { items, drafted: items.length > 0, question }
+    return { items, drafted: items.length > 0, question, aiOff: false }
   } catch {
-    return { items: [], drafted: false, question: "" }
+    return { items: [], drafted: false, question: "", aiOff: false }
   }
 }
