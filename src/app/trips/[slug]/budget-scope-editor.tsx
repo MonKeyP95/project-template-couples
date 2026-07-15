@@ -39,6 +39,12 @@ interface Row {
   value: string
   whenStart: string
   whenEnd: string
+  /** The assistant supplied this amount. */
+  estimated: boolean
+  /** Backing web-search URL, when it found one. */
+  sourceUrl: string | null
+  /** The assistant couldn't price this. */
+  priceUnknown: boolean
 }
 
 function asCents(value: string): number {
@@ -82,6 +88,9 @@ export function BudgetScopeEditor({
       value: it.amountCents ? (it.amountCents / 100).toFixed(0) : "",
       whenStart: it.whenStart ?? "",
       whenEnd: it.whenEnd ?? "",
+      estimated: it.estimated,
+      sourceUrl: it.sourceUrl,
+      priceUnknown: it.priceUnknown,
     })),
   )
   const [open, setOpen] = React.useState(false)
@@ -125,6 +134,10 @@ export function BudgetScopeEditor({
   function patch(id: string, p: Partial<Row>) {
     setRows((rs) => rs.map((r) => (r.id === id ? { ...r, ...p } : r)))
   }
+  /** Editing a price makes the line the couple's own — clears the marks. */
+  function patchValue(id: string, value: string) {
+    patch(id, { value, estimated: false, sourceUrl: null, priceUnknown: false })
+  }
   function addInCategory(category: string) {
     setRows((rs) => [
       ...rs,
@@ -139,6 +152,9 @@ export function BudgetScopeEditor({
         value: "",
         whenStart: "",
         whenEnd: "",
+        estimated: false,
+        sourceUrl: null,
+        priceUnknown: false,
       },
     ])
   }
@@ -195,6 +211,9 @@ export function BudgetScopeEditor({
         locationId,
         whenStart: withDates && r.whenStart ? r.whenStart : null,
         whenEnd: withDates && r.whenEnd ? r.whenEnd : null,
+        estimated: r.estimated,
+        sourceUrl: r.sourceUrl,
+        priceUnknown: r.priceUnknown,
       }))
   }
 
@@ -340,11 +359,31 @@ export function BudgetScopeEditor({
                       type="number"
                       inputMode="numeric"
                       value={r.value}
-                      onChange={(e) => patch(r.id, { value: e.target.value })}
+                      onChange={(e) => patchValue(r.id, e.target.value)}
                       onKeyDown={onCostKeyDown}
-                      placeholder="0"
+                      placeholder={r.priceUnknown ? "add" : "0"}
                       className="w-16 rounded-lg border border-clay bg-transparent px-2 py-1.5 text-right text-[12px] text-foreground placeholder:text-muted-foreground focus:outline-none"
                     />
+                    {r.estimated ? (
+                      <span className="shrink-0 font-mono text-[9px] uppercase tracking-[0.12em] text-clay">
+                        est.
+                      </span>
+                    ) : null}
+                    {r.sourceUrl ? (
+                      <a
+                        href={r.sourceUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="shrink-0 font-mono text-[9px] uppercase tracking-[0.12em] text-sea underline"
+                      >
+                        src
+                      </a>
+                    ) : null}
+                    {r.priceUnknown ? (
+                      <span className="shrink-0 font-mono text-[9px] uppercase tracking-[0.12em] text-muted-foreground">
+                        no price
+                      </span>
+                    ) : null}
                     {r.serverId && asCents(r.value) > 0 ? (
                       r.paidExpenseId ? (
                         <button
