@@ -1,8 +1,7 @@
 /**
- * Mock for the guided budget assistant. Pure, deterministic, no network. The
- * seam where real Claude lands later: keep the input/output types stable, then
- * make planBudgetSteps async and generate the interview from the LLM client.
- * The `context` field is reserved for that (trip notes), unused here.
+ * The guided budget walk scaffold. Pure, deterministic, no network: it lays out
+ * the empty category steps the drafter fills (from the itinerary and the
+ * couple's entries); Generate prices the gaps.
  *
  * Steps are location-first: for each itinerary place, one step per category
  * (Accommodation, Food, Activities), then two trip-wide steps (Transport,
@@ -39,16 +38,6 @@ export interface BudgetStep {
   place: string | null
   /** Nights / date label shown beside the place; null when place is null. */
   placeWhen: string | null
-}
-
-const ITEM_ESTIMATE_CENTS = 5000
-
-/**
- * The assistant's guess for an item left without a cost. An explicit 0 (e.g.
- * staying with friends) is kept as-is and never estimated.
- */
-export function estimateItemCents(): number {
-  return ITEM_ESTIMATE_CENTS
 }
 
 const STEP_KEY_BY_CATEGORY: Record<string, string> = {
