@@ -119,3 +119,32 @@ export function buildTripBudgetSummary(
     totalActualCents: categories.reduce((s, c) => s + c.actualCents, 0),
   }
 }
+
+/**
+ * Recommended budget-buffer %, from the couple's whole-trip plan-vs-actual
+ * history: the mean of (actual-planned)/planned over trips that had a plan,
+ * rounded UP to the next 5% step so the buffer covers past overspend, clamped
+ * to 5..25. No history -> a plain 10% starting default.
+ */
+export function recommendBufferPct(
+  summaries: TripBudgetSummary[],
+): { pct: number; reason: string } {
+  const withPlan = summaries.filter((s) => s.totalPlannedCents > 0)
+  if (withPlan.length === 0) {
+    return { pct: 10, reason: "a typical starting buffer" }
+  }
+  const meanVar =
+    withPlan.reduce(
+      (s, t) =>
+        s + (t.totalActualCents - t.totalPlannedCents) / t.totalPlannedCents,
+      0,
+    ) / withPlan.length
+  const pctRaw = meanVar * 100
+  const pct = Math.min(25, Math.max(5, Math.ceil(pctRaw / 5) * 5))
+  const overspent = Math.round(pctRaw)
+  const reason =
+    overspent > 0
+      ? `your trips have run ~${overspent}% over plan`
+      : "your trips have come in near or under plan"
+  return { pct, reason }
+}

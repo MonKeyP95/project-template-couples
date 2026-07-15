@@ -41,26 +41,17 @@ export interface BudgetStep {
   placeWhen: string | null
 }
 
-const LODGING_PER_NIGHT_CENTS = 11000
-const TRANSPORT_PER_PERSON_CENTS = 15000
-const FOOD_PER_PERSON_DAY_CENTS = 2500
 const ITEM_ESTIMATE_CENTS = 5000
 
-function euros(cents: number): string {
-  return (cents / 100).toFixed(0)
-}
-
 /**
- * The assistant's guess for an item left without a cost. Mock returns a flat
- * figure; real Claude later assesses it from the item's subject. An explicit 0
- * (e.g. staying with friends) is kept as-is and never estimated.
+ * The assistant's guess for an item left without a cost. An explicit 0 (e.g.
+ * staying with friends) is kept as-is and never estimated.
  */
 export function estimateItemCents(): number {
   return ITEM_ESTIMATE_CENTS
 }
 
 export function planBudgetSteps(input: BudgetPlanInput): BudgetStep[] {
-  const memberCount = Math.max(1, input.memberCount)
   const totalDays = Math.max(1, input.totalDays)
 
   // Places to walk: the itinerary locations, or one synthetic place named after
@@ -86,26 +77,21 @@ export function planBudgetSteps(input: BudgetPlanInput): BudgetStep[] {
 
   const steps: BudgetStep[] = []
 
-  // Location-first: all of a place's categories before moving on.
+  // Location-first: all of a place's categories before moving on. Steps start
+  // empty; the walk fills them from the itinerary and the couple's entries, and
+  // Generate prices the gaps.
   for (const p of places) {
     const isSynthetic = p.id === "trip"
     const place = isSynthetic ? null : p.name
     const placeWhen = isSynthetic ? null : whenLabel(p)
-    const days = nights(p.nights)
 
     steps.push({
       key: `accommodation:${p.id}`,
       title: "Accommodation",
       question: "Where are you staying?",
-      hint: `Roughly EUR ${euros(LODGING_PER_NIGHT_CENTS)}/night. Add each place to stay with its cost.`,
+      hint: "Add each place you're staying, with its cost.",
       addNoun: "hotel",
-      seed: [
-        {
-          subject: "",
-          when: p.dateLabel ?? "",
-          suggestedCents: p.nights * LODGING_PER_NIGHT_CENTS,
-        },
-      ],
+      seed: [],
       place,
       placeWhen,
     })
@@ -114,15 +100,9 @@ export function planBudgetSteps(input: BudgetPlanInput): BudgetStep[] {
       key: `food:${p.id}`,
       title: "Food & drink",
       question: "Eating out and groceries?",
-      hint: `About EUR ${euros(FOOD_PER_PERSON_DAY_CENTS)} each a day over ${days}.`,
+      hint: "Add what you expect to spend on food here.",
       addNoun: "food",
-      seed: [
-        {
-          subject: "",
-          when: days,
-          suggestedCents: FOOD_PER_PERSON_DAY_CENTS * memberCount * p.nights,
-        },
-      ],
+      seed: [],
       place,
       placeWhen,
     })
@@ -144,9 +124,9 @@ export function planBudgetSteps(input: BudgetPlanInput): BudgetStep[] {
     key: "transport:trip",
     title: "Transport",
     question: "Flights and getting around?",
-    hint: `Roughly EUR ${euros(TRANSPORT_PER_PERSON_CENTS)} each for ${memberCount}.`,
+    hint: "Flights, transfers, car hire, local transport.",
     addNoun: "transport",
-    seed: [{ subject: "", when: "", suggestedCents: TRANSPORT_PER_PERSON_CENTS * memberCount }],
+    seed: [],
     place: null,
     placeWhen: null,
   })
@@ -155,7 +135,7 @@ export function planBudgetSteps(input: BudgetPlanInput): BudgetStep[] {
     key: "other:trip",
     title: "Anything else",
     question: "Anything else to budget for?",
-    hint: "Insurance, gifts, a buffer... add each with a label and cost. Skip if none.",
+    hint: "Insurance, gifts, fees... add each with a label and cost. Skip if none.",
     addNoun: "item",
     seed: [],
     place: null,
