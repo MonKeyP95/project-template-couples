@@ -7,7 +7,6 @@ import {
 import { getItineraryLocations } from "@/lib/trips/location-queries"
 import { getCurrentWorkspace } from "@/lib/workspace/queries"
 import { getTripBySlug } from "@/lib/trips/queries"
-import { isAiEnabled } from "@/lib/ai/ai-mode"
 import { buildAssistantContext } from "@/lib/ai/assistant-context"
 import { draftItinerary } from "@/lib/ai/claude"
 import {
@@ -87,19 +86,19 @@ export async function applyItinerarySkeleton(
  * The guided walk's terminal action: draft a day-by-day itinerary from the
  * places + the couple's entered plans + their trip/couple profile, then write
  * it (reusing applyItinerarySkeleton). Pressing Generate is the human's
- * approval. AI off -> { aiOff }. Never throws.
+ * explicit approval, so it always calls the model regardless of the global
+ * assistant toggle. Never throws.
  */
 export async function draftAndApplyItinerary(input: {
   tripId: string
   tripSlug: string
   places: string[]
   entries: PlanEntry[]
-}): Promise<{ error?: string; aiOff?: boolean; created?: { locations: number; days: number } }> {
+}): Promise<{ error?: string; created?: { locations: number; days: number } }> {
   const workspace = await getCurrentWorkspace()
   if (!workspace) return { error: "Not signed in." }
   const trip = await getTripBySlug(workspace.id, input.tripSlug)
   if (!trip || !trip.startDate) return { error: "Trip not found." }
-  if (!(await isAiEnabled())) return { aiOff: true }
 
   const startDate = trip.startDate
   const dayCount = inclusiveDays(startDate, trip.endDate ?? startDate)

@@ -4,7 +4,6 @@ import * as React from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 
 import { Label } from "@/components/together"
-import { useAiMode } from "@/components/ai-mode"
 import {
   planItinerarySteps,
   type ItineraryPlanStep,
@@ -37,14 +36,12 @@ type Phase = "places" | "walk" | "review"
 export function PlanItinerary({ tripId, tripSlug, destination }: PlanItineraryProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const { setEnabled } = useAiMode()
   const [open, setOpen] = React.useState(searchParams.get("plan") === "1")
   const [phase, setPhase] = React.useState<Phase>("places")
   const [placeNames, setPlaceNames] = React.useState<string[]>([""])
   const [steps, setSteps] = React.useState<ItineraryPlanStep[]>([])
   const [items, setItems] = React.useState<Record<string, ItemRow[]>>({})
   const [stepIndex, setStepIndex] = React.useState(0)
-  const [aiOff, setAiOff] = React.useState(false)
   const [error, setError] = React.useState<string | null>(null)
   const [isPending, startTransition] = React.useTransition()
   const seq = React.useRef(0)
@@ -62,7 +59,6 @@ export function PlanItinerary({ tripId, tripSlug, destination }: PlanItineraryPr
     setSteps([])
     setItems({})
     setStepIndex(0)
-    setAiOff(false)
     setError(null)
   }
 
@@ -76,7 +72,6 @@ export function PlanItinerary({ tripId, tripSlug, destination }: PlanItineraryPr
     })
     setSteps(nextSteps)
     setStepIndex(0)
-    setAiOff(false)
     setError(null)
     setPhase("walk")
   }
@@ -103,7 +98,6 @@ export function PlanItinerary({ tripId, tripSlug, destination }: PlanItineraryPr
   }
   function walkNext() {
     if (stepIndex >= steps.length - 1) {
-      setAiOff(false)
       setError(null)
       setPhase("review")
       return
@@ -133,10 +127,6 @@ export function PlanItinerary({ tripId, tripSlug, destination }: PlanItineraryPr
     const entries = collectEntries()
     startTransition(async () => {
       const r = await draftAndApplyItinerary({ tripId, tripSlug, places: trimmedPlaces, entries })
-      if (r.aiOff) {
-        setAiOff(true)
-        return
-      }
       if (r.error) {
         setError(r.error)
         return
@@ -144,14 +134,6 @@ export function PlanItinerary({ tripId, tripSlug, destination }: PlanItineraryPr
       router.refresh()
       reset()
     })
-  }
-
-  /** Turn the assistant on (explicit opt-in) and generate in one press; the
-   * freshly-written cookie is read by the server action. */
-  function enableAndGenerate() {
-    setEnabled(true)
-    setAiOff(false)
-    generate()
   }
 
   if (!open) {
@@ -395,22 +377,6 @@ export function PlanItinerary({ tripId, tripSlug, destination }: PlanItineraryPr
         <div className="mt-2 font-mono text-[9px] uppercase tracking-[0.16em] text-muted-foreground">
           Generate drafts a day-by-day itinerary you can then edit.
         </div>
-
-        {aiOff ? (
-          <div className="mt-3 rounded-md border border-l-2 border-border border-l-clay bg-background px-2.5 py-2">
-            <p className="text-[12.5px] leading-snug text-foreground">
-              The assistant is off. Turn it on to draft your itinerary.
-            </p>
-            <button
-              type="button"
-              onClick={enableAndGenerate}
-              disabled={isPending}
-              className="mt-1.5 rounded-md border-0 bg-foreground px-3 py-1.5 font-mono text-[9.5px] uppercase tracking-[0.2em] text-background disabled:opacity-40"
-            >
-              {isPending ? "Generating…" : "Turn on & generate"}
-            </button>
-          </div>
-        ) : null}
 
         <div className="mt-3 flex items-center gap-1.5">
           <button

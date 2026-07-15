@@ -23,7 +23,6 @@ import { BudgetByCategory } from "./budget-by-category"
 import { BudgetDrafter } from "./budget-drafter"
 import { BudgetScopeEditor } from "./budget-scope-editor"
 import { PlanningPlaceDoor } from "./find-a-place-planning"
-import { useAiMode } from "@/components/ai-mode"
 import type { BudgetItem } from "@/lib/trips/budget-item-types"
 import { SavedFigure, SpentFigure } from "./budget-figures"
 import { Ledger } from "./budget-ledger"
@@ -84,7 +83,6 @@ export function BudgetTab({
   budgetItems,
   currentUserId,
 }: BudgetTabProps) {
-  const { enabled: aiEnabled } = useAiMode()
   const [settleOpen, setSettleOpen] = React.useState(false)
   const totalCents = summary.expenseTotalCents
 
@@ -148,7 +146,6 @@ export function BudgetTab({
           <Label>Plan a budget</Label>
         </div>
         <BudgetDrafter
-          aiEnabled={aiEnabled}
           tripId={tripId}
           tripSlug={tripSlug}
           tripName={tripName}

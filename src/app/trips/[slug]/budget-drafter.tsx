@@ -115,8 +115,6 @@ export interface BudgetDrafterProps {
   itineraryDays: DayLocation[]
   memberCount: number
   initialItems: BudgetItem[]
-  /** When false, the drafter edits locally only -- no AI seed call. */
-  aiEnabled: boolean
 }
 
 export function BudgetDrafter({
@@ -129,7 +127,6 @@ export function BudgetDrafter({
   itineraryDays,
   memberCount,
   initialItems,
-  aiEnabled,
 }: BudgetDrafterProps) {
   const [session, setSession] = React.useState<Session | null>(null)
   const [stepIndex, setStepIndex] = React.useState(0)
@@ -195,14 +192,9 @@ export function BudgetDrafter({
       return
     }
 
-    // Assistant off: seed the deterministic scaffold locally, no AI call.
-    if (!aiEnabled) {
-      setUsedFallback(false)
-      seedSession(planBudgetSteps(planInput), null)
-      return
-    }
-
     // Plan a budget / Start over: draft with Claude, fall back to the scaffold.
+    // Pressing the draft button is explicit consent, so it always calls the
+    // model regardless of the global assistant toggle.
     setDrafting(true)
     setUsedFallback(false)
     try {
@@ -322,7 +314,7 @@ export function BudgetDrafter({
               ? "Edit budget"
               : "Plan a budget"}
         </button>
-        {plannedBudgetCents > 0 && aiEnabled ? (
+        {plannedBudgetCents > 0 ? (
           <button
             type="button"
             onClick={() => open(true)}
