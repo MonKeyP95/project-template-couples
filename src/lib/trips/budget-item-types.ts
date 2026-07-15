@@ -10,6 +10,12 @@ export interface BudgetItem {
   sortOrder: number
   /** Expense logged when this cost was marked paid; null while unpaid. */
   paidExpenseId: string | null
+  /** The assistant supplied this amount (an estimate, not the couple's figure). */
+  estimated: boolean
+  /** A real web-search result backing the amount; null when none. */
+  sourceUrl: string | null
+  /** The assistant couldn't price this; amountCents stays 0, shown as "no reliable price". */
+  priceUnknown: boolean
 }
 
 export interface BudgetItemRow {
@@ -23,6 +29,9 @@ export interface BudgetItemRow {
   when_end: string | null
   sort_order: number
   paid_expense_id: string | null
+  estimated: boolean
+  source_url: string | null
+  price_unknown: boolean
 }
 
 export function rowToBudgetItem(row: BudgetItemRow): BudgetItem {
@@ -37,5 +46,8 @@ export function rowToBudgetItem(row: BudgetItemRow): BudgetItem {
     whenEnd: row.when_end,
     sortOrder: row.sort_order,
     paidExpenseId: row.paid_expense_id,
+    estimated: row.estimated,
+    sourceUrl: row.source_url,
+    priceUnknown: row.price_unknown,
   }
 }

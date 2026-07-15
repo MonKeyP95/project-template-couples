@@ -2198,6 +2198,9 @@ export interface SaveBudgetItemInput {
   locationId: string | null
   whenStart?: string | null
   whenEnd?: string | null
+  estimated?: boolean
+  sourceUrl?: string | null
+  priceUnknown?: boolean
 }
 
 export interface SaveBudgetItemsInput {
@@ -2222,6 +2225,9 @@ export async function saveBudgetItems(
     amount_cents: number
     location_id: string | null
     sort_order: number
+    estimated: boolean
+    source_url: string | null
+    price_unknown: boolean
   }[] = []
 
   for (const it of input.items) {
@@ -2241,6 +2247,9 @@ export async function saveBudgetItems(
       amount_cents: it.amountCents,
       location_id: it.locationId,
       sort_order: order,
+      estimated: it.estimated ?? false,
+      source_url: it.sourceUrl ?? null,
+      price_unknown: it.priceUnknown ?? false,
     })
   }
 
@@ -2324,6 +2333,9 @@ export async function saveBudgetItemsForScope(
       when_start: string | null
       when_end: string | null
       sort_order: number
+      estimated: boolean
+      source_url: string | null
+      price_unknown: boolean
     } = {
       trip_id: input.tripId,
       category: it.category,
@@ -2334,6 +2346,9 @@ export async function saveBudgetItemsForScope(
       when_start: it.whenStart ?? null,
       when_end: it.whenEnd ?? null,
       sort_order: order++,
+      estimated: it.estimated ?? false,
+      source_url: it.sourceUrl ?? null,
+      price_unknown: it.priceUnknown ?? false,
     }
     if (it.id && existingIds.has(it.id)) {
       const { error } = await supabase
