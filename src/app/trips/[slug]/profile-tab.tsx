@@ -14,13 +14,15 @@ import type { TripProfile } from "@/lib/trips/trip-profile-types"
 export function ProfileTab({
   profile,
   expenseCategories,
+  onboarding = false,
   ...notesProps
 }: React.ComponentProps<typeof NotesTab> & {
   profile: TripProfile
   expenseCategories: ExpenseCategoryRow[]
+  onboarding?: boolean
 }) {
   const { tripId, tripSlug } = notesProps
-  const [editing, setEditing] = React.useState(false)
+  const [editing, setEditing] = React.useState(onboarding)
 
   return (
     <>
@@ -30,6 +32,7 @@ export function ProfileTab({
           tripSlug={tripSlug}
           profile={profile}
           categories={expenseCategories}
+          onboarding={onboarding}
           onDone={() => setEditing(false)}
         />
       ) : (
