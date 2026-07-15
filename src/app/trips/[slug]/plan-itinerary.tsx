@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 
 import { Label } from "@/components/together"
 import {
@@ -40,7 +40,8 @@ export function PlanItinerary({
   dayCount,
 }: PlanItineraryProps) {
   const router = useRouter()
-  const [open, setOpen] = React.useState(false)
+  const searchParams = useSearchParams()
+  const [open, setOpen] = React.useState(searchParams.get("plan") === "1")
   const [phase, setPhase] = React.useState<Phase>("setup")
   const [catIdx, setCatIdx] = React.useState(0)
   const [placeNames, setPlaceNames] = React.useState<string[]>([""])
