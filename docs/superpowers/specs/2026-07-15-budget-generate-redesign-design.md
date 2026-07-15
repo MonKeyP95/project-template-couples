@@ -73,13 +73,29 @@ its rows come from the itinerary instead of mock estimates.
 
 ## Buffer Step
 
-- A final walk step after the categories: "How much buffer?" with choices
-  **5% / 10% / custom %**.
+- A final walk step after the categories: "How much buffer?" — choices
+  **5% / 10% / custom %**, with a **recommended default derived from the couple's
+  profile stats** (see below).
 - Stored as a single trip-wide **Other** line, `subject = "Buffer (10%)"`, with
   `amountCents = round(subtotal * pct)`.
 - Computed **after** Generate fills the gaps (buffer rides on the real subtotal),
   and recomputed at save. It is a deterministic computation, not an estimate, so
   it carries **no** "est." mark.
+
+### Recommended buffer from profile stats
+
+- The buffer step's **default %** is a **pure, deterministic** computation over
+  the couple's history — not an LLM output. Keeps "numbers are the artifact — AI
+  never invents them" intact and keeps the model out of the buffer.
+- **Basis:** the couple's historical **plan-vs-actual variance**, reusing the
+  budget-learning rollup — i.e. how much past trips actually ran over their
+  planned budget. Consistent ~12% overspend -> recommend ~12-15%.
+- **Graceful fallback:** no history (first trip) -> a sensible default (10%),
+  nudged by the trip's budget band. The recommendation sharpens as more trips
+  finish; it never pretends to know on trip one.
+- Presented as the **default the couple can accept or override** (custom %),
+  with a one-line "why" (e.g. "your trips have averaged ~12% over plan"). Pure
+  function `recommendBufferPct(stats) -> { pct, reason }`.
 
 ## The Generate Seam (`lib/ai/claude.ts`)
 
@@ -169,7 +185,11 @@ tooling) and must be safe to re-run.
 - `src/lib/trips/actions.ts` — `SaveBudgetItemInput` + `saveBudgetItems` (and the
   scope variant) carry the three fields.
 - `src/lib/ai/budget-planner.ts` — drop the mock cost seeds; steps seed empty.
-  Add the buffer step. Keep the pure step model.
+  Add the buffer step. Add the pure `recommendBufferPct(stats)`. Keep the pure
+  step model.
+- The couple's historical plan-vs-actual variance (source for
+  `recommendBufferPct`) is read server-side from the budget-learning rollup and
+  passed in as a prop; no new stats table.
 - `src/lib/ai/claude.ts` — remove `draftBudgetSeeds`; add `draftBudgetFill`
   (web_search + structured submit), a `BUDGET_FILL_SYSTEM` prompt.
 - `src/lib/ai/budget-actions.ts` — remove the up-front `draftBudget` seed-merge;
@@ -224,3 +244,6 @@ No test framework exists. Validation per increment:
   pattern; Google Custom Search deferred behind the seam.
 - The "never overwrites your typed price" guarantee is structural: the model is
   only asked for un-priced lines and new lines.
+- The buffer default is recommended by a pure function over the couple's
+  historical plan-vs-actual variance (deterministic, not the LLM), with a
+  graceful default when there is no history.
