@@ -2201,6 +2201,8 @@ export interface SaveBudgetItemInput {
   estimated?: boolean
   sourceUrl?: string | null
   priceUnknown?: boolean
+  freq?: string
+  count?: number
 }
 
 export interface SaveBudgetItemsInput {
@@ -2230,6 +2232,8 @@ export async function saveBudgetItems(
     estimated: boolean
     source_url: string | null
     price_unknown: boolean
+    freq: string
+    count: number
   }[] = []
 
   for (const it of input.items) {
@@ -2254,6 +2258,8 @@ export async function saveBudgetItems(
       estimated: it.estimated ?? false,
       source_url: it.sourceUrl ?? null,
       price_unknown: it.priceUnknown ?? false,
+      freq: it.freq ?? "once",
+      count: it.count ?? 1,
     })
   }
 

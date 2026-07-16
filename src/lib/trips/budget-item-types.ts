@@ -16,6 +16,10 @@ export interface BudgetItem {
   sourceUrl: string | null
   /** The assistant couldn't price this; amountCents stays 0, shown as "no reliable price". */
   priceUnknown: boolean
+  /** How the amount multiplies: "once" | "times" | "daily". */
+  freq: string
+  /** The multiplier for "times"; 1 otherwise. */
+  count: number
 }
 
 export interface BudgetItemRow {
@@ -32,6 +36,8 @@ export interface BudgetItemRow {
   estimated: boolean
   source_url: string | null
   price_unknown: boolean
+  freq: string
+  count: number
 }
 
 export function rowToBudgetItem(row: BudgetItemRow): BudgetItem {
@@ -49,5 +55,7 @@ export function rowToBudgetItem(row: BudgetItemRow): BudgetItem {
     estimated: row.estimated,
     sourceUrl: row.source_url,
     priceUnknown: row.price_unknown,
+    freq: row.freq,
+    count: row.count,
   }
 }
