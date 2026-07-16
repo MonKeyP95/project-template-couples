@@ -74,6 +74,7 @@ export function DiscoverySection({
   const [craving, setCraving] = React.useState("")
   const [near, setNear] = React.useState(defaultNear)
   const [walkable, setWalkable] = React.useState(defaultWalkable)
+  const [price, setPrice] = React.useState("any")
   const [selDayId, setSelDayId] = React.useState("")
   const [newDate, setNewDate] = React.useState("")
 
@@ -95,6 +96,7 @@ export function DiscoverySection({
           craving: craving.trim(),
           near: near.trim(),
           walkable,
+          price,
         }),
       })
       const data = await res.json()
@@ -159,28 +161,58 @@ export function DiscoverySection({
     <div>
       {suggestions === null ? (
         <div className="flex flex-col gap-2">
-          <input
-            type="text"
-            value={craving}
-            onChange={(e) => setCraving(e.target.value)}
-            placeholder="what do you feel like? (optional)"
-            className="w-full border-0 border-b border-rule bg-transparent py-1 text-[13px] text-foreground placeholder:text-muted-foreground focus:border-clay focus:outline-none"
-          />
-          <input
-            type="text"
-            value={near}
-            onChange={(e) => setNear(e.target.value)}
-            placeholder="near…"
-            className="w-full border-0 border-b border-rule bg-transparent py-1 text-[13px] text-foreground placeholder:text-muted-foreground focus:border-clay focus:outline-none"
-          />
-          <label className="flex items-center gap-2 font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
-            <input
-              type="checkbox"
-              checked={walkable}
-              onChange={(e) => setWalkable(e.target.checked)}
-            />
-            walking distance
-          </label>
+          {category === "stay" ? (
+            <>
+              <input
+                type="text"
+                value={near}
+                onChange={(e) => setNear(e.target.value)}
+                placeholder="which area? (optional)"
+                className="w-full border-0 border-b border-rule bg-transparent py-1 text-[13px] text-foreground placeholder:text-muted-foreground focus:border-clay focus:outline-none"
+              />
+              <div className="flex gap-1.5">
+                {(["any", "budget", "mid", "splurge"] as const).map((b) => (
+                  <button
+                    key={b}
+                    type="button"
+                    onClick={() => setPrice(b)}
+                    className={`rounded-full border px-2.5 py-1 font-mono text-[10px] uppercase tracking-[0.14em] ${
+                      price === b
+                        ? "border-transparent bg-foreground text-background"
+                        : "border-rule text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    {b}
+                  </button>
+                ))}
+              </div>
+            </>
+          ) : (
+            <>
+              <input
+                type="text"
+                value={craving}
+                onChange={(e) => setCraving(e.target.value)}
+                placeholder="what do you feel like? (optional)"
+                className="w-full border-0 border-b border-rule bg-transparent py-1 text-[13px] text-foreground placeholder:text-muted-foreground focus:border-clay focus:outline-none"
+              />
+              <input
+                type="text"
+                value={near}
+                onChange={(e) => setNear(e.target.value)}
+                placeholder="near…"
+                className="w-full border-0 border-b border-rule bg-transparent py-1 text-[13px] text-foreground placeholder:text-muted-foreground focus:border-clay focus:outline-none"
+              />
+              <label className="flex items-center gap-2 font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
+                <input
+                  type="checkbox"
+                  checked={walkable}
+                  onChange={(e) => setWalkable(e.target.checked)}
+                />
+                walking distance
+              </label>
+            </>
+          )}
           <button
             type="button"
             onClick={find}

@@ -198,6 +198,21 @@ const DISCOVERY_TOOLS: Anthropic.Messages.ToolUnion[] = [
 /** System prompt for a category. Only the noun differs between food and
  * activity; the search discipline and precedence rule are shared. */
 function discoverySystem(category: DiscoveryCategory): string {
+  if (category === "stay") {
+    return (
+      "You help a couple find places to stay for a trip. Never ask the user " +
+      "questions or reply conversationally — you cannot receive a reply. On every " +
+      "request you MUST: (1) use the web_search tool to find real, currently-" +
+      "operating places to stay in or near the destination, then (2) call " +
+      "propose_places with 3 to 4 options. If their preferences are sparse, search " +
+      "for well-regarded, broadly-appealing places to stay for that destination " +
+      "anyway — do not ask for more detail. Every suggestion must come from a real " +
+      "search result and include that result's URL as sourceUrl. Never invent a " +
+      "place, a URL, or an exact price. Keep each 'why' to one sentence. When " +
+      "choosing, weight the requested area and price band first, then this trip's " +
+      "vibe and brief, then the couple's general tastes."
+    )
+  }
   const noun = category === "activity" ? "things to do" : "restaurants"
   return (
     `You help a couple find ${noun} for a trip. Never ask the user questions ` +
@@ -236,6 +251,24 @@ function discoveryPrompt(query: DiscoveryQuery): string {
     ? `From past trips, this couple has especially enjoyed: ${query.learned.trim()}`
     : ""
   const dialLine = TASTE_DIRECTIVE[query.taste]
+
+  if (query.category === "stay") {
+    const areaLine = query.near ? `Preferred area: ${query.near}.` : ""
+    const priceLine =
+      query.budgetBand && query.budgetBand !== "any"
+        ? `Price band: ${query.budgetBand}.`
+        : ""
+    return [
+      `Find places to stay in ${query.destination}.`,
+      areaLine,
+      priceLine,
+      learnedLine,
+      dialLine,
+      ...(tripLines.length ? ["This trip —", ...tripLines] : []),
+    ]
+      .filter(Boolean)
+      .join(" ")
+  }
 
   if (query.category === "activity") {
     return [

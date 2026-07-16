@@ -4,15 +4,17 @@
 
 import type { TasteLevel } from "./taste-types"
 
-/** Which kind of place we are finding. Food and activity are live; the door may
- * show other categories as inactive. */
-export type DiscoveryCategory = "food" | "activity"
+/** Which kind of place we are finding. Food, activity, and stay are live; the
+ * door may show other categories as inactive. */
+export type DiscoveryCategory = "food" | "activity" | "stay"
 
 /** The expense category an event gets when added from the discovery door.
  * Resolved against the trip's real categories at expense time; falls back to
  * Other when the trip has no category by this name. */
 export function mapDiscoveryCategory(category: DiscoveryCategory): string {
-  return category === "food" ? "Food" : "Activities"
+  if (category === "food") return "Food"
+  if (category === "activity") return "Activities"
+  return "Accommodation"
 }
 
 /** Reverse of mapDiscoveryCategory: an expense-category name back to a learned

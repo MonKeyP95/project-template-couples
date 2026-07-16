@@ -7,8 +7,8 @@ import { PlaceDoor, type DoorCategory } from "@/components/place-door"
 import { currentMeal, mealLabel, mealWhen, type Meal } from "./meal-slot"
 
 /** On-the-road discovery door content for the assistant block: Food (anchored to
- * the current meal) + Activities, added straight to today's day. Accommodation
- * and Transport are placeholders. */
+ * the current meal) + Activities + Accommodation, added straight to today's day.
+ * Transport is a placeholder. */
 export function RoadPlaceDoor({
   tripId,
   tripSlug,
@@ -68,7 +68,24 @@ export function RoadPlaceDoor({
         />
       ),
     },
-    { key: "stay", title: "Accommodation", soon: true },
+    {
+      key: "stay",
+      title: "Accommodation",
+      content: (
+        <DiscoverySection
+          category="stay"
+          tripId={tripId}
+          tripSlug={tripSlug}
+          destination={destination}
+          when=""
+          defaultNear=""
+          defaultWalkable={false}
+          addTarget={{ kind: "fixed", dayDate, dayId }}
+          buildEventText={(s) => `Stay · ${s.name}`}
+          ctaLabel="add to today"
+        />
+      ),
+    },
     { key: "transport", title: "Transport", soon: true },
   ]
 
