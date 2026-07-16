@@ -69,9 +69,12 @@ path: an empty day is just a day with no events.
 
 ## Deferred (handle when it actually comes up, not before)
 
-- Shrinking a span (or deleting a boundary day) when a dropped date has events:
-  simplest behavior for now; revisit if it bites.
-- No-span locations and loose days: keep current behavior.
+- Shrinking a span: reconcile is insert-only for now (no row deletion on
+  shrink), so a shortened span may leave rows outside it. Revisit if it bites.
+- No-span locations: filling is driven by a declared span, so a location with no
+  span is not materialized. After the empty-rendering code is removed, its gaps
+  simply aren't drawn — it shows only its real days. Loose/transit days already
+  render without gap placeholders (unchanged).
 
 ## Verification
 
