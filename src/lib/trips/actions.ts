@@ -2225,6 +2225,8 @@ export async function saveBudgetItems(
     amount_cents: number
     location_id: string | null
     sort_order: number
+    when_start: string | null
+    when_end: string | null
     estimated: boolean
     source_url: string | null
     price_unknown: boolean
@@ -2247,6 +2249,8 @@ export async function saveBudgetItems(
       amount_cents: it.amountCents,
       location_id: it.locationId,
       sort_order: order,
+      when_start: it.whenStart ?? null,
+      when_end: it.whenEnd ?? null,
       estimated: it.estimated ?? false,
       source_url: it.sourceUrl ?? null,
       price_unknown: it.priceUnknown ?? false,

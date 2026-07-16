@@ -28,15 +28,49 @@ function asCents(value: string): number {
 interface ItemRow {
   id: string
   subject: string
+  /** Free-text note, kept alongside the structured date range. */
   when: string
-  /** Euros, "" when blank or no reliable price. */
+  /** Euros; per-day when a range is set, else the one-off total. "" when blank/unknown. */
   value: string
+  /** yyyy-mm-dd; a start+end pair means the value is per-day over the span. */
+  whenStart?: string
+  whenEnd?: string
   /** The assistant supplied this amount. */
   estimated?: boolean
   /** Backing web-search URL, when it found one. */
   sourceUrl?: string | null
   /** The assistant couldn't price this; value stays "". */
   priceUnknown?: boolean
+}
+
+/** Units a dated range spans: nights for accommodation (12->14 = 2), inclusive
+ * days for everything else (day 1->5 = 5). Min 1; 1 for a bad/single range. */
+function spanCount(catKey: string, start: string, end: string): number {
+  const s = Date.parse(`${start}T00:00:00Z`)
+  const e = Date.parse(`${end}T00:00:00Z`)
+  if (!Number.isFinite(s) || !Number.isFinite(e) || e < s) return 1
+  const nights = Math.round((e - s) / 86_400_000)
+  return catKey === "accommodation" ? Math.max(1, nights) : Math.max(1, nights + 1)
+}
+
+/** A row's total in cents: per-day value times the span when a range is set. */
+function rowTotalCents(catKey: string, row: ItemRow): number {
+  const per = asCents(row.value)
+  if (row.whenStart && row.whenEnd) return per * spanCount(catKey, row.whenStart, row.whenEnd)
+  return per
+}
+
+function fmtDate(d: string): string {
+  const t = Date.parse(`${d}T00:00:00Z`)
+  return Number.isFinite(t)
+    ? new Date(t).toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: "UTC" })
+    : d
+}
+
+function rangeLabel(row: ItemRow): string {
+  if (row.whenStart && row.whenEnd) return `${fmtDate(row.whenStart)} – ${fmtDate(row.whenEnd)}`
+  if (row.whenStart) return fmtDate(row.whenStart)
+  return ""
 }
 
 interface Session {
@@ -145,10 +179,16 @@ export function BudgetDrafter({
           ? it.locationId
           : fallback
         : "trip"
+      // A stored ranged line holds the total; divide back to the per-day value.
+      const count =
+        it.whenStart && it.whenEnd ? spanCount(catKey, it.whenStart, it.whenEnd) : 1
+      const per = count > 1 ? Math.round(it.amountCents / count) : it.amountCents
       ;(out[`${catKey}:${locKey}`] ??= []).push({
         subject: it.subject,
         when: it.whenLabel,
-        value: it.priceUnknown ? "" : it.amountCents ? fmt(it.amountCents) : "",
+        value: it.priceUnknown ? "" : per ? fmt(per) : "",
+        whenStart: it.whenStart ?? "",
+        whenEnd: it.whenEnd ?? "",
         estimated: it.estimated,
         sourceUrl: it.sourceUrl,
         priceUnknown: it.priceUnknown,
@@ -263,12 +303,13 @@ export function BudgetDrafter({
       const place = locKey && locKey !== "trip" ? nameById[locKey] ?? "" : ""
       for (const r of rows) {
         if (r.subject.trim() === "" && r.value.trim() === "") continue
-        const cents = asCents(r.value)
+        const cents = rowTotalCents(stepKey, r)
+        const whenLabel = [rangeLabel(r), r.when.trim()].filter(Boolean).join(" · ")
         lines.push({
           category,
           place,
           subject: r.subject.trim(),
-          whenLabel: r.when.trim(),
+          whenLabel,
           amountEuros: cents > 0 ? cents / 100 : null,
         })
       }
@@ -336,8 +377,9 @@ export function BudgetDrafter({
 
   function subtotalCents(s: Session): number {
     let sum = 0
-    for (const rows of Object.values(s.items)) {
-      for (const r of rows) sum += asCents(r.value)
+    for (const [bucketId, rows] of Object.entries(s.items)) {
+      const catKey = bucketId.split(":")[0]
+      for (const r of rows) sum += rowTotalCents(catKey, r)
     }
     return sum
   }
@@ -359,7 +401,7 @@ export function BudgetDrafter({
       if (!category) continue
       const locationId = locKey && locKey !== "trip" ? locKey : null
       for (const r of rows) {
-        const cents = asCents(r.value)
+        const cents = rowTotalCents(stepKey, r)
         if (r.subject.trim() === "" && cents === 0 && !r.priceUnknown) continue
         items.push({
           category,
@@ -367,6 +409,8 @@ export function BudgetDrafter({
           whenLabel: r.when,
           amountCents: cents,
           locationId,
+          whenStart: r.whenStart || null,
+          whenEnd: r.whenEnd || null,
           estimated: r.estimated ?? false,
           sourceUrl: r.sourceUrl ?? null,
           priceUnknown: r.priceUnknown ?? false,
@@ -450,14 +494,31 @@ export function BudgetDrafter({
             ×
           </button>
         </div>
-        <div className="mt-1.5 flex items-center justify-between gap-2">
+        <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
           <input
             type="text"
             value={row.when}
-            placeholder="When (e.g. 3 days, 12 Jan)"
+            placeholder="Note (optional)"
             onChange={(e) => patchItem(bucketId, row.id, { when: e.target.value })}
             disabled={isPending}
             className="min-w-0 flex-1 border-0 border-b border-border bg-transparent font-mono text-[11px] tracking-[0.04em] text-muted-foreground outline-none focus:border-foreground"
+          />
+          <input
+            type="date"
+            aria-label="Start date"
+            value={row.whenStart ?? ""}
+            onChange={(e) => patchItem(bucketId, row.id, { whenStart: e.target.value })}
+            disabled={isPending}
+            className="rounded border border-border bg-transparent px-1.5 py-1 font-mono text-[10px] text-foreground outline-none focus:border-foreground"
+          />
+          <input
+            type="date"
+            aria-label="End date"
+            value={row.whenEnd ?? ""}
+            min={row.whenStart || undefined}
+            onChange={(e) => patchItem(bucketId, row.id, { whenEnd: e.target.value })}
+            disabled={isPending}
+            className="rounded border border-border bg-transparent px-1.5 py-1 font-mono text-[10px] text-foreground outline-none focus:border-foreground"
           />
           <span className="inline-flex items-baseline gap-1">
             <span className="font-mono text-[12px] text-muted-foreground">€</span>
@@ -469,8 +530,11 @@ export function BudgetDrafter({
               value={row.value}
               onChange={(e) => editValue(bucketId, row.id, e.target.value)}
               disabled={isPending}
-              className="t-num w-20 border-0 border-b border-border bg-transparent text-right text-[14px] text-foreground outline-none focus:border-foreground"
+              className="t-num w-16 border-0 border-b border-border bg-transparent text-right text-[14px] text-foreground outline-none focus:border-foreground"
             />
+            {row.whenStart && row.whenEnd ? (
+              <span className="font-mono text-[9px] text-muted-foreground">/day</span>
+            ) : null}
           </span>
         </div>
       </div>
@@ -648,16 +712,20 @@ export function BudgetDrafter({
               Nothing added yet
             </div>
           ) : (
-            lines.map(({ bucketId, row, primary }) => (
+            lines.map(({ bucketId, row, primary }) => {
+              const catKey = bucketId.split(":")[0]
+              const meta = [rangeLabel(row), row.when.trim()].filter(Boolean).join(" · ")
+              const ranged = Boolean(row.whenStart && row.whenEnd)
+              return (
               <div
                 key={row.id}
                 className="flex items-center justify-between gap-3 border-t border-rule py-2 first:border-t-0"
               >
                 <span className="min-w-0">
                   <span className="text-[13px] text-foreground">{primary}</span>
-                  {row.when ? (
+                  {meta ? (
                     <span className="ml-2 font-mono text-[10px] tracking-[0.04em] text-muted-foreground">
-                      {row.when}
+                      {meta}
                     </span>
                   ) : null}
                   {row.estimated ? (
@@ -704,12 +772,18 @@ export function BudgetDrafter({
                       value={row.value}
                       onChange={(e) => editValue(bucketId, row.id, e.target.value)}
                       disabled={isPending}
-                      className="t-num w-20 border-0 border-b border-border bg-transparent text-right text-[13px] text-foreground outline-none focus:border-foreground"
+                      className="t-num w-16 border-0 border-b border-border bg-transparent text-right text-[13px] text-foreground outline-none focus:border-foreground"
                     />
+                    {ranged ? (
+                      <span className="font-mono text-[9px] text-muted-foreground">
+                        /day = €{fmt(rowTotalCents(catKey, row))}
+                      </span>
+                    ) : null}
                   </span>
                 )}
               </div>
-            ))
+              )
+            })
           )}
         </div>
 
