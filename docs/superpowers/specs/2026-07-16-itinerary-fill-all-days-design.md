@@ -4,10 +4,15 @@
 
 ## Goal
 
-Remove "empty day" as a separate concept. A location with a date span has a
-real `itinerary_days` row for **every** date in that span. A row with no events
-renders with the current dashed "empty" look — but as a normal day card. No gap
-placeholders, no run-coalescing, no `empty:<date>` slots.
+Delete "empty day" as a separate concept entirely. There is exactly one building
+block: **the day**. A location with a date span has a real `itinerary_days` row
+for **every** date in that span. Some days have events, some don't — but they are
+all the same kind of thing. No gap placeholders, no run-coalescing, no
+`empty:<date>` slots.
+
+How an event-less day *looks* is deferred to a later conversation. This change
+does not design that visual — a contentless day simply renders as the normal day
+card with no events; we refine its appearance later.
 
 ## Motivation
 
@@ -30,8 +35,8 @@ path: an empty day is just a day with no events.
 - **Fill / reconcile:** when a location's span is set or edited, reconcile its
   rows to the span — insert a row for each missing date, delete rows whose date
   falls outside the new span. A reconcile is a single server-side operation.
-- **Render:** a 0-event row draws with the dashed empty visual inside the normal
-  day card. There is no separate empty component.
+- **Render:** a 0-event row is just a normal day card with no events. There is no
+  separate empty component. Its visual is not designed here (deferred).
 - **Drag:** every date in the span is now a real row, so reordering is a plain
   permutation of real days over their own dates — the existing
   `reorderRangeSlots` (fed occupied-only dates) + `rescheduleItineraryDaysTo`
@@ -53,7 +58,6 @@ path: an empty day is just a day with no events.
 
 - A reconcile operation (server action + helper) that materializes/prunes a
   location's rows to its span, called from the location-span edit path.
-- An empty (0-event) state on the day card using the existing dashed styling.
 - Backfill migration (idempotent; manual apply per repo convention).
 
 ## Kept
@@ -72,15 +76,16 @@ path: an empty day is just a day with no events.
 ## Verification
 
 - `pnpm lint && pnpm build`.
-- In-app: set a location span with gaps → every date appears as a day, empty
-  ones dashed; drag reorders real days; partner sees it via Realtime; the
-  backfill filled the existing trip.
+- In-app: set a location span with gaps → every date appears as a day (its
+  event-less look is whatever the default card gives, refined later); drag
+  reorders real days; partner sees it via Realtime; the backfill filled the
+  existing trip.
 
 ## Build order (incremental)
 
 1. Reconcile helper + server action; call it on span edit.
 2. Backfill migration; apply manually.
-3. Day-card empty state (dashed) for 0-event rows.
-4. Remove the empty-rendering code path; simplify `reorderRangeSlots`.
-5. Docs: `TODO.md`, `DECISIONS.md` (note the reversal of the derived-gap /
+3. Remove the empty-rendering code path; simplify `reorderRangeSlots`. Contentless
+   rows fall through to the normal day card (visual refined later, separately).
+4. Docs: `TODO.md`, `DECISIONS.md` (note the reversal of the derived-gap /
    drag-empties approach).
