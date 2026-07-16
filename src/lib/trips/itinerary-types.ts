@@ -215,36 +215,16 @@ export function reassignDayDate(day: ItineraryDay, newDate: string): ItineraryDa
   }
 }
 
-/** Effective date range of a location: its declared span unioned with any days.
- * null when there are neither declared dates nor days. Pure. */
-export function effectiveRange(
-  days: ItineraryDay[],
-  declaredStart: string | null,
-  declaredEnd: string | null,
-): { start: string; end: string } | null {
-  const dates = days.map((d) => d.dayDate)
-  const lows = [declaredStart, ...dates].filter((v): v is string => Boolean(v))
-  const highs = [declaredEnd, ...dates].filter((v): v is string => Boolean(v))
-  if (!lows.length || !highs.length) return null
-  return {
-    start: lows.reduce((a, b) => (a < b ? a : b)),
-    end: highs.reduce((a, b) => (a > b ? a : b)),
-  }
-}
-
 function moveItem<T>(arr: T[], from: number, to: number): T[] {
   const next = arr.slice()
   next.splice(to, 0, next.splice(from, 1)[0])
   return next
 }
 
-/** Reorder a group's real days AND empty-day gaps as one sequence over the
- * given ascending `slotDates`, then re-lay onto those dates. Slots are real day
- * ids or "empty:<date>" placeholders. The caller chooses `slotDates`: the full
- * location range (gaps draggable) or just the occupied dates (loose days, no
- * gaps rendered), and pre-filters out past dates so a live trip cannot reassign
- * into the past. Returns only the real days whose date changed. Pure; safe
- * client-side for the optimistic update. */
+/** Reorder a location's days over the given ascending `slotDates` (its occupied
+ * dates, past-filtered on a live trip), then re-lay onto those dates. Returns
+ * only the days whose date changed. Pure; safe client-side for the optimistic
+ * update. */
 export function reorderRangeSlots(
   days: ItineraryDay[],
   slotDates: string[],
@@ -254,16 +234,16 @@ export function reorderRangeSlots(
   if (activeId === overId) return []
   const idByDate = new Map(days.map((d) => [d.dayDate, d.id]))
   const dateById = new Map(days.map((d) => [d.id, d.dayDate]))
-  const slots = slotDates.map((date) => idByDate.get(date) ?? `empty:${date}`)
-  const oldIndex = slots.indexOf(activeId)
-  const newIndex = slots.indexOf(overId)
+  const ids = slotDates
+    .map((date) => idByDate.get(date))
+    .filter((id): id is string => Boolean(id))
+  const oldIndex = ids.indexOf(activeId)
+  const newIndex = ids.indexOf(overId)
   if (oldIndex === -1 || newIndex === -1) return []
-  const moved = moveItem(slots, oldIndex, newIndex)
+  const moved = moveItem(ids, oldIndex, newIndex)
   const changes: { id: string; date: string }[] = []
-  moved.forEach((slot, i) => {
-    if (slot.startsWith("empty:")) return
-    const newDate = slotDates[i]
-    if (dateById.get(slot) !== newDate) changes.push({ id: slot, date: newDate })
+  moved.forEach((id, i) => {
+    if (dateById.get(id) !== slotDates[i]) changes.push({ id, date: slotDates[i] })
   })
   return changes
 }
