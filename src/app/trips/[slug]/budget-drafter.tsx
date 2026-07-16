@@ -847,6 +847,7 @@ export function BudgetDrafter({
                     </a>
                   ) : null}
                 </span>
+                <span className="flex items-center gap-2">
                 {row.priceUnknown ? (
                   <span className="inline-flex items-baseline gap-1">
                     <span className="font-mono text-[9px] uppercase tracking-[0.12em] text-muted-foreground">
@@ -884,6 +885,16 @@ export function BudgetDrafter({
                     ) : null}
                   </span>
                 )}
+                <button
+                  type="button"
+                  onClick={() => removeItem(bucketId, row.id)}
+                  disabled={isPending}
+                  aria-label="Remove"
+                  className="border-0 bg-transparent font-mono text-[13px] text-muted-foreground hover:text-foreground"
+                >
+                  ×
+                </button>
+                </span>
               </div>
               )
             })
