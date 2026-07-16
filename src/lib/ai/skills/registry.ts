@@ -56,6 +56,57 @@ export const TOOL_REGISTRY: Record<string, PlannerTool> = {
       },
     },
   },
+  propose_itinerary: {
+    name: "propose_itinerary",
+    definition: {
+      name: "propose_itinerary",
+      description: "Return the drafted itinerary events.",
+      strict: true,
+      input_schema: {
+        type: "object",
+        additionalProperties: false,
+        properties: {
+          events: {
+            type: "array",
+            items: {
+              type: "object",
+              additionalProperties: false,
+              properties: {
+                category: {
+                  type: "string",
+                  enum: ["Accommodation", "Transportation", "Activities", "Food", "Other"],
+                  description: "Which kind of event this is.",
+                },
+                place: {
+                  type: "string",
+                  description: "The exact itinerary place name given for this event, or empty.",
+                },
+                text: {
+                  type: "string",
+                  description: "Short label for the event, e.g. 'Surf lesson' or 'Dinner - seafood'.",
+                },
+                date: {
+                  type: "string",
+                  description: "YYYY-MM-DD within the trip dates. Empty if you can't place it.",
+                },
+                time: {
+                  type: "string",
+                  description: "HH:MM 24h, or empty.",
+                },
+              },
+              required: ["category", "place", "text", "date", "time"],
+            },
+          },
+          question: {
+            type: "string",
+            description:
+              "Empty when you proposed events. When the input is too thin to ground on, leave events empty and put ONE short clarifying question here.",
+          },
+        },
+        required: ["events", "question"],
+      },
+    },
+  },
 }
 
 /** Resolve a behavior file's tool names into Anthropic tool definitions, in

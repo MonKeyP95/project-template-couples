@@ -9,6 +9,7 @@ import type {
 import type { Suggestion } from "./suggestion-types"
 import { TASTE_DIRECTIVE } from "./taste-types"
 import { budgetPlannerSkill } from "./skills/budget-planner"
+import { itineraryPlannerSkill } from "./skills/itinerary-planner"
 import { resolveTools } from "./skills/registry"
 import type {
   LearnedCategory,
@@ -443,71 +444,6 @@ export interface ItineraryDraftContext {
   tasteDirective: string
 }
 
-const ITINERARY_TOOL: Anthropic.Messages.ToolUnion = {
-  name: "propose_itinerary",
-  description: "Return the drafted itinerary events.",
-  strict: true,
-  input_schema: {
-    type: "object",
-    additionalProperties: false,
-    properties: {
-      events: {
-        type: "array",
-        items: {
-          type: "object",
-          additionalProperties: false,
-          properties: {
-            category: {
-              type: "string",
-              enum: ["Accommodation", "Transportation", "Activities", "Food", "Other"],
-              description: "Which kind of event this is.",
-            },
-            place: {
-              type: "string",
-              description: "The exact itinerary place name given for this event, or empty.",
-            },
-            text: {
-              type: "string",
-              description: "Short label for the event, e.g. 'Surf lesson' or 'Dinner - seafood'.",
-            },
-            date: {
-              type: "string",
-              description: "YYYY-MM-DD within the trip dates. Empty if you can't place it.",
-            },
-            time: {
-              type: "string",
-              description: "HH:MM 24h, or empty.",
-            },
-          },
-          required: ["category", "place", "text", "date", "time"],
-        },
-      },
-      question: {
-        type: "string",
-        description:
-          "Empty when you proposed events. When the input is too thin to ground on, leave events empty and put ONE short clarifying question here.",
-      },
-    },
-    required: ["events", "question"],
-  },
-}
-
-const ITINERARY_SYSTEM =
-  "You draft a trip itinerary for a couple or family by calling propose_itinerary. " +
-  "Be SPARSE: propose only a few genuinely grounded items per category (roughly one " +
-  "or two), and leave a category empty if you have nothing concrete. Do not pad with " +
-  "generic filler like 'explore the old town'. Leave room for the user to fill the rest. " +
-  "GROUNDING: stay strictly on the specific place names given; never leap from a country " +
-  "to a city the user did not name; never invent a place or date from the trip's name. " +
-  "Set place to one of the exact place names given (or empty). Set date to a real " +
-  "YYYY-MM-DD within range, or empty if you cannot place it. Keep each event a short " +
-  "label, not a paragraph. Weight the couple's taste and vibe as a lens, never a checklist. " +
-  "Do not invent prices or booking details. " +
-  "If what you were given is too thin or ambiguous to ground on — no usable place, or a " +
-  "place name you cannot confidently locate or understand — do NOT guess: return an empty " +
-  "events array and put ONE short, specific clarifying question in question (name what you " +
-  "need, e.g. which town or region). Otherwise return your events and leave question empty."
-
 function itineraryPrompt(c: ItineraryDraftContext): string {
   const list = (label: string, items: string[]) =>
     items.length ? `${label}: ${items.join(", ")}.` : ""
@@ -547,8 +483,8 @@ export async function draftItinerary(
   const response = await anthropic.messages.create({
     model: MODEL,
     max_tokens: 2048,
-    system: ITINERARY_SYSTEM,
-    tools: [ITINERARY_TOOL],
+    system: itineraryPlannerSkill.prompt,
+    tools: resolveTools(itineraryPlannerSkill.toolNames),
     tool_choice: { type: "tool", name: "propose_itinerary" },
     messages: [{ role: "user", content: itineraryPrompt(context) }],
   })
