@@ -2,6 +2,22 @@
 
 import * as React from "react"
 
+import {
+  DndContext,
+  MouseSensor,
+  TouchSensor,
+  closestCenter,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core"
+import {
+  SortableContext,
+  arrayMove,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable"
+import { CSS } from "@dnd-kit/utilities"
 import { Label, MonoBadge } from "@/components/together"
 import { AssistantBlock } from "@/components/assistant-block"
 import { EventRating } from "@/components/event-rating"
@@ -28,6 +44,7 @@ import {
   deleteItineraryLocation,
   insertItineraryDayWithShift,
   renameItineraryLocation,
+  rescheduleItineraryDays,
   setLocationSpanWithShift,
   updateItineraryDay,
 } from "@/lib/trips/actions"
@@ -36,6 +53,8 @@ import {
   dateRange,
   formatEventTime,
   formatShortDate,
+  reassignDayDate,
+  reorderWithinGroup,
   rowToItineraryDay,
   tripActive,
   withOrdinals,
@@ -466,6 +485,50 @@ export function ItineraryTab({
       ? nextDayAfter(days[days.length - 1].dayDate)
       : tripStartDate
 
+  const dragSensors = useSensors(
+    useSensor(MouseSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 8 } }),
+  )
+  const [, startReschedule] = React.useTransition()
+
+  // Reorder `groupDays` (one location's days, or all days when locationless) so
+  // the dragged day takes the dropped day's slot. Dates are fixed slots -- only
+  // which day sits on each of the group's dates moves. Optimistic; rolls back.
+  function reorderDays(groupDays: ItineraryDay[], activeId: string, overId: string) {
+    if (activeId === overId) return
+    const oldIndex = groupDays.findIndex((d) => d.id === activeId)
+    const newIndex = groupDays.findIndex((d) => d.id === overId)
+    if (oldIndex === -1 || newIndex === -1) return
+
+    const reordered = arrayMove(groupDays, oldIndex, newIndex)
+    const datesAsc = groupDays.map((d) => d.dayDate).sort()
+    const newDateById = new Map<string, string>()
+    reordered.forEach((d, i) => newDateById.set(d.id, datesAsc[i]))
+
+    const snapshot = days
+    setDays((prev) =>
+      withOrdinals(
+        prev.map((d) =>
+          newDateById.has(d.id) ? reassignDayDate(d, newDateById.get(d.id)!) : d,
+        ),
+      ),
+    )
+
+    const fullOrder = reorderWithinGroup(
+      days,
+      reordered.map((d) => d.id),
+    )
+    startReschedule(async () => {
+      const result = await rescheduleItineraryDays(tripId, tripSlug, fullOrder)
+      if (result.error) setDays(snapshot)
+    })
+  }
+
+  function onGroupDragEnd(groupDays: ItineraryDay[], e: DragEndEvent) {
+    const { active, over } = e
+    if (over) reorderDays(groupDays, String(active.id), String(over.id))
+  }
+
   const timeline = buildTimeline(locations, days)
 
   const budgetByLoc = React.useMemo(() => {
@@ -701,7 +764,8 @@ export function ItineraryTab({
                 </span>
               </button>
             ) : null}
-            {timeline.map((item) => {
+            {(() => {
+            const rendered = timeline.map((item) => {
             if (item.kind === "loose") {
               if (itemIsPast(item) && !pastBarOpen) return null
               return (
@@ -724,6 +788,7 @@ export function ItineraryTab({
                     categories={categories}
                     members={members}
                     currentUserId={currentUserId}
+                    sortable={locations.length === 0}
                   />
                 </div>
               )
@@ -869,6 +934,7 @@ export function ItineraryTab({
                 {open ? (
                   <div className="pb-3 pl-10">
                     {(() => {
+                      const dayRows = (() => {
                       const segs = toSegments(group.days)
                       const dayDates = group.days.map((d) => d.dayDate)
                       // Effective range = declared span unioned with any days.
@@ -1001,6 +1067,7 @@ export function ItineraryTab({
                             categories={categories}
                             members={members}
                             currentUserId={currentUserId}
+                            sortable
                           />
                         )
                       }
@@ -1044,6 +1111,23 @@ export function ItineraryTab({
                           ) : null}
                           {liveRows.map(renderRow)}
                         </>
+                      )
+                      })()
+                      if (group.days.length === 0) return dayRows
+                      return (
+                        <DndContext
+                          id={`dnd-${group.key}`}
+                          sensors={dragSensors}
+                          collisionDetection={closestCenter}
+                          onDragEnd={(e) => onGroupDragEnd(group.days, e)}
+                        >
+                          <SortableContext
+                            items={group.days.map((d) => d.id)}
+                            strategy={verticalListSortingStrategy}
+                          >
+                            {dayRows}
+                          </SortableContext>
+                        </DndContext>
                       )
                     })()}
 
@@ -1089,7 +1173,24 @@ export function ItineraryTab({
                 ) : null}
               </div>
             )
-            })}
+            })
+            if (locations.length !== 0) return rendered
+            return (
+              <DndContext
+                id="dnd-loose"
+                sensors={dragSensors}
+                collisionDetection={closestCenter}
+                onDragEnd={(e) => onGroupDragEnd(days, e)}
+              >
+                <SortableContext
+                  items={days.map((d) => d.id)}
+                  strategy={verticalListSortingStrategy}
+                >
+                  {rendered}
+                </SortableContext>
+              </DndContext>
+            )
+            })()}
           </>
         )}
         <div className="border-t border-rule pt-3">
@@ -1144,6 +1245,7 @@ function DaySegmentView({
   categories,
   members,
   currentUserId,
+  sortable,
 }: {
   seg: DaySegment
   tripId: string
@@ -1159,27 +1261,32 @@ function DaySegmentView({
   categories: ExpenseCategoryRow[]
   members: Record<string, MemberToneEntry>
   currentUserId: string
+  sortable: boolean
 }) {
-  const cards = seg.days.map((day) => (
-    <DayCard
-      key={day.id}
-      day={day}
-      tripId={tripId}
-      tripSlug={tripSlug}
-      expanded={!collapsedDays.has(day.id)}
-      onToggle={() => toggleDay(day.id)}
-      dimBefore={dimBefore}
-      today={today}
-      isLast={day.id === lastDayId}
-      isEditing={editingId === day.id}
-      onStartEdit={() => setEditingId(day.id)}
-      onStopEdit={() => setEditingId(null)}
-      locations={locations}
-      categories={categories}
-      members={members}
-      currentUserId={currentUserId}
-    />
-  ))
+  const cards = seg.days.map((day) => {
+    const cardProps = {
+      day,
+      tripId,
+      tripSlug,
+      expanded: !collapsedDays.has(day.id),
+      onToggle: () => toggleDay(day.id),
+      dimBefore,
+      today,
+      isLast: day.id === lastDayId,
+      isEditing: editingId === day.id,
+      onStartEdit: () => setEditingId(day.id),
+      onStopEdit: () => setEditingId(null),
+      locations,
+      categories,
+      members,
+      currentUserId,
+    }
+    return sortable ? (
+      <SortableDayCard key={day.id} id={day.id} {...cardProps} />
+    ) : (
+      <DayCard key={day.id} {...cardProps} />
+    )
+  })
   if (seg.groupId && seg.days.length > 1) {
     return (
       <div className="relative my-1.5 rounded-xl border border-rule px-2.5 pt-5 pb-1">
@@ -1261,6 +1368,22 @@ interface DayCardProps {
   categories: ExpenseCategoryRow[]
   members: Record<string, MemberToneEntry>
   currentUserId: string
+}
+
+function SortableDayCard({ id, ...rest }: DayCardProps & { id: string }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
+    useSortable({ id, disabled: rest.isEditing })
+  const style: React.CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.6 : undefined,
+    zIndex: isDragging ? 10 : undefined,
+  }
+  return (
+    <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
+      <DayCard {...rest} />
+    </div>
+  )
 }
 
 function DayCard({
