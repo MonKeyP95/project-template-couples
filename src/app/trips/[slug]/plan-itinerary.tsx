@@ -39,6 +39,7 @@ export function PlanItinerary({ tripId, tripSlug, destination }: PlanItineraryPr
   const [open, setOpen] = React.useState(searchParams.get("plan") === "1")
   const [phase, setPhase] = React.useState<Phase>("places")
   const [placeNames, setPlaceNames] = React.useState<string[]>([""])
+  const [freeText, setFreeText] = React.useState("")
   const [steps, setSteps] = React.useState<ItineraryPlanStep[]>([])
   const [items, setItems] = React.useState<Record<string, ItemRow[]>>({})
   const [stepIndex, setStepIndex] = React.useState(0)
@@ -56,6 +57,7 @@ export function PlanItinerary({ tripId, tripSlug, destination }: PlanItineraryPr
     setOpen(false)
     setPhase("places")
     setPlaceNames([""])
+    setFreeText("")
     setSteps([])
     setItems({})
     setStepIndex(0)
@@ -67,7 +69,7 @@ export function PlanItinerary({ tripId, tripSlug, destination }: PlanItineraryPr
     const nextSteps = planItinerarySteps(trimmedPlaces)
     setItems((prev) => {
       const next: Record<string, ItemRow[]> = {}
-      for (const s of nextSteps) next[s.key] = prev[s.key] ?? []
+      for (const s of nextSteps) next[s.key] = prev[s.key] ?? [newRow()]
       return next
     })
     setSteps(nextSteps)
@@ -126,7 +128,13 @@ export function PlanItinerary({ tripId, tripSlug, destination }: PlanItineraryPr
     setError(null)
     const entries = collectEntries()
     startTransition(async () => {
-      const r = await draftAndApplyItinerary({ tripId, tripSlug, places: trimmedPlaces, entries })
+      const r = await draftAndApplyItinerary({
+        tripId,
+        tripSlug,
+        places: trimmedPlaces,
+        entries,
+        freeText: freeText.trim(),
+      })
       if (r.error) {
         setError(r.error)
         return
@@ -205,6 +213,15 @@ export function PlanItinerary({ tripId, tripSlug, destination }: PlanItineraryPr
             + add place
           </button>
         </div>
+
+        <div className="mt-4 text-[13px] text-foreground">Sum up this trip in a few words</div>
+        <textarea
+          value={freeText}
+          placeholder="optional — e.g. relaxed 2 weeks surfing in Portugal"
+          rows={2}
+          onChange={(e) => setFreeText(e.target.value)}
+          className="mt-1.5 w-full resize-y border-0 border-b border-border bg-transparent text-[13px] text-foreground outline-none placeholder:text-muted-foreground focus:border-foreground"
+        />
 
         <div className="mt-4 flex items-center justify-between">
           <span />

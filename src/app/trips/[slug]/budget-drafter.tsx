@@ -274,7 +274,8 @@ export function BudgetDrafter({
     })
     const items: Record<string, ItemRow[]> = {}
     for (const step of steps) {
-      items[step.key] = (seed[step.key] ?? []).map((r) => newRow(r))
+      const rows = (seed[step.key] ?? []).map((r) => newRow(r))
+      items[step.key] = rows.length > 0 ? rows : [newRow()]
     }
     setError(null)
     setGenerated(false)

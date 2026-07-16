@@ -94,6 +94,8 @@ export async function draftAndApplyItinerary(input: {
   tripSlug: string
   places: string[]
   entries: PlanEntry[]
+  /** Free-text intent for the whole trip; goes to the drafter as-is. */
+  freeText?: string
 }): Promise<{ error?: string; created?: { locations: number; days: number } }> {
   const workspace = await getCurrentWorkspace()
   if (!workspace) return { error: "Not signed in." }
@@ -133,7 +135,7 @@ export async function draftAndApplyItinerary(input: {
       vibe: trip.tripProfile.vibe,
       brief: trip.tripProfile.idea,
       activityTypes: [],
-      freeText: "",
+      freeText: input.freeText?.trim() ?? "",
       knownPlans: input.entries.map((e) => ({
         category: e.category,
         place: e.place,
