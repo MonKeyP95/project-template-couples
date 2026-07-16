@@ -20,10 +20,39 @@ export interface PlanItineraryProps {
 interface ItemRow {
   id: string
   subject: string
-  when: string
+  /** Free-text note, kept alongside the structured date/range. */
+  note: string
+  /** yyyy-mm-dd; a start (+ optional end) folds into the `when` hint. */
+  whenStart?: string
+  whenEnd?: string
+  /** Range mode: the end-date picker is shown. */
+  range?: boolean
 }
 
 type Phase = "places" | "walk" | "review"
+
+function fmtDate(d: string): string {
+  const t = Date.parse(`${d}T00:00:00Z`)
+  return Number.isFinite(t)
+    ? new Date(t).toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: "UTC" })
+    : d
+}
+
+/** The picked date or range as a hint string: "12 Jan – 14 Jan", "12 Jan", or "". */
+function rangeLabel(row: ItemRow): string {
+  if (row.whenStart && row.whenEnd) return `${fmtDate(row.whenStart)} – ${fmtDate(row.whenEnd)}`
+  if (row.whenStart) return fmtDate(row.whenStart)
+  return ""
+}
+
+/** The `when` hint fed to the assistant: date/range joined with the free note. */
+function rowWhen(row: ItemRow): string {
+  return [rangeLabel(row), row.note.trim()].filter(Boolean).join(" · ")
+}
+
+function rowEmpty(row: ItemRow): boolean {
+  return row.subject.trim() === "" && row.note.trim() === "" && !row.whenStart && !row.whenEnd
+}
 
 /**
  * Guided itinerary planner, the itinerary twin of the budget drafter. A places
@@ -50,7 +79,7 @@ export function PlanItinerary({ tripId, tripSlug, destination }: PlanItineraryPr
   const trimmedPlaces = placeNames.map((n) => n.trim()).filter((n) => n.length > 0)
 
   function newRow(): ItemRow {
-    return { id: `r-${seq.current++}`, subject: "", when: "" }
+    return { id: `r-${seq.current++}`, subject: "", note: "" }
   }
 
   function reset() {
@@ -111,12 +140,12 @@ export function PlanItinerary({ tripId, tripSlug, destination }: PlanItineraryPr
     const entries: PlanEntry[] = []
     for (const step of steps) {
       for (const row of items[step.key] ?? []) {
-        if (row.subject.trim() === "" && row.when.trim() === "") continue
+        if (rowEmpty(row)) continue
         entries.push({
           category: step.category,
           place: step.place ?? "",
           subject: row.subject.trim(),
-          when: row.when.trim(),
+          when: rowWhen(row),
         })
       }
     }
@@ -289,13 +318,48 @@ export function PlanItinerary({ tripId, tripSlug, destination }: PlanItineraryPr
                   ×
                 </button>
               </div>
-              <input
-                type="text"
-                value={row.when}
-                placeholder="when (optional) — e.g. 3 nights, 12-14 Jan"
-                onChange={(e) => patchItem(step.key, row.id, { when: e.target.value })}
-                className="mt-1.5 w-full border-0 border-b border-border bg-transparent font-mono text-[11px] tracking-[0.04em] text-muted-foreground outline-none focus:border-foreground"
-              />
+              <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                <input
+                  type="text"
+                  value={row.note ?? ""}
+                  placeholder="when (optional) — e.g. 3 nights, 12-14 Jan"
+                  onChange={(e) => patchItem(step.key, row.id, { note: e.target.value })}
+                  className="min-w-0 flex-1 border-0 border-b border-border bg-transparent font-mono text-[11px] tracking-[0.04em] text-muted-foreground outline-none focus:border-foreground"
+                />
+                <input
+                  type="date"
+                  aria-label="Date"
+                  value={row.whenStart ?? ""}
+                  onChange={(e) => patchItem(step.key, row.id, { whenStart: e.target.value })}
+                  className="rounded border border-border bg-transparent px-1.5 py-1 font-mono text-[10px] text-foreground outline-none focus:border-foreground"
+                />
+                <button
+                  type="button"
+                  onClick={() =>
+                    patchItem(step.key, row.id, {
+                      range: !row.range,
+                      whenEnd: row.range ? "" : row.whenEnd,
+                    })
+                  }
+                  className={`rounded px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-[0.1em] ${
+                    row.range
+                      ? "border-0 bg-foreground text-background"
+                      : "border border-border bg-transparent text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  range
+                </button>
+                {row.range ? (
+                  <input
+                    type="date"
+                    aria-label="End date"
+                    value={row.whenEnd ?? ""}
+                    min={row.whenStart || undefined}
+                    onChange={(e) => patchItem(step.key, row.id, { whenEnd: e.target.value })}
+                    className="rounded border border-border bg-transparent px-1.5 py-1 font-mono text-[10px] text-foreground outline-none focus:border-foreground"
+                  />
+                ) : null}
+              </div>
             </div>
           ))}
         </div>
@@ -342,14 +406,14 @@ export function PlanItinerary({ tripId, tripSlug, destination }: PlanItineraryPr
     const lines: { id: string; primary: string; when: string }[] = []
     for (const step of steps) {
       for (const row of items[step.key] ?? []) {
+        if (rowEmpty(row)) continue
         const subject = row.subject.trim()
-        if (subject === "" && row.when.trim() === "") continue
         const primary = step.place
           ? subject
             ? `${step.place} · ${subject}`
             : `${step.place} · ${step.title}`
           : subject || step.title
-        lines.push({ id: row.id, primary, when: row.when.trim() })
+        lines.push({ id: row.id, primary, when: rowWhen(row) })
       }
     }
 

@@ -64,11 +64,7 @@ export function NewTripForm() {
         setError(result.error)
         return
       }
-      router.push(
-        isDream
-          ? `/trips/${result.slug}?tab=profile`
-          : `/trips/${result.slug}?tab=profile&onboarding=1`,
-      )
+      router.push(`/trips/${result.slug}?tab=itinerary`)
     })
   }
 
