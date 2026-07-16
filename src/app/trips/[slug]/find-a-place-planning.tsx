@@ -132,7 +132,33 @@ export function PlanningPlaceDoor({
         />
       ),
     },
-    { key: "stay", title: "Accommodation", soon: true },
+    {
+      key: "stay",
+      title: "Accommodation",
+      content: needsPlace ? (
+        prompt
+      ) : (
+        <DiscoverySection
+          key={`${keyBase}-stay`}
+          category="stay"
+          tripId={tripId}
+          tripSlug={tripSlug}
+          destination={place}
+          when=""
+          defaultNear=""
+          defaultWalkable={false}
+          addTarget={{
+            kind: "select",
+            days: dayOptions,
+            locationId: location?.id ?? null,
+            newDayTitle: location?.name,
+            defaultDate: location?.startDate ?? undefined,
+          }}
+          buildEventText={(s) => `Stay · ${s.name}`}
+          ctaLabel={cta}
+        />
+      ),
+    },
     { key: "transport", title: "Transport", soon: true },
   ]
 
