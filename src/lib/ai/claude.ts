@@ -8,6 +8,7 @@ import type {
 } from "./discovery-types"
 import type { Suggestion } from "./suggestion-types"
 import { TASTE_DIRECTIVE } from "./taste-types"
+import { BUDGET_PLANNER_PROMPT } from "./skills/budget-planner"
 import type {
   LearnedCategory,
   TasteSignal,
@@ -368,21 +369,6 @@ const BUDGET_FILL_TOOLS: Anthropic.Messages.ToolUnion[] = [
   },
 ]
 
-const BUDGET_FILL_SYSTEM =
-  "You price the gaps in a couple's trip budget. Never ask questions or reply " +
-  "conversationally — you cannot receive a reply. You MUST end by calling " +
-  "submit_budget. Use the web_search tool ONLY for named or big-ticket items " +
-  "(a specific hotel or hostel, flights and transfers, a named activity) to find " +
-  "a real, current price; for everyday gaps (daily food, local transport, small " +
-  "extras) estimate from typical costs for the destination, season, trip length " +
-  "and party size. Every amount is a whole-euro figure for the whole line (whole " +
-  "party, whole stay). NEVER fabricate: if you cannot find or reasonably estimate " +
-  "a price, return amountEuros -1 for that line. When a web search produced the " +
-  "number, set sourceUrl to that result's real URL; otherwise set sourceUrl to an " +
-  "empty string. Never re-price a line the couple already decided. Price only " +
-  "the lines given -- never invent new activities, trips or experiences to add; " +
-  "that is the itinerary planner's job, not yours."
-
 function budgetFillPrompt(c: BudgetFillContext): string {
   const places = c.locations.length
     ? c.locations.map((l) => `${l.name} (${l.dateLabel ?? `${l.nights} nights`})`).join("; ")
@@ -428,7 +414,7 @@ export async function draftBudgetFill(
     const response = await anthropic.messages.create({
       model: MODEL,
       max_tokens: 3072,
-      system: BUDGET_FILL_SYSTEM,
+      system: BUDGET_PLANNER_PROMPT,
       tools: BUDGET_FILL_TOOLS,
       messages,
     })
