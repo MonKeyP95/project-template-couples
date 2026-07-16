@@ -308,20 +308,9 @@ export async function discover(
 // Budget fill. The couple has walked their costs entering the prices they know;
 // this prices the gaps. Uses the built-in web_search tool (like discovery) ONLY
 // for named / big-ticket items, estimates the everyday ones, and honestly marks
-// what it could not price. Suggest-only: returns data, never writes.
-
-export interface BudgetFillLine {
-  /** One of the five category labels. */
-  category: string
-  /** Itinerary location name for Accommodation/Activities, else empty. */
-  place: string
-  subject: string
-  whenLabel: string
-  /** Whole-euro estimate, or null when no reliable price was found. */
-  amountEuros: number | null
-  /** Backing web-search URL, or null when estimated / none. */
-  sourceUrl: string | null
-}
+// what it could not price. Prices only the lines that already exist -- inventing
+// new activities is the itinerary planner's job, not this one. Suggest-only:
+// returns data, never writes.
 
 export interface BudgetFillContext {
   destination: string
@@ -342,15 +331,13 @@ export interface BudgetFillResult {
   fills: (number | null)[]
   /** fillSources[i] is the backing URL for fills[i], or null. */
   fillSources: (string | null)[]
-  /** Extra lines the model recommends the couple add. */
-  additions: BudgetFillLine[]
 }
 
 const BUDGET_FILL_TOOLS: Anthropic.Messages.ToolUnion[] = [
   { type: "web_search_20250305", name: "web_search", max_uses: 5 },
   {
     name: "submit_budget",
-    description: "Return prices for the indexed lines plus any missing lines.",
+    description: "Return a price for each indexed line.",
     strict: true,
     input_schema: {
       type: "object",
@@ -375,33 +362,8 @@ const BUDGET_FILL_TOOLS: Anthropic.Messages.ToolUnion[] = [
             required: ["index", "amountEuros", "sourceUrl"],
           },
         },
-        additions: {
-          type: "array",
-          items: {
-            type: "object",
-            additionalProperties: false,
-            properties: {
-              category: {
-                type: "string",
-                enum: ["Accommodation", "Transportation", "Food", "Activities", "Other"],
-              },
-              place: {
-                type: "string",
-                description: "Itinerary location name for Accommodation/Activities, else empty.",
-              },
-              subject: { type: "string" },
-              whenLabel: { type: "string" },
-              amountEuros: {
-                type: "number",
-                description: "Whole-euro price, or -1 if no reliable price.",
-              },
-              sourceUrl: { type: "string", description: "Backing URL, or empty string." },
-            },
-            required: ["category", "place", "subject", "whenLabel", "amountEuros", "sourceUrl"],
-          },
-        },
       },
-      required: ["fills", "additions"],
+      required: ["fills"],
     },
   },
 ]
@@ -417,7 +379,9 @@ const BUDGET_FILL_SYSTEM =
   "party, whole stay). NEVER fabricate: if you cannot find or reasonably estimate " +
   "a price, return amountEuros -1 for that line. When a web search produced the " +
   "number, set sourceUrl to that result's real URL; otherwise set sourceUrl to an " +
-  "empty string. Never re-price a line the couple already decided."
+  "empty string. Never re-price a line the couple already decided. Price only " +
+  "the lines given -- never invent new activities, trips or experiences to add; " +
+  "that is the itinerary planner's job, not yours."
 
 function budgetFillPrompt(c: BudgetFillContext): string {
   const places = c.locations.length
@@ -444,9 +408,8 @@ function budgetFillPrompt(c: BudgetFillContext): string {
     "Lines that need a price, by index:",
     unpriced,
     "",
-    "Return a price for each indexed line via fills. Add any obviously-missing " +
-      "line this trip clearly needs via additions. Search only named or big-ticket " +
-      "items; estimate the everyday ones.",
+    "Return a price for each indexed line via fills. Do not add any new lines. " +
+      "Search only named or big-ticket items; estimate the everyday ones.",
   ]
     .filter(Boolean)
     .join("\n")
@@ -477,14 +440,6 @@ export async function draftBudgetFill(
     if (submit) {
       const input = submit.input as {
         fills?: { index: number; amountEuros: number; sourceUrl: string }[]
-        additions?: {
-          category: string
-          place: string
-          subject: string
-          whenLabel: string
-          amountEuros: number
-          sourceUrl: string
-        }[]
       }
       const fills: (number | null)[] = new Array(context.unpriced.length).fill(null)
       const fillSources: (string | null)[] = new Array(context.unpriced.length).fill(null)
@@ -493,15 +448,7 @@ export async function draftBudgetFill(
         fills[f.index] = f.amountEuros >= 0 ? f.amountEuros : null
         fillSources[f.index] = f.sourceUrl ? f.sourceUrl : null
       }
-      const additions: BudgetFillLine[] = (input.additions ?? []).map((a) => ({
-        category: a.category,
-        place: a.place,
-        subject: a.subject,
-        whenLabel: a.whenLabel,
-        amountEuros: a.amountEuros >= 0 ? a.amountEuros : null,
-        sourceUrl: a.sourceUrl ? a.sourceUrl : null,
-      }))
-      return { fills, fillSources, additions }
+      return { fills, fillSources }
     }
 
     if (response.stop_reason === "pause_turn") {

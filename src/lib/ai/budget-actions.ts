@@ -128,19 +128,6 @@ export async function draftAndFillBudget(input: {
       })
     })
 
-    for (const a of fill.additions) {
-      out.push({
-        category: a.category,
-        place: a.place,
-        subject: a.subject,
-        whenLabel: a.whenLabel,
-        amountCents: a.amountEuros == null ? 0 : Math.round(a.amountEuros * 100),
-        estimated: a.amountEuros != null,
-        sourceUrl: a.sourceUrl,
-        priceUnknown: a.amountEuros == null,
-      })
-    }
-
     return { lines: out }
   } catch {
     for (const u of unpriced) out.push(unknown(u))
