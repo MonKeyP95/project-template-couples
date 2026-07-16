@@ -49,8 +49,6 @@ import {
 } from "@/lib/trips/actions"
 import {
   ITINERARY_TONES,
-  dateRange,
-  effectiveRange,
   formatEventTime,
   formatShortDate,
   reassignDayDate,
@@ -365,7 +363,6 @@ export function ItineraryTab({
   const [collapsed, setCollapsed] = React.useState<Set<string>>(() =>
     defaultCollapsed(initialLocations, initialItems, today, tripStartDate, tripEndDate),
   )
-  const [expandedRuns, setExpandedRuns] = React.useState<Set<string>>(new Set())
   // Days show their events by default; this tracks the ones the user collapsed.
   const [collapsedDays, setCollapsedDays] = React.useState<Set<string>>(new Set())
   const [pastBarOpen, setPastBarOpen] = React.useState(false)
@@ -569,15 +566,6 @@ export function ItineraryTab({
 
   function toggleCollapse(key: string) {
     setCollapsed((prev) => {
-      const next = new Set(prev)
-      if (next.has(key)) next.delete(key)
-      else next.add(key)
-      return next
-    })
-  }
-
-  function toggleRun(key: string) {
-    setExpandedRuns((prev) => {
       const next = new Set(prev)
       if (next.has(key)) next.delete(key)
       else next.add(key)
@@ -927,152 +915,36 @@ export function ItineraryTab({
                     {(() => {
                       const dayRows = (() => {
                       const segs = toSegments(group.days)
-                      const dayDates = group.days.map((d) => d.dayDate)
-                      // Effective range = declared span unioned with any days.
-                      const lows = [group.start, ...dayDates].filter(
-                        (v): v is string => Boolean(v),
-                      )
-                      const highs = [group.end, ...dayDates].filter(
-                        (v): v is string => Boolean(v),
-                      )
-                      const rangeStart = lows.length
-                        ? lows.reduce((a, b) => (a < b ? a : b))
-                        : null
-                      const rangeEnd = highs.length
-                        ? highs.reduce((a, b) => (a > b ? a : b))
-                        : null
-                      const occupied = new Set(dayDates)
-                      const empties =
-                        rangeStart && rangeEnd
-                          ? dateRange(rangeStart, rangeEnd).filter(
-                              (d) => !occupied.has(d),
-                            )
-                          : []
-                      type Item =
-                        | { kind: "seg"; key: string; seg: (typeof segs)[number] }
-                        | { kind: "empty"; key: string; date: string }
-                      const items: Item[] = [
-                        ...segs.map((seg) => ({
-                          kind: "seg" as const,
-                          key: seg.days[0].dayDate,
-                          seg,
-                        })),
-                        ...empties.map((date) => ({
-                          kind: "empty" as const,
-                          key: date,
-                          date,
-                        })),
-                      ].sort((a, b) =>
-                        a.key < b.key ? -1 : a.key > b.key ? 1 : 0,
-                      )
-
-                      // Adjacent empty items in the date-sorted list are always
-                      // calendar-consecutive (any occupied date is a seg between
-                      // them), so neighbours coalesce into one run.
-                      type Row =
-                        | { kind: "seg"; seg: (typeof segs)[number] }
-                        | { kind: "emptyRun"; dates: string[] }
-                      const rows: Row[] = []
-                      for (const item of items) {
-                        if (item.kind === "empty") {
-                          const tail = rows[rows.length - 1]
-                          if (tail && tail.kind === "emptyRun") {
-                            tail.dates.push(item.date)
-                          } else {
-                            rows.push({ kind: "emptyRun", dates: [item.date] })
-                          }
-                        } else {
-                          rows.push({ kind: "seg", seg: item.seg })
-                        }
-                      }
-
-                      const fillEmpty = (date: string) => {
-                        setAddDayDate(date)
-                        setAddDayFor(group.key)
-                      }
+                      type Row = { kind: "seg"; seg: (typeof segs)[number] }
+                      const rows: Row[] = segs.map((seg) => ({ kind: "seg", seg }))
 
                       // Real days present -> the group is wrapped in a
                       // DndContext below and its slots are draggable.
                       const canSort = group.days.length > 0
 
-                      const renderRow = (row: Row, sortable: boolean) => {
-                        if (row.kind === "emptyRun") {
-                          const { dates } = row
-                          const renderEmpty = (d: string) =>
-                            sortable ? (
-                              <SortableEmptyDay key={d} date={d} onFill={fillEmpty} />
-                            ) : (
-                              <EmptyDayButton key={d} date={d} onFill={fillEmpty} />
-                            )
-                          if (dates.length === 1) {
-                            return renderEmpty(dates[0])
-                          }
-                          const runKey = `${group.key}:${dates[0]}`
-                          const expanded = expandedRuns.has(runKey)
-                          const label = `${formatShortDate(dates[0])} – ${formatShortDate(
-                            dates[dates.length - 1],
-                          )}`
-                          return (
-                            <div key={`emptyrun-${dates[0]}`} className="my-1">
-                              <button
-                                type="button"
-                                onClick={() => toggleRun(runKey)}
-                                aria-expanded={expanded}
-                                className="flex w-full items-center gap-3 rounded-lg border border-dashed border-rule/70 px-3 py-2 text-left transition-colors hover:border-foreground"
-                              >
-                                <span className="t-num flex-shrink-0 font-mono text-[11px] text-muted-foreground">
-                                  {label}
-                                </span>
-                                <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground/70">
-                                  {dates.length} empty days
-                                </span>
-                                <span className="ml-auto font-mono text-[13px] leading-none text-muted-foreground">
-                                  {expanded ? "⌄" : "›"}
-                                </span>
-                              </button>
-                              {expanded ? (
-                                <div className="pl-4">{dates.map(renderEmpty)}</div>
-                              ) : null}
-                            </div>
-                          )
-                        }
-                        const seg = row.seg
-                        return (
-                          <DaySegmentView
-                            key={seg.groupId ?? seg.days[0].id}
-                            seg={seg}
-                            tripId={tripId}
-                            tripSlug={tripSlug}
-                            lastDayId={last.id}
-                            editingId={editingId}
-                            setEditingId={setEditingId}
-                            locations={locations}
-                            collapsedDays={collapsedDays}
-                            toggleDay={toggleDay}
-                            dimBefore={active ? today : null}
-                            today={today}
-                            categories={categories}
-                            members={members}
-                            currentUserId={currentUserId}
-                            sortable={sortable}
-                          />
-                        )
-                      }
+                      const renderRow = (row: Row, sortable: boolean) => (
+                        <DaySegmentView
+                          key={row.seg.groupId ?? row.seg.days[0].id}
+                          seg={row.seg}
+                          tripId={tripId}
+                          tripSlug={tripSlug}
+                          lastDayId={last.id}
+                          editingId={editingId}
+                          setEditingId={setEditingId}
+                          locations={locations}
+                          collapsedDays={collapsedDays}
+                          toggleDay={toggleDay}
+                          dimBefore={active ? today : null}
+                          today={today}
+                          categories={categories}
+                          members={members}
+                          currentUserId={currentUserId}
+                          sortable={sortable}
+                        />
+                      )
 
-                      // Sortable ids in render order, matching what renderRow
-                      // mounts as sortable: day ids + rendered empty ids (single
-                      // empties + expanded-run empties). Collapsed runs and the
-                      // 0-day case contribute nothing.
-                      const rowSortableIds = (row: Row): string[] => {
-                        if (!canSort) return []
-                        if (row.kind === "seg") return row.seg.days.map((d) => d.id)
-                        const { dates } = row
-                        if (dates.length === 1) return [`empty:${dates[0]}`]
-                        const runKey = `${group.key}:${dates[0]}`
-                        return expandedRuns.has(runKey)
-                          ? dates.map((d) => `empty:${d}`)
-                          : []
-                      }
+                      const rowSortableIds = (row: Row): string[] =>
+                        canSort ? row.seg.days.map((d) => d.id) : []
 
                       const isCurrentLoc =
                         active && groupZone(group, today) === "today"
@@ -1083,13 +955,11 @@ export function ItineraryTab({
                         }
 
                       const rowEnd = (row: Row) =>
-                        row.kind === "emptyRun"
-                          ? row.dates[row.dates.length - 1]
-                          : row.seg.days[row.seg.days.length - 1].dayDate
+                        row.seg.days[row.seg.days.length - 1].dayDate
                       const pastRows = rows.filter((r) => rowEnd(r) < today)
                       const liveRows = rows.filter((r) => rowEnd(r) >= today)
                       const pastDayCount = pastRows.reduce(
-                        (n, r) => (r.kind === "seg" ? n + r.seg.days.length : n),
+                        (n, r) => n + r.seg.days.length,
                         0,
                       )
                       const earlierExpanded = earlierOpen.has(group.key)
@@ -1125,16 +995,12 @@ export function ItineraryTab({
                       }
                       })()
                       if (group.days.length === 0) return dayRows.rendered
-                      const range = effectiveRange(
-                        group.days,
-                        group.start,
-                        group.end,
-                      )
-                      const slotDates = range
-                        ? dateRange(range.start, range.end).filter(
-                            (d) => !active || d >= today,
-                          )
-                        : []
+                      // Occupied dates only (all span dates are real rows now);
+                      // past-filtered on a live trip so the past can't be a drop.
+                      const slotDates = group.days
+                        .map((d) => d.dayDate)
+                        .sort()
+                        .filter((d) => !active || d >= today)
                       return (
                         <DndContext
                           id={`dnd-${group.key}`}
@@ -1350,54 +1216,6 @@ function DaySegmentView({
     )
   }
   return <>{cards}</>
-}
-
-function EmptyDayButton({
-  date,
-  onFill,
-}: {
-  date: string
-  onFill: (date: string) => void
-}) {
-  return (
-    <button
-      type="button"
-      onClick={() => onFill(date)}
-      className="my-1 flex w-full items-center gap-3 rounded-lg border border-dashed border-rule/70 px-3 py-2 text-left transition-colors hover:border-foreground"
-    >
-      <span className="t-num w-12 flex-shrink-0 font-mono text-[11px] text-muted-foreground">
-        {formatShortDate(date)}
-      </span>
-      <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground/70">
-        empty
-      </span>
-      <span className="ml-auto font-mono text-[13px] leading-none text-muted-foreground/70">
-        +
-      </span>
-    </button>
-  )
-}
-
-function SortableEmptyDay({
-  date,
-  onFill,
-}: {
-  date: string
-  onFill: (date: string) => void
-}) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
-    useSortable({ id: `empty:${date}` })
-  const style: React.CSSProperties = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging ? 0.6 : undefined,
-    zIndex: isDragging ? 10 : undefined,
-  }
-  return (
-    <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
-      <EmptyDayButton date={date} onFill={onFill} />
-    </div>
-  )
 }
 
 interface DayCardProps {
