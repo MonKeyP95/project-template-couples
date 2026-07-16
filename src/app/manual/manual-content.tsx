@@ -96,9 +96,9 @@ export function ManualContent() {
       >
         The itinerary is a day-by-day plan grouped under the places you will stay.
         Add a location, give it an optional date span, then fill its days — each day
-        carries a short summary and a list of timed mini-events. Drag a day by its
-        handle to reschedule it; the dates stay put and the activities shuffle into
-        place. Empty days between locations show as slots you can tap to fill.
+        carries a short summary and a list of timed mini-events. Drag a day to
+        reorder it within its place; the dates stay put and the plan moves to the
+        new day. Empty days between locations show as slots you can tap to fill.
         Dreams plan the same way but with numbered days (Day 1, Day 2…) instead of a
         calendar.
       </Section>
