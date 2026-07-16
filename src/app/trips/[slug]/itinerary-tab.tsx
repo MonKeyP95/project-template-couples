@@ -13,7 +13,6 @@ import {
 } from "@dnd-kit/core"
 import {
   SortableContext,
-  arrayMove,
   useSortable,
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable"
@@ -44,17 +43,18 @@ import {
   deleteItineraryLocation,
   insertItineraryDayWithShift,
   renameItineraryLocation,
-  rescheduleItineraryDays,
+  rescheduleItineraryDaysTo,
   setLocationSpanWithShift,
   updateItineraryDay,
 } from "@/lib/trips/actions"
 import {
   ITINERARY_TONES,
   dateRange,
+  effectiveRange,
   formatEventTime,
   formatShortDate,
   reassignDayDate,
-  reorderWithinGroup,
+  reorderRangeSlots,
   rowToItineraryDay,
   tripActive,
   withOrdinals,
@@ -491,21 +491,22 @@ export function ItineraryTab({
   )
   const [, startReschedule] = React.useTransition()
 
-  // Reorder `groupDays` (one location's days, or all days when locationless) so
-  // the dragged day takes the dropped day's slot. Dates are fixed slots -- only
-  // which day sits on each of the group's dates moves. Optimistic; rolls back.
-  function reorderDays(groupDays: ItineraryDay[], activeId: string, overId: string) {
-    if (activeId === overId) return
-    const oldIndex = groupDays.findIndex((d) => d.id === activeId)
-    const newIndex = groupDays.findIndex((d) => d.id === overId)
-    if (oldIndex === -1 || newIndex === -1) return
-
-    const reordered = arrayMove(groupDays, oldIndex, newIndex)
-    const datesAsc = groupDays.map((d) => d.dayDate).sort()
-    const newDateById = new Map<string, string>()
-    reordered.forEach((d, i) => newDateById.set(d.id, datesAsc[i]))
+  // Reorder a group's days and empty-day gaps as one sequence over `slotDates`
+  // (see reorderRangeSlots). Optimistic; rolls back on error. The caller builds
+  // slotDates and pre-filters out past dates so a live trip stays out of the past.
+  function onGroupDragEnd(
+    groupDays: ItineraryDay[],
+    slotDates: string[],
+    e: DragEndEvent,
+  ) {
+    const over = e.over
+    const activeId = String(e.active.id)
+    if (!over || activeId === String(over.id)) return
+    const changes = reorderRangeSlots(groupDays, slotDates, activeId, String(over.id))
+    if (changes.length === 0) return
 
     const snapshot = days
+    const newDateById = new Map(changes.map((c) => [c.id, c.date]))
     setDays((prev) =>
       withOrdinals(
         prev.map((d) =>
@@ -513,20 +514,10 @@ export function ItineraryTab({
         ),
       ),
     )
-
-    const fullOrder = reorderWithinGroup(
-      days,
-      reordered.map((d) => d.id),
-    )
     startReschedule(async () => {
-      const result = await rescheduleItineraryDays(tripId, tripSlug, fullOrder)
+      const result = await rescheduleItineraryDaysTo(tripId, tripSlug, changes)
       if (result.error) setDays(snapshot)
     })
-  }
-
-  function onGroupDragEnd(groupDays: ItineraryDay[], e: DragEndEvent) {
-    const { active, over } = e
-    if (over) reorderDays(groupDays, String(active.id), String(over.id))
   }
 
   const timeline = buildTimeline(locations, days)
@@ -1000,17 +991,21 @@ export function ItineraryTab({
                         setAddDayFor(group.key)
                       }
 
-                      const renderRow = (row: Row) => {
+                      // Real days present -> the group is wrapped in a
+                      // DndContext below and its slots are draggable.
+                      const canSort = group.days.length > 0
+
+                      const renderRow = (row: Row, sortable: boolean) => {
                         if (row.kind === "emptyRun") {
                           const { dates } = row
-                          if (dates.length === 1) {
-                            return (
-                              <EmptyDayButton
-                                key={`empty-${dates[0]}`}
-                                date={dates[0]}
-                                onFill={fillEmpty}
-                              />
+                          const renderEmpty = (d: string) =>
+                            sortable ? (
+                              <SortableEmptyDay key={d} date={d} onFill={fillEmpty} />
+                            ) : (
+                              <EmptyDayButton key={d} date={d} onFill={fillEmpty} />
                             )
+                          if (dates.length === 1) {
+                            return renderEmpty(dates[0])
                           }
                           const runKey = `${group.key}:${dates[0]}`
                           const expanded = expandedRuns.has(runKey)
@@ -1036,15 +1031,7 @@ export function ItineraryTab({
                                 </span>
                               </button>
                               {expanded ? (
-                                <div className="pl-4">
-                                  {dates.map((d) => (
-                                    <EmptyDayButton
-                                      key={d}
-                                      date={d}
-                                      onFill={fillEmpty}
-                                    />
-                                  ))}
-                                </div>
+                                <div className="pl-4">{dates.map(renderEmpty)}</div>
                               ) : null}
                             </div>
                           )
@@ -1067,14 +1054,33 @@ export function ItineraryTab({
                             categories={categories}
                             members={members}
                             currentUserId={currentUserId}
-                            sortable
+                            sortable={sortable}
                           />
                         )
                       }
 
+                      // Sortable ids in render order, matching what renderRow
+                      // mounts as sortable: day ids + rendered empty ids (single
+                      // empties + expanded-run empties). Collapsed runs and the
+                      // 0-day case contribute nothing.
+                      const rowSortableIds = (row: Row): string[] => {
+                        if (!canSort) return []
+                        if (row.kind === "seg") return row.seg.days.map((d) => d.id)
+                        const { dates } = row
+                        if (dates.length === 1) return [`empty:${dates[0]}`]
+                        const runKey = `${group.key}:${dates[0]}`
+                        return expandedRuns.has(runKey)
+                          ? dates.map((d) => `empty:${d}`)
+                          : []
+                      }
+
                       const isCurrentLoc =
                         active && groupZone(group, today) === "today"
-                      if (!isCurrentLoc) return rows.map(renderRow)
+                      if (!isCurrentLoc)
+                        return {
+                          rendered: rows.map((r) => renderRow(r, canSort)),
+                          ids: rows.flatMap(rowSortableIds),
+                        }
 
                       const rowEnd = (row: Row) =>
                         row.kind === "emptyRun"
@@ -1088,44 +1094,59 @@ export function ItineraryTab({
                       )
                       const earlierExpanded = earlierOpen.has(group.key)
 
-                      return (
-                        <>
-                          {pastDayCount > 0 ? (
-                            <div className="my-1">
-                              <button
-                                type="button"
-                                onClick={() => toggleEarlier(group.key)}
-                                aria-expanded={earlierExpanded}
-                                className="flex w-full items-center gap-3 rounded-lg border border-dashed border-rule/70 px-3 py-2 text-left opacity-70 transition-colors hover:border-foreground"
-                              >
-                                <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
-                                  {pastDayCount} earlier{" "}
-                                  {pastDayCount === 1 ? "day" : "days"}
-                                </span>
-                                <span className="ml-auto font-mono text-[13px] leading-none text-muted-foreground">
-                                  {earlierExpanded ? "⌄" : "›"}
-                                </span>
-                              </button>
-                              {earlierExpanded ? pastRows.map(renderRow) : null}
-                            </div>
-                          ) : null}
-                          {liveRows.map(renderRow)}
-                        </>
-                      )
+                      return {
+                        rendered: (
+                          <>
+                            {pastDayCount > 0 ? (
+                              <div className="my-1">
+                                <button
+                                  type="button"
+                                  onClick={() => toggleEarlier(group.key)}
+                                  aria-expanded={earlierExpanded}
+                                  className="flex w-full items-center gap-3 rounded-lg border border-dashed border-rule/70 px-3 py-2 text-left opacity-70 transition-colors hover:border-foreground"
+                                >
+                                  <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
+                                    {pastDayCount} earlier{" "}
+                                    {pastDayCount === 1 ? "day" : "days"}
+                                  </span>
+                                  <span className="ml-auto font-mono text-[13px] leading-none text-muted-foreground">
+                                    {earlierExpanded ? "⌄" : "›"}
+                                  </span>
+                                </button>
+                                {earlierExpanded
+                                  ? pastRows.map((r) => renderRow(r, false))
+                                  : null}
+                              </div>
+                            ) : null}
+                            {liveRows.map((r) => renderRow(r, canSort))}
+                          </>
+                        ),
+                        ids: liveRows.flatMap(rowSortableIds),
+                      }
                       })()
-                      if (group.days.length === 0) return dayRows
+                      if (group.days.length === 0) return dayRows.rendered
+                      const range = effectiveRange(
+                        group.days,
+                        group.start,
+                        group.end,
+                      )
+                      const slotDates = range
+                        ? dateRange(range.start, range.end).filter(
+                            (d) => !active || d >= today,
+                          )
+                        : []
                       return (
                         <DndContext
                           id={`dnd-${group.key}`}
                           sensors={dragSensors}
                           collisionDetection={closestCenter}
-                          onDragEnd={(e) => onGroupDragEnd(group.days, e)}
+                          onDragEnd={(e) => onGroupDragEnd(group.days, slotDates, e)}
                         >
                           <SortableContext
-                            items={group.days.map((d) => d.id)}
+                            items={dayRows.ids}
                             strategy={verticalListSortingStrategy}
                           >
-                            {dayRows}
+                            {dayRows.rendered}
                           </SortableContext>
                         </DndContext>
                       )
@@ -1175,12 +1196,18 @@ export function ItineraryTab({
             )
             })
             if (locations.length !== 0) return rendered
+            // Locationless: one loose run, no empty slots rendered, so the slot
+            // dates are the occupied dates only (past-filtered on a live trip).
+            const looseSlotDates = days
+              .map((d) => d.dayDate)
+              .sort()
+              .filter((d) => !active || d >= today)
             return (
               <DndContext
                 id="dnd-loose"
                 sensors={dragSensors}
                 collisionDetection={closestCenter}
-                onDragEnd={(e) => onGroupDragEnd(days, e)}
+                onDragEnd={(e) => onGroupDragEnd(days, looseSlotDates, e)}
               >
                 <SortableContext
                   items={days.map((d) => d.id)}
@@ -1348,6 +1375,28 @@ function EmptyDayButton({
         +
       </span>
     </button>
+  )
+}
+
+function SortableEmptyDay({
+  date,
+  onFill,
+}: {
+  date: string
+  onFill: (date: string) => void
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
+    useSortable({ id: `empty:${date}` })
+  const style: React.CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.6 : undefined,
+    zIndex: isDragging ? 10 : undefined,
+  }
+  return (
+    <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
+      <EmptyDayButton date={date} onFill={onFill} />
+    </div>
   )
 }
 

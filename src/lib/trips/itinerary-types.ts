@@ -215,23 +215,6 @@ export function reassignDayDate(day: ItineraryDay, newDate: string): ItineraryDa
   }
 }
 
-/** Full trip day-id order (ascending by current date) with one location group's
- * members permuted into `groupOrderedIds`, every other day left in place. The
- * group's slots in the sorted array are filled, ascending, with
- * `groupOrderedIds` in order. Fed to reschedule_itinerary_days: only the
- * group's members change date, so the location's date span is unchanged. */
-export function reorderWithinGroup(
-  allDays: ItineraryDay[],
-  groupOrderedIds: string[],
-): string[] {
-  const ids = [...allDays]
-    .sort((a, b) => (a.dayDate < b.dayDate ? -1 : a.dayDate > b.dayDate ? 1 : 0))
-    .map((d) => d.id)
-  const inGroup = new Set(groupOrderedIds)
-  let g = 0
-  return ids.map((id) => (inGroup.has(id) ? groupOrderedIds[g++] : id))
-}
-
 /** Effective date range of a location: its declared span unioned with any days.
  * null when there are neither declared dates nor days. Pure. */
 export function effectiveRange(
@@ -255,27 +238,23 @@ function moveItem<T>(arr: T[], from: number, to: number): T[] {
   return next
 }
 
-/** Reorder a location's real days AND empty-day gaps as one sequence over the
- * effective date range, then re-lay onto the ascending dates. Slots are real
- * day ids or "empty:<date>" placeholders. `floorDate` (inclusive; "" = none)
- * drops earlier dates from the sequence so a live trip cannot reassign into the
- * past. Returns only the real days whose date changed. Pure; safe client-side
- * for the optimistic update. */
+/** Reorder a group's real days AND empty-day gaps as one sequence over the
+ * given ascending `slotDates`, then re-lay onto those dates. Slots are real day
+ * ids or "empty:<date>" placeholders. The caller chooses `slotDates`: the full
+ * location range (gaps draggable) or just the occupied dates (loose days, no
+ * gaps rendered), and pre-filters out past dates so a live trip cannot reassign
+ * into the past. Returns only the real days whose date changed. Pure; safe
+ * client-side for the optimistic update. */
 export function reorderRangeSlots(
   days: ItineraryDay[],
-  rangeStart: string,
-  rangeEnd: string,
-  floorDate: string,
+  slotDates: string[],
   activeId: string,
   overId: string,
 ): { id: string; date: string }[] {
   if (activeId === overId) return []
-  const allDates = dateRange(rangeStart, rangeEnd).filter(
-    (d) => !floorDate || d >= floorDate,
-  )
   const idByDate = new Map(days.map((d) => [d.dayDate, d.id]))
   const dateById = new Map(days.map((d) => [d.id, d.dayDate]))
-  const slots = allDates.map((date) => idByDate.get(date) ?? `empty:${date}`)
+  const slots = slotDates.map((date) => idByDate.get(date) ?? `empty:${date}`)
   const oldIndex = slots.indexOf(activeId)
   const newIndex = slots.indexOf(overId)
   if (oldIndex === -1 || newIndex === -1) return []
@@ -283,7 +262,7 @@ export function reorderRangeSlots(
   const changes: { id: string; date: string }[] = []
   moved.forEach((slot, i) => {
     if (slot.startsWith("empty:")) return
-    const newDate = allDates[i]
+    const newDate = slotDates[i]
     if (dateById.get(slot) !== newDate) changes.push({ id: slot, date: newDate })
   })
   return changes
