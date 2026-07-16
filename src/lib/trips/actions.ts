@@ -1981,6 +1981,29 @@ export async function rescheduleItineraryDays(
   return {}
 }
 
+/**
+ * Explicit-date reschedule: assigns each given day id its paired date via the
+ * reschedule_itinerary_days_to RPC, which permutes them atomically under the
+ * deferred unique constraint. Used when reordering includes empty-day gaps, so
+ * a day can land on a formerly-empty date. Realtime broadcasts the UPDATEs.
+ */
+export async function rescheduleItineraryDaysTo(
+  tripId: string,
+  tripSlug: string,
+  assignments: { id: string; date: string }[],
+): Promise<RescheduleItineraryResult> {
+  const supabase = await createClient()
+  const { error } = await supabase.rpc("reschedule_itinerary_days_to", {
+    p_trip_id: tripId,
+    p_day_ids: assignments.map((a) => a.id),
+    p_dates: assignments.map((a) => a.date),
+  })
+  if (error) return { error: error.message }
+
+  revalidatePath(`/trips/${tripSlug}`)
+  return {}
+}
+
 export interface AddDreamDayInput {
   tripId: string
   tripSlug: string
