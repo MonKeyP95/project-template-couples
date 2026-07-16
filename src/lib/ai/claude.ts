@@ -8,7 +8,8 @@ import type {
 } from "./discovery-types"
 import type { Suggestion } from "./suggestion-types"
 import { TASTE_DIRECTIVE } from "./taste-types"
-import { BUDGET_PLANNER_PROMPT } from "./skills/budget-planner"
+import { budgetPlannerSkill } from "./skills/budget-planner"
+import { resolveTools } from "./skills/registry"
 import type {
   LearnedCategory,
   TasteSignal,
@@ -334,41 +335,6 @@ export interface BudgetFillResult {
   fillSources: (string | null)[]
 }
 
-const BUDGET_FILL_TOOLS: Anthropic.Messages.ToolUnion[] = [
-  { type: "web_search_20250305", name: "web_search", max_uses: 5 },
-  {
-    name: "submit_budget",
-    description: "Return a price for each indexed line.",
-    strict: true,
-    input_schema: {
-      type: "object",
-      additionalProperties: false,
-      properties: {
-        fills: {
-          type: "array",
-          items: {
-            type: "object",
-            additionalProperties: false,
-            properties: {
-              index: { type: "integer", description: "0-based index of the unpriced line." },
-              amountEuros: {
-                type: "number",
-                description: "Whole-euro price for the whole line, or -1 if no reliable price.",
-              },
-              sourceUrl: {
-                type: "string",
-                description: "Backing web-search URL, or empty string if estimated/none.",
-              },
-            },
-            required: ["index", "amountEuros", "sourceUrl"],
-          },
-        },
-      },
-      required: ["fills"],
-    },
-  },
-]
-
 function budgetFillPrompt(c: BudgetFillContext): string {
   const places = c.locations.length
     ? c.locations.map((l) => `${l.name} (${l.dateLabel ?? `${l.nights} nights`})`).join("; ")
@@ -414,8 +380,8 @@ export async function draftBudgetFill(
     const response = await anthropic.messages.create({
       model: MODEL,
       max_tokens: 3072,
-      system: BUDGET_PLANNER_PROMPT,
-      tools: BUDGET_FILL_TOOLS,
+      system: budgetPlannerSkill.prompt,
+      tools: resolveTools(budgetPlannerSkill.toolNames),
       messages,
     })
 
