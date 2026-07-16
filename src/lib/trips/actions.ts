@@ -1152,9 +1152,11 @@ function enumerateDates(start: string, end: string): string[] {
 /**
  * Materializes an empty itinerary_days row for every date in [startDate,
  * endDate] under `locationId`. Insert-only: dates already taken (this
- * location's real days, or a prior fill) are skipped via on-conflict, so it is
- * safe to call after any span write and safe to re-run. Empty rows carry no
- * title/tag and default tone 'sand'; their look is refined separately.
+ * location's real days, or a prior fill) are skipped, so it is safe to call
+ * after any span write and safe to re-run. Empty rows carry no title/tag and
+ * default tone 'sand'; their look is refined separately. Skips via an existing-
+ * dates fetch (not on-conflict) because the (trip_id, day_date) unique
+ * constraint is deferrable and cannot arbiter an ON CONFLICT.
  */
 async function fillLocationSpanDays(
   supabase: Awaited<ReturnType<typeof createClient>>,
@@ -1166,16 +1168,24 @@ async function fillLocationSpanDays(
   const { data: userData } = await supabase.auth.getUser()
   const userId = userData.user?.id
   if (!userId) return
-  const rows = enumerateDates(startDate, endDate).map((day_date) => ({
-    trip_id: tripId,
-    day_date,
-    tone: "sand",
-    location_id: locationId,
-    created_by: userId,
-  }))
-  await supabase
+  const { data: existing } = await supabase
     .from("itinerary_days")
-    .upsert(rows, { onConflict: "trip_id,day_date", ignoreDuplicates: true })
+    .select("day_date")
+    .eq("trip_id", tripId)
+    .gte("day_date", startDate)
+    .lte("day_date", endDate)
+  const taken = new Set((existing ?? []).map((r) => r.day_date))
+  const rows = enumerateDates(startDate, endDate)
+    .filter((day_date) => !taken.has(day_date))
+    .map((day_date) => ({
+      trip_id: tripId,
+      day_date,
+      tone: "sand",
+      location_id: locationId,
+      created_by: userId,
+    }))
+  if (rows.length === 0) return
+  await supabase.from("itinerary_days").insert(rows)
 }
 
 /** Trip's start_date (yyyy-mm-dd), or null for a dateless dream. */
