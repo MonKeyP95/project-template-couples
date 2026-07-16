@@ -12,6 +12,7 @@ import type {
   DiscoveryCategory,
   DiscoveryQuery,
 } from "@/lib/ai/discovery-types"
+import type { LearnedCategory } from "@/lib/preferences/couple-summary-types"
 
 // POST /api/ai/discover: one real web-search-backed Claude call returning a
 // cited shortlist for a category. AI-mode-gated (the `ai` cookie) and auth-gated
@@ -38,6 +39,7 @@ export async function POST(request: Request) {
       craving?: string
       near?: string
       walkable?: boolean
+      price?: string
     }
     const destination = String(body.destination ?? "").trim()
     if (!destination) {
@@ -48,18 +50,27 @@ export async function POST(request: Request) {
     }
 
     const category: DiscoveryCategory =
-      body.category === "activity" ? "activity" : "food"
+      body.category === "activity"
+        ? "activity"
+        : body.category === "stay"
+          ? "stay"
+          : "food"
     const prefs = await getDiningPreferences(workspace.id)
     const tripId = String(body.tripId ?? "").trim()
     const profile = tripId ? await getTripProfile(tripId) : EMPTY_TRIP_PROFILE
-    const summary = await getCoupleSummary(workspace.id, category)
+    const learnedCategory: LearnedCategory =
+      category === "stay" ? "accommodation" : category
+    const summary = await getCoupleSummary(workspace.id, learnedCategory)
     const taste = await getTasteLevel()
 
     const query: DiscoveryQuery = {
       category,
       destination,
       when: String(body.when ?? "soon").trim(),
-      budgetBand: prefs.budgetBand,
+      budgetBand:
+        category === "stay"
+          ? String(body.price ?? "any").trim()
+          : prefs.budgetBand,
       vibeTags: prefs.vibeTags,
       dietary: prefs.dietary,
       cuisines: prefs.cuisines,
