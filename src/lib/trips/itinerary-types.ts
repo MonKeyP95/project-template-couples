@@ -199,3 +199,35 @@ export function daySummary(day: ItineraryDay): string {
   if (day.events.length === 1) return day.events[0].text
   return `${day.events.length} events`
 }
+
+/** Copy of `day` moved to `newDate` (yyyy-mm-dd) with the derived date labels
+ * recomputed. `d` is untouched; re-pad with `withOrdinals` after reordering.
+ * Used for the optimistic reorder update before the server round-trip. */
+export function reassignDayDate(day: ItineraryDay, newDate: string): ItineraryDay {
+  const utc = toUtc(newDate)
+  return {
+    ...day,
+    dayDate: newDate,
+    dow: DOW_FMT.format(utc),
+    date: SHORT_DATE_FMT.format(utc),
+    dom: DOM_FMT.format(utc),
+    mon: MON_FMT.format(utc),
+  }
+}
+
+/** Full trip day-id order (ascending by current date) with one location group's
+ * members permuted into `groupOrderedIds`, every other day left in place. The
+ * group's slots in the sorted array are filled, ascending, with
+ * `groupOrderedIds` in order. Fed to reschedule_itinerary_days: only the
+ * group's members change date, so the location's date span is unchanged. */
+export function reorderWithinGroup(
+  allDays: ItineraryDay[],
+  groupOrderedIds: string[],
+): string[] {
+  const ids = [...allDays]
+    .sort((a, b) => (a.dayDate < b.dayDate ? -1 : a.dayDate > b.dayDate ? 1 : 0))
+    .map((d) => d.id)
+  const inGroup = new Set(groupOrderedIds)
+  let g = 0
+  return ids.map((id) => (inGroup.has(id) ? groupOrderedIds[g++] : id))
+}
