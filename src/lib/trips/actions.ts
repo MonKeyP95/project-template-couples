@@ -2309,6 +2309,7 @@ export async function saveBudgetItems(
     .from("trip_budget_items")
     .delete()
     .eq("trip_id", input.tripId)
+    .neq("category", "Pre-trip")
   if (delErr) return { error: delErr.message }
 
   if (rows.length > 0) {
@@ -2318,7 +2319,13 @@ export async function saveBudgetItems(
     if (insErr) return { error: insErr.message }
   }
 
-  const total = rows.reduce((sum, r) => sum + r.amount_cents, 0)
+  // Sum all rows, not just the ones just inserted, so preserved Pre-trip
+  // (before-you-go) items stay counted in the planned total.
+  const { data: allRows } = await supabase
+    .from("trip_budget_items")
+    .select("amount_cents")
+    .eq("trip_id", input.tripId)
+  const total = (allRows ?? []).reduce((sum, r) => sum + (r.amount_cents as number), 0)
   const { error: budErr } = await supabase
     .from("trips")
     .update({ planned_budget_cents: total })
@@ -2361,6 +2368,7 @@ export async function saveBudgetItemsForScope(
     .from("trip_budget_items")
     .select("id")
     .eq("trip_id", input.tripId)
+    .neq("category", "Pre-trip")
   existingQ =
     input.locationId === null
       ? existingQ.is("location_id", null)
@@ -2410,6 +2418,108 @@ export async function saveBudgetItemsForScope(
     } else {
       // Insert with the client-provided id so a just-added cost is immediately
       // payable (its row exists at the id the editor already holds).
+      if (it.id) fields.id = it.id
+      const { error } = await supabase.from("trip_budget_items").insert(fields)
+      if (error) return { error: error.message }
+    }
+  }
+
+  const toDelete = [...existingIds].filter((id) => !keptIds.has(id))
+  if (toDelete.length > 0) {
+    const { error: delErr } = await supabase
+      .from("trip_budget_items")
+      .delete()
+      .in("id", toDelete)
+    if (delErr) return { error: delErr.message }
+  }
+
+  const { data: allRows } = await supabase
+    .from("trip_budget_items")
+    .select("amount_cents")
+    .eq("trip_id", input.tripId)
+  const total = (allRows ?? []).reduce(
+    (s, r) => s + (r.amount_cents as number),
+    0,
+  )
+  const { error: budErr } = await supabase
+    .from("trips")
+    .update({ planned_budget_cents: total })
+    .eq("id", input.tripId)
+  if (budErr) return { error: budErr.message }
+
+  revalidatePath(`/trips/${input.tripSlug}`)
+  return {}
+}
+
+export interface SavePreTripItemsInput {
+  tripId: string
+  tripSlug: string
+  items: SaveBudgetItemInput[]
+}
+
+/**
+ * Replace the trip's "Pre-trip" budget items (the before-you-go checklist),
+ * updating in place to preserve paid links, then recompute the planned total
+ * across all items. No other category is touched.
+ */
+export async function savePreTripItems(
+  input: SavePreTripItemsInput,
+): Promise<{ error?: string }> {
+  for (const it of input.items) {
+    if (!validCents(it.amountCents)) {
+      return { error: "Budget amount out of range." }
+    }
+  }
+
+  const supabase = await createClient()
+
+  const { data: existing, error: exErr } = await supabase
+    .from("trip_budget_items")
+    .select("id")
+    .eq("trip_id", input.tripId)
+    .eq("category", "Pre-trip")
+  if (exErr) return { error: exErr.message }
+  const existingIds = new Set((existing ?? []).map((r) => r.id as string))
+
+  const keptIds = new Set<string>()
+  let order = 0
+  for (const it of input.items) {
+    const fields: {
+      id?: string
+      trip_id: string
+      category: string
+      subject: string
+      when_label: string
+      amount_cents: number
+      location_id: string | null
+      when_start: string | null
+      when_end: string | null
+      sort_order: number
+      estimated: boolean
+      source_url: string | null
+      price_unknown: boolean
+    } = {
+      trip_id: input.tripId,
+      category: "Pre-trip",
+      subject: it.subject.trim(),
+      when_label: it.whenLabel.trim(),
+      amount_cents: it.amountCents,
+      location_id: null,
+      when_start: null,
+      when_end: null,
+      sort_order: order++,
+      estimated: false,
+      source_url: null,
+      price_unknown: false,
+    }
+    if (it.id && existingIds.has(it.id)) {
+      const { error } = await supabase
+        .from("trip_budget_items")
+        .update(fields)
+        .eq("id", it.id)
+      if (error) return { error: error.message }
+      keptIds.add(it.id)
+    } else {
       if (it.id) fields.id = it.id
       const { error } = await supabase.from("trip_budget_items").insert(fields)
       if (error) return { error: error.message }
