@@ -23,6 +23,7 @@ import { BudgetByCategory } from "./budget-by-category"
 import { BudgetDrafter } from "./budget-drafter"
 import { BudgetScopeEditor } from "./budget-scope-editor"
 import { PlanningPlaceDoor } from "./find-a-place-planning"
+import { PreTripChecklist } from "./pre-trip-checklist"
 import type { BudgetItem } from "@/lib/trips/budget-item-types"
 import { SavedFigure, SpentFigure } from "./budget-figures"
 import { Ledger } from "./budget-ledger"
@@ -144,6 +145,22 @@ export function BudgetTab({
         />
       </div>
 
+      {/* Before you go */}
+      <div className="mx-5 my-4 overflow-hidden rounded-xl border border-border bg-card">
+        <div className="px-5 pt-4 pb-1">
+          <Label>Before you go</Label>
+        </div>
+        <PreTripChecklist
+          key={scopeKey(
+            "pretrip",
+            budgetItems.filter((i) => i.category === "Pre-trip"),
+          )}
+          tripId={tripId}
+          tripSlug={tripSlug}
+          budgetItems={budgetItems}
+        />
+      </div>
+
       {/* Plan a budget */}
       <div className="mx-5 my-4 overflow-hidden rounded-xl border border-border bg-card">
         <div className="px-5 pt-4 pb-1">
@@ -246,7 +263,9 @@ function PlannedBudget({
     if (arr) arr.push(it)
     else byLoc.set(it.locationId, [it])
   }
-  const tripWide = budgetItems.filter((it) => !it.locationId)
+  const tripWide = budgetItems.filter(
+    (it) => !it.locationId && it.category !== "Pre-trip",
+  )
   const plannedTotalCents = budgetItems.reduce((s, it) => s + it.amountCents, 0)
 
   // Actual spend grouped by category, for the expenses attributed to one scope
