@@ -310,7 +310,7 @@ export default async function ProfilePage() {
                         />
                       </div>
                     ))}
-                    {journal ? (
+                    {journal && !(pastTripIds.has(trip.id) && blocks.length > 0) ? (
                       <TripJournal record={journal} memberNames={memberNames} />
                     ) : null}
                     {budget ? <TripBudget summary={budget} /> : null}
