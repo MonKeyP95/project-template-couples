@@ -34,7 +34,7 @@ function settleUpLine(
   }
   const debtor = memberNames[s.debtorUserId] ?? "Someone"
   const creditor = memberNames[s.creditorUserId] ?? "Someone"
-  return `${debtor} owes ${creditor} €${euro(s.netBalanceCents)}`
+  return `${debtor} owes ${creditor} €${euro(Math.abs(s.netBalanceCents))}`
 }
 
 export function TripJournal({
