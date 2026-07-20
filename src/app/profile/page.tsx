@@ -73,6 +73,7 @@ export default async function ProfilePage() {
   })
 
   const startedTrips = [...buckets.now, ...buckets.past]
+  const pastTripIds = new Set(buckets.past.map((t) => t.id))
   const memberIds = workspace.members.map((m) => m.user_id)
   const memberNames = Object.fromEntries(
     workspace.members.map((m) => [m.user_id, m.display_name]),
@@ -88,7 +89,7 @@ export default async function ProfilePage() {
   )
   const tripBlocks = (
     await Promise.all(
-      startedTrips.map(async (trip) => ({
+      buckets.past.map(async (trip) => ({
         trip,
         blocks: await getTripLearnedBlocks(trip.id),
       })),
@@ -98,7 +99,11 @@ export default async function ProfilePage() {
   const { history: budgetHistory, summaries: budgetSummaries } =
     await getProfileBudgetData(startedTrips)
   const tasteByTrip = new Map(tripBlocks.map((tb) => [tb.trip.id, tb.blocks]))
-  const budgetByTrip = new Map(budgetSummaries.map((s) => [s.tripId, s]))
+  const budgetByTrip = new Map(
+    budgetSummaries
+      .filter((s) => pastTripIds.has(s.tripId))
+      .map((s) => [s.tripId, s]),
+  )
   const byTripRows = startedTrips
     .filter(
       (t) =>
