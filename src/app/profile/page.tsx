@@ -30,6 +30,8 @@ import { CategorySection } from "@/components/category-section"
 import { getProfileBudgetData } from "@/lib/trips/budget-history-queries"
 import { BudgetHistory } from "./budget-history"
 import { TripBudget } from "./trip-budget"
+import { getTripJournal } from "@/lib/journal/journal-queries"
+import { TripJournal } from "./trip-journal"
 
 const CATEGORY_LABEL: Record<LearnedCategory, string> = {
   food: "Food",
@@ -71,6 +73,19 @@ export default async function ProfilePage() {
   })
 
   const startedTrips = [...buckets.now, ...buckets.past]
+  const memberIds = workspace.members.map((m) => m.user_id)
+  const memberNames = Object.fromEntries(
+    workspace.members.map((m) => [m.user_id, m.display_name]),
+  )
+  const journals = await Promise.all(
+    startedTrips.map(async (trip) => ({
+      tripId: trip.id,
+      record: await getTripJournal(trip.id, memberIds),
+    })),
+  )
+  const journalByTrip = new Map(
+    journals.filter((j) => !j.record.isEmpty).map((j) => [j.tripId, j.record]),
+  )
   const tripBlocks = (
     await Promise.all(
       startedTrips.map(async (trip) => ({
@@ -85,11 +100,17 @@ export default async function ProfilePage() {
   const tasteByTrip = new Map(tripBlocks.map((tb) => [tb.trip.id, tb.blocks]))
   const budgetByTrip = new Map(budgetSummaries.map((s) => [s.tripId, s]))
   const byTripRows = startedTrips
-    .filter((t) => tasteByTrip.has(t.id) || budgetByTrip.has(t.id))
+    .filter(
+      (t) =>
+        tasteByTrip.has(t.id) ||
+        budgetByTrip.has(t.id) ||
+        journalByTrip.has(t.id),
+    )
     .map((t) => ({
       trip: t,
       blocks: tasteByTrip.get(t.id) ?? [],
       budget: budgetByTrip.get(t.id) ?? null,
+      journal: journalByTrip.get(t.id) ?? null,
     }))
 
   const foodKey = [
@@ -264,7 +285,7 @@ export default async function ProfilePage() {
             <div className="mt-10 border-t border-border pt-8">
               <p className="text-sm text-muted-foreground">By trip</p>
               <div className="mt-4 flex flex-col gap-8">
-                {byTripRows.map(({ trip, blocks, budget }) => (
+                {byTripRows.map(({ trip, blocks, budget, journal }) => (
                   <div key={trip.id}>
                     <h3 className="font-serif text-lg tracking-tight">
                       {trip.name}
@@ -284,6 +305,9 @@ export default async function ProfilePage() {
                         />
                       </div>
                     ))}
+                    {journal ? (
+                      <TripJournal record={journal} memberNames={memberNames} />
+                    ) : null}
                     {budget ? <TripBudget summary={budget} /> : null}
                   </div>
                 ))}
