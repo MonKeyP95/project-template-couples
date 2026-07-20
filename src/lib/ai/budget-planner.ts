@@ -44,10 +44,11 @@ const STEP_KEY_BY_CATEGORY: Record<string, string> = {
   Accommodation: "accommodation",
   Transportation: "transport",
   Food: "food",
+  Groceries: "groceries",
   Activities: "activities",
   Other: "other",
 }
-const PER_LOCATION_KEYS = new Set(["accommodation", "food", "activities"])
+const PER_LOCATION_KEYS = new Set(["accommodation", "food", "groceries", "activities"])
 
 /**
  * The walk bucket an itinerary event seeds, matching planBudgetSteps' keys:
@@ -112,9 +113,20 @@ export function planBudgetSteps(input: BudgetPlanInput): BudgetStep[] {
     steps.push({
       key: `food:${p.id}`,
       title: "Food & drink",
-      question: "Eating out and groceries?",
-      hint: "Add what you expect to spend on food here.",
+      question: "Eating out?",
+      hint: "Add what you expect to spend on eating out here.",
       addNoun: "food",
+      seed: [],
+      place,
+      placeWhen,
+    })
+
+    steps.push({
+      key: `groceries:${p.id}`,
+      title: "Groceries",
+      question: "Groceries?",
+      hint: "Add what you expect to spend on groceries here.",
+      addNoun: "groceries",
       seed: [],
       place,
       placeWhen,
@@ -136,7 +148,7 @@ export function planBudgetSteps(input: BudgetPlanInput): BudgetStep[] {
   steps.push({
     key: "transport:trip",
     title: "Transport",
-    question: "Flights and getting around?",
+    question: "Getting around?",
     hint: "Flights, transfers, car hire, local transport.",
     addNoun: "transport",
     seed: [],

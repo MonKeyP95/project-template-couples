@@ -80,6 +80,7 @@ const CATEGORY_BY_STEP: Record<string, string> = {
   accommodation: "Accommodation",
   transport: "Transportation",
   food: "Food",
+  groceries: "Groceries",
   activities: "Activities",
   other: "Other",
 }
@@ -87,10 +88,11 @@ const STEP_BY_CATEGORY: Record<string, string> = {
   Accommodation: "accommodation",
   Transportation: "transport",
   Food: "food",
+  Groceries: "groceries",
   Activities: "activities",
   Other: "other",
 }
-const PER_LOCATION = new Set(["accommodation", "food", "activities"])
+const PER_LOCATION = new Set(["accommodation", "food", "groceries", "activities"])
 const isBufferSubject = (s: string) => /^buffer \(/i.test(s.trim())
 
 export interface BudgetDrafterProps {

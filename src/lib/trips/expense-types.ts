@@ -97,6 +97,7 @@ export interface ExpenseCategoryRow {
 /** Default set seeded into every new trip. Kept minimal; users add the rest. */
 export const EXPENSE_CATEGORIES = [
   "Food",
+  "Groceries",
   "Transportation",
   "Accommodation",
   "Activities",
