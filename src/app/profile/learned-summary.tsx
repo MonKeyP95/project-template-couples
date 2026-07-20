@@ -50,15 +50,17 @@ export function LearnedSummary({
     setBusy(false)
   }, [category, tripId])
 
-  // Background-regenerate once on mount when stale and AI is on. The current
-  // summary shows instantly; the fresh one swaps in when ready.
+  // Per-trip blocks (closed trips) auto-generate only on first view — when there
+  // is no summary yet — then stay put; a redo is manual via Refresh. The general
+  // sections keep drift-based auto-refresh (Slice 3 rewires them).
+  const autoFire = tripId ? summaryMd.trim() === "" : stale
   const started = React.useRef(false)
   React.useEffect(() => {
-    if (stale && aiOn && !started.current) {
+    if (autoFire && aiOn && !started.current) {
       started.current = true
       void refresh()
     }
-  }, [stale, aiOn, refresh])
+  }, [autoFire, aiOn, refresh])
 
   async function save() {
     setBusy(true)
