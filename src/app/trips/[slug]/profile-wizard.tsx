@@ -15,6 +15,7 @@ import {
   TRIP_VIBES,
   type TripProfile,
 } from "@/lib/trips/trip-profile-types"
+import { CategoryCard, OptionRow, StepShell } from "../profile-fields"
 
 const STEP_COUNT = 4
 
@@ -27,14 +28,12 @@ export function ProfileWizard({
   tripSlug,
   profile,
   categories,
-  onboarding = false,
   onDone,
 }: {
   tripId: string
   tripSlug: string
   profile: TripProfile
   categories: ExpenseCategoryRow[]
-  onboarding?: boolean
   onDone?: () => void
 }) {
   const router = useRouter()
@@ -58,10 +57,6 @@ export function ProfileWizard({
       setSaving(false)
       if (r.error) return
       setSaved(true)
-      if (onboarding) {
-        router.push(`/trips/${tripSlug}?tab=itinerary&plan=1`)
-        return
-      }
       router.refresh()
       onDone?.()
     })
@@ -172,13 +167,7 @@ export function ProfileWizard({
             disabled={saving}
             className="rounded-full border-0 bg-foreground px-4 py-2 font-mono text-[11px] uppercase tracking-[0.2em] text-background disabled:opacity-40"
           >
-            {saving
-              ? "saving…"
-              : saved
-                ? "saved"
-                : onboarding
-                  ? "save & plan itinerary →"
-                  : "save profile"}
+            {saving ? "saving…" : saved ? "saved" : "save profile"}
           </button>
         ) : (
           <button
@@ -191,60 +180,6 @@ export function ProfileWizard({
         )}
       </div>
     </section>
-  )
-}
-
-function StepShell({
-  title,
-  hint,
-  children,
-}: {
-  title: string
-  hint?: string
-  children: React.ReactNode
-}) {
-  return (
-    <div>
-      <h3 className="t-display text-[20px] text-foreground">{title}</h3>
-      {hint ? (
-        <span className="mt-0.5 block font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
-          {hint}
-        </span>
-      ) : null}
-      <div className="mt-4 flex flex-col gap-2">{children}</div>
-    </div>
-  )
-}
-
-function OptionRow({
-  label,
-  selected,
-  onClick,
-}: {
-  label: string
-  selected: boolean
-  onClick: () => void
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-pressed={selected}
-      className={`flex w-full items-center justify-between rounded-xl border px-4 py-3 text-left text-[15px] transition-colors ${
-        selected
-          ? "border-foreground bg-foreground text-background"
-          : "border-rule text-foreground hover:border-foreground"
-      }`}
-    >
-      {label}
-      <span
-        className={`font-mono text-[13px] ${
-          selected ? "text-background" : "text-muted-foreground"
-        }`}
-      >
-        {selected ? "✓" : "+"}
-      </span>
-    </button>
   )
 }
 
@@ -316,9 +251,10 @@ function CategoryStep({
   return (
     <>
       {categories.map((c) => (
-        <CategoryRow
+        <CategoryCard
           key={c.id}
-          category={c}
+          name={c.name}
+          details={c.details}
           expanded={expandedId === c.id}
           pending={pending}
           onToggle={() =>
@@ -362,102 +298,5 @@ function CategoryStep({
         <div className="font-mono text-[10px] text-clay">{error}</div>
       ) : null}
     </>
-  )
-}
-
-/** One category: a header (name toggles expand, `×` removes the category) and,
- * when expanded, its detail tags as removable chips plus an add input. The
- * add-detail input owns its own text state. */
-function CategoryRow({
-  category,
-  expanded,
-  pending,
-  onToggle,
-  onRemove,
-  onAddDetail,
-  onRemoveDetail,
-}: {
-  category: ExpenseCategoryRow
-  expanded: boolean
-  pending: boolean
-  onToggle: () => void
-  onRemove: () => void
-  onAddDetail: (item: string) => void
-  onRemoveDetail: (item: string) => void
-}) {
-  const [detail, setDetail] = React.useState("")
-
-  function add() {
-    const t = detail.trim()
-    if (!t || pending) return
-    if (!category.details.includes(t)) onAddDetail(t)
-    setDetail("")
-  }
-
-  return (
-    <div className="rounded-xl border border-rule">
-      <div className="flex items-center justify-between px-4 py-3">
-        <button
-          type="button"
-          onClick={onToggle}
-          className="flex-1 text-left text-[15px] text-foreground"
-        >
-          {category.name}
-          {category.details.length ? (
-            <span className="ml-2 font-mono text-[11px] text-muted-foreground">
-              · {category.details.length}
-            </span>
-          ) : null}
-        </button>
-        <button
-          type="button"
-          onClick={onRemove}
-          disabled={pending}
-          aria-label={`Delete ${category.name}`}
-          className="font-mono text-[15px] text-muted-foreground hover:text-clay disabled:opacity-50"
-        >
-          ×
-        </button>
-      </div>
-      {expanded ? (
-        <div className="border-t border-rule px-4 py-3">
-          {category.details.length ? (
-            <div className="flex flex-wrap gap-1.5">
-              {category.details.map((d) => (
-                <span
-                  key={d}
-                  className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1 font-mono text-[11px] tracking-[0.06em] text-foreground"
-                >
-                  {d}
-                  <button
-                    type="button"
-                    onClick={() => onRemoveDetail(d)}
-                    disabled={pending}
-                    aria-label={`Remove ${d}`}
-                    className="text-muted-foreground hover:text-clay disabled:opacity-50"
-                  >
-                    ×
-                  </button>
-                </span>
-              ))}
-            </div>
-          ) : null}
-          <input
-            type="text"
-            value={detail}
-            onChange={(e) => setDetail(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                e.preventDefault()
-                add()
-              }
-            }}
-            placeholder="add specific…"
-            disabled={pending}
-            className="mt-2 w-full rounded-lg border border-dashed border-rule bg-transparent px-3 py-2 text-[14px] text-foreground placeholder:text-muted-foreground focus:border-clay focus:outline-none disabled:opacity-50"
-          />
-        </div>
-      ) : null}
-    </div>
   )
 }

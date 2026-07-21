@@ -145,10 +145,10 @@ export default async function TripPage({
   searchParams,
 }: {
   params: Promise<{ slug: string }>
-  searchParams: Promise<{ tab?: string; onboarding?: string }>
+  searchParams: Promise<{ tab?: string }>
 }) {
   const { slug } = await params
-  const { tab, onboarding } = await searchParams
+  const { tab } = await searchParams
 
   const supabase = await createClient()
   const { data: userData } = await supabase.auth.getUser()
@@ -338,7 +338,6 @@ export default async function TripPage({
             initialNotes={notes ?? []}
             locations={locations ?? []}
             members={memberTones}
-            onboarding={onboarding === "1"}
           />
         )}
       </div>
