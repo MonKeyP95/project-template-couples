@@ -5,6 +5,13 @@ import { useRouter } from "next/navigation"
 
 import { createTrip } from "@/lib/trips/actions"
 import { slugify } from "@/lib/trips/slugify"
+import {
+  LocalCategoryEditor,
+  OptionRow,
+  type LocalCategory,
+} from "../profile-fields"
+import { EXPENSE_CATEGORIES } from "@/lib/trips/expense-types"
+import { TRIP_TRANSPORT, TRIP_VIBES } from "@/lib/trips/trip-profile-types"
 
 const SLUG_RE = /^[a-z0-9-]+$/
 
@@ -28,9 +35,18 @@ export function NewTripForm() {
   const [advancedOpen, setAdvancedOpen] = React.useState(false)
   const [lat, setLat] = React.useState("")
   const [lng, setLng] = React.useState("")
+  const [idea, setIdea] = React.useState("")
+  const [categories, setCategories] = React.useState<LocalCategory[]>(
+    EXPENSE_CATEGORIES.map((name) => ({ name, details: [] })),
+  )
+  const [transport, setTransport] = React.useState<string[]>([])
+  const [vibe, setVibe] = React.useState<string[]>([])
   const [error, setError] = React.useState<string | null>(null)
   const [isPending, startTransition] = React.useTransition()
   const nameRef = React.useRef<HTMLInputElement>(null)
+
+  const toggle = (list: string[], set: (v: string[]) => void, tag: string) =>
+    set(list.includes(tag) ? list.filter((t) => t !== tag) : [...list, tag])
 
   React.useEffect(() => {
     nameRef.current?.focus()
@@ -59,6 +75,8 @@ export function NewTripForm() {
         country: country.trim() || null,
         lat: parseFloatOrNull(lat),
         lng: parseFloatOrNull(lng),
+        profile: { idea, transport, vibe },
+        categories,
       })
       if (result.error) {
         setError(result.error)
@@ -175,6 +193,71 @@ export function NewTripForm() {
           className="mt-1 w-full border-0 border-b border-rule bg-transparent py-1.5 text-[14px] text-foreground placeholder:text-muted-foreground focus:border-clay focus:outline-none disabled:opacity-50"
         />
       </label>
+
+      <div className="mt-8 border-t border-rule pt-6">
+        <span className="block font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
+          Profile · optional
+        </span>
+
+        <label className="mt-5 block">
+          <span className="block font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
+            Sum up this trip
+          </span>
+          <textarea
+            value={idea}
+            onChange={(e) => setIdea(e.target.value)}
+            placeholder="e.g. 2 weeks surfing in Portugal"
+            rows={3}
+            disabled={isPending}
+            className="mt-1 w-full resize-y rounded-lg border border-rule bg-transparent p-3 text-[15px] text-foreground placeholder:text-muted-foreground focus:border-clay focus:outline-none disabled:opacity-50"
+          />
+        </label>
+
+        <div className="mt-5">
+          <span className="block font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
+            Categories
+          </span>
+          <div className="mt-2">
+            <LocalCategoryEditor
+              categories={categories}
+              onChange={setCategories}
+              disabled={isPending}
+            />
+          </div>
+        </div>
+
+        <div className="mt-5">
+          <span className="block font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
+            Getting around
+          </span>
+          <div className="mt-2 flex flex-col gap-2">
+            {TRIP_TRANSPORT.map((t) => (
+              <OptionRow
+                key={t}
+                label={t}
+                selected={transport.includes(t)}
+                onClick={() => toggle(transport, setTransport, t)}
+              />
+            ))}
+          </div>
+        </div>
+
+        <div className="mt-5">
+          <span className="block font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
+            Vibe
+          </span>
+          <div className="mt-2 flex flex-col gap-2">
+            {TRIP_VIBES.map((v) => (
+              <OptionRow
+                key={v}
+                label={v}
+                selected={vibe.includes(v)}
+                onClick={() => toggle(vibe, setVibe, v)}
+              />
+            ))}
+          </div>
+        </div>
+      </div>
 
       <button
         type="button"
