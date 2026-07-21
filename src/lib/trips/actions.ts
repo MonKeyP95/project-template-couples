@@ -31,6 +31,7 @@ import {
 } from "@/lib/trips/location-types"
 import { slugToTone } from "@/lib/trips/slug-tone"
 import {
+  EMPTY_TRIP_PROFILE,
   TRIP_TRANSPORT,
   TRIP_VIBES,
   type TripProfile,
@@ -645,6 +646,8 @@ export interface CreateTripInput {
   country: string | null
   lat: number | null
   lng: number | null
+  profile?: TripProfile
+  categories?: { name: string; details: string[] }[]
 }
 
 export interface CreateTripResult {
@@ -724,6 +727,15 @@ export async function createTrip(
 
   const country = input.country?.trim() || null
 
+  const p = input.profile ?? EMPTY_TRIP_PROFILE
+  const tripProfile = {
+    idea: p.idea.trim().slice(0, 2000),
+    transport: p.transport.filter((t) =>
+      (TRIP_TRANSPORT as readonly string[]).includes(t),
+    ),
+    vibe: p.vibe.filter((v) => (TRIP_VIBES as readonly string[]).includes(v)),
+  }
+
   const { error: insertError } = await supabase.from("trips").insert({
     workspace_id: workspace.id,
     slug,
@@ -734,6 +746,7 @@ export async function createTrip(
     fuzzy_when: fuzzyWhen,
     lat: input.lat,
     lng: input.lng,
+    trip_profile: tripProfile,
     created_by: userData.user.id,
   })
 
@@ -764,10 +777,33 @@ export async function createTrip(
     .insert(memberRows)
   if (membersError) return { error: membersError.message }
 
-  const categoryRows = EXPENSE_CATEGORIES.map((name, i) => ({
+  const rawCategories =
+    input.categories && input.categories.length > 0
+      ? input.categories
+      : EXPENSE_CATEGORIES.map((name) => ({ name, details: [] as string[] }))
+
+  const seen = new Set<string>()
+  const cleanCategories: { name: string; details: string[] }[] = []
+  for (const c of rawCategories) {
+    const nm = c.name.trim()
+    if (!nm || seen.has(nm)) continue
+    seen.add(nm)
+    const details = Array.from(
+      new Set(c.details.map((d) => d.trim()).filter(Boolean)),
+    ).slice(0, 20)
+    cleanCategories.push({ name: nm, details })
+  }
+  if (cleanCategories.length === 0) {
+    for (const name of EXPENSE_CATEGORIES) {
+      cleanCategories.push({ name, details: [] })
+    }
+  }
+
+  const categoryRows = cleanCategories.map((c, i) => ({
     trip_id: tripRow.id,
-    name,
+    name: c.name,
     sort_order: i,
+    details: c.details,
     created_by: userData.user.id,
   }))
   const { error: categoriesError } = await supabase
