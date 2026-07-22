@@ -827,6 +827,8 @@ export interface UpdateTripInput {
   country: string | null
   lat: number | null
   lng: number | null
+  profile?: TripProfile
+  categories?: { name: string; details: string[] }[]
 }
 
 export interface UpdateTripResult {
@@ -870,6 +872,89 @@ export async function updateTrip(
   const supabase = await createClient()
   const country = input.country?.trim() || null
 
+  // Profile patch: only overwrite trip_profile when the caller sent a profile.
+  const profilePatch =
+    input.profile === undefined
+      ? {}
+      : {
+          trip_profile: {
+            idea: input.profile.idea.trim().slice(0, 2000),
+            transport: input.profile.transport.filter((t) =>
+              (TRIP_TRANSPORT as readonly string[]).includes(t),
+            ),
+            vibe: input.profile.vibe.filter((v) =>
+              (TRIP_VIBES as readonly string[]).includes(v),
+            ),
+          },
+        }
+
+  // Category reconcile: run only when categories are supplied. Categories are
+  // independent of the date/slug branches, so this runs once up front; on the
+  // rare slug-collision failure below the category edit persists harmlessly
+  // (expenses reference category by name text, not by row id).
+  if (input.categories) {
+    const seen = new Set<string>()
+    const clean: { name: string; details: string[] }[] = []
+    for (const c of input.categories) {
+      const nm = c.name.trim()
+      if (!nm || seen.has(nm)) continue
+      seen.add(nm)
+      const details = Array.from(
+        new Set(c.details.map((d) => d.trim()).filter(Boolean)),
+      ).slice(0, 20)
+      clean.push({ name: nm, details })
+    }
+
+    const { data: existing } = await supabase
+      .from("expense_categories")
+      .select("id, name")
+      .eq("trip_id", input.tripId)
+    const existingByName = new Map((existing ?? []).map((r) => [r.name, r.id]))
+
+    const keepNames = new Set(clean.map((c) => c.name))
+    const removeIds = (existing ?? [])
+      .filter((r) => !keepNames.has(r.name))
+      .map((r) => r.id)
+    if (removeIds.length) {
+      const { error } = await supabase
+        .from("expense_categories")
+        .delete()
+        .in("id", removeIds)
+      if (error) return { error: error.message }
+    }
+
+    const inserts: {
+      trip_id: string
+      name: string
+      sort_order: number
+      details: string[]
+    }[] = []
+    for (let i = 0; i < clean.length; i++) {
+      const c = clean[i]
+      const id = existingByName.get(c.name)
+      if (id) {
+        const { error } = await supabase
+          .from("expense_categories")
+          .update({ details: c.details, sort_order: i })
+          .eq("id", id)
+        if (error) return { error: error.message }
+      } else {
+        inserts.push({
+          trip_id: input.tripId,
+          name: c.name,
+          sort_order: i,
+          details: c.details,
+        })
+      }
+    }
+    if (inserts.length) {
+      const { error } = await supabase
+        .from("expense_categories")
+        .insert(inserts)
+      if (error) return { error: error.message }
+    }
+  }
+
   // --- Dream branch: null dates, optional fuzzy_when. ---
   if (input.isDream) {
     if (input.startDate || input.endDate) {
@@ -890,6 +975,7 @@ export async function updateTrip(
         fuzzy_when: fuzzyWhen,
         lat: input.lat,
         lng: input.lng,
+        ...profilePatch,
       })
       .eq("id", input.tripId)
     if (error) {
@@ -922,7 +1008,14 @@ export async function updateTrip(
       // convert anything.
       const { error: updateError } = await supabase
         .from("trips")
-        .update({ name, slug, country, lat: input.lat, lng: input.lng })
+        .update({
+          name,
+          slug,
+          country,
+          lat: input.lat,
+          lng: input.lng,
+          ...profilePatch,
+        })
         .eq("id", input.tripId)
       if (updateError) {
         if (updateError.code === "23505") {
@@ -961,6 +1054,7 @@ export async function updateTrip(
       fuzzy_when: null,
       lat: input.lat,
       lng: input.lng,
+      ...profilePatch,
     })
     .eq("id", input.tripId)
 
