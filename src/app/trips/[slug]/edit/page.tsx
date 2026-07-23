@@ -4,6 +4,7 @@ import { notFound, redirect } from "next/navigation"
 import { Label } from "@/components/together"
 import { createClient } from "@/lib/supabase/server"
 import { getTripBySlug } from "@/lib/trips/queries"
+import { getTripExpenseCategories } from "@/lib/trips/expense-queries"
 import { getCurrentWorkspace } from "@/lib/workspace/queries"
 
 import { EditTripForm } from "./edit-trip-form"
@@ -31,6 +32,8 @@ export default async function EditTripPage({
     .eq("trip_id", trip.id)
   const dreamDayCount = count ?? 0
 
+  const categories = await getTripExpenseCategories(trip.id)
+
   return (
     <main className="mx-auto min-h-screen w-full max-w-[440px] px-5 pt-10 pb-20">
       <Link
@@ -56,6 +59,11 @@ export default async function EditTripPage({
           lat: trip.lat,
           lng: trip.lng,
         }}
+        initialProfile={trip.tripProfile}
+        initialCategories={categories.map((c) => ({
+          name: c.name,
+          details: c.details,
+        }))}
       />
     </main>
   )

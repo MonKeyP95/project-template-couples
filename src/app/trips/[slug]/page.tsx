@@ -55,20 +55,20 @@ import {
 import { BudgetTab } from "./budget-tab"
 import { ItineraryTab } from "./itinerary-tab"
 import { DreamItineraryTab } from "./dream-itinerary-tab"
-import { ProfileTab } from "./profile-tab"
+import { NotesTab } from "./notes-tab"
 import { TripRoutePanel } from "./trip-route-panel"
 import {
   PackingTab,
   type MemberToneEntry,
 } from "./packing-tab"
 
-type TabId = "itinerary" | "packing" | "budget" | "profile"
+type TabId = "itinerary" | "packing" | "budget" | "notes"
 
 const TABS: { id: TabId; label: string }[] = [
   { id: "budget", label: "Budget" },
   { id: "itinerary", label: "Itinerary" },
   { id: "packing", label: "Packing" },
-  { id: "profile", label: "Profile" },
+  { id: "notes", label: "Notes" },
 ]
 
 function isTab(value: string | undefined): value is TabId {
@@ -76,7 +76,7 @@ function isTab(value: string | undefined): value is TabId {
     value === "itinerary" ||
     value === "packing" ||
     value === "budget" ||
-    value === "profile"
+    value === "notes"
   )
 }
 
@@ -182,13 +182,11 @@ export default async function TripPage({
         : Promise.resolve(null),
       showItinerary && isDream ? getDreamItineraryDays(header.id) : Promise.resolve(null),
       getItineraryLocations(header.id),
-      activeTab === "profile" ? getTripNotes(header.id) : Promise.resolve(null),
+      activeTab === "notes" ? getTripNotes(header.id) : Promise.resolve(null),
       getPackingItems(header.id),
       getPackingCategories(header.id),
       getTripExpenses(header.id),
-      activeTab === "budget" ||
-      activeTab === "profile" ||
-      (showItinerary && !isDream)
+      activeTab === "budget" || (showItinerary && !isDream)
         ? getTripExpenseCategories(header.id)
         : Promise.resolve(null),
       getTripSavings(header.id, memberIds),
@@ -329,9 +327,7 @@ export default async function TripPage({
             currentUserId={userData.user.id}
           />
         ) : (
-          <ProfileTab
-            profile={header.tripProfile}
-            expenseCategories={expenseCategories ?? []}
+          <NotesTab
             tripId={header.id}
             tripSlug={header.slug}
             destination={header.country ?? header.name}
