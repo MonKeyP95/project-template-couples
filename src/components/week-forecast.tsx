@@ -26,11 +26,18 @@ function formatDay(date: string): string {
 }
 
 /**
- * The desktop 7-day forecast bar. Collapsed it shows the compact day chips;
- * pressing the header expands a stacked per-day list with condition, high/low,
- * wind and rain chance. Client-only for the expand toggle.
+ * The desktop 7-day forecast bar. The header names the place it forecasts.
+ * Collapsed it shows the compact day chips; pressing the header expands a
+ * stacked per-day list with condition, high/low, wind and rain chance.
+ * Client-only for the expand toggle.
  */
-export function WeekForecast({ forecast }: { forecast: DayForecast[] }) {
+export function WeekForecast({
+  forecast,
+  label,
+}: {
+  forecast: DayForecast[]
+  label: string
+}) {
   const [open, setOpen] = React.useState(false)
   if (forecast.length === 0) return null
 
@@ -40,10 +47,13 @@ export function WeekForecast({ forecast }: { forecast: DayForecast[] }) {
         type="button"
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
-        className="flex w-full items-center justify-between"
+        className="flex w-full items-center justify-between gap-2"
       >
-        <Label>Weather · 7 day</Label>
-        <Chevron dir={open ? "down" : "right"} className="text-muted-foreground" />
+        <Label className="min-w-0 truncate">Weather · 7 day · {label}</Label>
+        <Chevron
+          dir={open ? "down" : "right"}
+          className="shrink-0 text-muted-foreground"
+        />
       </button>
 
       {open ? (

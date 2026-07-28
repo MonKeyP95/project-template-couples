@@ -214,7 +214,7 @@ export default async function TripPage({
     getTripWeekForecast(weatherPlace),
   ])
   const packingNudge = detectWeatherPacking({
-    destination: header.country ?? header.name,
+    destination: weekForecast?.label ?? header.country ?? header.name,
     weather: packingWeather,
     packingLabels: packingItems.map((i) => i.label.toLowerCase()),
   })
@@ -348,7 +348,7 @@ export default async function TripPage({
       <DesktopRightRail
         slug={header.slug}
         locations={(locations ?? []).map((l) => l.name)}
-        forecast={weekForecast?.days ?? null}
+        forecast={weekForecast}
         packing={{ done: packingDone, total: packingTotal }}
         budget={{
           spentCents: budgetSummary.expenseTotalCents,
@@ -551,7 +551,7 @@ function DesktopRightRail({
 }: {
   slug: string
   locations: string[]
-  forecast: DayForecast[] | null
+  forecast: { label: string; days: DayForecast[] } | null
   packing: { done: number; total: number }
   budget: { spentCents: number; plannedCents: number }
   saved: { savedCents: number; plannedCents: number }
@@ -596,7 +596,9 @@ function DesktopRightRail({
         </div>
       </div>
 
-      {forecast ? <WeekForecast forecast={forecast} /> : null}
+      {forecast ? (
+        <WeekForecast forecast={forecast.days} label={forecast.label} />
+      ) : null}
     </aside>
   )
 }

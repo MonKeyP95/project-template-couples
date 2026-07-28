@@ -60,8 +60,6 @@ export default async function OnTheRoadPage() {
     tripSlug: trip.slug,
   })
 
-  const weather = await getTripWeather(trip)
-
   const categories = await getTripExpenseCategories(trip.id)
   const expenses = await getTripExpenses(trip.id)
   const spentTodayCents = expenses
@@ -89,6 +87,8 @@ export default async function OnTheRoadPage() {
   // "On the road" is a UI placeholder, not a place to search — fall back to the
   // trip's country/name instead.
   const searchDestination = locationName ?? trip.country ?? trip.name
+  const weatherPlace = { ...trip, locationName }
+  const weather = await getTripWeather(weatherPlace)
 
   return (
     <main className="relative mx-auto min-h-screen w-full max-w-[440px] pb-16 lg:flex lg:max-w-none lg:items-stretch lg:pb-0">
