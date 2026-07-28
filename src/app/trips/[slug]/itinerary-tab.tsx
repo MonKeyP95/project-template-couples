@@ -67,6 +67,7 @@ import {
   type ItineraryLocationRow,
 } from "@/lib/trips/location-types"
 import { slugToTone } from "@/lib/trips/slug-tone"
+import { euroRounded } from "@/lib/money"
 
 const itineraryBorder: Record<ItineraryTone, string> = {
   sea: "border-l-sea",
@@ -1113,7 +1114,7 @@ export function ItineraryTab({
               Planned total
             </span>
             <span className="t-num font-mono text-[14px] text-foreground">
-              € {(plannedTotalCents / 100).toFixed(0)}
+              € {euroRounded(plannedTotalCents)}
             </span>
           </div>
         </div>

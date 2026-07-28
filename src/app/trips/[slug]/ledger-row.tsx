@@ -9,6 +9,7 @@ import {
   type Expense,
   type ExpenseCategoryRow,
 } from "@/lib/trips/expense-types"
+import { euro as fmt } from "@/lib/money"
 
 import { ExpenseFields } from "./expense-fields"
 import type { MemberToneEntry } from "./packing-tab"
@@ -32,10 +33,6 @@ const MONTH_SHORT = new Intl.DateTimeFormat("en-US", {
   month: "short",
   timeZone: "UTC",
 })
-
-function fmt(cents: number): string {
-  return (cents / 100).toFixed(2)
-}
 
 function ledgerDate(date: string | null): { mon: string; day: string } | null {
   if (!date) return null

@@ -16,6 +16,7 @@ import {
   type DayLocation,
 } from "@/lib/trips/location-budget-types"
 import { type ItineraryLocation } from "@/lib/trips/location-types"
+import { euro as fmt } from "@/lib/money"
 
 import { AssistantBlock } from "@/components/assistant-block"
 
@@ -30,10 +31,6 @@ import { Ledger } from "./budget-ledger"
 import { LogExpenseRow } from "./log-expense-row"
 import type { MemberToneEntry } from "./packing-tab"
 import { SettleUpButtons } from "./settle-up-card"
-
-function fmt(cents: number): string {
-  return (cents / 100).toFixed(2)
-}
 
 /** A key that changes when a scope's item set changes. The guided drafter's
  * Apply (saveBudgetItems) replaces every row with a fresh id, so this remounts

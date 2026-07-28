@@ -16,6 +16,7 @@ import { WeekForecast } from "@/components/week-forecast"
 import { createClient } from "@/lib/supabase/server"
 import { isDarkTheme } from "@/lib/theme"
 import { localToday } from "@/lib/time/local-today"
+import { euroRounded } from "@/lib/money"
 import {
   getTripExpenses,
   getTripExpenseCategories,
@@ -576,13 +577,13 @@ function DesktopRightRail({
           />
           <ProgressRow
             label="Budget"
-            value={`€${(budget.spentCents / 100).toFixed(0)} / €${(budget.plannedCents / 100).toFixed(0)}`}
+            value={`€${euroRounded(budget.spentCents)} / €${euroRounded(budget.plannedCents)}`}
             pct={budgetPct}
             tone="sea"
           />
           <ProgressRow
             label="Saved"
-            value={`€${(saved.savedCents / 100).toFixed(0)} / €${(saved.plannedCents / 100).toFixed(0)}`}
+            value={`€${euroRounded(saved.savedCents)} / €${euroRounded(saved.plannedCents)}`}
             pct={savedPct}
             tone="moss"
           />

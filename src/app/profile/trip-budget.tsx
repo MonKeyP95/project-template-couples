@@ -1,8 +1,5 @@
+import { euroRounded as euro } from "@/lib/money"
 import type { TripBudgetSummary } from "@/lib/trips/budget-history-types"
-
-function euro(cents: number): string {
-  return (cents / 100).toFixed(0)
-}
 
 function variance(actualCents: number, plannedCents: number) {
   const v = actualCents - plannedCents

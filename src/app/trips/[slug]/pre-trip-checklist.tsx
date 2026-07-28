@@ -5,6 +5,7 @@ import * as React from "react"
 import { Label } from "@/components/together"
 import { savePreTripItems } from "@/lib/trips/actions"
 import type { BudgetItem } from "@/lib/trips/budget-item-types"
+import { euroRounded as fmt } from "@/lib/money"
 
 const PRE_TRIP_CATEGORY = "Pre-trip"
 
@@ -17,10 +18,6 @@ const SLOTS = [
 ] as const
 
 const STEP_COUNT = SLOTS.length + 2
-
-function fmt(cents: number): string {
-  return (cents / 100).toFixed(0)
-}
 
 function asCents(value: string): number {
   const n = Number(value)

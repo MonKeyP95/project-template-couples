@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation"
 import { logExpense } from "@/lib/trips/actions"
 import { Label } from "@/components/together"
 import type { ExpenseCategoryRow } from "@/lib/trips/expense-types"
+import { euro } from "@/lib/money"
 
 export interface QuickExpenseProps {
   tripId: string
@@ -66,7 +67,7 @@ export function QuickExpense({
       <div className="flex items-baseline justify-between">
         <Label>Expense</Label>
         <span className="t-num text-[13px] text-muted-foreground">
-          €{(spentTodayCents / 100).toFixed(2)} today
+          €{euro(spentTodayCents)} today
         </span>
       </div>
       <form onSubmit={submit} className="mt-3 flex flex-col gap-2.5">

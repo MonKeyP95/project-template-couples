@@ -19,6 +19,7 @@ import {
 import type { BudgetItem } from "@/lib/trips/budget-item-types"
 import type { ExpenseCategoryRow } from "@/lib/trips/expense-types"
 import { deviceToday } from "@/lib/time/today"
+import { euroRounded } from "@/lib/money"
 
 const CATEGORIES = [
   "Accommodation",
@@ -294,11 +295,11 @@ export function BudgetScopeEditor({
         </span>
         {withSpent ? (
           <span className="font-mono text-[11px] text-muted-foreground">
-            spent € {(spentTotalCents / 100).toFixed(0)} /
+            spent € {euroRounded(spentTotalCents)} /
           </span>
         ) : null}
         <span className="font-mono text-[11px] text-foreground">
-          € {(totalCents / 100).toFixed(0)}
+          € {euroRounded(totalCents)}
         </span>
         <span className="ml-auto font-mono text-[12px] leading-none text-muted-foreground">
           {open ? "⌄" : "›"}
@@ -316,11 +317,11 @@ export function BudgetScopeEditor({
                 <span className="font-mono text-[11px]">
                   {withSpent ? (
                     <span className="text-muted-foreground">
-                      spent € {(g.spentCents / 100).toFixed(0)} /{" "}
+                      spent € {euroRounded(g.spentCents)} /{" "}
                     </span>
                   ) : null}
                   <span className="text-foreground">
-                    € {(g.subtotalCents / 100).toFixed(0)}
+                    € {euroRounded(g.subtotalCents)}
                   </span>
                 </span>
               </div>

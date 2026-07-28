@@ -3,10 +3,7 @@ import type {
   JournalLocation,
   JournalRecord,
 } from "@/lib/journal/journal-types"
-
-function euro(cents: number): string {
-  return (cents / 100).toFixed(0)
-}
+import { euroRounded as euro } from "@/lib/money"
 
 function span(loc: JournalLocation): string {
   if (!loc.startDate || !loc.endDate) return ""

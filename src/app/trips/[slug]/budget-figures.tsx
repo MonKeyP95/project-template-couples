@@ -9,11 +9,8 @@ import {
 } from "@/lib/trips/actions"
 import { Avatar, Bar } from "@/components/together"
 import { type SavingsContribution } from "@/lib/trips/savings-types"
+import { euro as fmt, euroRounded } from "@/lib/money"
 import type { MemberToneEntry } from "./packing-tab"
-
-function fmt(cents: number): string {
-  return (cents / 100).toFixed(2)
-}
 
 function Cue({ label }: { label: string }) {
   return (
@@ -433,7 +430,7 @@ function MemberSavedBox({
       <div className="rounded-lg border border-foreground/30 bg-card px-3.5 py-3">
         {header}
         <div className="mt-1 text-[12px] leading-snug text-foreground">
-          Add €{Number(value).toFixed(0)} to {member.displayName}?
+          Add €{euroRounded(Number(value) * 100)} to {member.displayName}?
         </div>
         <div className="mt-2 flex items-center gap-1.5">
           <button

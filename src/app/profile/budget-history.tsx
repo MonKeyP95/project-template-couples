@@ -2,6 +2,7 @@
 
 import * as React from "react"
 
+import { euroRounded as euro } from "@/lib/money"
 import type { CategoryHistory } from "@/lib/trips/budget-history-types"
 
 const MON_YEAR = new Intl.DateTimeFormat("en-GB", {
@@ -9,10 +10,6 @@ const MON_YEAR = new Intl.DateTimeFormat("en-GB", {
   year: "numeric",
   timeZone: "UTC",
 })
-
-function euro(cents: number): string {
-  return (cents / 100).toFixed(0)
-}
 
 function monYear(startDate: string): string {
   return MON_YEAR.format(new Date(`${startDate}T00:00:00Z`))

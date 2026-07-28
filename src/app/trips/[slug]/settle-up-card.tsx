@@ -3,10 +3,7 @@
 import * as React from "react"
 
 import { partialSettleUp, settleUp } from "@/lib/trips/actions"
-
-function fmt(cents: number): string {
-  return (cents / 100).toFixed(2)
-}
+import { euro as fmt } from "@/lib/money"
 
 export interface SettleUpButtonsProps {
   owedCents: number

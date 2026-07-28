@@ -15,10 +15,7 @@ import {
   type DayLocation,
 } from "@/lib/trips/location-budget-types"
 import type { ItineraryLocation } from "@/lib/trips/location-types"
-
-function fmt(cents: number): string {
-  return (cents / 100).toFixed(0)
-}
+import { euroRounded as fmt } from "@/lib/money"
 
 function asCents(value: string): number {
   const n = Number(value)

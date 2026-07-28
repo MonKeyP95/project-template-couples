@@ -15,6 +15,7 @@ import {
   type DayLocation,
 } from "@/lib/trips/location-budget-types"
 import { type ItineraryLocation } from "@/lib/trips/location-types"
+import { euro as fmt } from "@/lib/money"
 
 import { BudgetMoveRow } from "./budget-move-row"
 import { LedgerRow } from "./ledger-row"
@@ -24,10 +25,6 @@ const MONTH_SHORT = new Intl.DateTimeFormat("en-US", {
   month: "short",
   timeZone: "UTC",
 })
-
-function fmt(cents: number): string {
-  return (cents / 100).toFixed(2)
-}
 
 function savingDate(iso: string): { mon: string; day: string } {
   const d = new Date(iso)
