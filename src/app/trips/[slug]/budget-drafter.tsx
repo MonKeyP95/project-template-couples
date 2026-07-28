@@ -254,6 +254,13 @@ export function BudgetDrafter({
     return out
   }
 
+  /** The buffer % an existing budget was saved with, read back off its derived line. */
+  function savedBufferPct(): number | null {
+    const it = initialItems.find((i) => isBufferSubject(i.subject))
+    const n = Number(it?.subject.match(/\((\d+(?:\.\d+)?)\s*%\)/)?.[1])
+    return Number.isFinite(n) ? n : null
+  }
+
   function seedFromItinerary(): Record<string, Partial<ItemRow>[]> {
     const out: Record<string, Partial<ItemRow>[]> = {}
     for (const [bucket, subjects] of Object.entries(itinerarySeeds)) {
@@ -262,7 +269,7 @@ export function BudgetDrafter({
     return out
   }
 
-  function seedSession(seed: Record<string, Partial<ItemRow>[]>) {
+  function seedSession(seed: Record<string, Partial<ItemRow>[]>, pct: number) {
     const steps = planBudgetSteps({
       tripName,
       totalDays,
@@ -281,14 +288,17 @@ export function BudgetDrafter({
     }
     setError(null)
     setGenerated(false)
-    setBufferPct(bufferRec.pct)
+    setBufferPct(pct)
     setStepIndex(0)
     setSession({ steps, items })
   }
 
   function open(fromScratch = false) {
     const restore = !fromScratch && plannedBudgetCents > 0
-    seedSession(restore ? savedRows() : seedFromItinerary())
+    seedSession(
+      restore ? savedRows() : seedFromItinerary(),
+      (restore ? savedBufferPct() : null) ?? bufferRec.pct,
+    )
   }
 
   function addItem(bucketId: string) {
