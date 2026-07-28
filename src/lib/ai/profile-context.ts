@@ -18,6 +18,8 @@ export async function buildProfileBlock(
     const profile = await getTripProfile(tripId)
     if (profile.idea.trim()) parts.push(`Trip idea: ${profile.idea.trim()}.`)
     if (profile.vibe.length) parts.push(`Trip vibe: ${profile.vibe.join(", ")}.`)
+    if (profile.vibeNote.trim())
+      parts.push(`Vibe in their words: ${profile.vibeNote.trim()}.`)
     if (profile.transport.length)
       parts.push(`Getting around: ${profile.transport.join(", ")}.`)
 

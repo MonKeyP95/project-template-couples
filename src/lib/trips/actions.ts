@@ -734,6 +734,7 @@ export async function createTrip(
       (TRIP_TRANSPORT as readonly string[]).includes(t),
     ),
     vibe: p.vibe.filter((v) => (TRIP_VIBES as readonly string[]).includes(v)),
+    vibeNote: p.vibeNote.trim().slice(0, 500),
   }
 
   const { error: insertError } = await supabase.from("trips").insert({
@@ -885,6 +886,7 @@ export async function updateTrip(
             vibe: input.profile.vibe.filter((v) =>
               (TRIP_VIBES as readonly string[]).includes(v),
             ),
+            vibeNote: input.profile.vibeNote.trim().slice(0, 500),
           },
         }
 
@@ -1681,6 +1683,7 @@ export async function saveTripProfile(
       (TRIP_TRANSPORT as readonly string[]).includes(t),
     ),
     vibe: p.vibe.filter((v) => (TRIP_VIBES as readonly string[]).includes(v)),
+    vibeNote: p.vibeNote.trim().slice(0, 500),
   }
 
   const { error } = await supabase

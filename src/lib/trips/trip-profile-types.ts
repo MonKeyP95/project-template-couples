@@ -20,12 +20,14 @@ export interface TripProfile {
   idea: string
   transport: string[]
   vibe: string[]
+  vibeNote: string
 }
 
 export const EMPTY_TRIP_PROFILE: TripProfile = {
   idea: "",
   transport: [],
   vibe: [],
+  vibeNote: "",
 }
 
 /** Tolerant parse of the jsonb `trip_profile` column. Filters transport/vibe to
@@ -49,5 +51,6 @@ export function parseTripProfile(raw: unknown): TripProfile {
     idea,
     transport: pickArr(r.transport, TRIP_TRANSPORT),
     vibe: pickArr(r.vibe, TRIP_VIBES),
+    vibeNote: typeof r.vibeNote === "string" ? r.vibeNote : "",
   }
 }
