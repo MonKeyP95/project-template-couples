@@ -49,7 +49,7 @@ export function WeekForecast({
         aria-expanded={open}
         className="flex w-full items-center justify-between gap-2"
       >
-        <Label className="min-w-0 truncate">Weather · 7 day · {label}</Label>
+        <Label className="min-w-0 truncate">Weather · {label}</Label>
         <Chevron
           dir={open ? "down" : "right"}
           className="shrink-0 text-muted-foreground"
