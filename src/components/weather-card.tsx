@@ -38,7 +38,8 @@ function colorFor(code: number): string {
 /**
  * Compact current-weather chip (icon + condition + temp) that taps open into a
  * mini-forecast (high/low, wind, humidity, next hours). Client-only for the
- * expand toggle. Data comes from the (currently stubbed) `getWeather`.
+ * expand toggle. Data comes from `getCurrentWeather` -- a real reading, not an
+ * estimate.
  */
 export function WeatherCard({
   weather,

@@ -35,7 +35,10 @@ import { getDreamItineraryDays } from "@/lib/trips/dream-itinerary-queries"
 import { getTripNotes } from "@/lib/trips/note-queries"
 import { getPackingCategories, getPackingItems } from "@/lib/trips/packing-queries"
 import { computeTripDays } from "@/lib/trips/trip-days"
-import { getTripWeather, getTripWeekForecast } from "@/lib/weather/get-trip-weather"
+import {
+  getTripSeasonalEstimate,
+  getTripWeekForecast,
+} from "@/lib/weather/get-trip-weather"
 import type { DayForecast } from "@/lib/weather/get-weather"
 import { pickWeatherLocation } from "@/lib/weather/place-for-weather"
 import { detectWeatherPacking } from "@/lib/nudges/weather-packing"
@@ -204,13 +207,13 @@ export default async function TripPage({
   )
   const packingTotal = myPackingItems.length
   const packingDone = myPackingItems.filter((i) => i.done).length
+  const today = await localToday()
   const weatherPlace = {
     ...header,
-    locationName:
-      pickWeatherLocation(locations ?? [], await localToday())?.name ?? null,
+    locationName: pickWeatherLocation(locations ?? [], today)?.name ?? null,
   }
   const [packingWeather, weekForecast] = await Promise.all([
-    getTripWeather(weatherPlace, header.startDate ?? undefined),
+    getTripSeasonalEstimate(weatherPlace, header.startDate ?? today),
     getTripWeekForecast(weatherPlace),
   ])
   const packingNudge = detectWeatherPacking({
@@ -288,7 +291,7 @@ export default async function TripPage({
               destination={header.country ?? header.name}
               tripStartDate={header.startDate}
               tripEndDate={header.endDate ?? header.startDate}
-              today={await localToday()}
+              today={today}
               initialItems={datedItinerary ?? []}
               initialLocations={locations ?? []}
               budgetItems={budgetItems ?? []}

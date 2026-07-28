@@ -1,6 +1,7 @@
 import { geocodePlace } from "./geocode"
 import {
-  getWeather,
+  getCurrentWeather,
+  getSeasonalEstimate,
   getWeekForecast,
   type DayForecast,
   type Weather,
@@ -47,17 +48,26 @@ async function resolveCoords(place: TripPlace): Promise<Resolved | null> {
 }
 
 /**
- * Weather for a trip at its resolved coordinates. Null when there's no place to
- * locate. `isoDate` selects the season -- omit for today (on the road), pass the
- * trip's start date for a planning estimate.
+ * Current weather at a trip's resolved coordinates. Null when there's no place
+ * to locate or the vendor call fails; the caller hides the card.
  */
-export async function getTripWeather(
+export async function getTripWeather(place: TripPlace): Promise<Weather | null> {
+  const coords = await resolveCoords(place)
+  if (!coords) return null
+  return getCurrentWeather(coords.lat, coords.lng)
+}
+
+/**
+ * Seasonal climate estimate for a trip on `isoDate` -- not a forecast, and not
+ * for display. Feeds the packing nudge only.
+ */
+export async function getTripSeasonalEstimate(
   place: TripPlace,
-  isoDate?: string,
+  isoDate: string,
 ): Promise<Weather | null> {
   const coords = await resolveCoords(place)
   if (!coords) return null
-  return getWeather(coords.lat, coords.lng, isoDate)
+  return getSeasonalEstimate(coords.lat, coords.lng, isoDate)
 }
 
 /**
