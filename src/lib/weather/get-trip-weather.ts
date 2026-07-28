@@ -11,25 +11,45 @@ interface TripPlace {
   lng: number | null
   country: string | null
   name: string
+  /** Most specific place for this trip right now. Wins over the trip's own pin. */
+  locationName?: string | null
 }
 
-/** Resolves a trip's coordinates: manual lat/lng win, else geocode. */
-async function resolveCoords(
-  place: TripPlace,
-): Promise<{ lat: number; lng: number } | null> {
-  if (place.lat != null && place.lng != null) {
-    return { lat: place.lat, lng: place.lng }
-  }
-  const geo = await geocodePlace(place.country ?? place.name)
-  return geo ? { lat: geo.lat, lng: geo.lng } : null
+interface Resolved {
+  lat: number
+  lng: number
+  /** The string that produced these coordinates. */
+  label: string
 }
 
 /**
- * Weather for a trip, resolving its coordinates first: manual lat/lng win when
- * set, otherwise the trip's country (falling back to its name) is geocoded.
- * Returns null when there's no place to locate. `isoDate` selects the season --
- * omit for today (on the road), pass the trip's start date for a planning
- * estimate.
+ * Resolves a trip to coordinates, most specific candidate first: the itinerary
+ * location we're on, then the trip's manual pin, then its name, then its
+ * country. Country is last because it is the least specific thing we know --
+ * forecasting Lisbon for a Madeira trip is the bug this order fixes. Returns
+ * the label that produced the hit so callers can show which place they got.
+ */
+async function resolveCoords(place: TripPlace): Promise<Resolved | null> {
+  if (place.locationName) {
+    const geo = await geocodePlace(place.locationName)
+    if (geo) return { ...geo, label: place.locationName }
+  }
+  if (place.lat != null && place.lng != null) {
+    return { lat: place.lat, lng: place.lng, label: place.name }
+  }
+  const byName = await geocodePlace(place.name)
+  if (byName) return { ...byName, label: place.name }
+  if (place.country) {
+    const byCountry = await geocodePlace(place.country)
+    if (byCountry) return { ...byCountry, label: place.country }
+  }
+  return null
+}
+
+/**
+ * Weather for a trip at its resolved coordinates. Null when there's no place to
+ * locate. `isoDate` selects the season -- omit for today (on the road), pass the
+ * trip's start date for a planning estimate.
  */
 export async function getTripWeather(
   place: TripPlace,
@@ -41,13 +61,14 @@ export async function getTripWeather(
 }
 
 /**
- * Real next-7-days forecast for a trip's destination, resolving its coordinates
- * the same way as `getTripWeather`. Null when there's no place to locate.
+ * Real next-7-days forecast for a trip, with the label of the place it actually
+ * forecasts. Null when there's no place to locate or the forecast call fails.
  */
 export async function getTripWeekForecast(
   place: TripPlace,
-): Promise<DayForecast[] | null> {
+): Promise<{ label: string; days: DayForecast[] } | null> {
   const coords = await resolveCoords(place)
   if (!coords) return null
-  return getWeekForecast(coords.lat, coords.lng)
+  const days = await getWeekForecast(coords.lat, coords.lng)
+  return days ? { label: coords.label, days } : null
 }

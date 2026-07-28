@@ -37,6 +37,7 @@ import { getPackingCategories, getPackingItems } from "@/lib/trips/packing-queri
 import { computeTripDays } from "@/lib/trips/trip-days"
 import { getTripWeather, getTripWeekForecast } from "@/lib/weather/get-trip-weather"
 import type { DayForecast } from "@/lib/weather/get-weather"
+import { pickWeatherLocation } from "@/lib/weather/place-for-weather"
 import { detectWeatherPacking } from "@/lib/nudges/weather-packing"
 import { listTripsForWorkspace } from "@/lib/trips/list-queries"
 import { getTripBySlug, type TripHeader } from "@/lib/trips/queries"
@@ -203,9 +204,14 @@ export default async function TripPage({
   )
   const packingTotal = myPackingItems.length
   const packingDone = myPackingItems.filter((i) => i.done).length
+  const weatherPlace = {
+    ...header,
+    locationName:
+      pickWeatherLocation(locations ?? [], await localToday())?.name ?? null,
+  }
   const [packingWeather, weekForecast] = await Promise.all([
-    getTripWeather(header, header.startDate ?? undefined),
-    getTripWeekForecast(header),
+    getTripWeather(weatherPlace, header.startDate ?? undefined),
+    getTripWeekForecast(weatherPlace),
   ])
   const packingNudge = detectWeatherPacking({
     destination: header.country ?? header.name,
@@ -342,7 +348,7 @@ export default async function TripPage({
       <DesktopRightRail
         slug={header.slug}
         locations={(locations ?? []).map((l) => l.name)}
-        forecast={weekForecast}
+        forecast={weekForecast?.days ?? null}
         packing={{ done: packingDone, total: packingTotal }}
         budget={{
           spentCents: budgetSummary.expenseTotalCents,
