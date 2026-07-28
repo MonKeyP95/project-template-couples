@@ -86,6 +86,9 @@ function fromRow(row: RealtimeRow): PackingItem {
 
 type View = "mine" | "shared" | "partner"
 
+/** Catch-all for items added from the list-level line, which asks for no category. */
+const LOOSE_CATEGORY = "Other"
+
 export function PackingTab({
   tripId,
   tripSlug,
@@ -219,6 +222,18 @@ export function PackingTab({
     return {}
   }
 
+  /** Adds without asking for a category: lands in "Other", created on first use. */
+  async function addLooseItem(
+    owner: string | null,
+    label: string,
+  ): Promise<{ error?: string }> {
+    const exists = categories.some(
+      (c) => c.ownerId === owner && c.name === LOOSE_CATEGORY,
+    )
+    if (!exists) await addCategory(LOOSE_CATEGORY, owner)
+    return addItem(LOOSE_CATEGORY, owner, label)
+  }
+
   async function removeCategory(
     categoryId: string,
     name: string,
@@ -347,6 +362,7 @@ export function PackingTab({
           onUpdate={update}
           onDelete={remove}
           onAddItem={addItem}
+          onAddLooseItem={(label) => addLooseItem(active.owner, label)}
           onAddCategory={addCategory}
           onRemoveCategory={removeCategory}
           onReorder={reorder}
@@ -377,6 +393,7 @@ interface PackingListProps {
     owner: string | null,
     label: string,
   ) => Promise<{ error?: string }>
+  onAddLooseItem: (label: string) => Promise<{ error?: string }>
   onAddCategory: (name: string, owner: string | null) => Promise<{ error?: string }>
   onRemoveCategory: (
     id: string,
@@ -404,6 +421,7 @@ function PackingList({
   onUpdate,
   onDelete,
   onAddItem,
+  onAddLooseItem,
   onAddCategory,
   onRemoveCategory,
   onReorder,
@@ -517,6 +535,7 @@ function PackingList({
       ))}
 
       <div className="px-5 pt-4">
+        <AddItemRow alwaysOpen placeholder="Add an item…" onAdd={onAddLooseItem} />
         <AddCategoryRow onAdd={(name) => onAddCategory(name, owner)} />
       </div>
 
@@ -624,7 +643,10 @@ function CategoryGroup({
         />
       ))}
       {readOnly ? null : (
-        <AddItemRow owner={owner} category={category} onAddItem={onAddItem} />
+        <AddItemRow
+          placeholder={`Add to ${category.toLowerCase()}…`}
+          onAdd={(label) => onAddItem(category, owner, label)}
+        />
       )}
     </div>
   )
@@ -800,17 +822,14 @@ function ItemEditor({
 }
 
 function AddItemRow({
-  owner,
-  category,
-  onAddItem,
+  placeholder,
+  onAdd,
+  alwaysOpen = false,
 }: {
-  owner: string | null
-  category: string
-  onAddItem: (
-    category: string,
-    owner: string | null,
-    label: string,
-  ) => Promise<{ error?: string }>
+  placeholder: string
+  onAdd: (label: string) => Promise<{ error?: string }>
+  /** Skips the collapsed "+ add item" button — the input is always showing. */
+  alwaysOpen?: boolean
 }) {
   const [expanded, setExpanded] = React.useState(false)
   const [value, setValue] = React.useState("")
@@ -823,7 +842,7 @@ function AddItemRow({
   }, [expanded])
 
   function reset() {
-    setExpanded(false)
+    if (!alwaysOpen) setExpanded(false)
     setValue("")
     setError(null)
   }
@@ -834,7 +853,7 @@ function AddItemRow({
     if (!label || pending) return
     setPending(true)
     setError(null)
-    const result = await onAddItem(category, owner, label)
+    const result = await onAdd(label)
     setPending(false)
     if (result.error) {
       setError(result.error)
@@ -844,7 +863,7 @@ function AddItemRow({
     inputRef.current?.focus()
   }
 
-  if (!expanded) {
+  if (!alwaysOpen && !expanded) {
     return (
       <button
         type="button"
@@ -867,7 +886,7 @@ function AddItemRow({
           onKeyDown={(e) => {
             if (e.key === "Escape") reset()
           }}
-          placeholder={`Add to ${category.toLowerCase()}…`}
+          placeholder={placeholder}
           className="flex-1 border-0 border-b border-rule bg-transparent py-1 text-[14px] text-foreground placeholder:text-muted-foreground focus:border-clay focus:outline-none disabled:opacity-50"
         />
         <button
@@ -877,15 +896,17 @@ function AddItemRow({
         >
           add
         </button>
-        <button
-          type="button"
-          onClick={reset}
-          disabled={pending}
-          className="border-0 bg-transparent px-1 font-mono text-[12px] text-muted-foreground hover:text-foreground"
-          aria-label="Cancel"
-        >
-          ×
-        </button>
+        {alwaysOpen ? null : (
+          <button
+            type="button"
+            onClick={reset}
+            disabled={pending}
+            className="border-0 bg-transparent px-1 font-mono text-[12px] text-muted-foreground hover:text-foreground"
+            aria-label="Cancel"
+          >
+            ×
+          </button>
+        )}
       </div>
       {error ? (
         <div className="mt-1 font-mono text-[10px] text-clay">{error}</div>
