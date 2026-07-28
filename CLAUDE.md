@@ -73,7 +73,7 @@ These come from `docs/TECH.md` and `docs/PLAN.md` — keep them in mind on every
 
 From the user's global instructions and project docs — these override default tendencies:
 
-- **One small task at a time.** Validate each increment (build, run, look at the result) before moving on. Don't batch features.
+- **One small task at a time.** Validate each increment (build, lint, reason through the data path) before moving on. Don't batch features.
 - **Root cause before fix.** Reproduce, prove with evidence, then fix. No speculative patches or workarounds.
 - **Don't over-engineer.** No defensive code, no abstractions for hypothetical needs, no error handling for impossible cases. This is a learning project — extra layers actively hurt.
 - **No emojis** in code, prints, or logs.
@@ -82,6 +82,23 @@ From the user's global instructions and project docs — these override default 
 - **Keep `README.md` concise** — detail lives in `docs/`.
 - **After completing a task**, update `docs/TODO.md`. If a non-obvious choice was made, add a row to `docs/DECISIONS.md`.
 - **Offer a fresh session at clean breakpoints.** When work is merged/pushed with a clean tree at a natural task boundary — especially after a long conversation or before starting a new slice — proactively suggest starting a new session (the user often forgets and appreciates the nudge). Offer it; don't force it. Never nag mid-task — only at genuine boundaries.
+
+## Success Criteria and In-App Verification
+
+Two rules that go together. They apply to every spec, plan, and finished slice.
+
+**1. Every spec/plan ends with success criteria.** Written as observable checks someone could fail you on — not a restatement of the task. Split into two lists:
+
+- *Verified by Claude* — build passes, lint clean, types check, this server action writes this column, this pure function returns X for input Y, this query returns rows under RLS as a non-owner member.
+- *Verified by the user in-app* — anything that requires looking at the running app: layout, flow, feel, mobile viewport, Realtime actually syncing between two browsers.
+
+If a criterion can't be phrased as pass/fail, it isn't a criterion — cut it or sharpen it.
+
+**2. Claude does not check in the app; the user does.** Don't start the dev server to eyeball a change, don't drive a browser, don't ask for screenshots. Stop at build + lint + the reasoning that the data path is correct.
+
+Consequence for how work is reported: **never say "done", "works", or "verified" for anything that lives behind the UI.** Say *"implemented; build and lint clean; unverified in app"* and hand over the numbered in-app checklist — which is just list 2 of the success criteria. `docs/TODO.md` follows the same split: mark items *implemented* when the code lands, *verified in-app* only after the user confirms.
+
+Exception: if the user explicitly asks Claude to run or screenshot the app, do it.
 
 ## Things to Push Back On
 
