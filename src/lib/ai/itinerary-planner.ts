@@ -92,6 +92,10 @@ export interface PlanEntry {
   place: string
   subject: string
   when: string
+  /** YYYY-MM-DD start, when the couple picked one. Drives the no-AI apply. */
+  date?: string
+  /** YYYY-MM-DD end, when they picked a range. */
+  endDate?: string
 }
 
 /** One step of the guided itinerary walk. Mirrors budget's BudgetStep: per-place
@@ -224,6 +228,107 @@ export function itemsToSkeleton(
       days: place.days
         .filter((d) => byDate.has(d.date))
         .map((d) => ({ ...d, events: byDate.get(d.date) as SkeletonEvent[] })),
+    })),
+  }
+}
+
+/** Every date from start to end, inclusive. */
+function enumerateDates(start: string, end: string): string[] {
+  const out: string[] = []
+  for (let d = start; d <= end; d = addDays(d, 1)) out.push(d)
+  return out
+}
+
+/** Categories whose date range brackets a span rather than filling it: you
+ * check into a hotel and out of it, the nights between are yours. */
+const BRACKET_LABELS: Record<string, [string, string]> = {
+  Accommodation: ["check in", "check out"],
+  Transportation: ["pick up", "drop off"],
+}
+
+/** The dates one entry lands on, each with its label suffix. A bracketed
+ * category yields its two ends; anything else repeats across the range. */
+function entryDates(entry: PlanEntry): { date: string; label: string }[] {
+  const start = entry.date ?? ""
+  if (!start) return []
+  const end = entry.endDate ?? ""
+  if (!end || end <= start) return [{ date: start, label: "" }]
+  const labels = BRACKET_LABELS[entry.category]
+  if (labels) {
+    return [
+      { date: start, label: labels[0] },
+      { date: end, label: labels[1] },
+    ]
+  }
+  return enumerateDates(start, end).map((date) => ({ date, label: "" }))
+}
+
+/**
+ * Turn the guided walk's entries straight into a skeleton, with no model in the
+ * loop: what the couple typed, on the dates they picked. Unlike itemsToSkeleton
+ * the date wins over the place name — a Lisbon check-out on the day you reach
+ * Porto belongs on that Porto day — and every scaffold day is kept, so the
+ * places you listed all appear even where you entered nothing.
+ */
+export function entriesToSkeleton(
+  entries: PlanEntry[],
+  placeNames: string[],
+  destination: string,
+  startDate: string,
+  dayCount: number,
+): ItinerarySkeleton {
+  const names = placeNames.map((n) => n.trim()).filter((n) => n.length > 0)
+  const scaffold = planItinerarySkeleton({ destination, startDate, dayCount, placeNames: names })
+
+  const tripDates = scaffold.places.flatMap((p) => p.days.map((d) => d.date))
+  const firstDate = tripDates[0]
+  const lastDate = tripDates[tripDates.length - 1]
+  const known = new Set(tripDates)
+  const idxByName = new Map(
+    scaffold.places.map((p, i) => [p.name.trim().toLowerCase(), i] as const),
+  )
+
+  const byDate = new Map<string, SkeletonEvent[]>()
+  function push(date: string, event: SkeletonEvent) {
+    const list = byDate.get(date) ?? []
+    list.push(event)
+    byDate.set(date, list)
+  }
+
+  /** A date outside the trip clamps to its nearest end, so nothing is dropped. */
+  function clamp(date: string): string {
+    if (known.has(date)) return date
+    return date < firstDate ? firstDate : lastDate
+  }
+
+  for (const entry of entries) {
+    const text = entry.subject.trim() || entry.category
+    const spots = entryDates(entry)
+    if (spots.length === 0) {
+      // Undated: fall back to the named place's first day.
+      const idx = idxByName.get(entry.place.trim().toLowerCase()) ?? 0
+      const date = scaffold.places[idx]?.days[0]?.date ?? firstDate
+      push(date, { text, time: "", category: entry.category })
+      continue
+    }
+    // A bracket keeps both ends (a check-out often falls past the last day);
+    // a repeated range keeps only the days the trip actually has.
+    const inTrip = spots.filter((s) => known.has(s.date))
+    const landing =
+      entry.category in BRACKET_LABELS ? spots : inTrip.length > 0 ? inTrip : [spots[0]]
+    for (const spot of landing) {
+      push(clamp(spot.date), {
+        text: spot.label ? `${text} (${spot.label})` : text,
+        time: "",
+        category: entry.category,
+      })
+    }
+  }
+
+  return {
+    places: scaffold.places.map((place) => ({
+      name: place.name,
+      days: place.days.map((d) => ({ ...d, events: byDate.get(d.date) ?? [] })),
     })),
   }
 }

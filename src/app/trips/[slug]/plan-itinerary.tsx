@@ -9,7 +9,7 @@ import {
   type ItineraryPlanStep,
   type PlanEntry,
 } from "@/lib/ai/itinerary-planner"
-import { draftAndApplyItinerary } from "@/lib/ai/itinerary-actions"
+import { applyPlanEntries, draftAndApplyItinerary } from "@/lib/ai/itinerary-actions"
 
 export interface PlanItineraryProps {
   tripId: string
@@ -146,10 +146,28 @@ export function PlanItinerary({ tripId, tripSlug, destination }: PlanItineraryPr
           place: step.place ?? "",
           subject: row.subject.trim(),
           when: rowWhen(row),
+          date: row.whenStart || undefined,
+          endDate: row.whenEnd || undefined,
         })
       }
     }
     return entries
+  }
+
+  /** Write the entered plans as-is — no assistant, no invention. */
+  function apply() {
+    if (isPending) return
+    setError(null)
+    const entries = collectEntries()
+    startTransition(async () => {
+      const r = await applyPlanEntries({ tripId, tripSlug, places: trimmedPlaces, entries })
+      if (r.error) {
+        setError(r.error)
+        return
+      }
+      router.refresh()
+      reset()
+    })
   }
 
   function generate() {
@@ -456,7 +474,7 @@ export function PlanItinerary({ tripId, tripSlug, destination }: PlanItineraryPr
         </div>
 
         <div className="mt-2 font-mono text-[9px] uppercase tracking-[0.16em] text-muted-foreground">
-          Generate drafts a day-by-day itinerary you can then edit.
+          Generate drafts a day-by-day itinerary — apply saves just these.
         </div>
 
         <div className="mt-3 flex items-center gap-1.5">
@@ -467,6 +485,14 @@ export function PlanItinerary({ tripId, tripSlug, destination }: PlanItineraryPr
             className="rounded-md border-0 bg-foreground px-3 py-1.5 font-mono text-[9.5px] uppercase tracking-[0.2em] text-background disabled:opacity-40"
           >
             {isPending ? "Generating…" : "Generate"}
+          </button>
+          <button
+            type="button"
+            onClick={apply}
+            disabled={isPending || lines.length === 0}
+            className="rounded-md border border-border bg-transparent px-3 py-1.5 font-mono text-[9.5px] uppercase tracking-[0.2em] text-foreground disabled:opacity-40"
+          >
+            apply
           </button>
           <button
             type="button"

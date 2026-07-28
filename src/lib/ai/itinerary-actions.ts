@@ -12,6 +12,7 @@ import { draftItinerary } from "@/lib/ai/claude"
 import {
   planItinerarySkeleton,
   itemsToSkeleton,
+  entriesToSkeleton,
   type ItinerarySkeleton,
   type DraftItem,
   type PlanEntry,
@@ -80,6 +81,36 @@ export async function applyItinerarySkeleton(
     }
   }
   return { created: { locations, days } }
+}
+
+/**
+ * The guided walk's other terminal action: write exactly what the couple
+ * entered, on the dates they picked, with no model in the loop. Same write
+ * path as the drafted itinerary.
+ */
+export async function applyPlanEntries(input: {
+  tripId: string
+  tripSlug: string
+  places: string[]
+  entries: PlanEntry[]
+}): Promise<{ error?: string; created?: { locations: number; days: number } }> {
+  const workspace = await getCurrentWorkspace()
+  if (!workspace) return { error: "Not signed in." }
+  const trip = await getTripBySlug(workspace.id, input.tripSlug)
+  if (!trip || !trip.startDate) return { error: "Trip not found." }
+
+  const skeleton = entriesToSkeleton(
+    input.entries,
+    input.places.map((n) => n.trim()).filter((n) => n.length > 0),
+    trip.name,
+    trip.startDate,
+    inclusiveDays(trip.startDate, trip.endDate ?? trip.startDate),
+  )
+  return await applyItinerarySkeleton({
+    tripId: input.tripId,
+    tripSlug: input.tripSlug,
+    skeleton,
+  })
 }
 
 /**
