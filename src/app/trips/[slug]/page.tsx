@@ -214,7 +214,7 @@ export default async function TripPage({
     getTripWeekForecast(weatherPlace),
   ])
   const packingNudge = detectWeatherPacking({
-    destination: weekForecast?.label ?? header.country ?? header.name,
+    destination: weekForecast?.label ?? weatherPlace.locationName ?? header.name,
     weather: packingWeather,
     packingLabels: packingItems.map((i) => i.label.toLowerCase()),
   })
