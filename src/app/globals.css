@@ -256,14 +256,14 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 7px;
+    gap: var(--flip-unit-gap, 7px);
   }
   .flip-tile {
     position: relative;
     width: var(--flip-w);
     height: var(--flip-h);
     border: 1px solid var(--border);
-    border-radius: 8px;
+    border-radius: var(--flip-radius, 8px);
     background: var(--card);
     box-shadow: var(--shadow-sm);
     overflow: hidden;
@@ -343,11 +343,15 @@
     --flip-f: 56px;
     --flip-gap: 6px;
   }
+  /* Sized to sit just under the trip name's cap height so the clock reads as
+     secondary to it. */
   .flip-sm {
-    --flip-w: 44px;
-    --flip-h: 34px;
-    --flip-f: 33px;
-    --flip-gap: 5px;
+    --flip-w: 36px;
+    --flip-h: 26px;
+    --flip-f: 25px;
+    --flip-gap: 4px;
+    --flip-unit-gap: 4px;
+    --flip-radius: 6px;
   }
 }
 

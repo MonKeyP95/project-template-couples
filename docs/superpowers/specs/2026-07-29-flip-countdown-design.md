@@ -153,7 +153,11 @@ digits that read as full without pressing against the edges.
 |---|---|---|---|---|---|
 | `lg` desktop | 96 x 76px | 73px | 51px (67%) | 38px | 8px |
 | `lg` mobile | 74 x 58px | 56px | 39px (67%) | 29px | 6px |
-| `sm` | 44 x 34px | 33px | 23px (68%) | 17px | 5px |
+| `sm` | 36 x 26px | 25px | 18px (67%) | 13px | 4px |
+
+`sm` sits beside the trip name on the home cards, so its tile height is set just
+under the name's cap height (~27px at the hero's 38px display serif). A taller
+tile makes the clock read as the louder of the two, which it should not be.
 
 Digits are **not** condensed — `scaleX` stays 1 and the numerals keep the shapes
 the type designer drew. That is what forces the landscape tile rather than the
