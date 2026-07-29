@@ -1340,6 +1340,9 @@ function DayView({
   members: Record<string, MemberToneEntry>
   currentUserId: string
 }) {
+  // Which event's panel is open (press the event), and whether that panel's
+  // expense form has been asked for. Only one event is open at a time.
+  const [openEvent, setOpenEvent] = React.useState<number | null>(null)
   const [openExpense, setOpenExpense] = React.useState<number | null>(null)
   return (
     <div className="relative flex gap-3.5 py-3.5">
@@ -1387,10 +1390,11 @@ function DayView({
                   <div className="flex gap-1.5 text-[12.5px] leading-snug text-muted-foreground">
                     <button
                       type="button"
-                      onClick={() =>
-                        setOpenExpense(openExpense === i ? null : i)
-                      }
-                      aria-expanded={openExpense === i}
+                      onClick={() => {
+                        setOpenEvent(openEvent === i ? null : i)
+                        setOpenExpense(null)
+                      }}
+                      aria-expanded={openEvent === i}
                       className="flex gap-1.5 border-0 bg-transparent p-0 text-left text-[12.5px] leading-snug text-muted-foreground"
                     >
                       {ev.time ? (
@@ -1411,24 +1415,36 @@ function DayView({
                       </a>
                     ) : null}
                   </div>
-                  {ev.details ? (
-                    <p className="mt-0.5 whitespace-pre-line text-[12px] leading-snug text-muted-foreground/80">
-                      {ev.details}
-                    </p>
-                  ) : null}
-                  {openExpense === i ? (
-                    <EventExpense
-                      tripId={tripId}
-                      tripSlug={tripSlug}
-                      eventText={ev.text}
-                      eventCategory={ev.category}
-                      dayDate={day.dayDate}
-                      locationId={day.locationId}
-                      currentUserId={currentUserId}
-                      categories={categories}
-                      members={members}
-                      onClose={() => setOpenExpense(null)}
-                    />
+                  {openEvent === i ? (
+                    <div className="mt-0.5 mb-1">
+                      {ev.details ? (
+                        <p className="whitespace-pre-line text-[12px] leading-snug text-muted-foreground/80">
+                          {ev.details}
+                        </p>
+                      ) : null}
+                      {openExpense === i ? (
+                        <EventExpense
+                          tripId={tripId}
+                          tripSlug={tripSlug}
+                          eventText={ev.text}
+                          eventCategory={ev.category}
+                          dayDate={day.dayDate}
+                          locationId={day.locationId}
+                          currentUserId={currentUserId}
+                          categories={categories}
+                          members={members}
+                          onClose={() => setOpenExpense(null)}
+                        />
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => setOpenExpense(i)}
+                          className="mt-1 rounded-full border border-dashed border-border bg-transparent px-2.5 py-1 font-mono text-[9.5px] uppercase tracking-[0.12em] text-muted-foreground hover:text-foreground"
+                        >
+                          + expense
+                        </button>
+                      )}
+                    </div>
                   ) : null}
                   {day.dayDate < today ? (
                     <EventRating
