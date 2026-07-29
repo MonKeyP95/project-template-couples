@@ -1411,6 +1411,11 @@ function DayView({
                       </a>
                     ) : null}
                   </div>
+                  {ev.details ? (
+                    <p className="mt-0.5 whitespace-pre-line text-[12px] leading-snug text-muted-foreground/80">
+                      {ev.details}
+                    </p>
+                  ) : null}
                   {openExpense === i ? (
                     <EventExpense
                       tripId={tripId}

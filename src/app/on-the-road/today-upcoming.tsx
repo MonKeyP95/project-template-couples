@@ -61,18 +61,25 @@ export function TodayUpcoming({ events }: { events: ItineraryEvent[] }) {
       {upcoming.map((e, i) => (
         <li
           key={`${e.time}-${e.text}-${i}`}
-          className="flex gap-2 text-[13px] text-foreground"
+          className="flex flex-col gap-0.5 text-[13px] text-foreground"
         >
-          {e.time ? (
-            <span className="t-num shrink-0 whitespace-nowrap text-muted-foreground">
-              {formatEventTime(e.time, e.endTime)}
-            </span>
-          ) : (
-            <span className="shrink-0 font-mono text-[10px] uppercase tracking-[0.12em] text-muted-foreground">
-              anytime
-            </span>
-          )}
-          <span>{e.text}</span>
+          <div className="flex gap-2">
+            {e.time ? (
+              <span className="t-num shrink-0 whitespace-nowrap text-muted-foreground">
+                {formatEventTime(e.time, e.endTime)}
+              </span>
+            ) : (
+              <span className="shrink-0 font-mono text-[10px] uppercase tracking-[0.12em] text-muted-foreground">
+                anytime
+              </span>
+            )}
+            <span>{e.text}</span>
+          </div>
+          {e.details ? (
+            <p className="whitespace-pre-line pl-1 text-[12px] leading-snug text-muted-foreground">
+              {e.details}
+            </p>
+          ) : null}
         </li>
       ))}
     </ul>
