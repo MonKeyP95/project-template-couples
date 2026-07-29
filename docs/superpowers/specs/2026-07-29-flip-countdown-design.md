@@ -67,6 +67,13 @@ function remainingUnits(startDate: string, now: Date): Remaining | null
   from `now` toward the target while the stepped date stays `<= target`, clamping
   overflow (31 Jan + 1 month = 28 Feb). The leftover milliseconds split into
   days / hours / minutes.
+- Months are counted from `now`, including its time of day, so the total is exact
+  and the hours/minutes tiles are never fiction. A consequence: viewed at midday,
+  a target two calendar months out at midnight reads as `1 MON 30 DAYS 12 HRS`,
+  not `2 MON` — two whole months from midday lands half a day past a midnight
+  target. This is correct and is the price of exactness; anchoring months to
+  today's midnight instead would make the months tile match mental arithmetic but
+  overstate the total by up to a day.
 
 ### `src/components/flip-countdown.tsx` (new)
 
@@ -193,9 +200,8 @@ the inline `TripCountdown`.
 ### Verified by Claude
 
 1. `pnpm build` passes and `pnpm lint` is clean.
-2. `remainingUnits("2026-09-29", new Date("2026-07-29T12:00:00"))` returns
-   `months: 2`, and the remaining days/hours/minutes are consistent with stepping
-   two calendar months forward.
+2. `remainingUnits("2026-09-29", 29 Jul 2026 00:00)` returns exactly
+   `{months: 2, days: 0, hours: 0}`.
 3. `remainingUnits` returns `months: 0` for any target under one calendar month away.
 4. `remainingUnits` returns `null` for a start date of today and for any past date.
 5. Month stepping clamps overflow: from 31 January, one month forward is 28/29
