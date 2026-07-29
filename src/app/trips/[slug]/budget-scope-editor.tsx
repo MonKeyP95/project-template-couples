@@ -14,12 +14,15 @@ import {
   deleteBudgetItem,
   payBudgetItem,
   saveBudgetItemsForScope,
+  savePreTripItems,
   unpayBudgetItem,
 } from "@/lib/trips/actions"
 import type { BudgetItem } from "@/lib/trips/budget-item-types"
 import type { ExpenseCategoryRow } from "@/lib/trips/expense-types"
 import { deviceToday } from "@/lib/time/today"
 import { euroRounded } from "@/lib/money"
+
+import { PRE_TRIP_CATEGORY } from "./budget-drafter-pretrip"
 
 const CATEGORIES = [
   "Accommodation",
@@ -65,6 +68,7 @@ export function BudgetScopeEditor({
   label,
   categories,
   spentByCategory,
+  preTrip = false,
 }: {
   tripId: string
   tripSlug: string
@@ -78,6 +82,9 @@ export function BudgetScopeEditor({
   categories?: ExpenseCategoryRow[]
   /** Actual spend by category name for this scope; shows spent vs planned. */
   spentByCategory?: Record<string, number>
+  /** Pre-trip mode: rows are locked to the Pre-trip category, the category
+   * picker is hidden, and saves route to savePreTripItems so paid links live. */
+  preTrip?: boolean
 }) {
   const [rows, setRows] = React.useState<Row[]>(() =>
     items.map((it) => ({
@@ -205,7 +212,7 @@ export function BudgetScopeEditor({
       .filter((r) => r.subject.trim() !== "" || asCents(r.value) > 0)
       .map((r) => ({
         id: r.serverId ?? undefined,
-        category: r.category,
+        category: preTrip ? PRE_TRIP_CATEGORY : r.category,
         subject: r.subject,
         whenLabel: "",
         amountCents: asCents(r.value),
@@ -225,15 +232,19 @@ export function BudgetScopeEditor({
     }
   }
 
+  /** One save path for both modes; pre-trip has its own action because
+   * saveBudgetItemsForScope excludes the Pre-trip category by design. */
+  function persist() {
+    const items = buildPayload()
+    return preTrip
+      ? savePreTripItems({ tripId, tripSlug, items })
+      : saveBudgetItemsForScope({ tripId, tripSlug, locationId, items })
+  }
+
   function save() {
     setError(null)
     startTransition(async () => {
-      const res = await saveBudgetItemsForScope({
-        tripId,
-        tripSlug,
-        locationId,
-        items: buildPayload(),
-      })
+      const res = await persist()
       if (res.error) setError(res.error)
     })
   }
@@ -245,12 +256,7 @@ export function BudgetScopeEditor({
     const serverId = row.serverId
     setError(null)
     startTransition(async () => {
-      const saveRes = await saveBudgetItemsForScope({
-        tripId,
-        tripSlug,
-        locationId,
-        items: buildPayload(),
-      })
+      const saveRes = await persist()
       if (saveRes.error) {
         setError(saveRes.error)
         return
@@ -428,7 +434,9 @@ export function BudgetScopeEditor({
           ))}
 
           <div className="flex items-center justify-between gap-2 pt-1">
-            {newCat !== null ? (
+            {preTrip ? (
+              <span />
+            ) : newCat !== null ? (
               <form onSubmit={confirmNewCat} className="flex items-center gap-1.5">
                 <input
                   value={newCat}
