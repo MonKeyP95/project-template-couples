@@ -4,6 +4,11 @@ import { randomBytes } from "node:crypto"
 
 import { createClient } from "@/lib/supabase/server"
 
+/** Invite links leave this machine, so they always point at the deployed app —
+ * never at whatever origin generated them. Local dev and prod share one Supabase
+ * project, so a token minted locally is valid there. */
+const PUBLIC_SITE_URL = "https://project-template-couples.vercel.app"
+
 export interface InviteResult {
   url?: string
   error?: string
@@ -48,8 +53,7 @@ export async function generateInvite(): Promise<InviteResult> {
     if (insertError) return { error: insertError.message }
   }
 
-  const origin = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000"
-  return { url: `${origin}/join/${token}` }
+  return { url: `${PUBLIC_SITE_URL}/join/${token}` }
 }
 
 export async function acceptInvite(token: string): Promise<{ error?: string }> {
