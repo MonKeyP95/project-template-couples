@@ -5,7 +5,7 @@ import * as React from "react"
 import { Label } from "@/components/together"
 import { savePreTripItems } from "@/lib/trips/actions"
 import type { BudgetItem } from "@/lib/trips/budget-item-types"
-import { euroRounded as fmt } from "@/lib/money"
+import { euroInput, euroRounded as fmt } from "@/lib/money"
 
 const PRE_TRIP_CATEGORY = "Pre-trip"
 
@@ -61,7 +61,7 @@ export function PreTripChecklist({
             itemId: it.id,
             subject: label,
             note: it.whenLabel,
-            value: it.amountCents > 0 ? fmt(it.amountCents) : "",
+            value: it.amountCents > 0 ? euroInput(it.amountCents) : "",
             fixed: true,
           })
         })
@@ -74,7 +74,7 @@ export function PreTripChecklist({
         itemId: i.id,
         subject: i.subject,
         note: i.whenLabel,
-        value: i.amountCents > 0 ? fmt(i.amountCents) : "",
+        value: i.amountCents > 0 ? euroInput(i.amountCents) : "",
         fixed: false,
       }))
     return [...fixed, ...added]

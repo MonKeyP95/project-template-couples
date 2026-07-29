@@ -9,7 +9,7 @@ import {
   type Expense,
   type ExpenseCategoryRow,
 } from "@/lib/trips/expense-types"
-import { euro as fmt } from "@/lib/money"
+import { euro as fmt, euroInput } from "@/lib/money"
 
 import { ExpenseFields } from "./expense-fields"
 import type { MemberToneEntry } from "./packing-tab"
@@ -213,7 +213,7 @@ function LedgerRowEditor({
     categories[0]?.name ??
     ""
   const [title, setTitle] = React.useState(expense.title)
-  const [amount, setAmount] = React.useState(fmt(expense.amountCents))
+  const [amount, setAmount] = React.useState(euroInput(expense.amountCents))
   const [category, setCategory] = React.useState<string>(
     validCategory ? expense.category : defaultCategory,
   )

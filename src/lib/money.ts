@@ -14,3 +14,10 @@ export function euro(cents: number): string {
 export function euroRounded(cents: number): string {
   return grouped0.format(cents / 100)
 }
+
+/** Cents as euros for an editable amount field: 123456 -> "1234.56". No
+ * separators — a grouped string is invalid in `<input type="number">` (renders
+ * blank) and parses back as NaN, so an edit would drop the price. */
+export function euroInput(cents: number): string {
+  return String(Math.round(cents) / 100)
+}

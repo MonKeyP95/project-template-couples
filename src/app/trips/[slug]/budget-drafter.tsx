@@ -15,7 +15,7 @@ import {
   type DayLocation,
 } from "@/lib/trips/location-budget-types"
 import type { ItineraryLocation } from "@/lib/trips/location-types"
-import { euroRounded as fmt } from "@/lib/money"
+import { euroInput, euroRounded as fmt } from "@/lib/money"
 
 function asCents(value: string): number {
   const n = Number(value)
@@ -238,7 +238,7 @@ export function BudgetDrafter({
       ;(out[bucketId] ??= []).push({
         subject: it.subject,
         when: it.whenLabel,
-        value: it.priceUnknown ? "" : per ? fmt(per) : "",
+        value: it.priceUnknown ? "" : per ? euroInput(per) : "",
         freq,
         count: it.count || 1,
         whenStart: it.whenStart ?? "",
@@ -408,7 +408,7 @@ export function BudgetDrafter({
         newRow({
           subject: line.subject,
           when: line.whenLabel,
-          value: line.priceUnknown ? "" : fmt(line.amountCents),
+          value: line.priceUnknown ? "" : euroInput(line.amountCents),
           estimated: line.estimated,
           sourceUrl: line.sourceUrl,
           priceUnknown: line.priceUnknown,
