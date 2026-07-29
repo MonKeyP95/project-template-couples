@@ -36,10 +36,19 @@ editor, so both get it from the one change.
 
 ### 3. Reading — planning mode
 
-Details render under the event text inside the already-expanded day
-(`itinerary-tab.tsx:1400`), in muted secondary type. **No new gesture:** pressing
-the day is the reveal. Pressing the event text still opens the expense form,
-unchanged. An event with no details renders exactly as it does today.
+**Revised on use, 2026-07-29.** Details first rendered inline in the expanded day,
+with the event press left on the expense form. In the app that read wrong: the
+press is the natural "tell me more" gesture, and it was spending itself on a form
+you rarely want. Details were also already on screen, so the press had nothing to
+reveal.
+
+Pressing an event now opens one panel under it, holding the details and a
+`+ expense` button. The expense form appears only when that button is pressed
+(`openEvent` selects the panel, `openExpense` the form inside it; opening a
+different event closes any open form). An event with no details still opens the
+panel, so the expense form stays reachable everywhere it was before. A collapsed
+event, and an expanded day you have not pressed into, look exactly as they do
+today.
 
 ### 4. Reading — on the road
 
@@ -87,9 +96,9 @@ workspace.
 
 1. Adding a day: each event row has a details box under its link box.
 2. Editing a day: existing details appear in that box and survive a save.
-3. Expanding a day shows the details under the event text; a collapsed day does not.
-4. An event with no details looks exactly as it did before.
-5. Pressing the event text still opens the expense form.
+3. Pressing an event shows its details; an event you have not pressed does not.
+4. An unpressed event looks exactly as it did before.
+5. Pressing the event shows a `+ expense` button, and pressing that opens the expense form.
 6. Rating a past event does not erase its details.
 7. On `/on-the-road`, an upcoming event shows its details; a past one does not.
 8. Editing the itinerary through the guided walk does not erase details.
