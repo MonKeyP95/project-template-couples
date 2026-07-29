@@ -111,6 +111,7 @@ interface EventDraft {
   endTime: string
   text: string
   url: string
+  details: string
   /** Pass-through only — the planning form never edits these, but must not drop
    * them when saving other fields (they carry the post-experience rating). */
   rating?: number
@@ -120,8 +121,8 @@ interface EventDraft {
   category?: string
 }
 
-function newEventDraft(time = "", endTime = "", text = "", url = ""): EventDraft {
-  return { key: crypto.randomUUID(), time, endTime, text, url }
+function newEventDraft(time = "", endTime = "", text = "", url = "", details = ""): EventDraft {
+  return { key: crypto.randomUUID(), time, endTime, text, url, details }
 }
 
 /** Normalize a typed time to "HH:MM": "11" -> "11:00", "9:5" -> "09:05".
@@ -147,7 +148,7 @@ function sortEvents<T extends { time: string }>(list: T[]): T[] {
 
 function toEventDrafts(events: ItineraryEvent[]): EventDraft[] {
   return events.map((e) => ({
-    ...newEventDraft(e.time, e.endTime ?? "", e.text, e.url ?? ""),
+    ...newEventDraft(e.time, e.endTime ?? "", e.text, e.url ?? "", e.details ?? ""),
     rating: e.rating,
     note: e.note,
     category: e.category,
@@ -1521,6 +1522,7 @@ function DayEditor({
           ...(e.endTime.trim() ? { endTime: normalizeTime(e.endTime.trim()) } : {}),
           text: e.text,
           ...(e.url.trim() ? { url: e.url.trim() } : {}),
+          ...(e.details.trim() ? { details: e.details.trim() } : {}),
           ...(typeof e.rating === "number" ? { rating: e.rating } : {}),
           ...(e.note && e.note.trim() ? { note: e.note.trim() } : {}),
           ...(e.category && e.category.trim() ? { category: e.category.trim() } : {}),
@@ -1621,6 +1623,7 @@ function AddDayRow({
           ...(e.endTime.trim() ? { endTime: normalizeTime(e.endTime.trim()) } : {}),
           text: e.text,
           ...(e.url.trim() ? { url: e.url.trim() } : {}),
+          ...(e.details.trim() ? { details: e.details.trim() } : {}),
           ...(typeof e.rating === "number" ? { rating: e.rating } : {}),
           ...(e.note && e.note.trim() ? { note: e.note.trim() } : {}),
           ...(e.category && e.category.trim() ? { category: e.category.trim() } : {}),
@@ -1943,6 +1946,20 @@ function DayForm({
                 placeholder="link (optional)"
                 disabled={isPending}
                 className="w-full border-0 border-b border-rule bg-transparent py-1 text-[12px] text-foreground placeholder:text-muted-foreground focus:border-clay focus:outline-none disabled:opacity-50"
+              />
+              <textarea
+                value={ev.details}
+                onChange={(e) =>
+                  setEvents(
+                    events.map((x) =>
+                      x.key === ev.key ? { ...x, details: e.target.value } : x,
+                    ),
+                  )
+                }
+                placeholder="details (optional) — address, booking name, what to bring"
+                rows={2}
+                disabled={isPending}
+                className="w-full resize-y border-0 border-b border-rule bg-transparent py-1 text-[12px] text-foreground placeholder:text-muted-foreground focus:border-clay focus:outline-none disabled:opacity-50"
               />
             </div>
           ))}

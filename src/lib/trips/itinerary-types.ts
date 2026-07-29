@@ -9,6 +9,9 @@ export interface ItineraryEvent {
   text: string
   /** Optional source/booking link. Omitted when absent. */
   url?: string
+  /** Optional free-text details — address, booking name, "cash only". Shown
+   * inside an expanded day and on the road, never in a public share. */
+  details?: string
   /** Optional 1-5 rating. Omitted when unrated. */
   rating?: number
   /** Optional free note captured with a rating. Omitted when empty. */
@@ -98,6 +101,9 @@ export function parseEvents(raw: unknown): ItineraryEvent[] {
         : {}),
       text: typeof e.text === "string" ? e.text : "",
       ...(typeof e.url === "string" && e.url.length > 0 ? { url: e.url } : {}),
+      ...(typeof e.details === "string" && e.details.length > 0
+        ? { details: e.details }
+        : {}),
       ...(typeof e.rating === "number" && e.rating >= 1 && e.rating <= 5
         ? { rating: Math.round(e.rating) }
         : {}),

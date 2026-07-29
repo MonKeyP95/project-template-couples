@@ -1482,8 +1482,8 @@ function sortDayEvents(a: ItineraryEvent, b: ItineraryEvent): number {
 }
 
 /** Normalize client-supplied events to the stored jsonb shape, dropping empties.
- * Preserves every optional field (endTime, url, rating, note) so a save never
- * discards them. Shared by all itinerary write paths. */
+ * Preserves every optional field (endTime, url, details, rating, note) so a save
+ * never discards them. Shared by all itinerary write paths. */
 function normalizeDayEvents(events: ItineraryEvent[]): ItineraryEvent[] {
   return events
     .map((e) => ({
@@ -1491,6 +1491,9 @@ function normalizeDayEvents(events: ItineraryEvent[]): ItineraryEvent[] {
       ...(e.endTime?.trim() ? { endTime: e.endTime.trim() } : {}),
       text: (e.text ?? "").trim(),
       ...(typeof e.url === "string" && e.url.trim() ? { url: e.url.trim() } : {}),
+      ...(typeof e.details === "string" && e.details.trim()
+        ? { details: e.details.trim() }
+        : {}),
       ...(typeof e.rating === "number" && e.rating >= 1 && e.rating <= 5
         ? { rating: Math.round(e.rating) }
         : {}),
