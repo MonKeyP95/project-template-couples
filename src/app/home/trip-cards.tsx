@@ -120,8 +120,8 @@ export async function HeroCard({
       <div
         className={`relative overflow-hidden ${surface[tone]} md:h-auto ${
           today
-            ? "h-[104px] md:aspect-[2/1]"
-            : "h-[132px] md:aspect-[16/9]"
+            ? "min-h-[104px] md:aspect-[2/1]"
+            : "min-h-[132px] md:aspect-[16/9]"
         }`}
       >
         <TopoBg tone={tone} opacity={0.16} />
@@ -136,12 +136,21 @@ export async function HeroCard({
             {coord ? <Coord>{coord}</Coord> : <span />}
           </div>
           <div>
-            <div
-              className={`t-display leading-none text-foreground ${
-                today ? "text-[32px] md:text-[36px]" : "text-[38px] md:text-[44px]"
-              }`}
-            >
-              <em>{trip.name}</em>
+            <div className="flex flex-wrap items-end gap-x-4 gap-y-2">
+              <div
+                className={`t-display leading-none text-foreground ${
+                  today ? "text-[32px] md:text-[36px]" : "text-[38px] md:text-[44px]"
+                }`}
+              >
+                <em>{trip.name}</em>
+              </div>
+              {trip.startDate ? (
+                <FlipCountdown
+                  startDate={trip.startDate}
+                  size="sm"
+                  className="shrink-0"
+                />
+              ) : null}
             </div>
             {trip.country ? (
               <div className="mt-1 font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
@@ -152,9 +161,6 @@ export async function HeroCard({
         </div>
       </div>
       <div className={`px-4 md:px-5 ${today ? "py-4 md:py-5" : "py-3 md:py-3.5"}`}>
-        {trip.startDate ? (
-          <FlipCountdown startDate={trip.startDate} size="sm" className="mb-3" />
-        ) : null}
         {today ? (
           <div className="mb-3">
             <div className="t-display text-[24px] leading-tight text-foreground md:text-[28px]">
