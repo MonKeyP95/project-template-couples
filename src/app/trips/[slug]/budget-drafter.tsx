@@ -298,7 +298,11 @@ export function BudgetDrafter({
     return out
   }
 
-  function seedSession(seed: Record<string, Partial<ItemRow>[]>, pct: number) {
+  function seedSession(
+    seed: Record<string, Partial<ItemRow>[]>,
+    pct: number,
+    startIndex = 0,
+  ) {
     const steps = planBudgetSteps({
       tripName,
       totalDays,
@@ -332,15 +336,21 @@ export function BudgetDrafter({
     setError(null)
     setGenerated(false)
     setBufferPct(pct)
-    setStepIndex(0)
+    setStepIndex(startIndex)
     setSession({ steps, items })
   }
 
   function open(fromScratch = false) {
     const restore = !fromScratch && plannedBudgetCents > 0
+    // Editing a budget with no before-you-go items would open on blank screens
+    // and read as a fresh start, so skip to the first category step. Back still
+    // reaches them. A new budget always starts at before-you-go.
+    const skipPreTrip =
+      restore && !initialItems.some((it) => it.category === PRE_TRIP_CATEGORY)
     seedSession(
       restore ? savedRows() : seedFromItinerary(),
       (restore ? savedBufferPct() : null) ?? bufferRec.pct,
+      skipPreTrip ? preCount : 0,
     )
   }
 
