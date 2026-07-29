@@ -2,28 +2,27 @@
 
 import { useEffect, useState } from "react"
 
+import { localMidnight } from "@/lib/countdown"
 import { cn } from "@/lib/utils"
 
-/** Live countdown to local midnight of the trip's start day.
- *  Before the trip: "12D 5H 30M TO GO". On the start day: "TODAY".
- *  Once the trip is underway or past: nothing. */
+/** Coarse text countdown for the small trip cards: "40 DAYS TO GO", "TODAY" on
+ *  the start day, nothing once the trip is underway. The trip page and home
+ *  hero use the split-flap FlipCountdown instead. */
 export function TripCountdown({
   startDate,
   className,
-  daysOnly = false,
 }: {
   startDate: string
   className?: string
-  daysOnly?: boolean
 }) {
   const [label, setLabel] = useState<string | null>(null)
 
   useEffect(() => {
-    const tick = () => setLabel(countdownLabel(startDate, daysOnly))
+    const tick = () => setLabel(countdownLabel(startDate))
     tick()
     const id = setInterval(tick, 30_000)
     return () => clearInterval(id)
-  }, [startDate, daysOnly])
+  }, [startDate])
 
   if (!label) return null
   return (
@@ -38,9 +37,8 @@ export function TripCountdown({
   )
 }
 
-function countdownLabel(startDate: string, daysOnly: boolean): string | null {
-  const [y, m, d] = startDate.split("-").map(Number)
-  const target = new Date(y, m - 1, d)
+function countdownLabel(startDate: string): string | null {
+  const target = localMidnight(startDate)
   const now = new Date()
   const diffMs = target.getTime() - now.getTime()
 
@@ -48,27 +46,16 @@ function countdownLabel(startDate: string, daysOnly: boolean): string | null {
     return isSameDay(now, target) ? "TODAY" : null
   }
 
-  const totalMin = Math.floor(diffMs / 60_000)
-  const days = Math.floor(totalMin / 1_440)
-  const hrs = Math.floor((totalMin % 1_440) / 60)
-  const min = totalMin % 60
+  const days = Math.floor(diffMs / 86_400_000)
+  if (days <= 0) return "TODAY"
 
-  if (daysOnly) {
-    if (days <= 0) return "TODAY"
-    const years = Math.floor(days / 365)
-    const remDays = days % 365
-    const parts: string[] = []
-    if (years > 0) parts.push(`${years} ${years === 1 ? "YEAR" : "YEARS"}`)
-    if (remDays > 0 || years === 0) {
-      parts.push(`${remDays} ${remDays === 1 ? "DAY" : "DAYS"}`)
-    }
-    return `${parts.join(" ")} TO GO`
-  }
-
+  const years = Math.floor(days / 365)
+  const remDays = days % 365
   const parts: string[] = []
-  if (days > 0) parts.push(`${days}D`)
-  if (days > 0 || hrs > 0) parts.push(`${hrs}H`)
-  parts.push(`${min}M`)
+  if (years > 0) parts.push(`${years} ${years === 1 ? "YEAR" : "YEARS"}`)
+  if (remDays > 0 || years === 0) {
+    parts.push(`${remDays} ${remDays === 1 ? "DAY" : "DAYS"}`)
+  }
   return `${parts.join(" ")} TO GO`
 }
 

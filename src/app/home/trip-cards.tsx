@@ -10,6 +10,7 @@ import {
   MonoBadge,
   TopoBg,
 } from "@/components/together"
+import { FlipCountdown } from "@/components/flip-countdown"
 import { TripCountdown } from "@/components/trip-countdown"
 import type { TripListItem } from "@/lib/trips/list-queries"
 import { slugToTone, type CardTone } from "@/lib/trips/slug-tone"
@@ -135,20 +136,12 @@ export async function HeroCard({
             {coord ? <Coord>{coord}</Coord> : <span />}
           </div>
           <div>
-            <div className="flex items-baseline gap-3">
-              <div
-                className={`t-display leading-none text-foreground ${
-                  today ? "text-[32px] md:text-[36px]" : "text-[38px] md:text-[44px]"
-                }`}
-              >
-                <em>{trip.name}</em>
-              </div>
-              {trip.startDate ? (
-                <TripCountdown
-                  startDate={trip.startDate}
-                  className="text-[13px] tracking-[0.1em] md:text-[15px]"
-                />
-              ) : null}
+            <div
+              className={`t-display leading-none text-foreground ${
+                today ? "text-[32px] md:text-[36px]" : "text-[38px] md:text-[44px]"
+              }`}
+            >
+              <em>{trip.name}</em>
             </div>
             {trip.country ? (
               <div className="mt-1 font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
@@ -159,6 +152,9 @@ export async function HeroCard({
         </div>
       </div>
       <div className={`px-4 md:px-5 ${today ? "py-4 md:py-5" : "py-3 md:py-3.5"}`}>
+        {trip.startDate ? (
+          <FlipCountdown startDate={trip.startDate} size="sm" className="mb-3" />
+        ) : null}
         {today ? (
           <div className="mb-3">
             <div className="t-display text-[24px] leading-tight text-foreground md:text-[28px]">
@@ -219,7 +215,6 @@ export function TripCard({ trip }: { trip: TripListItem }) {
               {trip.startDate ? (
                 <TripCountdown
                   startDate={trip.startDate}
-                  daysOnly
                   className="text-[11px] tracking-[0.1em] md:text-[13px]"
                 />
               ) : null}

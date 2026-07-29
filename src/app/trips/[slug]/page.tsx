@@ -11,7 +11,7 @@ import {
   WaveGlyph,
 } from "@/components/together"
 import { RefreshOnVisible } from "@/components/refresh-on-visible"
-import { TripCountdown } from "@/components/trip-countdown"
+import { FlipCountdown } from "@/components/flip-countdown"
 import { WeekForecast } from "@/components/week-forecast"
 import { createClient } from "@/lib/supabase/server"
 import { isDarkTheme } from "@/lib/theme"
@@ -447,12 +447,7 @@ function TripHeaderView({
             {fuzzyLabel}
           </div>
         ) : dateRange ? (
-          <div className="flex items-baseline gap-3">
-            <div className="font-mono text-[12px] text-foreground">{dateRange}</div>
-            {header.startDate ? (
-              <TripCountdown startDate={header.startDate} />
-            ) : null}
-          </div>
+          <div className="font-mono text-[12px] text-foreground">{dateRange}</div>
         ) : (
           <span />
         )}
@@ -464,6 +459,13 @@ function TripHeaderView({
           />
         ) : null}
       </div>
+      {!isDream && header.startDate ? (
+        <FlipCountdown
+          startDate={header.startDate}
+          size="lg"
+          className="mt-4 lg:mt-5"
+        />
+      ) : null}
     </header>
   )
 }
