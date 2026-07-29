@@ -15,6 +15,8 @@ export interface PlanItineraryProps {
   tripId: string
   tripSlug: string
   destination: string
+  /** The trip's saved avoid text; the walk prefills from it and writes it back. */
+  avoid: string
 }
 
 interface ItemRow {
@@ -62,13 +64,19 @@ function rowEmpty(row: ItemRow): boolean {
  * drafts a day-by-day itinerary from the entered plans + the trip/couple
  * profile and writes it. Auto-opens on `?plan=1` (the onboarding hand-off).
  */
-export function PlanItinerary({ tripId, tripSlug, destination }: PlanItineraryProps) {
+export function PlanItinerary({
+  tripId,
+  tripSlug,
+  destination,
+  avoid: initialAvoid,
+}: PlanItineraryProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [open, setOpen] = React.useState(searchParams.get("plan") === "1")
   const [phase, setPhase] = React.useState<Phase>("places")
   const [placeNames, setPlaceNames] = React.useState<string[]>([""])
   const [freeText, setFreeText] = React.useState("")
+  const [avoid, setAvoid] = React.useState(initialAvoid)
   const [steps, setSteps] = React.useState<ItineraryPlanStep[]>([])
   const [items, setItems] = React.useState<Record<string, ItemRow[]>>({})
   const [stepIndex, setStepIndex] = React.useState(0)
@@ -87,6 +95,7 @@ export function PlanItinerary({ tripId, tripSlug, destination }: PlanItineraryPr
     setPhase("places")
     setPlaceNames([""])
     setFreeText("")
+    setAvoid(initialAvoid)
     setSteps([])
     setItems({})
     setStepIndex(0)
@@ -98,7 +107,10 @@ export function PlanItinerary({ tripId, tripSlug, destination }: PlanItineraryPr
     const nextSteps = planItinerarySteps(trimmedPlaces)
     setItems((prev) => {
       const next: Record<string, ItemRow[]> = {}
-      for (const s of nextSteps) next[s.key] = prev[s.key] ?? [newRow()]
+      for (const s of nextSteps) {
+        if (s.kind !== "entries") continue
+        next[s.key] = prev[s.key] ?? [newRow()]
+      }
       return next
     })
     setSteps(nextSteps)
@@ -160,7 +172,13 @@ export function PlanItinerary({ tripId, tripSlug, destination }: PlanItineraryPr
     setError(null)
     const entries = collectEntries()
     startTransition(async () => {
-      const r = await applyPlanEntries({ tripId, tripSlug, places: trimmedPlaces, entries })
+      const r = await applyPlanEntries({
+        tripId,
+        tripSlug,
+        places: trimmedPlaces,
+        entries,
+        avoid: avoid.trim(),
+      })
       if (r.error) {
         setError(r.error)
         return
@@ -181,6 +199,7 @@ export function PlanItinerary({ tripId, tripSlug, destination }: PlanItineraryPr
         places: trimmedPlaces,
         entries,
         freeText: freeText.trim(),
+        avoid: avoid.trim(),
       })
       if (r.error) {
         setError(r.error)
@@ -297,6 +316,63 @@ export function PlanItinerary({ tripId, tripSlug, destination }: PlanItineraryPr
   function renderStep(step: ItineraryPlanStep) {
     const isLast = stepIndex === steps.length - 1
     const rows = items[step.key] ?? []
+
+    if (step.kind === "text") {
+      return (
+        <>
+          <div className="flex items-center justify-between">
+            <Label>Plan your itinerary</Label>
+            <span className="font-mono text-[9px] uppercase tracking-[0.16em] text-muted-foreground">
+              step {stepIndex + 1} of {steps.length}
+            </span>
+          </div>
+
+          <div className="mt-2 font-serif text-[15px] italic text-foreground">
+            {step.title}
+          </div>
+          <div className="mt-1 text-[13px] text-foreground">{step.question}</div>
+          <div className="mt-1 font-mono text-[10px] leading-snug tracking-[0.06em] text-muted-foreground">
+            {step.hint}
+          </div>
+
+          <textarea
+            value={avoid}
+            placeholder="e.g. no long drives, skip the big tourist spots"
+            rows={3}
+            maxLength={500}
+            onChange={(e) => setAvoid(e.target.value)}
+            className="mt-3 w-full resize-y border-0 border-b border-border bg-transparent text-[13px] text-foreground outline-none placeholder:text-muted-foreground focus:border-foreground"
+          />
+
+          <div className="mt-4 flex items-center justify-between">
+            <button
+              type="button"
+              onClick={walkBack}
+              className="border-0 bg-transparent p-0 font-mono text-[10px] uppercase tracking-[0.2em] text-muted-foreground hover:text-foreground"
+            >
+              back
+            </button>
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={reset}
+                className="rounded-md border border-border bg-transparent px-3 py-1.5 font-mono text-[9.5px] uppercase tracking-[0.2em] text-muted-foreground"
+              >
+                cancel
+              </button>
+              <button
+                type="button"
+                onClick={walkNext}
+                className="rounded-md border-0 bg-foreground px-3 py-1.5 font-mono text-[9.5px] uppercase tracking-[0.2em] text-background"
+              >
+                {isLast ? "review" : "next"}
+              </button>
+            </div>
+          </div>
+        </>
+      )
+    }
+
     return (
       <>
         <div className="flex items-center justify-between">

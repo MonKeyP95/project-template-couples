@@ -323,6 +323,7 @@ export function ItineraryTab({
   tripSlug,
   tripName,
   destination,
+  avoid,
   tripStartDate,
   tripEndDate,
   today,
@@ -337,6 +338,7 @@ export function ItineraryTab({
   tripSlug: string
   tripName: string
   destination: string
+  avoid: string
   tripStartDate: string
   tripEndDate: string
   today: string
@@ -719,7 +721,12 @@ export function ItineraryTab({
         {active ? null : (
           <>
             {planningBlock}
-            <PlanItinerary tripId={tripId} tripSlug={tripSlug} destination={destination} />
+            <PlanItinerary
+              tripId={tripId}
+              tripSlug={tripSlug}
+              destination={destination}
+              avoid={avoid}
+            />
           </>
         )}
 

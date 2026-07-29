@@ -22,6 +22,8 @@ export async function buildProfileBlock(
       parts.push(`Vibe in their words: ${profile.vibeNote.trim()}.`)
     if (profile.transport.length)
       parts.push(`Getting around: ${profile.transport.join(", ")}.`)
+    if (profile.avoid.trim())
+      parts.push(`Avoid, treat as a hard constraint: ${profile.avoid.trim()}.`)
 
     const cats = await getTripExpenseCategories(tripId)
     const detailed = cats

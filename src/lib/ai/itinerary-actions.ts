@@ -3,7 +3,9 @@
 import {
   addItineraryDay,
   createItineraryLocation,
+  saveTripProfile,
 } from "@/lib/trips/actions"
+import type { TripProfile } from "@/lib/trips/trip-profile-types"
 import { getItineraryLocations } from "@/lib/trips/location-queries"
 import { getCurrentWorkspace } from "@/lib/workspace/queries"
 import { getTripBySlug } from "@/lib/trips/queries"
@@ -23,6 +25,23 @@ function inclusiveDays(start: string, end: string): number {
   const s = new Date(`${start}T00:00:00Z`).getTime()
   const e = new Date(`${end}T00:00:00Z`).getTime()
   return Math.max(1, Math.round((e - s) / 86_400_000) + 1)
+}
+
+/** Persist an avoid answer edited mid-walk. The planner box is the trip
+ * profile's field, not a copy, so both terminal actions write it back. */
+async function persistAvoid(
+  trip: { id: string; tripProfile: TripProfile },
+  tripSlug: string,
+  avoid: string | undefined,
+): Promise<void> {
+  if (avoid === undefined) return
+  const next = avoid.trim().slice(0, 500)
+  if (next === trip.tripProfile.avoid) return
+  await saveTripProfile({
+    tripId: trip.id,
+    tripSlug,
+    profile: { ...trip.tripProfile, avoid: next },
+  })
 }
 
 export interface ApplyItineraryInput {
@@ -93,11 +112,15 @@ export async function applyPlanEntries(input: {
   tripSlug: string
   places: string[]
   entries: PlanEntry[]
+  /** Edited in the walk's avoid step; written back to the trip profile. */
+  avoid?: string
 }): Promise<{ error?: string; created?: { locations: number; days: number } }> {
   const workspace = await getCurrentWorkspace()
   if (!workspace) return { error: "Not signed in." }
   const trip = await getTripBySlug(workspace.id, input.tripSlug)
   if (!trip || !trip.startDate) return { error: "Trip not found." }
+
+  await persistAvoid(trip, input.tripSlug, input.avoid)
 
   const skeleton = entriesToSkeleton(
     input.entries,
@@ -127,11 +150,15 @@ export async function draftAndApplyItinerary(input: {
   entries: PlanEntry[]
   /** Free-text intent for the whole trip; goes to the drafter as-is. */
   freeText?: string
+  /** Edited in the walk's avoid step; written back to the trip profile. */
+  avoid?: string
 }): Promise<{ error?: string; created?: { locations: number; days: number } }> {
   const workspace = await getCurrentWorkspace()
   if (!workspace) return { error: "Not signed in." }
   const trip = await getTripBySlug(workspace.id, input.tripSlug)
   if (!trip || !trip.startDate) return { error: "Trip not found." }
+
+  await persistAvoid(trip, input.tripSlug, input.avoid)
 
   const startDate = trip.startDate
   const dayCount = inclusiveDays(startDate, trip.endDate ?? startDate)
@@ -167,6 +194,7 @@ export async function draftAndApplyItinerary(input: {
       brief: trip.tripProfile.idea,
       activityTypes: [],
       freeText: input.freeText?.trim() ?? "",
+      avoid: input.avoid?.trim() ?? trip.tripProfile.avoid,
       knownPlans: input.entries.map((e) => ({
         category: e.category,
         place: e.place,

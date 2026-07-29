@@ -30,6 +30,8 @@ export interface ItineraryDraftContext {
   brief: string
   activityTypes: string[]
   freeText: string
+  /** What they do not want. A constraint, not a preference. */
+  avoid: string
   /** What the couple already chose in the guided walk; the itinerary is built
    * around these, then gaps filled sparsely. */
   knownPlans: { category: string; place: string; subject: string; when: string }[]
@@ -61,6 +63,7 @@ function itineraryPrompt(c: ItineraryDraftContext): string {
     c.brief ? `Trip brief: ${c.brief}.` : "",
     list("Activity types they want", c.activityTypes),
     c.freeText ? `They also said: ${c.freeText}.` : "",
+    c.avoid ? `Must avoid - do not include any of these: ${c.avoid}.` : "",
     c.profileBlock ? `Who they are (a lens, not a checklist): ${c.profileBlock}` : "",
     c.tasteDirective,
   ]

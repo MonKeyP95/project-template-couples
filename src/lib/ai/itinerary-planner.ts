@@ -103,6 +103,9 @@ export interface PlanEntry {
 export interface ItineraryPlanStep {
   /** `${categoryKey}:${placeIndex|"trip"}`. */
   key: string
+  /** "entries" steps collect add-list rows that become itinerary events.
+   * "text" steps collect one free-text answer that never becomes an event. */
+  kind: "entries" | "text"
   /** One of ITINERARY_CATEGORIES. */
   category: string
   title: string
@@ -125,6 +128,7 @@ export function planItinerarySteps(placeNames: string[]): ItineraryPlanStep[] {
   list.forEach((name, i) => {
     steps.push({
       key: `accommodation:${i}`,
+      kind: "entries",
       category: "Accommodation",
       title: "Accommodation",
       question: "Where are you staying?",
@@ -134,6 +138,7 @@ export function planItinerarySteps(placeNames: string[]): ItineraryPlanStep[] {
     })
     steps.push({
       key: `food:${i}`,
+      kind: "entries",
       category: "Food",
       title: "Food",
       question: "Places to eat or drink?",
@@ -143,6 +148,7 @@ export function planItinerarySteps(placeNames: string[]): ItineraryPlanStep[] {
     })
     steps.push({
       key: `activities:${i}`,
+      kind: "entries",
       category: "Activities",
       title: "Activities",
       question: "Anything you'd like to do here?",
@@ -153,6 +159,7 @@ export function planItinerarySteps(placeNames: string[]): ItineraryPlanStep[] {
   })
   steps.push({
     key: "transportation:trip",
+    kind: "entries",
     category: "Transportation",
     title: "Transportation",
     question: "Getting there and around?",
@@ -161,7 +168,18 @@ export function planItinerarySteps(placeNames: string[]): ItineraryPlanStep[] {
     place: null,
   })
   steps.push({
+    key: "avoid:trip",
+    kind: "text",
+    category: "Avoid",
+    title: "Anything to avoid?",
+    question: "Anything to avoid this trip?",
+    hint: "Optional - what you'd rather skip. Saved to the trip.",
+    addNoun: "",
+    place: null,
+  })
+  steps.push({
     key: "other:trip",
+    kind: "entries",
     category: "Other",
     title: "Anything else",
     question: "Anything else to plan?",

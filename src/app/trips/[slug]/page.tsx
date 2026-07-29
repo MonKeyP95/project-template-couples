@@ -289,6 +289,7 @@ export default async function TripPage({
               tripSlug={header.slug}
               tripName={header.name}
               destination={header.country ?? header.name}
+              avoid={header.tripProfile.avoid}
               tripStartDate={header.startDate}
               tripEndDate={header.endDate ?? header.startDate}
               today={today}
