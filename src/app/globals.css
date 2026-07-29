@@ -265,7 +265,7 @@
     border: 1px solid var(--border);
     border-radius: var(--flip-radius, 8px);
     background: var(--card);
-    box-shadow: var(--shadow-sm);
+    box-shadow: var(--flip-shadow, var(--shadow-sm));
     overflow: hidden;
     perspective: 260px;
   }
@@ -343,15 +343,18 @@
     --flip-f: 56px;
     --flip-gap: 6px;
   }
-  /* Sized to sit just under the trip name's cap height so the clock reads as
-     secondary to it. */
+  /* Clearly smaller than the trip name it sits beside: the tile is under the
+     name's cap height even on the 28px Trips-band cards. The shadow comes off
+     at this size — border plus shadow plus hinge on an 18px tile reads as grey
+     mush rather than as a clock. */
   .flip-sm {
-    --flip-w: 36px;
-    --flip-h: 26px;
-    --flip-f: 25px;
-    --flip-gap: 4px;
-    --flip-unit-gap: 4px;
-    --flip-radius: 6px;
+    --flip-w: 26px;
+    --flip-h: 18px;
+    --flip-f: 17px;
+    --flip-gap: 3px;
+    --flip-unit-gap: 3px;
+    --flip-radius: 4px;
+    --flip-shadow: none;
   }
 }
 

@@ -34,7 +34,7 @@ One component, `src/components/trip-countdown.tsx`, used in three places:
 | Style | Translated to sand-and-sea, not literal white/black |
 | Motion | Real split-flap flip on digit change |
 | Units | **Adaptive**: months tile only when months > 0; never fewer than 3 tiles |
-| Labels | Below the tiles |
+| Labels | Above the tiles |
 | Heading | **None.** The unit labels carry it |
 | Proportion | Wide tile, undistorted digits, with breathing room (~1.26:1) |
 | Once the trip starts | Block disappears (matches current behaviour) |
@@ -153,11 +153,13 @@ digits that read as full without pressing against the edges.
 |---|---|---|---|---|---|
 | `lg` desktop | 96 x 76px | 73px | 51px (67%) | 38px | 8px |
 | `lg` mobile | 74 x 58px | 56px | 39px (67%) | 29px | 6px |
-| `sm` | 36 x 26px | 25px | 18px (67%) | 13px | 4px |
+| `sm` | 26 x 18px | 17px | 12px (66%) | 9px | 3px |
 
-`sm` sits beside the trip name on the home cards, so its tile height is set just
-under the name's cap height (~27px at the hero's 38px display serif). A taller
-tile makes the clock read as the louder of the two, which it should not be.
+`sm` sits beside the trip name on the home cards, so its tile must be clearly
+smaller than the name — under the cap height even on the Trips-band cards, whose
+names are 28px (cap ~20px), not just under the hero's 38px. The `sm` tile also
+drops its box-shadow: border plus shadow plus hinge on an 18px tile reads as
+grey mush rather than as a clock.
 
 Digits are **not** condensed — `scaleX` stays 1 and the numerals keep the shapes
 the type designer drew. That is what forces the landscape tile rather than the

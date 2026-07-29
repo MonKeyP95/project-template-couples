@@ -47,15 +47,15 @@ export function FlipCountdown({
     <div className={cn("flip-row", size === "lg" ? "flip-lg" : "flip-sm", className)}>
       {tiles.map((tile) => (
         <div key={tile.key} className="flip-unit">
-          <FlipTile value={tile.value} />
           <div
             className={cn(
               "font-mono uppercase tracking-[0.22em] text-muted-foreground",
-              size === "lg" ? "text-[10px]" : "text-[8px]",
+              size === "lg" ? "text-[10px]" : "text-[7px]",
             )}
           >
             {tile.label}
           </div>
+          <FlipTile value={tile.value} />
         </div>
       ))}
     </div>
