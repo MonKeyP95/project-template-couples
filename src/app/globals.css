@@ -243,6 +243,150 @@
   }
 }
 
+/* Split-flap countdown tiles. Both halves are windows onto the same full-tile
+   glyph box, so the digit is centered across the whole tile and stays
+   continuous across the seam. The hinge is drawn over the tile, never as a
+   border, so the two halves stay exactly 50% each. */
+@layer components {
+  .flip-row {
+    display: flex;
+    gap: var(--flip-gap);
+  }
+  .flip-unit {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 7px;
+  }
+  .flip-tile {
+    position: relative;
+    width: var(--flip-w);
+    height: var(--flip-h);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--card);
+    box-shadow: var(--shadow-sm);
+    overflow: hidden;
+    perspective: 260px;
+  }
+  .flip-half {
+    position: absolute;
+    left: 0;
+    width: 100%;
+    height: 50%;
+    overflow: hidden;
+  }
+  .flip-half-top {
+    top: 0;
+  }
+  .flip-half-bottom {
+    bottom: 0;
+  }
+  .flip-glyph {
+    position: absolute;
+    left: 0;
+    width: 100%;
+    height: var(--flip-h);
+    line-height: var(--flip-h);
+    text-align: center;
+    font-family: var(--font-mono);
+    font-weight: 500;
+    font-variant-numeric: tabular-nums;
+    font-size: var(--flip-f);
+    letter-spacing: -0.01em;
+    color: var(--foreground);
+    transform: translateY(var(--flip-nudge, 0px));
+  }
+  .flip-half-top .flip-glyph,
+  .flip-leaf-fold .flip-glyph {
+    top: 0;
+  }
+  .flip-half-bottom .flip-glyph,
+  .flip-leaf-unfold .flip-glyph {
+    bottom: 0;
+  }
+  .flip-hinge {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 50%;
+    height: 1px;
+    margin-top: -0.5px;
+    background: var(--clay);
+    opacity: 0.28;
+    z-index: 30;
+  }
+  .flip-leaf {
+    position: absolute;
+    left: 0;
+    width: 100%;
+    height: 50%;
+    overflow: hidden;
+    background: var(--card);
+    backface-visibility: hidden;
+    z-index: 20;
+  }
+  .flip-leaf-fold {
+    top: 0;
+    transform-origin: center bottom;
+    animation: flip-fold 0.3s cubic-bezier(0.4, 0, 0.9, 0.4) forwards;
+  }
+  .flip-leaf-unfold {
+    bottom: 0;
+    transform-origin: center top;
+    transform: rotateX(90deg);
+    animation: flip-unfold 0.3s cubic-bezier(0.1, 0.6, 0.6, 1) 0.3s forwards;
+  }
+  .flip-lg {
+    --flip-w: 74px;
+    --flip-h: 58px;
+    --flip-f: 56px;
+    --flip-gap: 6px;
+  }
+  .flip-sm {
+    --flip-w: 44px;
+    --flip-h: 34px;
+    --flip-f: 33px;
+    --flip-gap: 5px;
+  }
+}
+
+@keyframes flip-fold {
+  from {
+    transform: rotateX(0deg);
+  }
+  to {
+    transform: rotateX(-90deg);
+  }
+}
+
+@keyframes flip-unfold {
+  from {
+    transform: rotateX(90deg);
+  }
+  to {
+    transform: rotateX(0deg);
+  }
+}
+
+@media (min-width: 768px) {
+  .flip-lg {
+    --flip-w: 96px;
+    --flip-h: 76px;
+    --flip-f: 73px;
+    --flip-gap: 8px;
+  }
+}
+
+/* Not `animation: none` — the component clears its flip state on the unfold
+   leaf's animationend, which would then never fire. Near-instant instead. */
+@media (prefers-reduced-motion: reduce) {
+  .flip-leaf {
+    animation-duration: 0.01ms;
+    animation-delay: 0s;
+  }
+}
+
 /* Landing-page reveal — staggered fade-in on load. Apply with
    .reveal and an inline animation-delay. One-time, no scroll trigger. */
 @keyframes reveal-up {
