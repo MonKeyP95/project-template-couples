@@ -4,8 +4,7 @@ import { redirect } from "next/navigation"
 import { createClient } from "@/lib/supabase/server"
 import { acceptInvite } from "@/lib/workspace/actions"
 import { getInvitePreview } from "@/lib/invites/preview"
-import { buttonVariants } from "@/components/ui/button"
-import { cn } from "@/lib/utils"
+import { SignUpForm } from "@/app/signup/signup-form"
 
 export default async function JoinPage({
   params,
@@ -53,24 +52,25 @@ export default async function JoinPage({
     redirect("/home")
   }
 
-  // Unauthenticated + valid token → sign-up/sign-in card.
+  // Unauthenticated + valid token → the invitation and the fields on one screen.
   return (
     <Shell>
       <h1 className="font-serif text-4xl tracking-tight">
         You&apos;ve been invited to join{" "}
         <span className="italic text-primary">{preview.workspaceName}</span>.
       </h1>
-      <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-        <Link href={`/signup?invite=${token}`} className={cn(buttonVariants({ size: "lg" }), "flex-1")}>
-          Sign up
-        </Link>
+      <div className="mt-8 text-left">
+        <SignUpForm invite={token} submitLabel="join" />
+      </div>
+      <p className="mt-6 text-sm text-muted-foreground">
+        Already have an account?{" "}
         <Link
           href={`/signin?invite=${token}`}
-          className={cn(buttonVariants({ size: "lg", variant: "outline" }), "flex-1")}
+          className="text-foreground underline-offset-4 hover:underline"
         >
           Sign in
         </Link>
-      </div>
+      </p>
     </Shell>
   )
 }

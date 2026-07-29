@@ -4,7 +4,13 @@ import { useActionState } from "react"
 
 import { signUp } from "@/lib/auth/actions"
 
-export function SignUpForm({ invite }: { invite?: string }) {
+export function SignUpForm({
+  invite,
+  submitLabel = "create account",
+}: {
+  invite?: string
+  submitLabel?: string
+}) {
   const [state, formAction, isPending] = useActionState(signUp, null)
 
   return (
@@ -60,7 +66,7 @@ export function SignUpForm({ invite }: { invite?: string }) {
         disabled={isPending}
         className="mt-8 w-full rounded-full border-0 bg-foreground py-3 font-mono text-[11px] uppercase tracking-[0.2em] text-background disabled:opacity-40"
       >
-        {isPending ? "creating account…" : "create account"}
+        {isPending ? "joining…" : submitLabel}
       </button>
 
       {state?.error ? (
