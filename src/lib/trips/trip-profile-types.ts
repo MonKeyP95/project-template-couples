@@ -21,6 +21,8 @@ export interface TripProfile {
   transport: string[]
   vibe: string[]
   vibeNote: string
+  /** Free text: what they would rather not do. A hard constraint for the assistant. */
+  avoid: string
 }
 
 export const EMPTY_TRIP_PROFILE: TripProfile = {
@@ -28,6 +30,7 @@ export const EMPTY_TRIP_PROFILE: TripProfile = {
   transport: [],
   vibe: [],
   vibeNote: "",
+  avoid: "",
 }
 
 /** Tolerant parse of the jsonb `trip_profile` column. Filters transport/vibe to
@@ -52,5 +55,6 @@ export function parseTripProfile(raw: unknown): TripProfile {
     transport: pickArr(r.transport, TRIP_TRANSPORT),
     vibe: pickArr(r.vibe, TRIP_VIBES),
     vibeNote: typeof r.vibeNote === "string" ? r.vibeNote : "",
+    avoid: typeof r.avoid === "string" ? r.avoid : "",
   }
 }

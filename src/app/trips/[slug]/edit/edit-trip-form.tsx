@@ -78,6 +78,7 @@ export function EditTripForm({
   const [idea, setIdea] = React.useState(initialProfile.idea)
   const [vibe, setVibe] = React.useState<string[]>(initialProfile.vibe)
   const [vibeNote, setVibeNote] = React.useState(initialProfile.vibeNote)
+  const [avoid, setAvoid] = React.useState(initialProfile.avoid)
   const [transport, setTransport] = React.useState<string[]>(
     initialProfile.transport,
   )
@@ -111,7 +112,7 @@ export function EditTripForm({
         country: country.trim() || null,
         lat: parseFloatOrNull(lat),
         lng: parseFloatOrNull(lng),
-        profile: { idea, transport, vibe, vibeNote },
+        profile: { idea, transport, vibe, vibeNote, avoid },
         categories,
       })
       if (result.error) {
@@ -300,7 +301,7 @@ export function EditTripForm({
           </span>
           <div className="mt-4">
             <ProfileWalkthrough
-              value={{ idea, vibe, vibeNote, transport, categories }}
+              value={{ idea, vibe, vibeNote, transport, categories, avoid }}
               onChange={(patch) => {
                 if (patch.idea !== undefined) setIdea(patch.idea)
                 if (patch.vibe !== undefined) setVibe(patch.vibe)
@@ -308,6 +309,7 @@ export function EditTripForm({
                 if (patch.transport !== undefined) setTransport(patch.transport)
                 if (patch.categories !== undefined)
                   setCategories(patch.categories)
+                if (patch.avoid !== undefined) setAvoid(patch.avoid)
               }}
               disabled={isPending}
             />

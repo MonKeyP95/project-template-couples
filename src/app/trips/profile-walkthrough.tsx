@@ -10,7 +10,7 @@ import {
 } from "./profile-fields"
 import { TRIP_TRANSPORT, TRIP_VIBES } from "@/lib/trips/trip-profile-types"
 
-const PROFILE_STEP_COUNT = 4
+const PROFILE_STEP_COUNT = 5
 
 export interface ProfileWalkthroughValue {
   idea: string
@@ -18,6 +18,7 @@ export interface ProfileWalkthroughValue {
   vibeNote: string
   transport: string[]
   categories: LocalCategory[]
+  avoid: string
 }
 
 function toggled(list: string[], tag: string): string[] {
@@ -127,6 +128,20 @@ export function ProfileWalkthrough({
                 }
               />
             ))}
+          </StepShell>
+        ) : null}
+
+        {step === 4 ? (
+          <StepShell title="Anything to avoid?" hint="Optional">
+            <textarea
+              value={value.avoid}
+              onChange={(e) => onChange({ avoid: e.target.value })}
+              placeholder="e.g. no long drives, we'd rather skip the big tourist spots"
+              rows={3}
+              maxLength={500}
+              disabled={disabled}
+              className="w-full resize-y rounded-lg border border-rule bg-transparent p-3 text-[15px] text-foreground placeholder:text-muted-foreground focus:border-clay focus:outline-none disabled:opacity-50"
+            />
           </StepShell>
         ) : null}
 

@@ -38,6 +38,7 @@ export function NewTripForm() {
   const [transport, setTransport] = React.useState<string[]>([])
   const [vibe, setVibe] = React.useState<string[]>([])
   const [vibeNote, setVibeNote] = React.useState("")
+  const [avoid, setAvoid] = React.useState("")
   const [error, setError] = React.useState<string | null>(null)
   const [isPending, startTransition] = React.useTransition()
   const nameRef = React.useRef<HTMLInputElement>(null)
@@ -69,7 +70,7 @@ export function NewTripForm() {
         country: country.trim() || null,
         lat: parseFloatOrNull(lat),
         lng: parseFloatOrNull(lng),
-        profile: { idea, transport, vibe, vibeNote },
+        profile: { idea, transport, vibe, vibeNote, avoid },
         categories,
       })
       if (result.error) {
@@ -234,13 +235,14 @@ export function NewTripForm() {
 
       <div className="mt-8 border-t border-rule pt-6">
         <ProfileWalkthrough
-          value={{ idea, vibe, vibeNote, transport, categories }}
+          value={{ idea, vibe, vibeNote, transport, categories, avoid }}
           onChange={(patch) => {
             if (patch.idea !== undefined) setIdea(patch.idea)
             if (patch.vibe !== undefined) setVibe(patch.vibe)
             if (patch.vibeNote !== undefined) setVibeNote(patch.vibeNote)
             if (patch.transport !== undefined) setTransport(patch.transport)
             if (patch.categories !== undefined) setCategories(patch.categories)
+            if (patch.avoid !== undefined) setAvoid(patch.avoid)
           }}
           disabled={isPending}
           extraStep={
