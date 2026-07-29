@@ -11,7 +11,6 @@ import {
   TopoBg,
 } from "@/components/together"
 import { FlipCountdown } from "@/components/flip-countdown"
-import { TripCountdown } from "@/components/trip-countdown"
 import type { TripListItem } from "@/lib/trips/list-queries"
 import { slugToTone, type CardTone } from "@/lib/trips/slug-tone"
 import { type Weather } from "@/lib/weather/get-weather"
@@ -201,7 +200,7 @@ export function TripCard({ trip }: { trip: TripListItem }) {
       className="block overflow-hidden rounded-[12px] border border-border bg-card shadow-sm transition-shadow md:hover:shadow-md"
     >
       <div
-        className={`relative h-[112px] overflow-hidden ${surface[tone]} md:aspect-[16/10] md:h-auto`}
+        className={`relative min-h-[112px] overflow-hidden ${surface[tone]} md:aspect-[16/10] md:h-auto`}
       >
         <TopoBg tone={tone} opacity={0.14} />
         <div className="relative flex h-full flex-col justify-between p-3.5 md:p-4">
@@ -214,14 +213,15 @@ export function TripCard({ trip }: { trip: TripListItem }) {
             {coord ? <Coord>{coord}</Coord> : <span />}
           </div>
           <div>
-            <div className="flex items-baseline gap-2.5">
+            <div className="flex flex-wrap items-end gap-x-3 gap-y-2">
               <div className="t-display text-[28px] leading-none text-foreground md:text-[32px]">
                 <em>{trip.name}</em>
               </div>
               {trip.startDate ? (
-                <TripCountdown
+                <FlipCountdown
                   startDate={trip.startDate}
-                  className="text-[11px] tracking-[0.1em] md:text-[13px]"
+                  size="sm"
+                  className="shrink-0"
                 />
               ) : null}
             </div>
