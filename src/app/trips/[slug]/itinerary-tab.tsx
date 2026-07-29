@@ -726,6 +726,8 @@ export function ItineraryTab({
               tripSlug={tripSlug}
               destination={destination}
               avoid={avoid}
+              locations={locations}
+              days={days}
             />
           </>
         )}

@@ -6,9 +6,13 @@ import { useRouter, useSearchParams } from "next/navigation"
 import { Label } from "@/components/together"
 import {
   planItinerarySteps,
+  savedPlanFromItinerary,
   type ItineraryPlanStep,
   type PlanEntry,
+  type SavedPlan,
 } from "@/lib/ai/itinerary-planner"
+import type { ItineraryDay } from "@/lib/trips/itinerary-types"
+import type { ItineraryLocation } from "@/lib/trips/location-types"
 import { applyPlanEntries, draftAndApplyItinerary } from "@/lib/ai/itinerary-actions"
 
 export interface PlanItineraryProps {
@@ -17,6 +21,9 @@ export interface PlanItineraryProps {
   destination: string
   /** The trip's saved avoid text; the walk prefills from it and writes it back. */
   avoid: string
+  /** The trip's existing locations and days — the walk opens on them. */
+  locations: ItineraryLocation[]
+  days: ItineraryDay[]
 }
 
 interface ItemRow {
@@ -29,6 +36,8 @@ interface ItemRow {
   whenEnd?: string
   /** Range mode: the end-date picker is shown. */
   range?: boolean
+  /** Set when the row was read back off an existing event; makes a save patch it. */
+  serverId?: string
 }
 
 type Phase = "places" | "walk" | "review"
@@ -56,6 +65,27 @@ function rowEmpty(row: ItemRow): boolean {
   return row.subject.trim() === "" && row.note.trim() === "" && !row.whenStart && !row.whenEnd
 }
 
+/** The Places step's opening rows: the trip's locations, or one blank row. */
+function seedPlaceNames(saved: SavedPlan): string[] {
+  return saved.places.length > 0 ? saved.places.map((p) => p.name) : [""]
+}
+
+/** The walk's opening rows, keyed by step. A seeded row is keyed by its own
+ * serverId, which is already unique and never collides with a `r-N` new row. */
+function seedItems(saved: SavedPlan): Record<string, ItemRow[]> {
+  const out: Record<string, ItemRow[]> = {}
+  for (const [key, rows] of Object.entries(saved.rows)) {
+    out[key] = rows.map((r) => ({
+      id: r.serverId,
+      subject: r.subject,
+      note: "",
+      whenStart: r.whenStart,
+      serverId: r.serverId,
+    }))
+  }
+  return out
+}
+
 /**
  * Guided itinerary planner, the itinerary twin of the budget drafter. A places
  * question first, then per-place category steps (Accommodation, Food,
@@ -69,20 +99,29 @@ export function PlanItinerary({
   tripSlug,
   destination,
   avoid: initialAvoid,
+  locations,
+  days,
 }: PlanItineraryProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
+  const seq = React.useRef(0)
+  const saved = React.useMemo(
+    () => savedPlanFromItinerary(locations, days),
+    [locations, days],
+  )
+  const title = days.length > 0 ? "Edit your itinerary" : "Plan your itinerary"
   const [open, setOpen] = React.useState(searchParams.get("plan") === "1")
   const [phase, setPhase] = React.useState<Phase>("places")
-  const [placeNames, setPlaceNames] = React.useState<string[]>([""])
+  const [placeNames, setPlaceNames] = React.useState<string[]>(() => seedPlaceNames(saved))
   const [freeText, setFreeText] = React.useState("")
   const [avoid, setAvoid] = React.useState(initialAvoid)
   const [steps, setSteps] = React.useState<ItineraryPlanStep[]>([])
-  const [items, setItems] = React.useState<Record<string, ItemRow[]>>({})
+  const [items, setItems] = React.useState<Record<string, ItemRow[]>>(() =>
+    seedItems(saved),
+  )
   const [stepIndex, setStepIndex] = React.useState(0)
   const [error, setError] = React.useState<string | null>(null)
   const [isPending, startTransition] = React.useTransition()
-  const seq = React.useRef(0)
 
   const trimmedPlaces = placeNames.map((n) => n.trim()).filter((n) => n.length > 0)
 
@@ -90,14 +129,25 @@ export function PlanItinerary({
     return { id: `r-${seq.current++}`, subject: "", note: "" }
   }
 
+  /** Opening always re-reads the itinerary, so a save then reopen shows the
+   * saved state rather than the rows this component mounted with. */
+  function openWalk() {
+    seedWalk()
+    setOpen(true)
+  }
+
   function reset() {
     setOpen(false)
+    seedWalk()
+  }
+
+  function seedWalk() {
     setPhase("places")
-    setPlaceNames([""])
+    setPlaceNames(seedPlaceNames(saved))
     setFreeText("")
     setAvoid(initialAvoid)
     setSteps([])
-    setItems({})
+    setItems(seedItems(saved))
     setStepIndex(0)
     setError(null)
   }
@@ -160,6 +210,7 @@ export function PlanItinerary({
           when: rowWhen(row),
           date: row.whenStart || undefined,
           endDate: row.whenEnd || undefined,
+          serverId: row.serverId,
         })
       }
     }
@@ -215,10 +266,10 @@ export function PlanItinerary({
       <div className="flex items-center justify-between border-t border-border px-5 pt-4 pb-2">
         <button
           type="button"
-          onClick={() => setOpen(true)}
+          onClick={openWalk}
           className="rounded-full border border-border bg-transparent px-3 py-1.5 font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground hover:text-foreground"
         >
-          Plan your itinerary
+          {title}
         </button>
       </div>
     )
@@ -239,7 +290,7 @@ export function PlanItinerary({
   function renderPlaces() {
     return (
       <>
-        <Label>Plan your itinerary</Label>
+        <Label>{title}</Label>
         <div className="mt-2 font-mono text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
           {destination}
         </div>
@@ -321,7 +372,7 @@ export function PlanItinerary({
       return (
         <>
           <div className="flex items-center justify-between">
-            <Label>Plan your itinerary</Label>
+            <Label>{title}</Label>
             <span className="font-mono text-[9px] uppercase tracking-[0.16em] text-muted-foreground">
               step {stepIndex + 1} of {steps.length}
             </span>
@@ -376,7 +427,7 @@ export function PlanItinerary({
     return (
       <>
         <div className="flex items-center justify-between">
-          <Label>Plan your itinerary</Label>
+          <Label>{title}</Label>
           <span className="font-mono text-[9px] uppercase tracking-[0.16em] text-muted-foreground">
             step {stepIndex + 1} of {steps.length}
           </span>
