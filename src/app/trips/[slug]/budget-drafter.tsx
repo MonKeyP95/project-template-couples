@@ -8,7 +8,11 @@ import {
   draftAndFillBudget,
   type EnteredLine,
 } from "@/lib/ai/budget-actions"
-import { saveBudgetItems, type SaveBudgetItemInput } from "@/lib/trips/actions"
+import {
+  saveBudgetItems,
+  savePreTripItems,
+  type SaveBudgetItemInput,
+} from "@/lib/trips/actions"
 import type { BudgetItem } from "@/lib/trips/budget-item-types"
 import {
   locationDateLabel,
@@ -16,6 +20,14 @@ import {
 } from "@/lib/trips/location-budget-types"
 import type { ItineraryLocation } from "@/lib/trips/location-types"
 import { euroInput, euroRounded as fmt } from "@/lib/money"
+
+import {
+  isPreTripKey,
+  preTripBucketFor,
+  PreTripStepBody,
+  PRE_TRIP_CATEGORY,
+  PRE_TRIP_STEPS,
+} from "./budget-drafter-pretrip"
 
 function asCents(value: string): number {
   const n = Number(value)
@@ -42,6 +54,8 @@ interface ItemRow {
   sourceUrl?: string | null
   /** The assistant couldn't price this; value stays "". */
   priceUnknown?: boolean
+  /** Persisted item id, for pre-trip rows that round-tripped from the budget. */
+  serverId?: string
 }
 
 /** Units a dated range spans: nights for accommodation (12->14 = 2), inclusive
@@ -133,7 +147,8 @@ export function BudgetDrafter({
   const totalDays = tripDays > 0 ? tripDays : itineraryDays.length
   if (totalDays === 0 && locations.length === 0) return null
 
-  const bufferIndex = session ? session.steps.length : 0
+  const preCount = PRE_TRIP_STEPS.length
+  const bufferIndex = session ? preCount + session.steps.length : 0
   const reviewIndex = bufferIndex + 1
 
   function newRow(fields: Partial<ItemRow> = {}): ItemRow {
@@ -251,6 +266,23 @@ export function BudgetDrafter({
     return out
   }
 
+  /** Saved Pre-trip items -> rows per pre-trip bucket, keeping each item's id so
+   * a later save updates it in place (and keeps its paid link). */
+  function savedPreTripRows(): Record<string, Partial<ItemRow>[]> {
+    const out: Record<string, Partial<ItemRow>[]> = {}
+    for (const it of initialItems) {
+      if (it.category !== PRE_TRIP_CATEGORY) continue
+      const bucket = preTripBucketFor(it.subject)
+      ;(out[bucket] ??= []).push({
+        serverId: it.id,
+        subject: it.subject,
+        when: it.whenLabel,
+        value: it.amountCents > 0 ? euroInput(it.amountCents) : "",
+      })
+    }
+    return out
+  }
+
   /** The buffer % an existing budget was saved with, read back off its derived line. */
   function savedBufferPct(): number | null {
     const it = initialItems.find((i) => isBufferSubject(i.subject))
@@ -283,6 +315,20 @@ export function BudgetDrafter({
       const rows = (seed[step.key] ?? []).map((r) => newRow(r))
       items[step.key] = rows.length > 0 ? rows : [newRow()]
     }
+    // Pre-trip buckets always come from what's saved: there is nothing in the
+    // itinerary to seed them from, and Start over must not blank them.
+    const pre = savedPreTripRows()
+    for (const step of PRE_TRIP_STEPS) {
+      const rows = (pre[step.key] ?? []).map((r) =>
+        newRow({ subject: step.fixedSubject ?? "", ...r }),
+      )
+      items[step.key] =
+        rows.length > 0
+          ? rows
+          : step.fixedSubject === null
+            ? []
+            : [newRow({ subject: step.fixedSubject })]
+    }
     setError(null)
     setGenerated(false)
     setBufferPct(pct)
@@ -298,10 +344,13 @@ export function BudgetDrafter({
     )
   }
 
-  function addItem(bucketId: string) {
+  function addItem(bucketId: string, fields: Partial<ItemRow> = {}) {
     setSession((s) =>
       s
-        ? { ...s, items: { ...s.items, [bucketId]: [...(s.items[bucketId] ?? []), newRow()] } }
+        ? {
+            ...s,
+            items: { ...s.items, [bucketId]: [...(s.items[bucketId] ?? []), newRow(fields)] },
+          }
         : s,
     )
   }
@@ -354,7 +403,10 @@ export function BudgetDrafter({
 
   function goNext() {
     if (!session) return
-    if (stepIndex < session.steps.length) normalizeStep(session.steps[stepIndex])
+    const catIndex = stepIndex - preCount
+    if (catIndex >= 0 && catIndex < session.steps.length) {
+      normalizeStep(session.steps[catIndex])
+    }
     setStepIndex((i) => i + 1)
   }
 
@@ -362,6 +414,7 @@ export function BudgetDrafter({
     const { nameById } = locContext()
     const lines: EnteredLine[] = []
     for (const [bucketId, rows] of Object.entries(s.items)) {
+      if (isPreTripKey(bucketId)) continue
       const [stepKey, locKey] = bucketId.split(":")
       const category = CATEGORY_BY_STEP[stepKey]
       if (!category) continue
@@ -435,15 +488,34 @@ export function BudgetDrafter({
         setError(r.error)
         return
       }
-      setSession((s) => (s ? { ...s, items: filledToItems(r.lines ?? []) } : s))
+      // The pre-trip buckets never went to the assistant, so they carry over as
+      // they are; filledToItems only ever emits category buckets.
+      setSession((s) => {
+        if (!s) return s
+        const kept: Record<string, ItemRow[]> = {}
+        for (const [k, v] of Object.entries(s.items)) if (isPreTripKey(k)) kept[k] = v
+        return { ...s, items: { ...kept, ...filledToItems(r.lines ?? []) } }
+      })
       setGenerated(true)
     })
   }
 
+  /** The trip-category subtotal — the base the buffer is a percentage of. */
   function subtotalCents(s: Session): number {
     let sum = 0
     for (const [bucketId, rows] of Object.entries(s.items)) {
+      if (isPreTripKey(bucketId)) continue
       for (const r of rows) sum += rowTotalCents(bucketId, r)
+    }
+    return sum
+  }
+
+  /** The before-you-go subtotal. Sits outside the buffer base: flights and
+   * insurance are prices you looked up, not estimates needing a cushion. */
+  function preTripSubtotalCents(s: Session): number {
+    let sum = 0
+    for (const step of PRE_TRIP_STEPS) {
+      for (const r of s.items[step.key] ?? []) sum += asCents(r.value)
     }
     return sum
   }
@@ -460,6 +532,7 @@ export function BudgetDrafter({
     if (!session || isPending) return
     const items: SaveBudgetItemInput[] = []
     for (const [bucketId, rows] of Object.entries(session.items)) {
+      if (isPreTripKey(bucketId)) continue
       const [stepKey, locKey] = bucketId.split(":")
       const category = CATEGORY_BY_STEP[stepKey]
       if (!category) continue
@@ -493,7 +566,31 @@ export function BudgetDrafter({
         locationId: null,
       })
     }
+    const preItems: SaveBudgetItemInput[] = []
+    for (const step of PRE_TRIP_STEPS) {
+      for (const r of session.items[step.key] ?? []) {
+        const cents = asCents(r.value)
+        if (cents === 0 || r.subject.trim() === "") continue
+        preItems.push({
+          id: r.serverId,
+          category: PRE_TRIP_CATEGORY,
+          subject: r.subject.trim(),
+          whenLabel: r.when.trim(),
+          amountCents: cents,
+          locationId: null,
+        })
+      }
+    }
+
     startTransition(async () => {
+      // Pre-trip first: it updates in place, so paid links survive. The budget
+      // save runs second because its delete spares Pre-trip and its planned-total
+      // recompute then sees both halves.
+      const pre = await savePreTripItems({ tripId, tripSlug, items: preItems })
+      if (pre.error) {
+        setError(pre.error)
+        return
+      }
       const r = await saveBudgetItems({ tripId, tripSlug, items })
       if (r.error) {
         setError(r.error)
@@ -529,11 +626,13 @@ export function BudgetDrafter({
   return (
     <div className="border-t border-border px-5 pt-4 pb-2">
       <div className="rounded-lg border border-border bg-card px-3.5 py-3">
-        {stepIndex < session.steps.length
-          ? renderStep(session.steps[stepIndex])
-          : stepIndex === bufferIndex
-            ? renderBuffer()
-            : renderReview()}
+        {stepIndex < preCount
+          ? renderPreTripStep(stepIndex)
+          : stepIndex < bufferIndex
+            ? renderStep(session.steps[stepIndex - preCount])
+            : stepIndex === bufferIndex
+              ? renderBuffer()
+              : renderReview()}
       </div>
     </div>
   )
@@ -647,13 +746,63 @@ export function BudgetDrafter({
     )
   }
 
+  function renderPreTripStep(i: number) {
+    const step = PRE_TRIP_STEPS[i]
+    return (
+      <>
+        <div className="flex items-center justify-between">
+          <Label>before you go</Label>
+          <span className="font-mono text-[9px] uppercase tracking-[0.16em] text-muted-foreground">
+            step {i + 1} of {bufferIndex + 2}
+          </span>
+        </div>
+
+        <PreTripStepBody
+          step={step}
+          rows={session!.items[step.key] ?? []}
+          disabled={isPending}
+          onPatch={(id, patch) => patchItem(step.key, id, patch)}
+          onAdd={() => addItem(step.key, { subject: step.fixedSubject ?? "" })}
+          onRemove={(id) => removeItem(step.key, id)}
+        />
+
+        <div className="mt-4 flex items-center justify-between">
+          <button
+            type="button"
+            onClick={() => setStepIndex((s) => Math.max(0, s - 1))}
+            disabled={i === 0}
+            className="border-0 bg-transparent p-0 font-mono text-[10px] uppercase tracking-[0.2em] text-muted-foreground hover:text-foreground disabled:opacity-30"
+          >
+            back
+          </button>
+          <div className="flex items-center gap-1.5">
+            <button
+              type="button"
+              onClick={() => setSession(null)}
+              className="rounded-md border border-border bg-transparent px-3 py-1.5 font-mono text-[9.5px] uppercase tracking-[0.2em] text-muted-foreground"
+            >
+              cancel
+            </button>
+            <button
+              type="button"
+              onClick={() => setStepIndex((s) => s + 1)}
+              className="rounded-md border-0 bg-foreground px-3 py-1.5 font-mono text-[9.5px] uppercase tracking-[0.2em] text-background"
+            >
+              next
+            </button>
+          </div>
+        </div>
+      </>
+    )
+  }
+
   function renderStep(step: BudgetStep) {
     return (
       <>
         <div className="flex items-center justify-between">
           <Label>/ assistant</Label>
           <span className="font-mono text-[9px] uppercase tracking-[0.16em] text-muted-foreground">
-            step {stepIndex + 1} of {session!.steps.length}
+            step {stepIndex + 1} of {bufferIndex + 2}
           </span>
         </div>
 
@@ -764,7 +913,7 @@ export function BudgetDrafter({
         <div className="mt-4 flex items-center justify-between">
           <button
             type="button"
-            onClick={() => setStepIndex(session!.steps.length - 1)}
+            onClick={() => setStepIndex(bufferIndex - 1)}
             className="border-0 bg-transparent p-0 font-mono text-[10px] uppercase tracking-[0.2em] text-muted-foreground hover:text-foreground"
           >
             back
@@ -797,6 +946,14 @@ export function BudgetDrafter({
     const subtotal = subtotalCents(session!)
     const buffer = Math.round((subtotal * bufferPct) / 100)
     const toPrice = unknownCount(session!)
+    const preLines: { key: string; row: ItemRow }[] = []
+    for (const step of PRE_TRIP_STEPS) {
+      for (const row of session!.items[step.key] ?? []) {
+        if (asCents(row.value) === 0 && row.subject.trim() === "") continue
+        preLines.push({ key: step.key, row })
+      }
+    }
+    const preSubtotal = preTripSubtotalCents(session!)
 
     return (
       <>
@@ -811,6 +968,62 @@ export function BudgetDrafter({
             back
           </button>
         </div>
+
+        {preLines.length > 0 ? (
+          <div className="mt-2">
+            <div className="font-mono text-[9px] uppercase tracking-[0.16em] text-muted-foreground">
+              Before you go
+            </div>
+            <div className="mt-1 border-t border-rule">
+              {preLines.map(({ key, row }) => (
+                <div
+                  key={row.id}
+                  className="flex items-center justify-between gap-3 border-t border-rule py-2 first:border-t-0"
+                >
+                  <span className="min-w-0">
+                    <span className="text-[13px] text-foreground">{row.subject.trim()}</span>
+                    {row.when.trim() ? (
+                      <span className="ml-2 font-mono text-[10px] tracking-[0.04em] text-muted-foreground">
+                        {row.when.trim()}
+                      </span>
+                    ) : null}
+                  </span>
+                  <span className="flex items-center gap-2">
+                    <span className="inline-flex items-baseline gap-1">
+                      <span className="font-mono text-[12px] text-muted-foreground">€</span>
+                      <input
+                        type="number"
+                        inputMode="numeric"
+                        min={0}
+                        placeholder="0"
+                        value={row.value}
+                        onChange={(e) => patchItem(key, row.id, { value: e.target.value })}
+                        disabled={isPending}
+                        className="t-num w-16 border-0 border-b border-border bg-transparent text-right text-[13px] text-foreground outline-none focus:border-foreground"
+                      />
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => removeItem(key, row.id)}
+                      disabled={isPending}
+                      aria-label="Remove"
+                      className="border-0 bg-transparent font-mono text-[13px] text-muted-foreground hover:text-foreground"
+                    >
+                      ×
+                    </button>
+                  </span>
+                </div>
+              ))}
+            </div>
+            <div className="mt-2 flex items-center justify-between border-t border-rule pt-2 font-mono text-[11px] text-muted-foreground">
+              <span>Before you go</span>
+              <span className="t-num">€{fmt(preSubtotal)}</span>
+            </div>
+            <div className="mt-3 font-mono text-[9px] uppercase tracking-[0.16em] text-muted-foreground">
+              Trip
+            </div>
+          </div>
+        ) : null}
 
         <div className="mt-2 border-t border-rule">
           {lines.length === 0 ? (
@@ -920,7 +1133,9 @@ export function BudgetDrafter({
 
         <div className="mt-3 flex items-center justify-between border-t border-border pt-3">
           <span className="font-serif text-[15px] italic text-foreground">Total</span>
-          <span className="t-num text-[18px] text-foreground">€{fmt(subtotal + buffer)}</span>
+          <span className="t-num text-[18px] text-foreground">
+            €{fmt(preSubtotal + subtotal + buffer)}
+          </span>
         </div>
         {toPrice > 0 ? (
           <div className="mt-1 text-right font-mono text-[9px] uppercase tracking-[0.14em] text-clay">
