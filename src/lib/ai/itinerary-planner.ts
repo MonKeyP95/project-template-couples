@@ -1,4 +1,9 @@
-import { ITINERARY_TONES, type ItineraryTone } from "@/lib/trips/itinerary-types"
+import {
+  ITINERARY_TONES,
+  type ItineraryDay,
+  type ItineraryTone,
+} from "@/lib/trips/itinerary-types"
+import type { ItineraryLocation } from "@/lib/trips/location-types"
 
 export const ITINERARY_CATEGORIES = [
   "Accommodation",
@@ -96,6 +101,10 @@ export interface PlanEntry {
   date?: string
   /** YYYY-MM-DD end, when they picked a range. */
   endDate?: string
+  /** `${dayId}#${eventIndex}` when this row was read back from an existing
+   * event. The handle that makes a save patch that event instead of adding a
+   * second copy of it. */
+  serverId?: string
 }
 
 /** One step of the guided itinerary walk. Mirrors budget's BudgetStep: per-place
@@ -349,4 +358,69 @@ export function entriesToSkeleton(
       days: place.days.map((d) => ({ ...d, events: byDate.get(d.date) ?? [] })),
     })),
   }
+}
+
+/** Categories that live on a per-place step; the value is the step key prefix. */
+const PER_PLACE_STEP: Record<string, string> = {
+  Accommodation: "accommodation",
+  Food: "food",
+  Activities: "activities",
+}
+
+/** Categories that live on a trip-wide step; the value is the whole step key. */
+const TRIP_STEP: Record<string, string> = {
+  Transportation: "transportation:trip",
+  Other: "other:trip",
+}
+
+/** One walk row read back off an existing itinerary event. */
+export interface SavedPlanRow {
+  subject: string
+  /** The day this event sits on, YYYY-MM-DD. */
+  whenStart: string
+  /** `${dayId}#${eventIndex}`. */
+  serverId: string
+}
+
+/** An existing itinerary in the guided walk's shape. */
+export interface SavedPlan {
+  /** Existing locations in order — the Places step's rows. */
+  places: { id: string; name: string }[]
+  /** Step key -> rows. */
+  rows: Record<string, SavedPlanRow[]>
+}
+
+/**
+ * Read an existing itinerary back into the walk: locations become the Places
+ * step, and every day event becomes a row on its own date under the step its
+ * category belongs to. Each row keeps a serverId so applying the walk patches
+ * that event rather than adding a duplicate. The itinerary twin of the budget
+ * drafter's savedRows(). An empty itinerary yields an empty SavedPlan, which
+ * leaves the walk exactly as it opens today.
+ */
+export function savedPlanFromItinerary(
+  locations: ItineraryLocation[],
+  days: ItineraryDay[],
+): SavedPlan {
+  const places = locations.map((l) => ({ id: l.id, name: l.name }))
+  const indexById = new Map(places.map((p, i) => [p.id, i] as const))
+  const rows: Record<string, SavedPlanRow[]> = {}
+
+  for (const day of days) {
+    day.events.forEach((event, i) => {
+      const category = event.category ?? "Other"
+      const perPlace = PER_PLACE_STEP[category]
+      // A day with no location (a travel day) files under the first place, the
+      // same fallback the budget drafter uses for orphaned items.
+      const placeIdx = (day.locationId ? indexById.get(day.locationId) : undefined) ?? 0
+      const key = perPlace ? `${perPlace}:${placeIdx}` : (TRIP_STEP[category] ?? "other:trip")
+      ;(rows[key] ??= []).push({
+        subject: event.text,
+        whenStart: day.dayDate,
+        serverId: `${day.id}#${i}`,
+      })
+    })
+  }
+
+  return { places, rows }
 }
