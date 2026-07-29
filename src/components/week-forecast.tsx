@@ -4,7 +4,7 @@ import * as React from "react"
 
 import { Chevron, DayChip, Label } from "@/components/together"
 import type { DayForecast } from "@/lib/weather/get-weather"
-import { glyphFor, labelFor } from "@/lib/weather/wmo"
+import { labelFor } from "@/lib/weather/wmo"
 
 const WEEKDAY = new Intl.DateTimeFormat("en-GB", {
   weekday: "short",
@@ -70,7 +70,7 @@ export function WeekForecast({
                 key={day.date}
                 d={formatWeekday(day.date)}
                 t={Math.round(day.highC)}
-                glyph={glyphFor(day.code)}
+                code={day.code}
                 active={i === 0}
               />
             ))}

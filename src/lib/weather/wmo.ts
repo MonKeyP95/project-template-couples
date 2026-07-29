@@ -13,10 +13,3 @@ export function labelFor(code: number): string {
   if (code >= 95) return "Storm"
   return "Cloudy"
 }
-
-/** Maps a WMO weather code to one of DayChip's three glyphs. */
-export function glyphFor(code: number): "sun" | "haze" | "rain" {
-  if (code >= 51) return "rain"
-  if (code === 0 || code === 1) return "sun"
-  return "haze"
-}

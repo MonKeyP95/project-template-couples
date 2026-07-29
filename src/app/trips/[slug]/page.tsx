@@ -28,7 +28,7 @@ import { budgetBucketFor } from "@/lib/ai/budget-planner"
 import { getProfileBudgetData } from "@/lib/trips/budget-history-queries"
 import { recommendBufferPct } from "@/lib/trips/budget-history-types"
 import { summarizeBudget } from "@/lib/trips/expense-types"
-import { getTripDetailBySlug } from "@/lib/trips/fixtures"
+import { getTripDetailBySlug, type TripDetail } from "@/lib/trips/fixtures"
 import { getItineraryDays } from "@/lib/trips/itinerary-queries"
 import { getItineraryLocations } from "@/lib/trips/location-queries"
 import { getDreamItineraryDays } from "@/lib/trips/dream-itinerary-queries"
@@ -468,7 +468,7 @@ function TripHeaderView({
   )
 }
 
-function WeatherStrip({ detail }: { detail: { weather: { d: string; t: number; glyph: "sun" | "haze" | "rain" }[]; weatherActive: number } }) {
+function WeatherStrip({ detail }: { detail: TripDetail }) {
   return (
     <div className="flex border-b border-border bg-card">
       {detail.weather.map((day, i) => (
@@ -476,7 +476,7 @@ function WeatherStrip({ detail }: { detail: { weather: { d: string; t: number; g
           key={day.d + i}
           d={day.d}
           t={day.t}
-          glyph={day.glyph}
+          code={day.code}
           active={i === detail.weatherActive}
         />
       ))}

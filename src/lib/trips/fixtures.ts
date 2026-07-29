@@ -1,9 +1,8 @@
-import type { WeatherGlyph } from "@/components/together"
-
 export interface WeatherDay {
   d: string
   t: number
-  glyph: WeatherGlyph
+  /** WMO weather code. */
+  code: number
 }
 
 /**
@@ -22,13 +21,13 @@ const LOMBOK_DETAIL: TripDetail = {
   plannedBudgetCents: 280000,
   weatherActive: 2,
   weather: [
-    { d: "THU", t: 28, glyph: "sun" },
-    { d: "FRI", t: 29, glyph: "sun" },
-    { d: "SAT", t: 29, glyph: "sun" },
-    { d: "SUN", t: 27, glyph: "haze" },
-    { d: "MON", t: 26, glyph: "rain" },
-    { d: "TUE", t: 28, glyph: "sun" },
-    { d: "WED", t: 29, glyph: "sun" },
+    { d: "THU", t: 28, code: 0 },
+    { d: "FRI", t: 29, code: 0 },
+    { d: "SAT", t: 29, code: 1 },
+    { d: "SUN", t: 27, code: 3 },
+    { d: "MON", t: 26, code: 61 },
+    { d: "TUE", t: 28, code: 2 },
+    { d: "WED", t: 29, code: 0 },
   ],
 }
 
