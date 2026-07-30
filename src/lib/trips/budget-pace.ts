@@ -256,7 +256,7 @@ export function budgetPace(input: BudgetPaceInput): BudgetPace | null {
       }
     }
   } else {
-    const per = plannedBudgetCents / tripDays
+    const per = onTheRoadBudgetCents / tripDays
     for (const date of tripDates) plannedByDay.set(date, per)
   }
 
