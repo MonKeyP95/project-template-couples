@@ -13,6 +13,7 @@ import {
 } from "@dnd-kit/core"
 import {
   SortableContext,
+  arrayMove,
   useSortable,
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable"
@@ -1785,6 +1786,34 @@ function EventRow({
   )
 }
 
+function SortableEventRow(props: React.ComponentProps<typeof EventRow>) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
+    useSortable({ id: props.ev.key })
+  const style: React.CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.6 : undefined,
+  }
+  // Listeners belong to the grip alone: the row is full of text inputs, and an
+  // 8px drag threshold on the row would hijack selecting a word.
+  const handle = (
+    <button
+      type="button"
+      aria-label="Drag to reorder event"
+      className="shrink-0 cursor-grab touch-none border-0 bg-transparent px-0.5 font-mono text-[12px] leading-none text-muted-foreground hover:text-foreground active:cursor-grabbing"
+      {...attributes}
+      {...listeners}
+    >
+      ⠿
+    </button>
+  )
+  return (
+    <div ref={setNodeRef} style={style}>
+      <EventRow {...props} handle={handle} />
+    </div>
+  )
+}
+
 function DayForm({
   heading,
   dayDate,
@@ -1841,6 +1870,28 @@ function DayForm({
   onSubmit: (e: React.FormEvent) => void
   onCancel: () => void
 }) {
+  const eventDndId = React.useId()
+  const eventSensors = useSensors(
+    useSensor(MouseSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 8 } }),
+  )
+
+  // Draft-only reorder: it reaches the DB when the form is saved, because both
+  // save paths write `events` in array order into the jsonb column.
+  function onEventDragEnd(e: DragEndEvent) {
+    const over = e.over
+    if (!over || e.active.id === over.id) return
+    const activeId = String(e.active.id)
+    const overId = String(over.id)
+    setEvents(
+      arrayMove(
+        events,
+        events.findIndex((x) => x.key === activeId),
+        events.findIndex((x) => x.key === overId),
+      ),
+    )
+  }
+
   return (
     <form
       onSubmit={onSubmit}
@@ -1957,37 +2008,53 @@ function DayForm({
           Events
         </span>
         <div className="mt-1.5 space-y-2">
-          {events.map((ev) => (
-            <EventRow
-              key={ev.key}
-              ev={ev}
-              isPending={isPending}
-              onPatch={(patch) =>
-                setEvents(
-                  events.map((x) => (x.key === ev.key ? { ...x, ...patch } : x)),
-                )
-              }
-              onNormalizeTime={() =>
-                setEvents(
-                  sortEvents(
-                    events.map((x) =>
-                      x.key === ev.key ? { ...x, time: normalizeTime(x.time) } : x,
-                    ),
-                  ),
-                )
-              }
-              onNormalizeEndTime={() =>
-                setEvents(
-                  events.map((x) =>
-                    x.key === ev.key
-                      ? { ...x, endTime: normalizeTime(x.endTime) }
-                      : x,
-                  ),
-                )
-              }
-              onRemove={() => setEvents(events.filter((x) => x.key !== ev.key))}
-            />
-          ))}
+          <DndContext
+            id={eventDndId}
+            sensors={eventSensors}
+            collisionDetection={closestCenter}
+            onDragEnd={onEventDragEnd}
+          >
+            <SortableContext
+              items={events.map((x) => x.key)}
+              strategy={verticalListSortingStrategy}
+            >
+              {events.map((ev) => (
+                <SortableEventRow
+                  key={ev.key}
+                  ev={ev}
+                  isPending={isPending}
+                  onPatch={(patch) =>
+                    setEvents(
+                      events.map((x) => (x.key === ev.key ? { ...x, ...patch } : x)),
+                    )
+                  }
+                  onNormalizeTime={() =>
+                    setEvents(
+                      sortEvents(
+                        events.map((x) =>
+                          x.key === ev.key
+                            ? { ...x, time: normalizeTime(x.time) }
+                            : x,
+                        ),
+                      ),
+                    )
+                  }
+                  onNormalizeEndTime={() =>
+                    setEvents(
+                      events.map((x) =>
+                        x.key === ev.key
+                          ? { ...x, endTime: normalizeTime(x.endTime) }
+                          : x,
+                      ),
+                    )
+                  }
+                  onRemove={() =>
+                    setEvents(events.filter((x) => x.key !== ev.key))
+                  }
+                />
+              ))}
+            </SortableContext>
+          </DndContext>
         </div>
       </div>
 
