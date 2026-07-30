@@ -75,6 +75,7 @@ export default async function OnTheRoadPage() {
     plannedBudgetCents: trip.plannedBudgetCents,
     tripDays: computeTripDays(trip.startDate, trip.endDate),
     spentTodayCents,
+    currency: trip.currency,
   })
   const notes = await getNotesForDay(trip.id, today)
   const days = await getItineraryDays(trip.id)

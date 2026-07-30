@@ -24,4 +24,6 @@ export type NearDailyCapContext = {
   /** Inclusive trip day count. */
   tripDays: number
   spentTodayCents: number
+  /** The trip's reporting currency; both figures are home amounts. */
+  currency: string
 }

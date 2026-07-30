@@ -86,6 +86,7 @@ export async function draftAndFillBudget(input: {
       tripDays: dayCountInclusive(trip.startDate, trip.endDate ?? trip.startDate),
       memberCount: input.memberCount,
       budgetBand: prefs.budgetBand,
+      currency: trip.currency,
       profileBlock,
       tasteDirective,
       locations: input.locations,

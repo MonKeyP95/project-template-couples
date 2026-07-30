@@ -15,7 +15,11 @@ import { listChecklists } from "@/lib/checklists/queries"
 import { localToday } from "@/lib/time/local-today"
 import type { SurfaceKey, Suggestion, SuggestScope, SuggestDay } from "@/lib/ai/suggestion-types"
 
-const EUR = (cents: number) => `EUR ${Math.round(cents / 100)}`
+/** Money for a prompt: the trip's own currency code, so the model reasons and
+ * answers in the right unit. Every figure handed over is a home amount, so one
+ * code labels the whole prompt. */
+const amount = (cents: number, currency: string) =>
+  `${currency} ${Math.round(cents / 100)}`
 
 /** Short "Name (Country) start to end" trip line. */
 function tripLine(
@@ -69,12 +73,12 @@ async function buildPrompt(
   if (surface === "budget") {
     const items = await getBudgetItems(trip.id)
     const lines = items
-      .map((i) => `${i.category}: ${i.subject} ${EUR(i.amountCents)}`)
+      .map((i) => `${i.category}: ${i.subject} ${amount(i.amountCents, trip.currency)}`)
       .join("; ")
     return [
       `The couple is planning ${header}. Surface: budget.`,
       trip.plannedBudgetCents
-        ? `Planned budget: ${EUR(trip.plannedBudgetCents)}.`
+        ? `Planned budget: ${amount(trip.plannedBudgetCents, trip.currency)}.`
         : "No overall budget set yet.",
       items.length ? `Line items: ${lines}.` : "No budget line items yet.",
       "Suggest one budget gap, missing cost, or adjustment.",
@@ -143,6 +147,7 @@ async function buildTripPrompt(
   modeLine: string,
   onRoad: boolean,
   plannedBudgetCents: number | null,
+  currency: string,
 ): Promise<string> {
   const locations = await getItineraryLocations(tripId)
   const days = await getItineraryDays(tripId)
@@ -155,7 +160,7 @@ async function buildTripPrompt(
     `Locations: ${locNames}.`,
     `Itinerary: ${days.length} days, ${planned} with something planned.`,
     plannedBudgetCents
-      ? `Planned budget: ${EUR(plannedBudgetCents)}, ${budget.length} line items.`
+      ? `Planned budget: ${amount(plannedBudgetCents, currency)}, ${budget.length} line items.`
       : `No overall budget set; ${budget.length} line items.`,
     `Packing list: ${packing.length} items.`,
     onRoad
@@ -219,7 +224,14 @@ async function buildScopedPrompt(
     ? `The couple is on the road; today is ${today}.`
     : "The couple is planning, before the trip."
   if (scope.kind === "trip")
-    return buildTripPrompt(trip.id, header, modeLine, onRoad, trip.plannedBudgetCents)
+    return buildTripPrompt(
+      trip.id,
+      header,
+      modeLine,
+      onRoad,
+      trip.plannedBudgetCents,
+      trip.currency,
+    )
   if (scope.kind === "day")
     return buildDayPrompt(trip.id, header, modeLine, scope.date)
   return buildFreePrompt(header, modeLine, scope.text)

@@ -33,7 +33,8 @@ export const TOOL_REGISTRY: Record<string, Anthropic.Messages.ToolUnion> = {
               index: { type: "integer", description: "0-based index of the unpriced line." },
               amountEuros: {
                 type: "number",
-                description: "Whole-euro price for the whole line, or -1 if no reliable price.",
+                description:
+                  "Whole-number price in the trip's currency for the whole line, or -1 if no reliable price.",
               },
               sourceUrl: {
                 type: "string",

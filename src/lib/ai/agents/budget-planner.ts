@@ -13,6 +13,10 @@ export interface BudgetFillContext {
   tripDays: number
   memberCount: number
   budgetBand: string
+  /** The trip's reporting currency. The `amountEuros` fields below are whole
+   * units of THIS, not euros -- the name predates multi-currency and is kept
+   * because it is part of the AI tool schema. */
+  currency: string
   profileBlock: string
   tasteDirective: string
   locations: { name: string; nights: number; dateLabel: string | null }[]
@@ -36,13 +40,14 @@ function budgetFillPrompt(c: BudgetFillContext): string {
   const line = (p: { category: string; place: string; subject: string; whenLabel: string }) =>
     `${p.category}${p.place ? ` @ ${p.place}` : ""}: ${p.subject || "(unlabelled)"}${p.whenLabel ? ` [${p.whenLabel}]` : ""}`
   const priced = c.priced.length
-    ? c.priced.map((p) => `- ${line(p)} = EUR ${p.amountEuros}`).join("\n")
+    ? c.priced.map((p) => `- ${line(p)} = ${c.currency} ${p.amountEuros}`).join("\n")
     : "(none)"
   const unpriced = c.unpriced.length
     ? c.unpriced.map((u, i) => `${i}. ${line(u)}`).join("\n")
     : "(none)"
   return [
     `Draft the money side of a ${c.tripDays}-day trip to ${c.destination} for ${c.memberCount} people.`,
+    `All amounts are in ${c.currency}. Price every line in ${c.currency}.`,
     `Places in order: ${places}.`,
     c.budgetBand ? `The couple's usual spending level: ${c.budgetBand}.` : "",
     c.profileBlock,
@@ -73,7 +78,8 @@ const budgetPlanner: AgentDescriptor<BudgetFillContext, BudgetFillResult | null>
     "(a specific hotel or hostel, flights and transfers, a named activity) to find " +
     "a real, current price; for everyday gaps (daily food, local transport, small " +
     "extras) estimate from typical costs for the destination, season, trip length " +
-    "and party size. Every amount is a whole-euro figure for the whole line (whole " +
+    "and party size. Every amount is a whole-number figure, in the currency " +
+    "named in the request, for the whole line (whole " +
     "party, whole stay). NEVER fabricate: if you cannot find or reasonably estimate " +
     "a price, return amountEuros -1 for that line. When a web search produced the " +
     "number, set sourceUrl to that result's real URL; otherwise set sourceUrl to an " +
