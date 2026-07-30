@@ -11,6 +11,8 @@ export interface CurrentWorkspace {
   name: string
   createdAt: string
   role: "owner" | "member"
+  /** The workspace's home currency; the default a new trip is created with. */
+  currency: string
   members: WorkspaceMember[]
 }
 
@@ -21,7 +23,7 @@ export async function getCurrentWorkspace(): Promise<CurrentWorkspace | null> {
 
   const { data: membership } = await supabase
     .from("workspace_members")
-    .select("workspace_id, role, workspaces(name, created_at)")
+    .select("workspace_id, role, workspaces(name, created_at, currency)")
     .eq("user_id", userData.user.id)
     .limit(1)
     .maybeSingle()
@@ -53,6 +55,7 @@ export async function getCurrentWorkspace(): Promise<CurrentWorkspace | null> {
   const workspaceRow = membership.workspaces as unknown as {
     name: string
     created_at: string
+    currency: string
   }
 
   return {
@@ -60,6 +63,7 @@ export async function getCurrentWorkspace(): Promise<CurrentWorkspace | null> {
     name: workspaceRow.name,
     createdAt: workspaceRow.created_at,
     role: membership.role as "owner" | "member",
+    currency: workspaceRow.currency,
     members: rawMembers.map((m) => ({
       user_id: m.user_id,
       role: m.role as "owner" | "member",

@@ -14,6 +14,8 @@ export interface TripHeader {
   lng: number | null
   /** Planned budget goal in cents (0 = unset). */
   plannedBudgetCents: number
+  /** This trip's reporting unit. Every total on the trip is in this. */
+  currency: string
   /** Per-trip structured profile (slice 1). */
   tripProfile: TripProfile
   /** 1-based position within the workspace's trip list, ordered by start_date. */
@@ -34,6 +36,7 @@ interface TripRow {
   lat: string | number | null
   lng: string | number | null
   planned_budget_cents: number
+  currency: string
   trip_profile: unknown
 }
 
@@ -50,7 +53,7 @@ export async function getTripBySlug(
   const tripQuery = supabase
     .from("trips")
     .select(
-      "id, workspace_id, slug, name, country, start_date, end_date, fuzzy_when, lat, lng, planned_budget_cents, trip_profile",
+      "id, workspace_id, slug, name, country, start_date, end_date, fuzzy_when, lat, lng, planned_budget_cents, currency, trip_profile",
     )
     .eq("workspace_id", workspaceId)
     .eq("slug", slug)
@@ -85,6 +88,7 @@ export async function getTripBySlug(
     lat: asNumber(trip.lat),
     lng: asNumber(trip.lng),
     plannedBudgetCents: trip.planned_budget_cents,
+    currency: trip.currency,
     tripProfile: parseTripProfile(trip.trip_profile),
     index,
     total,

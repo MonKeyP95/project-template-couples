@@ -748,6 +748,9 @@ export async function createTrip(
     fuzzy_when: fuzzyWhen,
     lat: input.lat,
     lng: input.lng,
+    // Copied, not looked up: changing the workspace currency later must not
+    // rewrite a recorded trip's numbers.
+    currency: workspace.currency,
     trip_profile: tripProfile,
     created_by: userData.user.id,
   })
