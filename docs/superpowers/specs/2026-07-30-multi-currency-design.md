@@ -1,7 +1,9 @@
 # Multi-currency and conversion
 
 Date: 2026-07-30
-Status: implemented 2026-07-30; slices 1-2 verified in-app, 3-5 verification pending
+Status: implemented and verified in-app 2026-07-30. NOTE: the `trips.currency` model
+below was corrected during implementation -- a trip now carries `currency` (what you
+spend there) AND `home_currency` (the conversion target). See docs/DECISIONS.md.
 
 ## Problem
 
