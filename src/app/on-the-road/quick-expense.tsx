@@ -7,6 +7,7 @@ import { logExpense } from "@/lib/trips/actions"
 import { Label } from "@/components/together"
 import type { ExpenseCategoryRow } from "@/lib/trips/expense-types"
 import { money } from "@/lib/money"
+import { dayLabel } from "@/lib/trips/budget-pace"
 import { useCurrency } from "@/components/currency-context"
 import { CurrencyChip } from "@/app/trips/[slug]/currency-chip"
 
@@ -14,6 +15,8 @@ export interface QuickExpenseProps {
   tripId: string
   tripSlug: string
   today: string
+  /** First day of the trip; the picker never offers a day before it. */
+  tripStartDate: string
   currentUserId: string
   categories: ExpenseCategoryRow[]
   spentTodayCents: number
@@ -25,6 +28,7 @@ export function QuickExpense({
   tripId,
   tripSlug,
   today,
+  tripStartDate,
   currentUserId,
   categories,
   spentTodayCents,
@@ -38,6 +42,21 @@ export function QuickExpense({
     locationCurrency ?? spendCurrency,
   )
   const [category, setCategory] = React.useState(categories[0]?.name ?? "")
+  const [dayDate, setDayDate] = React.useState(today)
+
+  const dayOptions = React.useMemo(() => {
+    const startMs = new Date(`${tripStartDate}T00:00:00Z`).getTime()
+    const todayMs = new Date(`${today}T00:00:00Z`).getTime()
+    const out: { value: string; label: string }[] = []
+    for (let i = 0; todayMs - i * 86_400_000 >= startMs; i++) {
+      const value = new Date(todayMs - i * 86_400_000).toISOString().slice(0, 10)
+      out.push({
+        value,
+        label: i === 0 ? "Today" : i === 1 ? "Yesterday" : dayLabel(value),
+      })
+    }
+    return out
+  }, [today, tripStartDate])
   const [error, setError] = React.useState<string | null>(null)
   const [isPending, startTransition] = React.useTransition()
 
@@ -58,7 +77,7 @@ export function QuickExpense({
         currency: expenseCurrency,
         category,
         paidBy: currentUserId,
-        dayDate: today,
+        dayDate,
         locationId: null,
       })
       if (result.error) {
@@ -115,6 +134,19 @@ export function QuickExpense({
             {categories.map((c) => (
               <option key={c.id} value={c.name}>
                 {c.name}
+              </option>
+            ))}
+          </select>
+          <select
+            value={dayDate}
+            onChange={(e) => setDayDate(e.target.value)}
+            disabled={isPending}
+            aria-label="Day this expense was paid"
+            className="w-28 shrink-0 rounded-lg border border-border bg-background px-2 py-2 text-[13px] text-foreground"
+          >
+            {dayOptions.map((o) => (
+              <option key={o.value} value={o.value}>
+                {o.label}
               </option>
             ))}
           </select>

@@ -22,6 +22,11 @@ import { computeLookingAhead } from "@/lib/trips/looking-ahead"
 import { localToday } from "@/lib/time/local-today"
 import { detectNearDailyCap } from "@/lib/nudges/near-daily-cap"
 import { computeTripDays } from "@/lib/trips/trip-days"
+import { getBudgetItems } from "@/lib/trips/budget-item-queries"
+import { budgetPace, dayLabel } from "@/lib/trips/budget-pace"
+import { detectUnloggedDays } from "@/lib/nudges/unlogged-days"
+import { PaceLine } from "@/components/budget-pace-strip"
+import { CatchUpNudge } from "./catch-up-nudge"
 
 import { CurrencyProvider } from "@/components/currency-context"
 import { getRates } from "@/lib/fx/get-rates"
@@ -85,6 +90,34 @@ export default async function OnTheRoadPage() {
     days,
     locations,
   )
+
+  const budgetItems = await getBudgetItems(trip.id)
+  const locationDays: Record<string, string[]> = {}
+  for (const day of days) {
+    if (day.locationId) (locationDays[day.locationId] ??= []).push(day.dayDate)
+  }
+  for (const dates of Object.values(locationDays)) dates.sort()
+
+  const pace = budgetPace({
+    startDate: trip.startDate,
+    endDate: trip.endDate,
+    today,
+    plannedBudgetCents: trip.plannedBudgetCents,
+    budgetItems,
+    expenses: expenses.map((e) => ({
+      category: e.category,
+      dayDate: e.dayDate,
+      isSettlement: e.isSettlement,
+      amountCents: homeCents(e),
+    })),
+    locationDays,
+  })
+  const unloggedNudge = pace
+    ? detectUnloggedDays({
+        unloggedDays: pace.unloggedDays,
+        lastLoggedLabel: pace.lastLogged ? dayLabel(pace.lastLogged) : null,
+      })
+    : null
 
   const fullDate = `${WEEKDAY_FMT.format(new Date(`${today}T00:00:00Z`))} ${formatShortDate(today)}`
   const locationName = todayDay?.locationId
@@ -183,17 +216,23 @@ export default async function OnTheRoadPage() {
 
       {capNudge ? <RoadNudge nudge={capNudge} /> : null}
 
-      <QuickExpense
-        tripId={trip.id}
-        tripSlug={trip.slug}
-        today={today}
-        currentUserId={userData.user.id}
-        categories={categories}
-        spentTodayCents={spentTodayCents}
-        locationCurrency={
-          locations.find((l) => l.id === todayDay?.locationId)?.currency ?? null
-        }
-      />
+      {pace ? <PaceLine pace={pace} className="mt-4 block" /> : null}
+      {unloggedNudge ? <CatchUpNudge nudge={unloggedNudge} /> : null}
+
+      <div id="road-expense">
+        <QuickExpense
+          tripId={trip.id}
+          tripSlug={trip.slug}
+          today={today}
+          tripStartDate={trip.startDate ?? today}
+          currentUserId={userData.user.id}
+          categories={categories}
+          spentTodayCents={spentTodayCents}
+          locationCurrency={
+            locations.find((l) => l.id === todayDay?.locationId)?.currency ?? null
+          }
+        />
+      </div>
 
       <QuickNote
         tripId={trip.id}
