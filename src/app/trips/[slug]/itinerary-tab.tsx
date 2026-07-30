@@ -1707,6 +1707,84 @@ function AddDayRow({
   )
 }
 
+function EventRow({
+  ev,
+  isPending,
+  handle,
+  onPatch,
+  onNormalizeTime,
+  onNormalizeEndTime,
+  onRemove,
+}: {
+  ev: EventDraft
+  isPending: boolean
+  /** Drag grip, supplied by SortableEventRow. */
+  handle?: React.ReactNode
+  onPatch: (patch: Partial<EventDraft>) => void
+  onNormalizeTime: () => void
+  onNormalizeEndTime: () => void
+  onRemove: () => void
+}) {
+  return (
+    <div className="space-y-1.5">
+      <div className="flex items-center gap-2">
+        {handle}
+        <input
+          type="text"
+          value={ev.time}
+          onChange={(e) => onPatch({ time: e.target.value })}
+          onBlur={onNormalizeTime}
+          placeholder="09:00"
+          disabled={isPending}
+          className="t-num w-16 shrink-0 border-0 border-b border-rule bg-transparent py-1.5 text-[13px] text-foreground placeholder:text-muted-foreground focus:border-clay focus:outline-none disabled:opacity-50"
+        />
+        <input
+          type="text"
+          value={ev.endTime}
+          onChange={(e) => onPatch({ endTime: e.target.value })}
+          onBlur={onNormalizeEndTime}
+          placeholder="end"
+          disabled={isPending}
+          className="t-num w-16 shrink-0 border-0 border-b border-rule bg-transparent py-1.5 text-[13px] text-foreground placeholder:text-muted-foreground focus:border-clay focus:outline-none disabled:opacity-50"
+        />
+        <input
+          type="text"
+          value={ev.text}
+          onChange={(e) => onPatch({ text: e.target.value })}
+          placeholder="What happens"
+          disabled={isPending}
+          className="min-w-0 flex-1 border-0 border-b border-rule bg-transparent py-1.5 text-[14px] text-foreground placeholder:text-muted-foreground focus:border-clay focus:outline-none disabled:opacity-50"
+        />
+        <button
+          type="button"
+          onClick={onRemove}
+          disabled={isPending}
+          aria-label="Remove event"
+          className="border-0 bg-transparent px-1.5 py-1 font-mono text-[13px] text-muted-foreground hover:text-clay disabled:opacity-50"
+        >
+          ×
+        </button>
+      </div>
+      <input
+        type="text"
+        value={ev.url}
+        onChange={(e) => onPatch({ url: e.target.value })}
+        placeholder="link (optional)"
+        disabled={isPending}
+        className="w-full border-0 border-b border-rule bg-transparent py-1 text-[12px] text-foreground placeholder:text-muted-foreground focus:border-clay focus:outline-none disabled:opacity-50"
+      />
+      <textarea
+        value={ev.details}
+        onChange={(e) => onPatch({ details: e.target.value })}
+        placeholder="details (optional) — address, booking name, what to bring"
+        rows={2}
+        disabled={isPending}
+        className="w-full resize-y border-0 border-b border-rule bg-transparent py-1 text-[12px] text-foreground placeholder:text-muted-foreground focus:border-clay focus:outline-none disabled:opacity-50"
+      />
+    </div>
+  )
+}
+
 function DayForm({
   heading,
   dayDate,
@@ -1880,109 +1958,35 @@ function DayForm({
         </span>
         <div className="mt-1.5 space-y-2">
           {events.map((ev) => (
-            <div key={ev.key} className="space-y-1.5">
-              <div className="flex items-center gap-2">
-              <input
-                type="text"
-                value={ev.time}
-                onChange={(e) =>
-                  setEvents(
+            <EventRow
+              key={ev.key}
+              ev={ev}
+              isPending={isPending}
+              onPatch={(patch) =>
+                setEvents(
+                  events.map((x) => (x.key === ev.key ? { ...x, ...patch } : x)),
+                )
+              }
+              onNormalizeTime={() =>
+                setEvents(
+                  sortEvents(
                     events.map((x) =>
-                      x.key === ev.key ? { ...x, time: e.target.value } : x,
+                      x.key === ev.key ? { ...x, time: normalizeTime(x.time) } : x,
                     ),
-                  )
-                }
-                onBlur={() =>
-                  setEvents(
-                    sortEvents(
-                      events.map((x) =>
-                        x.key === ev.key
-                          ? { ...x, time: normalizeTime(x.time) }
-                          : x,
-                      ),
-                    ),
-                  )
-                }
-                placeholder="09:00"
-                disabled={isPending}
-                className="t-num w-16 shrink-0 border-0 border-b border-rule bg-transparent py-1.5 text-[13px] text-foreground placeholder:text-muted-foreground focus:border-clay focus:outline-none disabled:opacity-50"
-              />
-              <input
-                type="text"
-                value={ev.endTime}
-                onChange={(e) =>
-                  setEvents(
-                    events.map((x) =>
-                      x.key === ev.key ? { ...x, endTime: e.target.value } : x,
-                    ),
-                  )
-                }
-                onBlur={() =>
-                  setEvents(
-                    events.map((x) =>
-                      x.key === ev.key
-                        ? { ...x, endTime: normalizeTime(x.endTime) }
-                        : x,
-                    ),
-                  )
-                }
-                placeholder="end"
-                disabled={isPending}
-                className="t-num w-16 shrink-0 border-0 border-b border-rule bg-transparent py-1.5 text-[13px] text-foreground placeholder:text-muted-foreground focus:border-clay focus:outline-none disabled:opacity-50"
-              />
-              <input
-                type="text"
-                value={ev.text}
-                onChange={(e) =>
-                  setEvents(
-                    events.map((x) =>
-                      x.key === ev.key ? { ...x, text: e.target.value } : x,
-                    ),
-                  )
-                }
-                placeholder="What happens"
-                disabled={isPending}
-                className="min-w-0 flex-1 border-0 border-b border-rule bg-transparent py-1.5 text-[14px] text-foreground placeholder:text-muted-foreground focus:border-clay focus:outline-none disabled:opacity-50"
-              />
-              <button
-                type="button"
-                onClick={() => setEvents(events.filter((x) => x.key !== ev.key))}
-                disabled={isPending}
-                aria-label="Remove event"
-                className="border-0 bg-transparent px-1.5 py-1 font-mono text-[13px] text-muted-foreground hover:text-clay disabled:opacity-50"
-              >
-                ×
-              </button>
-              </div>
-              <input
-                type="text"
-                value={ev.url}
-                onChange={(e) =>
-                  setEvents(
-                    events.map((x) =>
-                      x.key === ev.key ? { ...x, url: e.target.value } : x,
-                    ),
-                  )
-                }
-                placeholder="link (optional)"
-                disabled={isPending}
-                className="w-full border-0 border-b border-rule bg-transparent py-1 text-[12px] text-foreground placeholder:text-muted-foreground focus:border-clay focus:outline-none disabled:opacity-50"
-              />
-              <textarea
-                value={ev.details}
-                onChange={(e) =>
-                  setEvents(
-                    events.map((x) =>
-                      x.key === ev.key ? { ...x, details: e.target.value } : x,
-                    ),
-                  )
-                }
-                placeholder="details (optional) — address, booking name, what to bring"
-                rows={2}
-                disabled={isPending}
-                className="w-full resize-y border-0 border-b border-rule bg-transparent py-1 text-[12px] text-foreground placeholder:text-muted-foreground focus:border-clay focus:outline-none disabled:opacity-50"
-              />
-            </div>
+                  ),
+                )
+              }
+              onNormalizeEndTime={() =>
+                setEvents(
+                  events.map((x) =>
+                    x.key === ev.key
+                      ? { ...x, endTime: normalizeTime(x.endTime) }
+                      : x,
+                  ),
+                )
+              }
+              onRemove={() => setEvents(events.filter((x) => x.key !== ev.key))}
+            />
           ))}
         </div>
       </div>
