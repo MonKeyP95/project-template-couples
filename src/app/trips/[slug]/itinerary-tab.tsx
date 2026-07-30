@@ -68,7 +68,8 @@ import {
   type ItineraryLocationRow,
 } from "@/lib/trips/location-types"
 import { slugToTone } from "@/lib/trips/slug-tone"
-import { euroRounded } from "@/lib/money"
+import { moneyRounded } from "@/lib/money"
+import { useCurrency } from "@/components/currency-context"
 
 const itineraryBorder: Record<ItineraryTone, string> = {
   sea: "border-l-sea",
@@ -351,6 +352,7 @@ export function ItineraryTab({
   members: Record<string, MemberToneEntry>
   currentUserId: string
 }) {
+  const { currency } = useCurrency()
   const [days, setDays] = React.useState<ItineraryDay[]>(initialItems)
   const [lastInitial, setLastInitial] = React.useState(initialItems)
   const [editingId, setEditingId] = React.useState<string | null>(null)
@@ -1125,7 +1127,7 @@ export function ItineraryTab({
               Planned total
             </span>
             <span className="t-num font-mono text-[14px] text-foreground">
-              € {euroRounded(plannedTotalCents)}
+              {moneyRounded(plannedTotalCents, currency)}
             </span>
           </div>
         </div>

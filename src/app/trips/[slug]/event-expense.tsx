@@ -4,6 +4,8 @@ import * as React from "react"
 
 import { logExpense } from "@/lib/trips/actions"
 import type { ExpenseCategoryRow } from "@/lib/trips/expense-types"
+import { currencySymbol } from "@/lib/money"
+import { useCurrency } from "@/components/currency-context"
 import type { MemberToneEntry } from "./packing-tab"
 
 export interface EventExpenseProps {
@@ -43,6 +45,7 @@ export function EventExpense({
   members,
   onClose,
 }: EventExpenseProps) {
+  const { currency } = useCurrency()
   const [amount, setAmount] = React.useState("")
   // Default to the event's stamped category when the trip still has one by that
   // name (discovery picks), else "Other" (seeded by default); the field stays
@@ -88,7 +91,9 @@ export function EventExpense({
     <form onSubmit={submit} className="mt-1 flex flex-col gap-1.5">
       <div className="flex gap-1.5">
         <div className="flex w-24 items-baseline gap-1 rounded-lg border border-border bg-background px-2 py-1">
-          <span className="font-mono text-[13px] text-muted-foreground">€</span>
+          <span className="font-mono text-[13px] text-muted-foreground">
+            {currencySymbol(currency)}
+          </span>
           <input
             value={amount}
             onChange={(e) => setAmount(e.target.value)}

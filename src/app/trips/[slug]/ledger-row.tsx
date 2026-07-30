@@ -9,7 +9,8 @@ import {
   type Expense,
   type ExpenseCategoryRow,
 } from "@/lib/trips/expense-types"
-import { euro as fmt, euroInput } from "@/lib/money"
+import { money, moneyInput } from "@/lib/money"
+import { useCurrency } from "@/components/currency-context"
 
 import { ExpenseFields } from "./expense-fields"
 import type { MemberToneEntry } from "./packing-tab"
@@ -99,6 +100,7 @@ function LedgerRowView({
   locationChip?: { name: string | null; tagged: boolean }
   onEdit: () => void
 }) {
+  const { currency } = useCurrency()
   const [error, setError] = React.useState<string | null>(null)
   const [isPending, startTransition] = React.useTransition()
   const payer = members[expense.paidBy]
@@ -163,7 +165,7 @@ function LedgerRowView({
       </div>
       <div className="flex flex-col items-end gap-1">
         <div className="t-num text-[15px] text-foreground">
-          €{fmt(expense.amountCents)}
+          {money(expense.amountCents, currency)}
         </div>
         <div className="flex items-center gap-2">
           {!expense.isSettlement ? (
@@ -213,7 +215,7 @@ function LedgerRowEditor({
     categories[0]?.name ??
     ""
   const [title, setTitle] = React.useState(expense.title)
-  const [amount, setAmount] = React.useState(euroInput(expense.amountCents))
+  const [amount, setAmount] = React.useState(moneyInput(expense.amountCents))
   const [category, setCategory] = React.useState<string>(
     validCategory ? expense.category : defaultCategory,
   )

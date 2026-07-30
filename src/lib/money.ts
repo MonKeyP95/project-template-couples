@@ -41,6 +41,14 @@ export function moneyInput(cents: number): string {
   return String(Math.round(cents) / 100)
 }
 
+/** The bare symbol for an input prefix: "DKK" -> "kr", "THB" -> "฿". */
+export function currencySymbol(currency: string): string {
+  const part = formatter(currency, 2)
+    .formatToParts(0)
+    .find((p) => p.type === "currency")
+  return part?.value ?? currency
+}
+
 const grouped2 = new Intl.NumberFormat("en-GB", {
   minimumFractionDigits: 2,
   maximumFractionDigits: 2,

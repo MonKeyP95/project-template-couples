@@ -18,7 +18,7 @@ import { WeekForecast } from "@/components/week-forecast"
 import { createClient } from "@/lib/supabase/server"
 import { isDarkTheme } from "@/lib/theme"
 import { localToday } from "@/lib/time/local-today"
-import { euroRounded } from "@/lib/money"
+import { moneyRounded } from "@/lib/money"
 import {
   getTripExpenses,
   getTripExpenseCategories,
@@ -369,6 +369,7 @@ export default async function TripPage({
           savedCents: savings.totalCents,
           plannedCents: header.plannedBudgetCents,
         }}
+        currency={header.currency}
       />
 
       <BottomNav slug={header.slug} active={activeTab} />
@@ -562,6 +563,7 @@ function DesktopRightRail({
   packing,
   budget,
   saved,
+  currency,
 }: {
   slug: string
   locations: string[]
@@ -569,6 +571,7 @@ function DesktopRightRail({
   packing: { done: number; total: number }
   budget: { spentCents: number; plannedCents: number }
   saved: { savedCents: number; plannedCents: number }
+  currency: string
 }) {
   const packingPct =
     packing.total === 0 ? 0 : Math.round((packing.done / packing.total) * 100)
@@ -597,13 +600,13 @@ function DesktopRightRail({
           />
           <ProgressRow
             label="Budget"
-            value={`€${euroRounded(budget.spentCents)} / €${euroRounded(budget.plannedCents)}`}
+            value={`${moneyRounded(budget.spentCents, currency)} / ${moneyRounded(budget.plannedCents, currency)}`}
             pct={budgetPct}
             tone="sea"
           />
           <ProgressRow
             label="Saved"
-            value={`€${euroRounded(saved.savedCents)} / €${euroRounded(saved.plannedCents)}`}
+            value={`${moneyRounded(saved.savedCents, currency)} / ${moneyRounded(saved.plannedCents, currency)}`}
             pct={savedPct}
             tone="moss"
           />

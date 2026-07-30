@@ -12,7 +12,8 @@ import {
   type DayLocation,
 } from "@/lib/trips/location-budget-types"
 import type { ItineraryLocation } from "@/lib/trips/location-types"
-import { euroRounded as fmt } from "@/lib/money"
+import { moneyRounded } from "@/lib/money"
+import { useCurrency } from "@/components/currency-context"
 
 import { LedgerRow } from "./ledger-row"
 import type { MemberToneEntry } from "./packing-tab"
@@ -38,6 +39,8 @@ export function BudgetByCategory({
   locations: ItineraryLocation[]
   itineraryDays: DayLocation[]
 }) {
+  const { currency } = useCurrency()
+  const fmt = (cents: number) => moneyRounded(cents, currency)
   const [open, setOpen] = React.useState(false)
   const [openCat, setOpenCat] = React.useState<string | null>(null)
 
@@ -90,9 +93,9 @@ export function BudgetByCategory({
                     </span>
                     <span className="font-mono text-[11px]">
                       <span className="text-muted-foreground">
-                        spent €{fmt(r.actualCents)} /{" "}
+                        spent {fmt(r.actualCents)} /{" "}
                       </span>
-                      <span className="text-foreground">€{fmt(r.plannedCents)}</span>
+                      <span className="text-foreground">{fmt(r.plannedCents)}</span>
                     </span>
                   </div>
                   <div className="mt-1.5">
@@ -106,8 +109,8 @@ export function BudgetByCategory({
                       {variance === 0
                         ? "on plan"
                         : over
-                          ? `+€${fmt(variance)} over`
-                          : `€${fmt(-variance)} under`}
+                          ? `+${fmt(variance)} over`
+                          : `${fmt(-variance)} under`}
                     </span>
                   </div>
                 </button>

@@ -16,7 +16,8 @@ import {
   type DayLocation,
 } from "@/lib/trips/location-budget-types"
 import { type ItineraryLocation } from "@/lib/trips/location-types"
-import { euro as fmt } from "@/lib/money"
+import { money } from "@/lib/money"
+import { useCurrency } from "@/components/currency-context"
 
 import { AssistantBlock } from "@/components/assistant-block"
 
@@ -236,6 +237,8 @@ function PlannedBudget({
   itineraryDays: DayLocation[]
   categories: ExpenseCategoryRow[]
 }) {
+  const { currency } = useCurrency()
+  const fmt = (cents: number) => money(cents, currency)
   const byLoc = new Map<string, BudgetItem[]>()
   for (const it of budgetItems) {
     if (!it.locationId) continue
@@ -323,7 +326,7 @@ function PlannedBudget({
           Planned total
         </span>
         <span className="t-num font-mono text-[14px] text-foreground">
-          €{fmt(plannedTotalCents)}
+          {fmt(plannedTotalCents)}
         </span>
       </div>
     </div>
@@ -339,6 +342,8 @@ function SplitBreakdown({
   paidByUser: Record<string, number>
   settlementsByUser: Record<string, number>
 }) {
+  const { currency } = useCurrency()
+  const fmt = (cents: number) => money(cents, currency)
   const entries = Object.entries(members)
   if (entries.length !== 2) return null
   return (
@@ -363,7 +368,7 @@ function SplitBreakdown({
                 paid
               </div>
               <div className="t-num mt-0.5 text-[22px] text-foreground">
-                €{fmt(paidByUser[userId] ?? 0)}
+                {fmt(paidByUser[userId] ?? 0)}
               </div>
               {sent > 0 ? (
                 <div className="mt-2 flex items-baseline justify-between border-t border-rule pt-2">
@@ -371,7 +376,7 @@ function SplitBreakdown({
                     settled
                   </span>
                   <span className="t-num text-[13px] text-foreground">
-                    €{fmt(sent)}
+                    {fmt(sent)}
                   </span>
                 </div>
               ) : null}
@@ -381,7 +386,7 @@ function SplitBreakdown({
                     received
                   </span>
                   <span className="t-num text-[13px] text-foreground">
-                    €{fmt(received)}
+                    {fmt(received)}
                   </span>
                 </div>
               ) : null}
@@ -412,6 +417,8 @@ function CompactSettle({
   onToggle?: () => void
   children?: React.ReactNode
 }) {
+  const { currency } = useCurrency()
+  const fmt = (cents: number) => money(cents, currency)
   const owedCents = Math.abs(summary.netBalanceCents)
   const isSquare = owedCents === 0
   if (isSquare && !alwaysShow) return null
@@ -437,7 +444,7 @@ function CompactSettle({
               <div className="font-mono text-[9px] uppercase tracking-[0.18em] text-muted-foreground">
                 {label}
               </div>
-              <div className="t-num text-[18px] text-foreground">€{fmt(owedCents)}</div>
+              <div className="t-num text-[18px] text-foreground">{fmt(owedCents)}</div>
             </div>
             {collapsible ? (
               <button
@@ -471,6 +478,8 @@ function SettlementHistory({
   expenses: Expense[]
   members: Record<string, MemberToneEntry>
 }) {
+  const { currency } = useCurrency()
+  const fmt = (cents: number) => money(cents, currency)
   const settlements = expenses
     .filter((e) => e.isSettlement)
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
@@ -504,7 +513,7 @@ function SettlementHistory({
                   {HISTORY_DATE.format(new Date(s.createdAt))}
                 </span>
                 <span className="t-num text-[14px] text-foreground">
-                  €{fmt(s.amountCents)}
+                  {fmt(s.amountCents)}
                 </span>
               </div>
             </div>

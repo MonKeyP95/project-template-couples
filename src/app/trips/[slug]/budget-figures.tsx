@@ -9,7 +9,8 @@ import {
 } from "@/lib/trips/actions"
 import { Avatar, Bar } from "@/components/together"
 import { type SavingsContribution } from "@/lib/trips/savings-types"
-import { euro as fmt, euroRounded } from "@/lib/money"
+import { money, moneyRounded, currencySymbol } from "@/lib/money"
+import { useCurrency } from "@/components/currency-context"
 import type { MemberToneEntry } from "./packing-tab"
 
 function Cue({ label }: { label: string }) {
@@ -29,9 +30,10 @@ function AmountField({
   valueCents: number
   onSave: (cents: number) => Promise<{ error?: string }>
   trigger: React.ReactNode
-  /** When true, the field reads as a contribution ("+€ … add") rather than a replace; the entered amount is passed through as-is. */
+  /** When true, the field reads as a contribution ("+ … add") rather than a replace; the entered amount is passed through as-is. */
   additive?: boolean
 }) {
+  const { currency } = useCurrency()
   const [editing, setEditing] = React.useState(false)
   const [value, setValue] = React.useState("")
   const [error, setError] = React.useState<string | null>(null)
@@ -94,7 +96,7 @@ function AmountField({
       className="inline-flex items-center gap-1.5"
     >
       <span className="t-display text-[20px] text-muted-foreground">
-        {additive ? "+€" : "€"}
+        {additive ? `+${currencySymbol(currency)}` : currencySymbol(currency)}
       </span>
       <input
         ref={inputRef}
@@ -133,6 +135,8 @@ export function SpentFigure({
   spentCents,
   plannedBudgetCents,
 }: SpentFigureProps) {
+  const { currency } = useCurrency()
+  const fmt = (cents: number) => money(cents, currency)
   const hasPlanned = plannedBudgetCents > 0
   const leftCents = Math.max(0, plannedBudgetCents - spentCents)
   const spentPct = hasPlanned
@@ -145,7 +149,7 @@ export function SpentFigure({
   return (
     <>
       <div className="mt-2 flex items-baseline gap-1">
-        <span className="t-display text-[22px] text-muted-foreground">€</span>
+        <span className="t-display text-[22px] text-muted-foreground">{currencySymbol(currency)}</span>
         <span className="t-display t-num text-[42px] leading-none text-foreground">
           {fmt(spentCents)}
         </span>
@@ -155,7 +159,7 @@ export function SpentFigure({
           trigger={
             hasPlanned ? (
               <span className="t-display text-[22px] text-muted-foreground">
-                {" "}/ €{fmt(plannedBudgetCents)}
+                {" "}/ {fmt(plannedBudgetCents)}
               </span>
             ) : (
               <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
@@ -173,7 +177,7 @@ export function SpentFigure({
           </div>
           <div className="mt-1.5 flex justify-between font-mono text-[10px] tracking-[0.06em] text-muted-foreground">
             <span>{spentPct}% of planned</span>
-            <span>€{fmt(leftCents)} left</span>
+            <span>{fmt(leftCents)} left</span>
           </div>
         </>
       ) : null}
@@ -202,6 +206,8 @@ export function SavedFigure({
   members,
   currentUserId,
 }: SavedFigureProps) {
+  const { currency } = useCurrency()
+  const fmt = (cents: number) => money(cents, currency)
   const [expanded, setExpanded] = React.useState(false)
   const hasPlanned = plannedBudgetCents > 0
   const savedToGo = Math.max(0, plannedBudgetCents - savedCents)
@@ -215,7 +221,7 @@ export function SavedFigure({
   return (
     <div className="mt-2">
       <div className="flex items-baseline gap-1">
-        <span className="t-display text-[18px] text-muted-foreground">€</span>
+        <span className="t-display text-[18px] text-muted-foreground">{currencySymbol(currency)}</span>
         <button
           type="button"
           onClick={() => setExpanded((v) => !v)}
@@ -232,7 +238,7 @@ export function SavedFigure({
             savedCents > 0 ? (
               hasPlanned ? (
                 <span className="t-display text-[18px] text-muted-foreground">
-                  {" "}/ €{fmt(plannedBudgetCents)}
+                  {" "}/ {fmt(plannedBudgetCents)}
                 </span>
               ) : (
                 <span className="t-display text-[18px] text-muted-foreground" />
@@ -261,7 +267,7 @@ export function SavedFigure({
           </div>
           <div className="mt-1.5 flex justify-between font-mono text-[10px] tracking-[0.06em] text-muted-foreground">
             <span>{savedPct}% saved</span>
-            <span>€{fmt(savedToGo)} to go</span>
+            <span>{fmt(savedToGo)} to go</span>
           </div>
         </>
       ) : null}
@@ -347,7 +353,7 @@ function SavingsDetails({
 }
 
 /** Per-member saved card. Press anywhere on the card to log a contribution
- * credited to that member; the amount turns into an inline "+€ … add" field. */
+ * credited to that member; the amount turns into an inline "+ … add" field. */
 function MemberSavedBox({
   tripId,
   tripSlug,
@@ -364,6 +370,8 @@ function MemberSavedBox({
   /** When false, adding (crediting someone else) asks for a confirm first. */
   isSelf: boolean
 }) {
+  const { currency } = useCurrency()
+  const fmt = (cents: number) => money(cents, currency)
   const [editing, setEditing] = React.useState(false)
   const [confirming, setConfirming] = React.useState(false)
   const [value, setValue] = React.useState("")
@@ -430,7 +438,8 @@ function MemberSavedBox({
       <div className="rounded-lg border border-foreground/30 bg-card px-3.5 py-3">
         {header}
         <div className="mt-1 text-[12px] leading-snug text-foreground">
-          Add €{euroRounded(Number(value) * 100)} to {member.displayName}?
+          Add {moneyRounded(Number(value) * 100, currency)} to{" "}
+          {member.displayName}?
         </div>
         <div className="mt-2 flex items-center gap-1.5">
           <button
@@ -471,7 +480,9 @@ function MemberSavedBox({
           }}
           className="mt-0.5 flex items-center gap-1.5"
         >
-          <span className="t-display text-[18px] text-muted-foreground">+€</span>
+          <span className="t-display text-[18px] text-muted-foreground">
+            {`+${currencySymbol(currency)}`}
+          </span>
           <input
             ref={inputRef}
             type="number"
@@ -508,7 +519,7 @@ function MemberSavedBox({
     >
       {header}
       <span className="mt-0.5 flex items-baseline gap-1.5">
-        <span className="t-num text-[22px] text-foreground">€{fmt(savedCents)}</span>
+        <span className="t-num text-[22px] text-foreground">{fmt(savedCents)}</span>
         <span className="font-mono text-[9px] uppercase tracking-[0.18em] text-muted-foreground">
           + add
         </span>
@@ -526,6 +537,8 @@ function SavingsLogRow({
   member: MemberToneEntry | undefined
   tripSlug: string
 }) {
+  const { currency } = useCurrency()
+  const fmt = (cents: number) => money(cents, currency)
   const [error, setError] = React.useState<string | null>(null)
   const [isPending, startTransition] = React.useTransition()
   const date = contributionDate(contribution.createdAt)
@@ -566,7 +579,7 @@ function SavingsLogRow({
       </div>
       <div className="flex items-center gap-2">
         <span className="t-num text-[15px] text-foreground">
-          €{fmt(contribution.amountCents)}
+          {fmt(contribution.amountCents)}
         </span>
         <button
           type="button"

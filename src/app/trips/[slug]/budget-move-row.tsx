@@ -1,5 +1,8 @@
+"use client"
+
 import type { BudgetMove } from "@/lib/trips/location-budget-types"
-import { euro as fmt } from "@/lib/money"
+import { money } from "@/lib/money"
+import { useCurrency } from "@/components/currency-context"
 
 const MONTH_SHORT = new Intl.DateTimeFormat("en-US", {
   month: "short",
@@ -14,8 +17,8 @@ function moveDate(iso: string): { mon: string; day: string } {
 /**
  * Read-only record of a budget move. Two forms:
  * - main ledger (no perspective): "Hokkaido -> Tokyo", muted amount.
- * - per-location (perspectiveLocationId set): signed "+€X from <other>" /
- *   "-€X to <other>".
+ * - per-location (perspectiveLocationId set): signed "+X from <other>" /
+ *   "-X to <other>".
  */
 export function BudgetMoveRow({
   move,
@@ -26,6 +29,8 @@ export function BudgetMoveRow({
   locationsById: Record<string, string>
   perspectiveLocationId?: string
 }) {
+  const { currency } = useCurrency()
+  const fmt = (cents: number) => money(cents, currency)
   const nameOf = (id: string | null) =>
     id ? locationsById[id] ?? "Unallocated" : "Unallocated"
   const date = moveDate(move.createdAt)
@@ -41,7 +46,8 @@ export function BudgetMoveRow({
         <span
           className={`t-num text-[12px] ${incoming ? "text-moss" : "text-clay"}`}
         >
-          {incoming ? "+" : "−"}€{fmt(move.amountCents)}
+          {incoming ? "+" : "−"}
+          {fmt(move.amountCents)}
         </span>
       </div>
     )
@@ -66,7 +72,7 @@ export function BudgetMoveRow({
         </div>
       </div>
       <div className="t-num text-[15px] text-muted-foreground">
-        €{fmt(move.amountCents)}
+        {fmt(move.amountCents)}
       </div>
     </div>
   )

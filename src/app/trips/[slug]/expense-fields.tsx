@@ -3,6 +3,8 @@
 import * as React from "react"
 
 import type { ExpenseCategoryRow } from "@/lib/trips/expense-types"
+import { currencySymbol } from "@/lib/money"
+import { useCurrency } from "@/components/currency-context"
 
 import {
   Select,
@@ -64,6 +66,7 @@ export function ExpenseFields({
   onLocationChange,
   disabled,
 }: ExpenseFieldsProps) {
+  const { currency } = useCurrency()
   const memberEntries = Object.entries(members)
   const usePillToggle = memberEntries.length === 2
 
@@ -85,7 +88,9 @@ export function ExpenseFields({
             Amount
           </span>
           <div className="mt-1 flex items-baseline gap-1.5 border-b border-rule pb-1 focus-within:border-clay">
-            <span className="font-mono text-[14px] text-muted-foreground">€</span>
+            <span className="font-mono text-[14px] text-muted-foreground">
+              {currencySymbol(currency)}
+            </span>
             <input
               type="text"
               inputMode="decimal"

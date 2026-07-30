@@ -1,5 +1,8 @@
 "use client"
 
+import { currencySymbol } from "@/lib/money"
+import { useCurrency } from "@/components/currency-context"
+
 export const PRE_TRIP_CATEGORY = "Pre-trip"
 
 export interface PreTripStep {
@@ -83,6 +86,7 @@ export function PreTripStepBody({
   onAdd: () => void
   onRemove: (id: string) => void
 }) {
+  const { currency } = useCurrency()
   return (
     <>
       <div className="mt-2 font-serif text-[15px] italic text-foreground">{step.label}</div>
@@ -123,7 +127,9 @@ export function PreTripStepBody({
                 className="min-w-0 flex-1 border-0 border-b border-border bg-transparent font-mono text-[11px] tracking-[0.04em] text-muted-foreground outline-none focus:border-foreground"
               />
               <span className="inline-flex items-baseline gap-1">
-                <span className="font-mono text-[12px] text-muted-foreground">€</span>
+                <span className="font-mono text-[12px] text-muted-foreground">
+                  {currencySymbol(currency)}
+                </span>
                 <input
                   type="number"
                   inputMode="numeric"

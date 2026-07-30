@@ -19,7 +19,8 @@ import {
   type DayLocation,
 } from "@/lib/trips/location-budget-types"
 import type { ItineraryLocation } from "@/lib/trips/location-types"
-import { euroInput, euroRounded as fmt } from "@/lib/money"
+import { moneyInput, moneyRounded, currencySymbol } from "@/lib/money"
+import { useCurrency } from "@/components/currency-context"
 
 import {
   isPreTripKey,
@@ -136,6 +137,8 @@ export function BudgetDrafter({
   itinerarySeeds,
   bufferRec,
 }: BudgetDrafterProps) {
+  const { currency } = useCurrency()
+  const fmt = (cents: number) => moneyRounded(cents, currency)
   const [session, setSession] = React.useState<Session | null>(null)
   const [stepIndex, setStepIndex] = React.useState(0)
   const [bufferPct, setBufferPct] = React.useState(bufferRec.pct)
@@ -253,7 +256,7 @@ export function BudgetDrafter({
       ;(out[bucketId] ??= []).push({
         subject: it.subject,
         when: it.whenLabel,
-        value: it.priceUnknown ? "" : per ? euroInput(per) : "",
+        value: it.priceUnknown ? "" : per ? moneyInput(per) : "",
         freq,
         count: it.count || 1,
         whenStart: it.whenStart ?? "",
@@ -277,7 +280,7 @@ export function BudgetDrafter({
         serverId: it.id,
         subject: it.subject,
         when: it.whenLabel,
-        value: it.amountCents > 0 ? euroInput(it.amountCents) : "",
+        value: it.amountCents > 0 ? moneyInput(it.amountCents) : "",
       })
     }
     return out
@@ -461,7 +464,7 @@ export function BudgetDrafter({
         newRow({
           subject: line.subject,
           when: line.whenLabel,
-          value: line.priceUnknown ? "" : euroInput(line.amountCents),
+          value: line.priceUnknown ? "" : moneyInput(line.amountCents),
           estimated: line.estimated,
           sourceUrl: line.sourceUrl,
           priceUnknown: line.priceUnknown,
@@ -726,7 +729,7 @@ export function BudgetDrafter({
           ) : null}
 
           <span className="inline-flex items-baseline gap-1">
-            <span className="font-mono text-[12px] text-muted-foreground">€</span>
+            <span className="font-mono text-[12px] text-muted-foreground">{currencySymbol(currency)}</span>
             <input
               type="number"
               inputMode="numeric"
@@ -990,7 +993,7 @@ export function BudgetDrafter({
                   </span>
                   <span className="flex items-center gap-2">
                     <span className="inline-flex items-baseline gap-1">
-                      <span className="font-mono text-[12px] text-muted-foreground">€</span>
+                      <span className="font-mono text-[12px] text-muted-foreground">{currencySymbol(currency)}</span>
                       <input
                         type="number"
                         inputMode="numeric"
@@ -1017,7 +1020,7 @@ export function BudgetDrafter({
             </div>
             <div className="mt-2 flex items-center justify-between border-t border-rule pt-2 font-mono text-[11px] text-muted-foreground">
               <span>Before you go</span>
-              <span className="t-num">€{fmt(preSubtotal)}</span>
+              <span className="t-num">{fmt(preSubtotal)}</span>
             </div>
             <div className="mt-3 font-mono text-[9px] uppercase tracking-[0.16em] text-muted-foreground">
               Trip
@@ -1076,7 +1079,7 @@ export function BudgetDrafter({
                     <span className="font-mono text-[9px] uppercase tracking-[0.12em] text-muted-foreground">
                       no price
                     </span>
-                    <span className="font-mono text-[12px] text-muted-foreground">€</span>
+                    <span className="font-mono text-[12px] text-muted-foreground">{currencySymbol(currency)}</span>
                     <input
                       type="number"
                       inputMode="numeric"
@@ -1090,7 +1093,7 @@ export function BudgetDrafter({
                   </span>
                 ) : (
                   <span className="inline-flex items-baseline gap-1">
-                    <span className="font-mono text-[12px] text-muted-foreground">€</span>
+                    <span className="font-mono text-[12px] text-muted-foreground">{currencySymbol(currency)}</span>
                     <input
                       type="number"
                       inputMode="numeric"
@@ -1103,7 +1106,7 @@ export function BudgetDrafter({
                     />
                     {multi ? (
                       <span className="font-mono text-[9px] text-muted-foreground">
-                        × {qty} = €{fmt(rowTotalCents(bucketId, row))}
+                        × {qty} = {fmt(rowTotalCents(bucketId, row))}
                       </span>
                     ) : null}
                   </span>
@@ -1127,14 +1130,14 @@ export function BudgetDrafter({
         {buffer > 0 ? (
           <div className="mt-2 flex items-center justify-between border-t border-rule pt-2 font-mono text-[11px] text-muted-foreground">
             <span>Buffer ({bufferPct}%)</span>
-            <span className="t-num">€{fmt(buffer)}</span>
+            <span className="t-num">{fmt(buffer)}</span>
           </div>
         ) : null}
 
         <div className="mt-3 flex items-center justify-between border-t border-border pt-3">
           <span className="font-serif text-[15px] italic text-foreground">Total</span>
           <span className="t-num text-[18px] text-foreground">
-            €{fmt(preSubtotal + subtotal + buffer)}
+            {fmt(preSubtotal + subtotal + buffer)}
           </span>
         </div>
         {toPrice > 0 ? (

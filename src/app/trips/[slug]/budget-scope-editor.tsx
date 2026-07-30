@@ -20,7 +20,8 @@ import {
 import type { BudgetItem } from "@/lib/trips/budget-item-types"
 import type { ExpenseCategoryRow } from "@/lib/trips/expense-types"
 import { deviceToday } from "@/lib/time/today"
-import { euroRounded } from "@/lib/money"
+import { moneyRounded } from "@/lib/money"
+import { useCurrency } from "@/components/currency-context"
 
 import { PRE_TRIP_CATEGORY } from "./budget-drafter-pretrip"
 
@@ -86,6 +87,8 @@ export function BudgetScopeEditor({
    * picker is hidden, and saves route to savePreTripItems so paid links live. */
   preTrip?: boolean
 }) {
+  const { currency } = useCurrency()
+  const fmt = (cents: number) => moneyRounded(cents, currency)
   const [rows, setRows] = React.useState<Row[]>(() =>
     items.map((it) => ({
       id: crypto.randomUUID(),
@@ -301,11 +304,11 @@ export function BudgetScopeEditor({
         </span>
         {withSpent ? (
           <span className="font-mono text-[11px] text-muted-foreground">
-            spent € {euroRounded(spentTotalCents)} /
+            spent {fmt(spentTotalCents)} /
           </span>
         ) : null}
         <span className="font-mono text-[11px] text-foreground">
-          € {euroRounded(totalCents)}
+          {fmt(totalCents)}
         </span>
         <span className="ml-auto font-mono text-[12px] leading-none text-muted-foreground">
           {open ? "⌄" : "›"}
@@ -323,11 +326,11 @@ export function BudgetScopeEditor({
                 <span className="font-mono text-[11px]">
                   {withSpent ? (
                     <span className="text-muted-foreground">
-                      spent € {euroRounded(g.spentCents)} /{" "}
+                      spent {fmt(g.spentCents)} /{" "}
                     </span>
                   ) : null}
                   <span className="text-foreground">
-                    € {euroRounded(g.subtotalCents)}
+                    {fmt(g.subtotalCents)}
                   </span>
                 </span>
               </div>

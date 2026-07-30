@@ -15,7 +15,8 @@ import {
   type DayLocation,
 } from "@/lib/trips/location-budget-types"
 import { type ItineraryLocation } from "@/lib/trips/location-types"
-import { euro as fmt } from "@/lib/money"
+import { money } from "@/lib/money"
+import { useCurrency } from "@/components/currency-context"
 
 import { BudgetMoveRow } from "./budget-move-row"
 import { LedgerRow } from "./ledger-row"
@@ -39,6 +40,7 @@ function SavingsLedgerRow({
   saving: SavingsContribution
   member: MemberToneEntry | undefined
 }) {
+  const { currency } = useCurrency()
   const date = savingDate(saving.createdAt)
   return (
     <div className="grid grid-cols-[44px_1fr_auto] items-center gap-3 border-t border-border px-5 py-3">
@@ -61,7 +63,10 @@ function SavingsLedgerRow({
           </div>
         </div>
       </div>
-      <div className="t-num text-[15px] text-moss">+€{fmt(saving.amountCents)}</div>
+      <div className="t-num text-[15px] text-moss">
+        {"+"}
+        {money(saving.amountCents, currency)}
+      </div>
     </div>
   )
 }
