@@ -27,3 +27,10 @@ export type NearDailyCapContext = {
   /** The trip's reporting currency; both figures are home amounts. */
   currency: string
 }
+
+export type UnloggedDaysContext = {
+  /** Whole days between the last logged expense and today. */
+  unloggedDays: number
+  /** Short label for the last logged day, e.g. "28 Jul"; null when nothing is logged. */
+  lastLoggedLabel: string | null
+}
