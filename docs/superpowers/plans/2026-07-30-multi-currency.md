@@ -393,14 +393,20 @@ node -e "import('./src/lib/money.ts').then(m => {
   const thb = m.money(50000, 'THB')
   console.assert(!jpy.includes('.'), 'JPY should have no decimals: ' + jpy)
   console.assert(/\.\d{2}$/.test(thb), 'THB should have two decimals: ' + thb)
-  console.assert(m.money(9761, 'DKK') === 'kr 97.61', m.money(9761, 'DKK'))
-  console.assert(m.moneyRounded(123456, 'DKK') === 'kr 1,235', m.moneyRounded(123456, 'DKK'))
+  // Note the  : Intl separates a letter-form symbol from the digits with a
+  // NO-BREAK space, not an ordinary one. Asserting with a plain space fails
+  // while printing something that looks identical.
+  console.assert(m.money(9761, 'DKK') === 'kr 97.61', JSON.stringify(m.money(9761, 'DKK')))
+  console.assert(m.moneyRounded(123456, 'DKK') === 'kr 1,235', JSON.stringify(m.moneyRounded(123456, 'DKK')))
   console.assert(m.money(50000, 'EUR') === '€500.00', m.money(50000, 'EUR'))
+  console.assert(m.moneyInput(123456) === '1234.56', m.moneyInput(123456))
   console.log('money ok |', jpy, '|', thb, '|', m.money(9761,'DKK'))
 })"
 ```
 
 Expected: `money ok | ¥500 | ฿500.00 | kr 97.61` with no assertion failures.
+
+**Verified 2026-07-30.** `money(9761, "DKK")` is `kr 97.61` and `money(50000, "EUR")` is `€500.00` — a symbol that is a letter-form ("kr") gets a U+00A0 separator, a glyph symbol ("€", "฿", "¥") gets none. This is desirable (it stops "kr" wrapping away from its number) and needs no code change, but never compare these strings with a plain space.
 
 - [ ] **Step 3: Write the currency list**
 
