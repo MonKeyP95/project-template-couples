@@ -1,7 +1,7 @@
 # Multi-currency and conversion
 
 Date: 2026-07-30
-Status: designed, not implemented
+Status: implemented 2026-07-30; slices 1-2 verified in-app, 3-5 verification pending
 
 ## Problem
 
