@@ -6,6 +6,7 @@ import { logExpense } from "@/lib/trips/actions"
 import type { ExpenseCategoryRow } from "@/lib/trips/expense-types"
 import { currencySymbol } from "@/lib/money"
 import { useCurrency } from "@/components/currency-context"
+import { CurrencyChip } from "./currency-chip"
 import type { MemberToneEntry } from "./packing-tab"
 
 export interface EventExpenseProps {
@@ -19,6 +20,8 @@ export interface EventExpenseProps {
   /** Inherited from the event's day. */
   dayDate: string
   locationId: string | null
+  /** Currency of the event's location; null = the trip's. */
+  locationCurrency: string | null
   currentUserId: string
   categories: ExpenseCategoryRow[]
   members: Record<string, MemberToneEntry>
@@ -40,6 +43,7 @@ export function EventExpense({
   eventCategory,
   dayDate,
   locationId,
+  locationCurrency,
   currentUserId,
   categories,
   members,
@@ -47,6 +51,9 @@ export function EventExpense({
 }: EventExpenseProps) {
   const { currency } = useCurrency()
   const [amount, setAmount] = React.useState("")
+  const [expenseCurrency, setExpenseCurrency] = React.useState(
+    locationCurrency ?? currency,
+  )
   // Default to the event's stamped category when the trip still has one by that
   // name (discovery picks), else "Other" (seeded by default); the field stays
   // editable and still resolves to "Other" if cleared.
@@ -70,6 +77,7 @@ export function EventExpense({
         tripSlug,
         title: eventText.trim() || "Expense",
         amount,
+        currency: expenseCurrency,
         category: category || "Other",
         paidBy,
         dayDate,
@@ -90,10 +98,19 @@ export function EventExpense({
   return (
     <form onSubmit={submit} className="mt-1 flex flex-col gap-1.5">
       <div className="flex gap-1.5">
-        <div className="flex w-24 items-baseline gap-1 rounded-lg border border-border bg-background px-2 py-1">
-          <span className="font-mono text-[13px] text-muted-foreground">
-            {currencySymbol(currency)}
-          </span>
+        <div className="flex w-28 items-baseline gap-1 rounded-lg border border-border bg-background px-2 py-1">
+          {expenseCurrency === currency ? (
+            <span className="font-mono text-[13px] text-muted-foreground">
+              {currencySymbol(currency)}
+            </span>
+          ) : null}
+          <CurrencyChip
+            value={expenseCurrency}
+            onChange={setExpenseCurrency}
+            amount={amount}
+            tripCurrencies={locationCurrency ? [locationCurrency] : []}
+            disabled={isPending}
+          />
           <input
             value={amount}
             onChange={(e) => setAmount(e.target.value)}

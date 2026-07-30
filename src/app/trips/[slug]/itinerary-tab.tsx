@@ -1328,6 +1328,7 @@ function DayCard({
       today={today}
       onStartEdit={onStartEdit}
       dragHandle={dragHandle}
+      locations={locations}
       categories={categories}
       members={members}
       currentUserId={currentUserId}
@@ -1346,6 +1347,7 @@ function DayView({
   today,
   onStartEdit,
   dragHandle,
+  locations,
   categories,
   members,
   currentUserId,
@@ -1360,6 +1362,7 @@ function DayView({
   today: string
   onStartEdit: () => void
   dragHandle?: React.ReactNode
+  locations: ItineraryLocation[]
   categories: ExpenseCategoryRow[]
   members: Record<string, MemberToneEntry>
   currentUserId: string
@@ -1454,6 +1457,10 @@ function DayView({
                           eventCategory={ev.category}
                           dayDate={day.dayDate}
                           locationId={day.locationId}
+                          locationCurrency={
+                            locations.find((l) => l.id === day.locationId)
+                              ?.currency ?? null
+                          }
                           currentUserId={currentUserId}
                           categories={categories}
                           members={members}

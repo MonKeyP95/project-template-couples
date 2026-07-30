@@ -2133,6 +2133,15 @@ Line 39 builds `- ${line(p)} = EUR ${p.amountEuros}`. Replace `EUR` with the cur
 
 Note the field is named `amountEuros`. Renaming it is out of scope for this task and touches the AI tool schema; leave the name and only fix the emitted unit label. Add a one-line comment at its declaration noting it is trip-currency units despite the name.
 
+- [ ] **Step 3b: Two more prompt strings say "euro" in prose**
+
+Found during Task 8's sweep — not in the spec's count of 7, but the same bug:
+
+- `src/lib/ai/agents/budget-planner.ts:76` — `"and party size. Every amount is a whole-euro figure for the whole line (whole "`
+- `src/lib/ai/registry.ts:36` — `description: "Whole-euro price for the whole line, or -1 if no reliable price."`
+
+Both tell Claude the unit is euros. Reword to name the trip's currency (the registry one is a tool-schema description, so use a currency-neutral phrase such as `"Whole-unit price in the trip's currency for the whole line, or -1 if no reliable price."`).
+
 - [ ] **Step 4: Prove no stale unit remains**
 
 ```bash

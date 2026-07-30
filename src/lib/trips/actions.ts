@@ -6,6 +6,8 @@ import { redirect } from "next/navigation"
 import { createClient } from "@/lib/supabase/server"
 import { localToday } from "@/lib/time/local-today"
 import { currencyOptions } from "@/lib/fx/currency-list"
+import { getRates } from "@/lib/fx/get-rates"
+import { inverseRate, rateFromAmounts, toHomeCents } from "@/lib/fx/convert"
 import {
   EXPENSE_CATEGORIES,
   type ExpenseCategoryRow,
@@ -204,10 +206,47 @@ export interface LogExpenseInput {
   tripSlug: string
   title: string
   amount: string
+  /** The currency the amount was paid in. */
+  currency: string
   category: string
   paidBy: string
   dayDate: string | null
   locationId: string | null
+}
+
+/**
+ * The home-currency side of an expense. Returns nulls when the expense is
+ * already in the trip's currency -- that is the normal case and the reason
+ * every reader uses `home_amount_cents ?? amount_cents`.
+ *
+ * Recomputed here rather than trusted from the client, so a stale rate table
+ * in a long-open tab cannot write a bad rate.
+ */
+async function resolveHomeAmount(
+  tripId: string,
+  currency: string,
+  cents: number,
+): Promise<
+  { homeAmountCents: number | null; fxRate: number | null } | { error: string }
+> {
+  const supabase = await createClient()
+  const { data: trip } = await supabase
+    .from("trips")
+    .select("currency")
+    .eq("id", tripId)
+    .maybeSingle()
+  if (!trip) return { error: "Trip not found." }
+  if (currency === trip.currency) {
+    return { homeAmountCents: null, fxRate: null }
+  }
+
+  const rates = await getRates(trip.currency)
+  const foreignPerHome = rates?.[currency]
+  if (!foreignPerHome) {
+    return { error: "No rate available for that currency right now." }
+  }
+  const fxRate = inverseRate(foreignPerHome)
+  return { homeAmountCents: toHomeCents(cents, fxRate), fxRate }
 }
 
 export interface LogExpenseResult {
@@ -248,11 +287,16 @@ export async function logExpense(
   const { data: userData, error: userError } = await supabase.auth.getUser()
   if (userError || !userData.user) return { error: "Not signed in." }
 
+  const home = await resolveHomeAmount(input.tripId, input.currency, cents)
+  if ("error" in home) return { error: home.error }
+
   const { error } = await supabase.from("expenses").insert({
     trip_id: input.tripId,
     title,
     amount_cents: cents,
-    currency: "EUR",
+    currency: input.currency,
+    home_amount_cents: home.homeAmountCents,
+    fx_rate: home.fxRate,
     paid_by: input.paidBy,
     category: input.category,
     day_date: input.dayDate,
@@ -343,11 +387,18 @@ export async function settleUp(
   }
 
   const supabase = await createClient()
+  // Already in the trip's currency: a settlement is computed from home
+  // amounts, so it needs no conversion.
+  const { data: tripRow } = await supabase
+    .from("trips")
+    .select("currency")
+    .eq("id", tripId)
+    .maybeSingle()
   const { error: insertError } = await supabase.from("expenses").insert({
     trip_id: tripId,
     title: "Settlement",
     amount_cents: Math.abs(net),
-    currency: "EUR",
+    currency: tripRow?.currency ?? "EUR",
     paid_by: debtor,
     category: "Settlement",
     day_date: await TODAY(),
@@ -387,11 +438,18 @@ export async function partialSettleUp(
   if (net === 0) return { error: "Already settled." }
 
   const supabase = await createClient()
+  // Already in the trip's currency: a settlement is computed from home
+  // amounts, so it needs no conversion.
+  const { data: tripRow } = await supabase
+    .from("trips")
+    .select("currency")
+    .eq("id", tripId)
+    .maybeSingle()
   const { error: insertError } = await supabase.from("expenses").insert({
     trip_id: tripId,
     title: "Settlement",
     amount_cents: cents,
-    currency: "EUR",
+    currency: tripRow?.currency ?? "EUR",
     paid_by: debtor,
     category: "Settlement",
     day_date: await TODAY(),
@@ -408,6 +466,10 @@ export interface UpdateExpenseInput {
   tripSlug: string
   title: string
   amount: string
+  /** The currency the amount was paid in. */
+  currency: string
+  /** The corrected home amount as typed, or null to leave it derived. */
+  homeAmount: string | null
   category: string
   paidBy: string
   dayDate: string | null
@@ -447,11 +509,66 @@ export async function updateExpense(
   }
 
   const supabase = await createClient()
+
+  const { data: existing } = await supabase
+    .from("expenses")
+    .select("trip_id, amount_cents, currency, fx_rate, home_amount_cents")
+    .eq("id", input.expenseId)
+    .maybeSingle()
+  if (!existing) return { error: "Expense not found." }
+
+  const storedRate = existing.fx_rate === null ? null : Number(existing.fx_rate)
+
+  let homePatch: {
+    home_amount_cents: number | null
+    fx_rate: number | null
+    home_amount_confirmed?: boolean
+  }
+
+  if (input.homeAmount !== null) {
+    // The user typed what it really cost. That figure is the truth and the rate
+    // is whatever reconciles the two -- card markup and fees included.
+    const homeNum = Number(input.homeAmount)
+    if (!Number.isFinite(homeNum) || homeNum <= 0) {
+      return { error: "Home amount must be greater than zero." }
+    }
+    const typedHomeCents = Math.round(homeNum * 100)
+    if (typedHomeCents >= MAX_AMOUNT_CENTS) {
+      return { error: "Amount out of range." }
+    }
+    homePatch = {
+      home_amount_cents: typedHomeCents,
+      fx_rate: rateFromAmounts(cents, typedHomeCents),
+      home_amount_confirmed: true,
+    }
+  } else if (storedRate !== null && input.currency === existing.currency) {
+    // Foreign amount changed on a row that already has a rate: hold that rate.
+    // fx_rate means "the rate that applied to this transaction", not "today's
+    // market rate", so a correction survives a later unrelated edit.
+    homePatch = {
+      home_amount_cents: toHomeCents(cents, storedRate),
+      fx_rate: storedRate,
+    }
+  } else {
+    const home = await resolveHomeAmount(
+      existing.trip_id,
+      input.currency,
+      cents,
+    )
+    if ("error" in home) return { error: home.error }
+    homePatch = {
+      home_amount_cents: home.homeAmountCents,
+      fx_rate: home.fxRate,
+    }
+  }
+
   const { error } = await supabase
     .from("expenses")
     .update({
       title,
       amount_cents: cents,
+      currency: input.currency,
+      ...homePatch,
       paid_by: input.paidBy,
       category: input.category,
       day_date: input.dayDate,
@@ -462,6 +579,27 @@ export async function updateExpense(
   if (error) return { error: error.message }
 
   revalidatePath(`/trips/${input.tripSlug}`)
+  return {}
+}
+
+/**
+ * Marks an expense as checked against the bank (or unmarks it). Touches no
+ * amount -- the numbers were already real; the flag is honesty about where
+ * they came from.
+ */
+export async function setExpenseConfirmed(
+  expenseId: string,
+  tripSlug: string,
+  confirmed: boolean,
+): Promise<{ error?: string }> {
+  const supabase = await createClient()
+  const { error } = await supabase
+    .from("expenses")
+    .update({ home_amount_confirmed: confirmed })
+    .eq("id", expenseId)
+  if (error) return { error: error.message }
+
+  revalidatePath(`/trips/${tripSlug}`)
   return {}
 }
 
@@ -2736,6 +2874,13 @@ export async function payBudgetItem(
     return { error: "Set a cost before paying." }
   }
 
+  const { data: itemTrip } = await supabase
+    .from("trips")
+    .select("currency")
+    .eq("id", item.trip_id)
+    .maybeSingle()
+  const itemTripCurrency = itemTrip?.currency ?? "EUR"
+
   const title = (item.subject as string).trim() || (item.category as string)
   const { data: exp, error: expErr } = await supabase
     .from("expenses")
@@ -2743,7 +2888,8 @@ export async function payBudgetItem(
       trip_id: item.trip_id,
       title,
       amount_cents: item.amount_cents,
-      currency: "EUR",
+      // A planning row, already in the trip's currency.
+      currency: itemTripCurrency,
       paid_by: userData.user.id,
       category: item.category,
       day_date: dayDate,

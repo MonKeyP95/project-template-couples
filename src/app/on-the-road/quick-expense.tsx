@@ -8,6 +8,7 @@ import { Label } from "@/components/together"
 import type { ExpenseCategoryRow } from "@/lib/trips/expense-types"
 import { money } from "@/lib/money"
 import { useCurrency } from "@/components/currency-context"
+import { CurrencyChip } from "@/app/trips/[slug]/currency-chip"
 
 export interface QuickExpenseProps {
   tripId: string
@@ -16,6 +17,8 @@ export interface QuickExpenseProps {
   currentUserId: string
   categories: ExpenseCategoryRow[]
   spentTodayCents: number
+  /** Currency of today's location; null = the trip's. */
+  locationCurrency: string | null
 }
 
 export function QuickExpense({
@@ -25,11 +28,15 @@ export function QuickExpense({
   currentUserId,
   categories,
   spentTodayCents,
+  locationCurrency,
 }: QuickExpenseProps) {
   const { currency } = useCurrency()
   const router = useRouter()
   const [name, setName] = React.useState("")
   const [amount, setAmount] = React.useState("")
+  const [expenseCurrency, setExpenseCurrency] = React.useState(
+    locationCurrency ?? currency,
+  )
   const [category, setCategory] = React.useState(categories[0]?.name ?? "")
   const [error, setError] = React.useState<string | null>(null)
   const [isPending, startTransition] = React.useTransition()
@@ -48,6 +55,7 @@ export function QuickExpense({
         tripSlug,
         title: name.trim(),
         amount,
+        currency: expenseCurrency,
         category,
         paidBy: currentUserId,
         dayDate: today,
@@ -73,7 +81,14 @@ export function QuickExpense({
         </span>
       </div>
       <form onSubmit={submit} className="mt-3 flex flex-col gap-2.5">
-        <div className="flex gap-2">
+        <div className="flex items-start gap-2">
+          <CurrencyChip
+            value={expenseCurrency}
+            onChange={setExpenseCurrency}
+            amount={amount}
+            tripCurrencies={locationCurrency ? [locationCurrency] : []}
+            disabled={isPending}
+          />
           <input
             value={amount}
             onChange={(e) => setAmount(e.target.value)}

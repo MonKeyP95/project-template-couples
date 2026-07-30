@@ -185,6 +185,9 @@ export default async function OnTheRoadPage() {
         currentUserId={userData.user.id}
         categories={categories}
         spentTodayCents={spentTodayCents}
+        locationCurrency={
+          locations.find((l) => l.id === todayDay?.locationId)?.currency ?? null
+        }
       />
 
       <QuickNote

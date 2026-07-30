@@ -9,6 +9,8 @@ import {
   type ExpenseCategoryRow,
 } from "@/lib/trips/expense-types"
 
+import { useCurrency } from "@/components/currency-context"
+
 import { ExpenseFields } from "./expense-fields"
 import type { MemberToneEntry } from "./packing-tab"
 import type { ItineraryLocation } from "@/lib/trips/location-types"
@@ -30,6 +32,7 @@ export function LogExpenseRow({
   locations,
   categories,
 }: LogExpenseRowProps) {
+  const { currency: tripCurrency } = useCurrency()
   const initialDay = React.useMemo(() => deviceToday(), [])
   const defaultCategory =
     categories.find((c) => c.name === EXPENSE_CATEGORY_DEFAULT)?.name ??
@@ -43,6 +46,17 @@ export function LogExpenseRow({
   const [paidBy, setPaidBy] = React.useState<string>(currentUserId)
   const [dayDate, setDayDate] = React.useState<string | null>(initialDay)
   const [locationId, setLocationId] = React.useState<string | null>(null)
+  const [expenseCurrency, setExpenseCurrency] = React.useState(tripCurrency)
+
+  /** Picking a location re-prefills the currency from it -- that is the whole
+   * point of the location carrying one. Handled here rather than in an effect
+   * so an explicit chip choice made afterwards is not clobbered. */
+  function chooseLocation(value: string | null) {
+    setLocationId(value)
+    setExpenseCurrency(
+      locations.find((l) => l.id === value)?.currency ?? tripCurrency,
+    )
+  }
   const [error, setError] = React.useState<string | null>(null)
   const [isPending, startTransition] = React.useTransition()
   const titleRef = React.useRef<HTMLInputElement>(null)
@@ -59,6 +73,7 @@ export function LogExpenseRow({
     setPaidBy(currentUserId)
     setDayDate(initialDay)
     setLocationId(null)
+    setExpenseCurrency(tripCurrency)
     setError(null)
   }
 
@@ -76,6 +91,7 @@ export function LogExpenseRow({
         tripSlug,
         title: trimmedTitle,
         amount,
+        currency: expenseCurrency,
         category,
         paidBy,
         dayDate,
@@ -143,6 +159,8 @@ export function LogExpenseRow({
         titleRef={titleRef}
         amount={amount}
         onAmountChange={setAmount}
+        expenseCurrency={expenseCurrency}
+        onExpenseCurrencyChange={setExpenseCurrency}
         dayDate={dayDate}
         onDayDateChange={setDayDate}
         categories={categories}
@@ -155,7 +173,7 @@ export function LogExpenseRow({
         members={members}
         locations={locations}
         locationId={locationId}
-        onLocationChange={setLocationId}
+        onLocationChange={chooseLocation}
         disabled={isPending}
       />
 

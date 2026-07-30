@@ -216,6 +216,7 @@ function LedgerRowEditor({
     ""
   const [title, setTitle] = React.useState(expense.title)
   const [amount, setAmount] = React.useState(moneyInput(expense.amountCents))
+  const [expenseCurrency, setExpenseCurrency] = React.useState(expense.currency)
   const [category, setCategory] = React.useState<string>(
     validCategory ? expense.category : defaultCategory,
   )
@@ -224,6 +225,14 @@ function LedgerRowEditor({
   const [locationId, setLocationId] = React.useState<string | null>(
     expense.locationId,
   )
+
+  /** Retagging to another location re-prefills the currency from it, matching
+   * the add form. */
+  function chooseLocation(value: string | null) {
+    setLocationId(value)
+    const loc = locations.find((l) => l.id === value)
+    if (loc?.currency) setExpenseCurrency(loc.currency)
+  }
   const [error, setError] = React.useState<string | null>(null)
   const [isPending, startTransition] = React.useTransition()
 
@@ -241,6 +250,8 @@ function LedgerRowEditor({
         tripSlug,
         title: title.trim(),
         amount,
+        currency: expenseCurrency,
+        homeAmount: null,
         category,
         paidBy,
         dayDate,
@@ -282,6 +293,8 @@ function LedgerRowEditor({
         onTitleChange={setTitle}
         amount={amount}
         onAmountChange={setAmount}
+        expenseCurrency={expenseCurrency}
+        onExpenseCurrencyChange={setExpenseCurrency}
         dayDate={dayDate}
         onDayDateChange={setDayDate}
         categories={categories}
@@ -294,7 +307,7 @@ function LedgerRowEditor({
         members={members}
         locations={locations}
         locationId={locationId}
-        onLocationChange={setLocationId}
+        onLocationChange={chooseLocation}
         disabled={isPending}
       />
 

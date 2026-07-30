@@ -5,6 +5,7 @@ import * as React from "react"
 import type { ExpenseCategoryRow } from "@/lib/trips/expense-types"
 import { currencySymbol } from "@/lib/money"
 import { useCurrency } from "@/components/currency-context"
+import { CurrencyChip } from "./currency-chip"
 
 import {
   Select,
@@ -24,6 +25,9 @@ export interface ExpenseFieldsProps {
   titleRef?: React.Ref<HTMLInputElement>
   amount: string
   onAmountChange: (value: string) => void
+  /** The currency the amount is entered in. */
+  expenseCurrency: string
+  onExpenseCurrencyChange: (value: string) => void
   dayDate: string | null
   onDayDateChange: (value: string | null) => void
   categories: ExpenseCategoryRow[]
@@ -51,6 +55,8 @@ export function ExpenseFields({
   titleRef,
   amount,
   onAmountChange,
+  expenseCurrency,
+  onExpenseCurrencyChange,
   dayDate,
   onDayDateChange,
   categories,
@@ -67,6 +73,9 @@ export function ExpenseFields({
   disabled,
 }: ExpenseFieldsProps) {
   const { currency } = useCurrency()
+  const locationCurrencies = Array.from(
+    new Set(locations.map((l) => l.currency).filter((c): c is string => !!c)),
+  )
   const memberEntries = Object.entries(members)
   const usePillToggle = memberEntries.length === 2
 
@@ -88,9 +97,18 @@ export function ExpenseFields({
             Amount
           </span>
           <div className="mt-1 flex items-baseline gap-1.5 border-b border-rule pb-1 focus-within:border-clay">
-            <span className="font-mono text-[14px] text-muted-foreground">
-              {currencySymbol(currency)}
-            </span>
+            {expenseCurrency === currency ? (
+              <span className="font-mono text-[14px] text-muted-foreground">
+                {currencySymbol(currency)}
+              </span>
+            ) : null}
+            <CurrencyChip
+              value={expenseCurrency}
+              onChange={onExpenseCurrencyChange}
+              amount={amount}
+              tripCurrencies={locationCurrencies}
+              disabled={disabled}
+            />
             <input
               type="text"
               inputMode="decimal"
