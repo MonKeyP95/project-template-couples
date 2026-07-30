@@ -129,7 +129,7 @@ export function QuickExpense({
             value={category}
             onChange={(e) => setCategory(e.target.value)}
             disabled={isPending}
-            className="flex-1 rounded-lg border border-border bg-background px-3 py-2 text-[13px] text-foreground"
+            className="min-w-0 flex-1 truncate rounded-lg border border-border bg-background px-3 py-2 text-[13px] text-foreground"
           >
             {categories.map((c) => (
               <option key={c.id} value={c.name}>
