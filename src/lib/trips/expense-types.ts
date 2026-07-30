@@ -2,14 +2,42 @@ export interface Expense {
   id: string
   tripId: string
   title: string
+  /** What you handed over, in hundredths of `currency`. The fact; never derived. */
   amountCents: number
   currency: string
+  /**
+   * The converted amount in the trip's currency. Null means the expense was
+   * already in the trip's currency -- readers use `homeCents`, never this
+   * field bare.
+   */
+  homeAmountCents: number | null
+  /** Home units per one foreign unit, as it applied to this transaction. */
+  fxRate: number | null
+  /** True once the user has checked this row against their bank. */
+  homeAmountConfirmed: boolean
   paidBy: string
   category: string
   dayDate: string | null
   locationId: string | null
   isSettlement: boolean
   createdAt: string
+}
+
+/**
+ * What this expense cost in the trip's currency. Every total in the app sums
+ * this, never `amountCents` -- a same-currency expense has a null home amount
+ * and would otherwise vanish from the totals.
+ */
+export function homeCents(e: {
+  amountCents: number
+  homeAmountCents: number | null
+}): number {
+  return e.homeAmountCents ?? e.amountCents
+}
+
+/** True when this expense was paid in something other than the trip's currency. */
+export function isForeign(e: Expense, tripCurrency: string): boolean {
+  return e.currency !== tripCurrency
 }
 
 export interface BudgetSummary {
@@ -47,10 +75,12 @@ export function summarizeBudget(
   let expenseTotalCents = 0
   for (const e of expenses) {
     if (e.isSettlement) {
-      settlementsByUser[e.paidBy] = (settlementsByUser[e.paidBy] ?? 0) + e.amountCents
+      settlementsByUser[e.paidBy] =
+        (settlementsByUser[e.paidBy] ?? 0) + homeCents(e)
     } else {
-      expenseTotalCents += e.amountCents
-      expensePaidByUser[e.paidBy] = (expensePaidByUser[e.paidBy] ?? 0) + e.amountCents
+      const cents = homeCents(e)
+      expenseTotalCents += cents
+      expensePaidByUser[e.paidBy] = (expensePaidByUser[e.paidBy] ?? 0) + cents
     }
   }
 

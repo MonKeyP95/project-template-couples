@@ -4,6 +4,7 @@
 
 import {
   EXPENSE_CATEGORIES,
+  homeCents,
   summarizeBudget,
   type BudgetSummary,
   type Expense,
@@ -98,7 +99,7 @@ export function perCategoryCents(
 ): CategoryAmount[] {
   const byCat = new Map<string, number>()
   for (const e of actual) {
-    byCat.set(e.category, (byCat.get(e.category) ?? 0) + e.amountCents)
+    byCat.set(e.category, (byCat.get(e.category) ?? 0) + homeCents(e))
   }
   const order = [...EXPENSE_CATEGORIES] as string[]
   const rank = (c: string) => {
@@ -140,7 +141,7 @@ export function assembleJournal(input: JournalInput): JournalRecord {
   for (const e of actual) {
     const je: JournalExpense = {
       title: e.title,
-      amountCents: e.amountCents,
+      amountCents: homeCents(e),
       category: e.category,
     }
     const locId = placeExpense(e, locations)
@@ -177,7 +178,7 @@ export function assembleJournal(input: JournalInput): JournalRecord {
 
   const preTrip = preTripItems.filter((p) => p.title.length > 0 || p.amountCents !== 0)
   const preTripCents = preTrip.reduce((s, p) => s + p.amountCents, 0)
-  const actualTotal = actual.reduce((s, e) => s + e.amountCents, 0)
+  const actualTotal = actual.reduce((s, e) => s + homeCents(e), 0)
 
   const totals: JournalTotals = {
     totalSpentCents: actualTotal + preTripCents,

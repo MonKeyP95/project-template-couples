@@ -4,7 +4,11 @@ import * as React from "react"
 
 import { Bar, Label } from "@/components/together"
 import { perCategoryRollup } from "@/lib/trips/budget-rollup-types"
-import type { Expense, ExpenseCategoryRow } from "@/lib/trips/expense-types"
+import {
+  homeCents,
+  type Expense,
+  type ExpenseCategoryRow,
+} from "@/lib/trips/expense-types"
 import type { BudgetItem } from "@/lib/trips/budget-item-types"
 import {
   dayLocationMap,
@@ -45,7 +49,18 @@ export function BudgetByCategory({
   const [openCat, setOpenCat] = React.useState<string | null>(null)
 
   const catOrder = categories.map((c) => c.name)
-  const rollup = perCategoryRollup(expenses, budgetItems, catOrder)
+  // Normalised to the trip's currency first: `Expense` is structurally
+  // assignable to ExpenseSpend, so passing it raw would silently sum foreign
+  // face values.
+  const rollup = perCategoryRollup(
+    expenses.map((e) => ({
+      category: e.category,
+      amountCents: homeCents(e),
+      isSettlement: e.isSettlement,
+    })),
+    budgetItems,
+    catOrder,
+  )
 
   const dayMap = dayLocationMap(itineraryDays)
   const locationsById = Object.fromEntries(locations.map((l) => [l.id, l.name]))

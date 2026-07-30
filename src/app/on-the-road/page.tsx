@@ -16,6 +16,7 @@ import {
   getTripExpenseCategories,
   getTripExpenses,
 } from "@/lib/trips/expense-queries"
+import { homeCents } from "@/lib/trips/expense-types"
 import { getNotesForDay } from "@/lib/trips/note-queries"
 import { computeLookingAhead } from "@/lib/trips/looking-ahead"
 import { localToday } from "@/lib/time/local-today"
@@ -69,7 +70,7 @@ export default async function OnTheRoadPage() {
   const expenses = await getTripExpenses(trip.id)
   const spentTodayCents = expenses
     .filter((e) => !e.isSettlement && e.dayDate === today)
-    .reduce((sum, e) => sum + e.amountCents, 0)
+    .reduce((sum, e) => sum + homeCents(e), 0)
   const capNudge = detectNearDailyCap({
     plannedBudgetCents: trip.plannedBudgetCents,
     tripDays: computeTripDays(trip.startDate, trip.endDate),

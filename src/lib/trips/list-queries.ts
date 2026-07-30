@@ -102,11 +102,12 @@ export async function listTripsForWorkspace(
 
     const { data: expenseRows } = await supabase
       .from("expenses")
-      .select("trip_id, amount_cents")
+      .select("trip_id, amount_cents, home_amount_cents")
       .in("trip_id", tripIds)
       .eq("is_settlement", false)
     for (const e of expenseRows ?? []) {
-      spentByTrip[e.trip_id] = (spentByTrip[e.trip_id] ?? 0) + e.amount_cents
+      spentByTrip[e.trip_id] =
+        (spentByTrip[e.trip_id] ?? 0) + (e.home_amount_cents ?? e.amount_cents)
     }
   }
 

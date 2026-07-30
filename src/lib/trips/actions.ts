@@ -296,7 +296,7 @@ async function loadTripBalance(
 
   const { data: expenseRows, error: expensesError } = await supabase
     .from("expenses")
-    .select("amount_cents, paid_by, is_settlement")
+    .select("amount_cents, home_amount_cents, paid_by, is_settlement")
     .eq("trip_id", tripId)
   if (expensesError) return { error: expensesError.message }
 
@@ -306,12 +306,13 @@ async function loadTripBalance(
   let aTransfers = 0
   let bTransfers = 0
   for (const e of expenseRows ?? []) {
+    const cents = e.home_amount_cents ?? e.amount_cents
     if (e.is_settlement) {
-      if (e.paid_by === a) aTransfers += e.amount_cents
-      else if (e.paid_by === b) bTransfers += e.amount_cents
+      if (e.paid_by === a) aTransfers += cents
+      else if (e.paid_by === b) bTransfers += cents
     } else {
-      if (e.paid_by === a) aPaid += e.amount_cents
-      else if (e.paid_by === b) bPaid += e.amount_cents
+      if (e.paid_by === a) aPaid += cents
+      else if (e.paid_by === b) bPaid += cents
     }
   }
 

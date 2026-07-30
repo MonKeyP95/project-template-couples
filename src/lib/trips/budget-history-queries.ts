@@ -19,6 +19,7 @@ interface ExpenseRow {
   trip_id: string
   category: string
   amount_cents: number
+  home_amount_cents: number | null
   is_settlement: boolean
 }
 interface ItemRow {
@@ -42,7 +43,7 @@ export async function getTripRollups(
   const [{ data: expRows }, { data: itemRows }] = await Promise.all([
     supabase
       .from("expenses")
-      .select("trip_id, category, amount_cents, is_settlement")
+      .select("trip_id, category, amount_cents, home_amount_cents, is_settlement")
       .in("trip_id", tripIds)
       .returns<ExpenseRow[]>(),
     supabase
@@ -57,7 +58,7 @@ export async function getTripRollups(
     const arr = expByTrip.get(r.trip_id) ?? []
     arr.push({
       category: r.category,
-      amountCents: r.amount_cents,
+      amountCents: r.home_amount_cents ?? r.amount_cents,
       isSettlement: r.is_settlement,
     })
     expByTrip.set(r.trip_id, arr)

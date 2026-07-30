@@ -4,6 +4,7 @@ import * as React from "react"
 
 import { Avatar, Label, TopoBg } from "@/components/together"
 import {
+  homeCents,
   type BudgetSummary,
   type Expense,
   type ExpenseCategoryRow,
@@ -260,7 +261,7 @@ function PlannedBudget({
     for (const e of expenses) {
       if (e.isSettlement) continue
       if (expenseLocationId(e, dayMap) !== locId) continue
-      out[e.category] = (out[e.category] ?? 0) + e.amountCents
+      out[e.category] = (out[e.category] ?? 0) + homeCents(e)
     }
     return out
   }

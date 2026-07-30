@@ -25,7 +25,7 @@ export async function getTripExpenses(tripId: string): Promise<Expense[]> {
   const { data } = await supabase
     .from("expenses")
     .select(
-      "id, trip_id, title, amount_cents, currency, paid_by, category, day_date, location_id, is_settlement, created_at",
+      "id, trip_id, title, amount_cents, currency, home_amount_cents, fx_rate, home_amount_confirmed, paid_by, category, day_date, location_id, is_settlement, created_at",
     )
     .eq("trip_id", tripId)
     .order("created_at", { ascending: false })
@@ -36,6 +36,11 @@ export async function getTripExpenses(tripId: string): Promise<Expense[]> {
     title: row.title,
     amountCents: row.amount_cents,
     currency: row.currency,
+    homeAmountCents: row.home_amount_cents,
+    // numeric comes back from PostgREST as a string; Number() is required, not
+    // cosmetic -- arithmetic on it would otherwise concatenate.
+    fxRate: row.fx_rate === null ? null : Number(row.fx_rate),
+    homeAmountConfirmed: row.home_amount_confirmed,
     paidBy: row.paid_by,
     category: row.category,
     dayDate: row.day_date,
