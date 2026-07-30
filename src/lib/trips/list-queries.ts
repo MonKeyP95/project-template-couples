@@ -15,6 +15,8 @@ export interface TripListItem {
   lng: number | null
   plannedBudgetCents: number
   savedCents: number
+  /** Sum of non-settlement expenses, matching the budget tab's spent figure. */
+  spentCents: number
   state: TripState
 }
 
@@ -85,6 +87,7 @@ export async function listTripsForWorkspace(
 
   const tripIds = rows.map((r) => r.id)
   const savedByTrip: Record<string, number> = {}
+  const spentByTrip: Record<string, number> = {}
   if (tripIds.length > 0) {
     const { data: contribRows } = await supabase
       .from("trip_savings_contributions")
@@ -92,6 +95,15 @@ export async function listTripsForWorkspace(
       .in("trip_id", tripIds)
     for (const c of contribRows ?? []) {
       savedByTrip[c.trip_id] = (savedByTrip[c.trip_id] ?? 0) + c.amount_cents
+    }
+
+    const { data: expenseRows } = await supabase
+      .from("expenses")
+      .select("trip_id, amount_cents")
+      .in("trip_id", tripIds)
+      .eq("is_settlement", false)
+    for (const e of expenseRows ?? []) {
+      spentByTrip[e.trip_id] = (spentByTrip[e.trip_id] ?? 0) + e.amount_cents
     }
   }
 
@@ -107,6 +119,7 @@ export async function listTripsForWorkspace(
     lng: asNumber(row.lng),
     plannedBudgetCents: row.planned_budget_cents,
     savedCents: savedByTrip[row.id] ?? 0,
+    spentCents: spentByTrip[row.id] ?? 0,
     state: deriveState(today, row.start_date, row.end_date),
   }))
 

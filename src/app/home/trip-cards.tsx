@@ -11,6 +11,7 @@ import {
   TopoBg,
 } from "@/components/together"
 import { FlipCountdown } from "@/components/flip-countdown"
+import { euroRounded } from "@/lib/money"
 import type { TripListItem } from "@/lib/trips/list-queries"
 import { slugToTone, type CardTone } from "@/lib/trips/slug-tone"
 import { type Weather } from "@/lib/weather/get-weather"
@@ -61,19 +62,50 @@ function formatCoord(lat: number | null, lng: number | null): string | null {
   return `${latStr} · ${lngStr}`
 }
 
-/**
- * Thin moss progress bar showing saved-so-far against the planned budget.
- * Renders nothing until a budget is set, matching the budget tab's rule.
- */
-function SavedBar({ saved, planned }: { saved: number; planned: number }) {
-  if (planned <= 0) return null
-  const pct = Math.min(100, Math.round((saved / planned) * 100))
+/** One thin bar with its amount-of-budget figure and percentage label. */
+function MiniBar({
+  amount,
+  planned,
+  tone,
+  label,
+}: {
+  amount: number
+  planned: number
+  tone: "sea" | "moss"
+  label: string
+}) {
+  const pct = Math.min(100, Math.round((amount / planned) * 100))
   return (
-    <div className="mt-2.5 flex items-center gap-2">
-      <Bar pct={pct} tone="moss" className="h-0.5 flex-1" />
-      <span className="shrink-0 font-mono text-[9px] tracking-[0.06em] text-muted-foreground">
-        {pct}% saved
+    <div className="flex items-center gap-2">
+      <span className="shrink-0 font-mono text-[9px] tracking-[0.06em] text-foreground">
+        €{euroRounded(amount)} / €{euroRounded(planned)}
       </span>
+      <Bar pct={pct} tone={tone} className="h-0.5 flex-1" />
+      <span className="shrink-0 font-mono text-[9px] tracking-[0.06em] text-muted-foreground">
+        {pct}% {label}
+      </span>
+    </div>
+  )
+}
+
+/**
+ * Spent-against-budget over saved-against-budget. Renders nothing until a
+ * budget is set, matching the budget tab's rule.
+ */
+function BudgetBars({
+  spent,
+  saved,
+  planned,
+}: {
+  spent: number
+  saved: number
+  planned: number
+}) {
+  if (planned <= 0) return null
+  return (
+    <div className="mt-2.5 flex flex-col gap-1.5">
+      <MiniBar amount={spent} planned={planned} tone="sea" label="spent" />
+      <MiniBar amount={saved} planned={planned} tone="moss" label="saved" />
     </div>
   )
 }
@@ -183,7 +215,11 @@ export async function HeroCard({
           </div>
           <Chevron />
         </div>
-        <SavedBar saved={trip.savedCents} planned={trip.plannedBudgetCents} />
+        <BudgetBars
+          spent={trip.spentCents}
+          saved={trip.savedCents}
+          planned={trip.plannedBudgetCents}
+        />
       </div>
     </Link>
   )
@@ -244,7 +280,11 @@ export function TripCard({ trip }: { trip: TripListItem }) {
           )}
           <Chevron />
         </div>
-        <SavedBar saved={trip.savedCents} planned={trip.plannedBudgetCents} />
+        <BudgetBars
+          spent={trip.spentCents}
+          saved={trip.savedCents}
+          planned={trip.plannedBudgetCents}
+        />
       </div>
     </Link>
   )
@@ -302,7 +342,11 @@ export function DreamTile({ trip }: { trip: TripListItem }) {
           <em>{trip.name}</em>
         </div>
         <Coord>{labelText}</Coord>
-        <SavedBar saved={trip.savedCents} planned={trip.plannedBudgetCents} />
+        <BudgetBars
+          spent={trip.spentCents}
+          saved={trip.savedCents}
+          planned={trip.plannedBudgetCents}
+        />
       </div>
     </Link>
   )
