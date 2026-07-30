@@ -1,4 +1,6 @@
 import { createClient } from "@/lib/supabase/server"
+import { getRates } from "@/lib/fx/get-rates"
+import { inverseRate, toHomeCents } from "@/lib/fx/convert"
 import { EXPENSE_CATEGORIES } from "@/lib/trips/expense-types"
 import type { TripListItem } from "@/lib/trips/list-queries"
 import {
@@ -88,16 +90,58 @@ export async function getTripRollups(
 /**
  * Both /profile budget lenses from a single fetch: the cross-trip category
  * history and the per-trip summaries (trips with real spend only).
+ *
+ * The history is normalised to `workspaceCurrency` because an average across
+ * trips has to be in one unit; the summaries are **not**, because each is
+ * rendered against its own trip's currency. Normalisation is display-only at
+ * today's rate, one conversion per trip -- no stored value is touched, so
+ * opening the Thailand trip still shows its own numbers.
  */
 export async function getProfileBudgetData(
   trips: TripListItem[],
-): Promise<{ history: CategoryHistory[]; summaries: TripBudgetSummary[] }> {
+  workspaceCurrency: string,
+): Promise<{
+  history: CategoryHistory[]
+  summaries: TripBudgetSummary[]
+  /** Trips recorded in another currency and converted for the history view. */
+  convertedTripCount: number
+}> {
   const rollups = await getTripRollups(trips)
   const catOrder = [...EXPENSE_CATEGORIES]
+
+  const currencyByTrip = new Map(trips.map((t) => [t.id, t.currency]))
+  const foreign = rollups.filter(
+    (r) => (currencyByTrip.get(r.tripId) ?? workspaceCurrency) !== workspaceCurrency,
+  )
+  const rates = foreign.length > 0 ? await getRates(workspaceCurrency) : null
+
+  function scale(cents: number, tripCurrency: string): number {
+    if (tripCurrency === workspaceCurrency) return cents
+    const foreignPerHome = rates?.[tripCurrency]
+    // No rate: leave the figure as-is rather than invent one. It is one trip in
+    // a comparison view, not a stored number.
+    if (!foreignPerHome) return cents
+    return toHomeCents(cents, inverseRate(foreignPerHome))
+  }
+
+  const normalised: TripRollupInput[] = rollups.map((r) => {
+    const cur = currencyByTrip.get(r.tripId) ?? workspaceCurrency
+    if (cur === workspaceCurrency) return r
+    return {
+      ...r,
+      rollup: r.rollup.map((c) => ({
+        category: c.category,
+        plannedCents: scale(c.plannedCents, cur),
+        actualCents: scale(c.actualCents, cur),
+      })),
+    }
+  })
+
   return {
-    history: buildBudgetHistory(rollups, catOrder),
+    history: buildBudgetHistory(normalised, catOrder),
     summaries: rollups
       .map(buildTripBudgetSummary)
       .filter((s) => s.totalActualCents > 0),
+    convertedTripCount: foreign.length,
   }
 }

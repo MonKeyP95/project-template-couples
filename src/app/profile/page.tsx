@@ -98,8 +98,11 @@ export default async function ProfilePage() {
     )
   ).filter((tb) => tb.blocks.length > 0)
 
-  const { history: budgetHistory, summaries: budgetSummaries } =
-    await getProfileBudgetData(startedTrips)
+  const {
+    history: budgetHistory,
+    summaries: budgetSummaries,
+    convertedTripCount,
+  } = await getProfileBudgetData(startedTrips, workspace.currency)
   const tasteByTrip = new Map(tripBlocks.map((tb) => [tb.trip.id, tb.blocks]))
   const budgetByTrip = new Map(
     budgetSummaries
@@ -355,6 +358,7 @@ export default async function ProfilePage() {
           <BudgetHistory
             categories={budgetHistory}
             currency={workspace.currency}
+            convertedTripCount={convertedTripCount}
           />
         </div>
       </main>

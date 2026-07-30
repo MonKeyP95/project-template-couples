@@ -24,15 +24,26 @@ function variancePhrase(pct: number | null): string {
 export function BudgetHistory({
   categories,
   currency,
+  convertedTripCount,
 }: {
   categories: CategoryHistory[]
   currency: string
+  convertedTripCount: number
 }) {
   if (categories.length === 0) return null
   return (
     <div className="mt-10 border-t border-border pt-8">
       <p className="text-sm text-muted-foreground">
         Budget history (what our trips actually cost)
+      </p>
+      <p className="mt-1 font-mono text-[10px] text-muted-foreground">
+        All figures in {currency}
+        {convertedTripCount > 0
+          ? `, including ${convertedTripCount} trip${
+              convertedTripCount === 1 ? "" : "s"
+            } recorded in another currency and converted at today's rate`
+          : ""}
+        .
       </p>
       <div className="mt-4 flex flex-col gap-3">
         {categories.map((c) => (

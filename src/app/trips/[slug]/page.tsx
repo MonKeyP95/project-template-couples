@@ -252,10 +252,12 @@ export default async function TripPage({
         ;(itinerarySeeds[bucket] ??= []).push(text)
       }
     }
-    const { summaries } = await getProfileBudgetData([
-      ...navTrips.now,
-      ...navTrips.past,
-    ])
+    // Only `summaries` is used here, and those are per-trip and un-normalised;
+    // recommendBufferPct works on plan-vs-actual ratios, so the unit is moot.
+    const { summaries } = await getProfileBudgetData(
+      [...navTrips.now, ...navTrips.past],
+      workspace.currency,
+    )
     bufferRec = recommendBufferPct(summaries)
   }
 
