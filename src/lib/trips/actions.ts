@@ -5,6 +5,7 @@ import { redirect } from "next/navigation"
 
 import { createClient } from "@/lib/supabase/server"
 import { localToday } from "@/lib/time/local-today"
+import { currencyOptions } from "@/lib/fx/currency-list"
 import {
   EXPENSE_CATEGORIES,
   type ExpenseCategoryRow,
@@ -832,6 +833,8 @@ export interface UpdateTripInput {
   country: string | null
   lat: number | null
   lng: number | null
+  /** This trip's reporting unit. Editing it does not rewrite any stored row. */
+  currency: string
   profile?: TripProfile
   categories?: { name: string; details: string[] }[]
 }
@@ -858,6 +861,10 @@ export async function updateTrip(
   const slug = input.slug.trim()
   if (!SLUG_RE.test(slug)) {
     return { error: "Slug must be lowercase letters, numbers, hyphens." }
+  }
+
+  if (!currencyOptions().some((o) => o.code === input.currency)) {
+    return { error: "Unknown currency." }
   }
 
   const hasLat = input.lat !== null
@@ -982,6 +989,7 @@ export async function updateTrip(
         fuzzy_when: fuzzyWhen,
         lat: input.lat,
         lng: input.lng,
+        currency: input.currency,
         ...profilePatch,
       })
       .eq("id", input.tripId)
@@ -1021,6 +1029,7 @@ export async function updateTrip(
           country,
           lat: input.lat,
           lng: input.lng,
+          currency: input.currency,
           ...profilePatch,
         })
         .eq("id", input.tripId)
@@ -1061,6 +1070,7 @@ export async function updateTrip(
       fuzzy_when: null,
       lat: input.lat,
       lng: input.lng,
+      currency: input.currency,
       ...profilePatch,
     })
     .eq("id", input.tripId)

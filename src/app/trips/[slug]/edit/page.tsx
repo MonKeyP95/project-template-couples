@@ -56,6 +56,7 @@ export default async function EditTripPage({
           endDate: trip.endDate,
           fuzzyWhen: trip.fuzzyWhen,
           country: trip.country,
+          currency: trip.currency,
           lat: trip.lat,
           lng: trip.lng,
         }}

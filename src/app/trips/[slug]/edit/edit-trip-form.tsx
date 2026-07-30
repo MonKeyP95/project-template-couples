@@ -4,6 +4,7 @@ import * as React from "react"
 import { useRouter } from "next/navigation"
 
 import { deleteTrip, updateTrip } from "@/lib/trips/actions"
+import { currencyOptions } from "@/lib/fx/currency-list"
 import { type LocalCategory } from "../../profile-fields"
 import { ProfileWalkthrough } from "../../profile-walkthrough"
 import { type TripProfile } from "@/lib/trips/trip-profile-types"
@@ -43,6 +44,7 @@ export interface EditTripInitial {
   country: string | null
   lat: number | null
   lng: number | null
+  currency: string
 }
 
 export function EditTripForm({
@@ -66,6 +68,7 @@ export function EditTripForm({
   const [endDate, setEndDate] = React.useState(initial.endDate ?? "")
   const [fuzzyWhen, setFuzzyWhen] = React.useState(initial.fuzzyWhen ?? "")
   const [country, setCountry] = React.useState(initial.country ?? "")
+  const [currency, setCurrency] = React.useState(initial.currency)
   const [advancedOpen, setAdvancedOpen] = React.useState(
     initial.lat !== null || initial.lng !== null,
   )
@@ -110,6 +113,7 @@ export function EditTripForm({
         endDate: isDream ? null : endDate || null,
         fuzzyWhen: isDream ? fuzzyWhen.trim() || null : null,
         country: country.trim() || null,
+        currency,
         lat: parseFloatOrNull(lat),
         lng: parseFloatOrNull(lng),
         profile: { idea, transport, vibe, vibeNote, avoid },
@@ -249,6 +253,28 @@ export function EditTripForm({
             disabled={isPending}
             className="mt-1 w-full border-0 border-b border-rule bg-transparent py-1.5 text-[14px] text-foreground placeholder:text-muted-foreground focus:border-clay focus:outline-none disabled:opacity-50"
           />
+        </label>
+
+        <label className="mt-5 block">
+          <span className="block font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
+            Currency
+          </span>
+          <select
+            value={currency}
+            onChange={(e) => setCurrency(e.target.value)}
+            disabled={isPending}
+            className="mt-1 block w-full rounded-md border border-border bg-transparent px-3 py-2 text-sm disabled:opacity-50"
+          >
+            {currencyOptions().map((o) => (
+              <option key={o.code} value={o.code}>
+                {o.label}
+              </option>
+            ))}
+          </select>
+          <span className="mt-1 block font-mono text-[10px] text-muted-foreground">
+            Every total on this trip is shown in this. Changing it does not
+            rewrite anything you have already recorded.
+          </span>
         </label>
 
         <button

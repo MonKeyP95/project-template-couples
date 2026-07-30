@@ -11,6 +11,8 @@ import {
 } from "@/components/app-nav"
 import { isDarkTheme } from "@/lib/theme"
 import { getCurrentWorkspace } from "@/lib/workspace/queries"
+import { setWorkspaceCurrency } from "@/lib/workspace/actions"
+import { currencyOptions } from "@/lib/fx/currency-list"
 import { listTripsForWorkspace } from "@/lib/trips/list-queries"
 import { getDiningPreferences } from "@/lib/preferences/dining-queries"
 import { BUDGET_BANDS } from "@/lib/preferences/dining-types"
@@ -169,6 +171,30 @@ export default async function ProfilePage() {
               </dd>
             </div>
           </dl>
+
+          <form action={setWorkspaceCurrency} className="mt-10">
+            <label className="block text-xs text-muted-foreground">
+              Home currency
+              <select
+                name="currency"
+                defaultValue={workspace.currency}
+                className="mt-1 block w-full rounded-md border border-border bg-transparent px-3 py-2 text-sm"
+              >
+                {currencyOptions().map((o) => (
+                  <option key={o.code} value={o.code}>
+                    {o.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <p className="mt-2 text-xs text-muted-foreground">
+              New trips start in this currency. Trips you have already recorded
+              keep theirs.
+            </p>
+            <Button type="submit" size="lg" className="mt-3">
+              Save currency
+            </Button>
+          </form>
 
           <p className="mt-8 border-t border-border pt-8 text-sm text-muted-foreground">
             What we like (used by the AI to suggest places)

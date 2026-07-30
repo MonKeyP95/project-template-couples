@@ -2,7 +2,10 @@
 
 import { randomBytes } from "node:crypto"
 
+import { revalidatePath } from "next/cache"
+
 import { createClient } from "@/lib/supabase/server"
+import { currencyOptions } from "@/lib/fx/currency-list"
 
 /** Invite links leave this machine, so they always point at the deployed app —
  * never at whatever origin generated them. Local dev and prod share one Supabase
@@ -54,6 +57,40 @@ export async function generateInvite(): Promise<InviteResult> {
   }
 
   return { url: `${PUBLIC_SITE_URL}/join/${token}` }
+}
+
+/**
+ * Sets the workspace's home currency. Existing trips keep the currency they
+ * were created with -- only the next trip inherits this.
+ *
+ * Wired straight to `<form action={...}>`, so it throws rather than returning
+ * an error shape.
+ */
+export async function setWorkspaceCurrency(formData: FormData): Promise<void> {
+  const currency = String(formData.get("currency") ?? "")
+  if (!currencyOptions().some((o) => o.code === currency)) {
+    throw new Error("Unknown currency")
+  }
+
+  const supabase = await createClient()
+  const { data: userData } = await supabase.auth.getUser()
+  if (!userData.user) throw new Error("Not signed in")
+
+  const { data: membership } = await supabase
+    .from("workspace_members")
+    .select("workspace_id")
+    .eq("user_id", userData.user.id)
+    .limit(1)
+    .maybeSingle()
+  if (!membership) throw new Error("No workspace")
+
+  const { error } = await supabase
+    .from("workspaces")
+    .update({ currency })
+    .eq("id", membership.workspace_id)
+  if (error) throw new Error(error.message)
+
+  revalidatePath("/profile")
 }
 
 export async function acceptInvite(token: string): Promise<{ error?: string }> {
