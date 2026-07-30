@@ -49,10 +49,10 @@ export function EventExpense({
   members,
   onClose,
 }: EventExpenseProps) {
-  const { currency } = useCurrency()
+  const { currency, spendCurrency } = useCurrency()
   const [amount, setAmount] = React.useState("")
   const [expenseCurrency, setExpenseCurrency] = React.useState(
-    locationCurrency ?? currency,
+    locationCurrency ?? spendCurrency,
   )
   // Default to the event's stamped category when the trip still has one by that
   // name (discovery picks), else "Other" (seeded by default); the field stays

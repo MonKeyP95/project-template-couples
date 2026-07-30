@@ -171,7 +171,7 @@ export default async function TripPage({
 
   // Fetched once per trip render and handed to the whole subtree, so the
   // expense form's live preview is arithmetic rather than a request.
-  const rates = await getRates(header.currency)
+  const rates = await getRates(header.homeCurrency)
 
   const detail = getTripDetailBySlug(slug)
   const activeTab: TabId = isTab(tab) ? tab : "budget"
@@ -262,7 +262,11 @@ export default async function TripPage({
   }
 
   return (
-    <CurrencyProvider currency={header.currency} rates={rates}>
+    <CurrencyProvider
+      currency={header.homeCurrency}
+      spendCurrency={header.currency}
+      rates={rates}
+    >
     <main className="relative mx-auto min-h-screen w-full max-w-[440px] pb-32 lg:flex lg:max-w-none lg:items-stretch lg:pb-0">
       <RefreshOnVisible />
       <LeftRail
@@ -371,7 +375,7 @@ export default async function TripPage({
           savedCents: savings.totalCents,
           plannedCents: header.plannedBudgetCents,
         }}
-        currency={header.currency}
+        currency={header.homeCurrency}
       />
 
       <BottomNav slug={header.slug} active={activeTab} />

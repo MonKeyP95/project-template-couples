@@ -64,7 +64,7 @@ export default async function OnTheRoadPage() {
     tripSlug: trip.slug,
   })
 
-  const rates = await getRates(trip.currency)
+  const rates = await getRates(trip.homeCurrency)
 
   const categories = await getTripExpenseCategories(trip.id)
   const expenses = await getTripExpenses(trip.id)
@@ -75,7 +75,7 @@ export default async function OnTheRoadPage() {
     plannedBudgetCents: trip.plannedBudgetCents,
     tripDays: computeTripDays(trip.startDate, trip.endDate),
     spentTodayCents,
-    currency: trip.currency,
+    currency: trip.homeCurrency,
   })
   const notes = await getNotesForDay(trip.id, today)
   const days = await getItineraryDays(trip.id)
@@ -98,7 +98,11 @@ export default async function OnTheRoadPage() {
   const weather = await getTripWeather(weatherPlace)
 
   return (
-    <CurrencyProvider currency={trip.currency} rates={rates}>
+    <CurrencyProvider
+      currency={trip.homeCurrency}
+      spendCurrency={trip.currency}
+      rates={rates}
+    >
     <main className="relative mx-auto min-h-screen w-full max-w-[440px] pb-16 lg:flex lg:max-w-none lg:items-stretch lg:pb-0">
       <RealtimeRefresh
         tripId={trip.id}

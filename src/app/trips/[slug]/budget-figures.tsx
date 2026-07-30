@@ -11,6 +11,7 @@ import { Avatar, Bar } from "@/components/together"
 import { type SavingsContribution } from "@/lib/trips/savings-types"
 import { money, moneyPlain, moneyRounded, currencySymbol } from "@/lib/money"
 import { useCurrency } from "@/components/currency-context"
+import { LocalEquivalent } from "@/components/local-equivalent"
 import type { MemberToneEntry } from "./packing-tab"
 
 function Cue({ label }: { label: string }) {
@@ -177,6 +178,8 @@ export function SpentFigure({
         />
       </div>
 
+      <LocalEquivalent homeCents={spentCents} className="mt-0.5 block text-[11px]" />
+
       {hasPlanned ? (
         <>
           <div className="mt-3">
@@ -269,6 +272,8 @@ export function SavedFigure({
           {expanded ? "⌄" : "›"}
         </button>
       </div>
+      <LocalEquivalent homeCents={savedCents} className="mt-0.5 block text-[11px]" />
+
       {hasPlanned && savedCents > 0 ? (
         <>
           <div className="mt-3">

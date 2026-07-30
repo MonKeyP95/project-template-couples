@@ -20,6 +20,7 @@ import {
 import { type ItineraryLocation } from "@/lib/trips/location-types"
 import { money } from "@/lib/money"
 import { useCurrency } from "@/components/currency-context"
+import { LocalEquivalent } from "@/components/local-equivalent"
 
 import { AssistantBlock } from "@/components/assistant-block"
 
@@ -453,7 +454,10 @@ function CompactSettle({
               <div className="font-mono text-[9px] uppercase tracking-[0.18em] text-muted-foreground">
                 {label}
               </div>
-              <div className="t-num text-[18px] text-foreground">{fmt(owedCents)}</div>
+              <div className="t-num text-[18px] text-foreground">
+                {fmt(owedCents)}
+              </div>
+              <LocalEquivalent homeCents={owedCents} className="text-[10px]" />
             </div>
             {collapsible ? (
               <button

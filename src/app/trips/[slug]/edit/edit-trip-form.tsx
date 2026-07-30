@@ -45,6 +45,8 @@ export interface EditTripInitial {
   lat: number | null
   lng: number | null
   currency: string
+  /** Read-only here: set at creation from the workspace, shown for context. */
+  homeCurrency: string
 }
 
 export function EditTripForm({
@@ -257,7 +259,7 @@ export function EditTripForm({
 
         <label className="mt-5 block">
           <span className="block font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
-            Currency
+            You spend here in
           </span>
           <select
             value={currency}
@@ -272,8 +274,8 @@ export function EditTripForm({
             ))}
           </select>
           <span className="mt-1 block font-mono text-[10px] text-muted-foreground">
-            Every total on this trip is shown in this. Changing it does not
-            rewrite anything you have already recorded.
+            Pre-fills the expense form. Totals stay in {initial.homeCurrency},
+            where your bank account is; every expense converts into it.
           </span>
         </label>
 

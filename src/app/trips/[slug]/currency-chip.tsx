@@ -36,18 +36,21 @@ export function CurrencyChip({
   tripCurrencies,
   disabled,
 }: CurrencyChipProps) {
-  const { currency, rates } = useCurrency()
+  const { currency, spendCurrency, rates } = useCurrency()
 
   // No rates means no honest conversion, so the trip currency is the only
   // offer -- and if that is all there is, there is nothing to pick.
   const codes = React.useMemo(() => {
     if (!rates) return [currency]
-    const near = [currency, ...tripCurrencies.filter((c) => c !== currency)]
+    // Spend currency first, then home, then anything a location uses.
+    const near = Array.from(
+      new Set([spendCurrency, currency, ...tripCurrencies]),
+    )
     const rest = currencyOptions()
       .map((o) => o.code)
       .filter((c) => !near.includes(c) && rates[c] !== undefined)
     return [...near, ...rest]
-  }, [rates, currency, tripCurrencies])
+  }, [rates, currency, spendCurrency, tripCurrencies])
 
   if (value === currency && codes.length === 1) return null
 

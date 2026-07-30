@@ -232,15 +232,15 @@ async function resolveHomeAmount(
   const supabase = await createClient()
   const { data: trip } = await supabase
     .from("trips")
-    .select("currency")
+    .select("home_currency")
     .eq("id", tripId)
     .maybeSingle()
   if (!trip) return { error: "Trip not found." }
-  if (currency === trip.currency) {
+  if (currency === trip.home_currency) {
     return { homeAmountCents: null, fxRate: null }
   }
 
-  const rates = await getRates(trip.currency)
+  const rates = await getRates(trip.home_currency)
   const foreignPerHome = rates?.[currency]
   if (!foreignPerHome) {
     return { error: "No rate available for that currency right now." }
@@ -387,18 +387,18 @@ export async function settleUp(
   }
 
   const supabase = await createClient()
-  // Already in the trip's currency: a settlement is computed from home
-  // amounts, so it needs no conversion.
+  // A settlement is computed from home amounts, so it IS a home-currency
+  // figure and needs no conversion.
   const { data: tripRow } = await supabase
     .from("trips")
-    .select("currency")
+    .select("home_currency")
     .eq("id", tripId)
     .maybeSingle()
   const { error: insertError } = await supabase.from("expenses").insert({
     trip_id: tripId,
     title: "Settlement",
     amount_cents: Math.abs(net),
-    currency: tripRow?.currency ?? "EUR",
+    currency: tripRow?.home_currency ?? "EUR",
     paid_by: debtor,
     category: "Settlement",
     day_date: await TODAY(),
@@ -438,18 +438,18 @@ export async function partialSettleUp(
   if (net === 0) return { error: "Already settled." }
 
   const supabase = await createClient()
-  // Already in the trip's currency: a settlement is computed from home
-  // amounts, so it needs no conversion.
+  // A settlement is computed from home amounts, so it IS a home-currency
+  // figure and needs no conversion.
   const { data: tripRow } = await supabase
     .from("trips")
-    .select("currency")
+    .select("home_currency")
     .eq("id", tripId)
     .maybeSingle()
   const { error: insertError } = await supabase.from("expenses").insert({
     trip_id: tripId,
     title: "Settlement",
     amount_cents: cents,
-    currency: tripRow?.currency ?? "EUR",
+    currency: tripRow?.home_currency ?? "EUR",
     paid_by: debtor,
     category: "Settlement",
     day_date: await TODAY(),
@@ -888,9 +888,11 @@ export async function createTrip(
     fuzzy_when: fuzzyWhen,
     lat: input.lat,
     lng: input.lng,
-    // Copied, not looked up: changing the workspace currency later must not
-    // rewrite a recorded trip's numbers.
+    // Both copied, not looked up: changing the workspace currency later must
+    // not rewrite a recorded trip's numbers. `currency` is the spend default
+    // (editable per trip); `home_currency` is where the bank account is.
     currency: workspace.currency,
+    home_currency: workspace.currency,
     trip_profile: tripProfile,
     created_by: userData.user.id,
   })
@@ -972,7 +974,7 @@ export interface UpdateTripInput {
   country: string | null
   lat: number | null
   lng: number | null
-  /** This trip's reporting unit. Editing it does not rewrite any stored row. */
+  /** What you spend here; the expense-entry default. */
   currency: string
   profile?: TripProfile
   categories?: { name: string; details: string[] }[]
@@ -2874,12 +2876,14 @@ export async function payBudgetItem(
     return { error: "Set a cost before paying." }
   }
 
+  // trip_budget_items are planning figures in the trip's home currency -- they
+  // must stay directly comparable with the spend total, which sums home amounts.
   const { data: itemTrip } = await supabase
     .from("trips")
-    .select("currency")
+    .select("home_currency")
     .eq("id", item.trip_id)
     .maybeSingle()
-  const itemTripCurrency = itemTrip?.currency ?? "EUR"
+  const itemTripCurrency = itemTrip?.home_currency ?? "EUR"
 
   const title = (item.subject as string).trim() || (item.category as string)
   const { data: exp, error: expErr } = await supabase

@@ -32,7 +32,7 @@ export function LogExpenseRow({
   locations,
   categories,
 }: LogExpenseRowProps) {
-  const { currency: tripCurrency } = useCurrency()
+  const { spendCurrency: tripCurrency } = useCurrency()
   const initialDay = React.useMemo(() => deviceToday(), [])
   const defaultCategory =
     categories.find((c) => c.name === EXPENSE_CATEGORY_DEFAULT)?.name ??

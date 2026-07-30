@@ -30,12 +30,12 @@ export function QuickExpense({
   spentTodayCents,
   locationCurrency,
 }: QuickExpenseProps) {
-  const { currency } = useCurrency()
+  const { currency, spendCurrency } = useCurrency()
   const router = useRouter()
   const [name, setName] = React.useState("")
   const [amount, setAmount] = React.useState("")
   const [expenseCurrency, setExpenseCurrency] = React.useState(
-    locationCurrency ?? currency,
+    locationCurrency ?? spendCurrency,
   )
   const [category, setCategory] = React.useState(categories[0]?.name ?? "")
   const [error, setError] = React.useState<string | null>(null)

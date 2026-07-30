@@ -57,6 +57,7 @@ export default async function EditTripPage({
           fuzzyWhen: trip.fuzzyWhen,
           country: trip.country,
           currency: trip.currency,
+          homeCurrency: trip.homeCurrency,
           lat: trip.lat,
           lng: trip.lng,
         }}

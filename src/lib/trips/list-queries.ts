@@ -14,8 +14,10 @@ export interface TripListItem {
   lat: number | null
   lng: number | null
   plannedBudgetCents: number
-  /** This trip's reporting unit. Every total on the trip is in this. */
+  /** What you spend here; the expense-entry default. */
   currency: string
+  /** Where your bank account is; every expense converts into this. */
+  homeCurrency: string
   savedCents: number
   /** Sum of non-settlement expenses, matching the budget tab's spent figure. */
   spentCents: number
@@ -45,6 +47,7 @@ interface TripRow {
   lng: string | number | null
   planned_budget_cents: number
   currency: string
+  home_currency: string
   created_at: string
 }
 
@@ -79,7 +82,7 @@ export async function listTripsForWorkspace(
   const { data } = await supabase
     .from("trips")
     .select(
-      "id, slug, name, country, start_date, end_date, fuzzy_when, lat, lng, planned_budget_cents, currency, created_at",
+      "id, slug, name, country, start_date, end_date, fuzzy_when, lat, lng, planned_budget_cents, currency, home_currency, created_at",
     )
     .eq("workspace_id", workspaceId)
     .order("created_at", { ascending: true })
@@ -123,6 +126,7 @@ export async function listTripsForWorkspace(
     lng: asNumber(row.lng),
     plannedBudgetCents: row.planned_budget_cents,
     currency: row.currency,
+    homeCurrency: row.home_currency,
     savedCents: savedByTrip[row.id] ?? 0,
     spentCents: spentByTrip[row.id] ?? 0,
     state: deriveState(today, row.start_date, row.end_date),
