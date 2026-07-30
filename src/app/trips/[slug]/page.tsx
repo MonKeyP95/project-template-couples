@@ -11,6 +11,8 @@ import {
   WaveGlyph,
 } from "@/components/together"
 import { RefreshOnVisible } from "@/components/refresh-on-visible"
+import { CurrencyProvider } from "@/components/currency-context"
+import { getRates } from "@/lib/fx/get-rates"
 import { FlipCountdown } from "@/components/flip-countdown"
 import { WeekForecast } from "@/components/week-forecast"
 import { createClient } from "@/lib/supabase/server"
@@ -167,6 +169,10 @@ export default async function TripPage({
 
   const shareState = await getTripShareState(header.id)
 
+  // Fetched once per trip render and handed to the whole subtree, so the
+  // expense form's live preview is arithmetic rather than a request.
+  const rates = await getRates(header.currency)
+
   const detail = getTripDetailBySlug(slug)
   const activeTab: TabId = isTab(tab) ? tab : "budget"
 
@@ -254,6 +260,7 @@ export default async function TripPage({
   }
 
   return (
+    <CurrencyProvider currency={header.currency} rates={rates}>
     <main className="relative mx-auto min-h-screen w-full max-w-[440px] pb-32 lg:flex lg:max-w-none lg:items-stretch lg:pb-0">
       <RefreshOnVisible />
       <LeftRail
@@ -366,6 +373,7 @@ export default async function TripPage({
 
       <BottomNav slug={header.slug} active={activeTab} />
     </main>
+    </CurrencyProvider>
   )
 }
 

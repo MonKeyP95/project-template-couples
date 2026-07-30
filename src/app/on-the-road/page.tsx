@@ -22,6 +22,9 @@ import { localToday } from "@/lib/time/local-today"
 import { detectNearDailyCap } from "@/lib/nudges/near-daily-cap"
 import { computeTripDays } from "@/lib/trips/trip-days"
 
+import { CurrencyProvider } from "@/components/currency-context"
+import { getRates } from "@/lib/fx/get-rates"
+
 import { AssistantBlock } from "@/components/assistant-block"
 import { RealtimeRefresh } from "@/components/realtime-refresh"
 import { QuickExpense } from "./quick-expense"
@@ -60,6 +63,8 @@ export default async function OnTheRoadPage() {
     tripSlug: trip.slug,
   })
 
+  const rates = await getRates(trip.currency)
+
   const categories = await getTripExpenseCategories(trip.id)
   const expenses = await getTripExpenses(trip.id)
   const spentTodayCents = expenses
@@ -91,6 +96,7 @@ export default async function OnTheRoadPage() {
   const weather = await getTripWeather(weatherPlace)
 
   return (
+    <CurrencyProvider currency={trip.currency} rates={rates}>
     <main className="relative mx-auto min-h-screen w-full max-w-[440px] pb-16 lg:flex lg:max-w-none lg:items-stretch lg:pb-0">
       <RealtimeRefresh
         tripId={trip.id}
@@ -190,5 +196,6 @@ export default async function OnTheRoadPage() {
       <LookingAheadPanel ahead={ahead} />
       </div>
     </main>
+    </CurrencyProvider>
   )
 }
