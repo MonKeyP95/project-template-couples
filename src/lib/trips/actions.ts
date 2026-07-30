@@ -2903,9 +2903,13 @@ export async function renameItineraryLocation(
   name: string,
   startDate: string | null,
   endDate: string | null,
+  currency: string | null,
 ): Promise<RenameLocationResult> {
   const trimmed = name.trim()
   if (!trimmed) return { error: "Name required." }
+  if (currency !== null && !currencyOptions().some((o) => o.code === currency)) {
+    return { error: "Unknown currency." }
+  }
   const span = startDate && endDate ? { startDate, endDate } : null
   if (span && span.endDate < span.startDate) {
     return { error: "End date must be on or after start date." }
@@ -2956,6 +2960,7 @@ export async function renameItineraryLocation(
       name: trimmed,
       start_date: span ? span.startDate : null,
       end_date: span ? span.endDate : null,
+      currency,
     })
     .eq("id", locationId)
 
@@ -2985,9 +2990,13 @@ export async function setLocationSpanWithShift(
   name: string,
   startDate: string,
   endDate: string,
+  currency: string | null,
 ): Promise<RenameLocationResult> {
   const trimmed = name.trim()
   if (!trimmed) return { error: "Name required." }
+  if (currency !== null && !currencyOptions().some((o) => o.code === currency)) {
+    return { error: "Unknown currency." }
+  }
   if (endDate < startDate) {
     return { error: "End date must be on or after start date." }
   }
@@ -3001,6 +3010,14 @@ export async function setLocationSpanWithShift(
     p_end: endDate,
   })
   if (error) return { error: error.message }
+
+  // The RPC only knows name + span, so the currency edit is written alongside
+  // it. Without this the confirm-and-push path silently drops the change.
+  const { error: curErr } = await supabase
+    .from("itinerary_locations")
+    .update({ currency })
+    .eq("id", locationId)
+  if (curErr) return { error: curErr.message }
 
   await fillLocationSpanDays(supabase, tripId, locationId, startDate, endDate)
   revalidatePath(`/trips/${tripSlug}`)

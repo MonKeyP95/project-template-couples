@@ -70,6 +70,7 @@ import {
 import { slugToTone } from "@/lib/trips/slug-tone"
 import { moneyRounded } from "@/lib/money"
 import { useCurrency } from "@/components/currency-context"
+import { currencyOptions } from "@/lib/fx/currency-list"
 
 const itineraryBorder: Record<ItineraryTone, string> = {
   sea: "border-l-sea",
@@ -225,6 +226,8 @@ interface DayGroup {
   start: string | null
   /** Declared span end; null = implied by days. */
   end: string | null
+  /** What you spend here; null = the trip's currency. */
+  currency: string | null
   days: ItineraryDay[]
 }
 
@@ -268,6 +271,7 @@ function buildTimeline(
       ord: i + 1,
       start: loc.startDate,
       end: loc.endDate,
+      currency: loc.currency,
       days: gdays,
     }
     items.push({
@@ -568,6 +572,7 @@ export function ItineraryTab({
   const [renameVal, setRenameVal] = React.useState("")
   const [renameStart, setRenameStart] = React.useState("")
   const [renameEnd, setRenameEnd] = React.useState("")
+  const [renameCurrency, setRenameCurrency] = React.useState("")
   const [renameError, setRenameError] = React.useState<string | null>(null)
   const [, startLoc] = React.useTransition()
 
@@ -608,6 +613,7 @@ export function ItineraryTab({
         name,
         useSpan ? start : null,
         useSpan ? end : null,
+        renameCurrency || null,
       )
       if (result.error) {
         setRenameError(result.error)
@@ -626,6 +632,7 @@ export function ItineraryTab({
             name,
             start,
             end,
+            renameCurrency || null,
           )
           if (pushed.error) {
             setRenameError(pushed.error)
@@ -848,6 +855,19 @@ export function ItineraryTab({
                             onChange={(e) => setRenameEnd(e.target.value)}
                             className="t-num border-0 border-b border-rule bg-transparent py-1 text-[12px] text-foreground focus:border-clay focus:outline-none"
                           />
+                          <select
+                            aria-label="Location currency"
+                            value={renameCurrency}
+                            onChange={(e) => setRenameCurrency(e.target.value)}
+                            className="max-w-[8rem] border-0 border-b border-rule bg-transparent py-1 font-mono text-[11px] text-foreground focus:border-clay focus:outline-none"
+                          >
+                            <option value="">Trip currency</option>
+                            {currencyOptions().map((o) => (
+                              <option key={o.code} value={o.code}>
+                                {o.label}
+                              </option>
+                            ))}
+                          </select>
                           <button
                             type="submit"
                             className="ml-auto font-mono text-[10px] uppercase tracking-[0.14em] text-clay hover:text-foreground"
@@ -897,6 +917,7 @@ export function ItineraryTab({
                           setRenameVal(group.name)
                           setRenameStart(group.start ?? "")
                           setRenameEnd(group.end ?? "")
+                          setRenameCurrency(group.currency ?? "")
                           setRenameError(null)
                           setRenamingId(group.key)
                         }}

@@ -172,6 +172,8 @@ async function applyPlanEdits(
         name,
         loc.startDate,
         loc.endDate,
+        // Name-only rename: keep whatever currency the location already had.
+        loc.currency,
       )
       if (res.error) return { error: res.error }
     }
