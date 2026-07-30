@@ -334,6 +334,9 @@ export default async function TripPage({
             destination={header.country ?? header.name}
             tripName={header.name}
             tripDays={computeTripDays(header.startDate, header.endDate)}
+            startDate={header.startDate}
+            endDate={header.endDate}
+            today={today}
             expenses={expenses}
             expenseCategories={expenseCategories ?? []}
             summary={budgetSummary}

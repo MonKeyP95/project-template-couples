@@ -11,6 +11,8 @@ import {
   type ExpenseCategoryRow,
 } from "@/lib/trips/expense-types"
 import { type SavingsContribution } from "@/lib/trips/savings-types"
+import { budgetPace } from "@/lib/trips/budget-pace"
+import { PaceStrip } from "@/components/budget-pace-strip"
 import {
   dayLocationMap,
   expenseLocationId,
@@ -49,6 +51,9 @@ export interface BudgetTabProps {
   destination: string
   tripName: string
   tripDays: number
+  startDate: string | null
+  endDate: string | null
+  today: string
   expenses: Expense[]
   expenseCategories: ExpenseCategoryRow[]
   summary: BudgetSummary
@@ -72,6 +77,9 @@ export function BudgetTab({
   destination,
   tripName,
   tripDays,
+  startDate,
+  endDate,
+  today,
   expenses,
   expenseCategories,
   summary,
@@ -96,6 +104,28 @@ export function BudgetTab({
     (e) =>
       !e.isSettlement && isForeign(e, currency) && !e.homeAmountConfirmed,
   )
+
+  const locationDays: Record<string, string[]> = {}
+  for (const day of itineraryDays) {
+    if (day.locationId) (locationDays[day.locationId] ??= []).push(day.dayDate)
+  }
+  // itemSpan takes the first date of a span for a `once` cost, so order matters.
+  for (const dates of Object.values(locationDays)) dates.sort()
+
+  const pace = budgetPace({
+    startDate,
+    endDate,
+    today,
+    plannedBudgetCents,
+    budgetItems,
+    expenses: expenses.map((e) => ({
+      category: e.category,
+      dayDate: e.dayDate,
+      isSettlement: e.isSettlement,
+      amountCents: homeCents(e),
+    })),
+    locationDays,
+  })
 
   return (
     <section>
@@ -132,6 +162,7 @@ export function BudgetTab({
             plannedBudgetCents={plannedBudgetCents}
             hasUnconfirmed={hasUnconfirmed}
           />
+          {pace ? <PaceStrip pace={pace} /> : null}
         </div>
         <LogExpenseRow
           tripId={tripId}
