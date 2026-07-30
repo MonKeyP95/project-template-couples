@@ -48,25 +48,3 @@ export function currencySymbol(currency: string): string {
     .find((p) => p.type === "currency")
   return part?.value ?? currency
 }
-
-const grouped2 = new Intl.NumberFormat("en-GB", {
-  minimumFractionDigits: 2,
-  maximumFractionDigits: 2,
-})
-
-const grouped0 = new Intl.NumberFormat("en-GB", { maximumFractionDigits: 0 })
-
-/** Deprecated: euro-only, symbol-less. Callers move to `money`. */
-export function euro(cents: number): string {
-  return grouped2.format(cents / 100)
-}
-
-/** Deprecated: euro-only, symbol-less. Callers move to `moneyRounded`. */
-export function euroRounded(cents: number): string {
-  return grouped0.format(cents / 100)
-}
-
-/** Deprecated alias of `moneyInput`. */
-export function euroInput(cents: number): string {
-  return moneyInput(cents)
-}

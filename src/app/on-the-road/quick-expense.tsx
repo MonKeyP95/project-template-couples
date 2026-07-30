@@ -6,7 +6,8 @@ import { useRouter } from "next/navigation"
 import { logExpense } from "@/lib/trips/actions"
 import { Label } from "@/components/together"
 import type { ExpenseCategoryRow } from "@/lib/trips/expense-types"
-import { euro } from "@/lib/money"
+import { money } from "@/lib/money"
+import { useCurrency } from "@/components/currency-context"
 
 export interface QuickExpenseProps {
   tripId: string
@@ -25,6 +26,7 @@ export function QuickExpense({
   categories,
   spentTodayCents,
 }: QuickExpenseProps) {
+  const { currency } = useCurrency()
   const router = useRouter()
   const [name, setName] = React.useState("")
   const [amount, setAmount] = React.useState("")
@@ -67,7 +69,7 @@ export function QuickExpense({
       <div className="flex items-baseline justify-between">
         <Label>Expense</Label>
         <span className="t-num text-[13px] text-muted-foreground">
-          €{euro(spentTodayCents)} today
+          {money(spentTodayCents, currency)} today
         </span>
       </div>
       <form onSubmit={submit} className="mt-3 flex flex-col gap-2.5">

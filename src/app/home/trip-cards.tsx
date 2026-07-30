@@ -11,7 +11,7 @@ import {
   TopoBg,
 } from "@/components/together"
 import { FlipCountdown } from "@/components/flip-countdown"
-import { euroRounded } from "@/lib/money"
+import { moneyRounded } from "@/lib/money"
 import type { TripListItem } from "@/lib/trips/list-queries"
 import { slugToTone, type CardTone } from "@/lib/trips/slug-tone"
 import { type Weather } from "@/lib/weather/get-weather"
@@ -68,17 +68,19 @@ function MiniBar({
   planned,
   tone,
   label,
+  currency,
 }: {
   amount: number
   planned: number
   tone: "sea" | "moss"
   label: string
+  currency: string
 }) {
   const pct = Math.min(100, Math.round((amount / planned) * 100))
   return (
     <div className="flex items-center gap-2">
       <span className="shrink-0 font-mono text-[9px] tracking-[0.06em] text-foreground">
-        €{euroRounded(amount)} / €{euroRounded(planned)}
+        {moneyRounded(amount, currency)} / {moneyRounded(planned, currency)}
       </span>
       <Bar pct={pct} tone={tone} className="h-0.5 flex-1" />
       <span className="shrink-0 font-mono text-[9px] tracking-[0.06em] text-muted-foreground">
@@ -96,16 +98,18 @@ function BudgetBars({
   spent,
   saved,
   planned,
+  currency,
 }: {
   spent: number
   saved: number
   planned: number
+  currency: string
 }) {
   if (planned <= 0) return null
   return (
     <div className="mt-2.5 flex flex-col gap-1.5">
-      <MiniBar amount={spent} planned={planned} tone="sea" label="spent" />
-      <MiniBar amount={saved} planned={planned} tone="moss" label="saved" />
+      <MiniBar amount={spent} planned={planned} tone="sea" label="spent" currency={currency} />
+      <MiniBar amount={saved} planned={planned} tone="moss" label="saved" currency={currency} />
     </div>
   )
 }
@@ -219,6 +223,7 @@ export async function HeroCard({
           spent={trip.spentCents}
           saved={trip.savedCents}
           planned={trip.plannedBudgetCents}
+          currency={trip.currency}
         />
       </div>
     </Link>
@@ -284,6 +289,7 @@ export function TripCard({ trip }: { trip: TripListItem }) {
           spent={trip.spentCents}
           saved={trip.savedCents}
           planned={trip.plannedBudgetCents}
+          currency={trip.currency}
         />
       </div>
     </Link>
@@ -346,6 +352,7 @@ export function DreamTile({ trip }: { trip: TripListItem }) {
           spent={trip.spentCents}
           saved={trip.savedCents}
           planned={trip.plannedBudgetCents}
+          currency={trip.currency}
         />
       </div>
     </Link>

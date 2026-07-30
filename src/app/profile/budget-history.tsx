@@ -2,7 +2,7 @@
 
 import * as React from "react"
 
-import { euroRounded as euro } from "@/lib/money"
+import { moneyRounded } from "@/lib/money"
 import type { CategoryHistory } from "@/lib/trips/budget-history-types"
 
 const MON_YEAR = new Intl.DateTimeFormat("en-GB", {
@@ -23,8 +23,10 @@ function variancePhrase(pct: number | null): string {
 
 export function BudgetHistory({
   categories,
+  currency,
 }: {
   categories: CategoryHistory[]
+  currency: string
 }) {
   if (categories.length === 0) return null
   return (
@@ -34,14 +36,21 @@ export function BudgetHistory({
       </p>
       <div className="mt-4 flex flex-col gap-3">
         {categories.map((c) => (
-          <CategoryRow key={c.category} category={c} />
+          <CategoryRow key={c.category} category={c} currency={currency} />
         ))}
       </div>
     </div>
   )
 }
 
-function CategoryRow({ category }: { category: CategoryHistory }) {
+function CategoryRow({
+  category,
+  currency,
+}: {
+  category: CategoryHistory
+  currency: string
+}) {
+  const fmt = (cents: number) => moneyRounded(cents, currency)
   const [open, setOpen] = React.useState(false)
   const phrase = variancePhrase(category.avgVariancePct)
   return (
@@ -56,7 +65,7 @@ function CategoryRow({ category }: { category: CategoryHistory }) {
           {category.category}
         </span>
         <span className="font-mono text-[11px] text-muted-foreground">
-          €{euro(category.avgPerDayCents)}/day avg
+          {fmt(category.avgPerDayCents)}/day avg
           {phrase ? ` · ${phrase}` : ""}
         </span>
       </button>
@@ -76,19 +85,19 @@ function CategoryRow({ category }: { category: CategoryHistory }) {
                     </span>
                   </span>
                   <span className="font-mono text-[12px] text-foreground">
-                    €{euro(t.perDayCents)}/day
+                    {fmt(t.perDayCents)}/day
                   </span>
                 </div>
                 <div className="flex items-baseline justify-between gap-2 font-mono text-[10px]">
                   <span className="text-muted-foreground">
-                    spent €{euro(t.actualCents)} / €{euro(t.plannedCents)}
+                    spent {fmt(t.actualCents)} / {fmt(t.plannedCents)}
                   </span>
                   <span className={over ? "text-clay" : "text-muted-foreground"}>
                     {variance === 0
                       ? "on plan"
                       : over
-                        ? `+€${euro(variance)} over`
-                        : `€${euro(-variance)} under`}
+                        ? `+${fmt(variance)} over`
+                        : `${fmt(-variance)} under`}
                   </span>
                 </div>
               </div>

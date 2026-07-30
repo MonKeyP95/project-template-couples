@@ -337,16 +337,25 @@ export default async function ProfilePage() {
                       </div>
                     ))}
                     {journal && !(pastTripIds.has(trip.id) && blocks.length > 0) ? (
-                      <TripJournal record={journal} memberNames={memberNames} />
+                      <TripJournal
+                        record={journal}
+                        memberNames={memberNames}
+                        currency={trip.currency}
+                      />
                     ) : null}
-                    {budget ? <TripBudget summary={budget} /> : null}
+                    {budget ? (
+                      <TripBudget summary={budget} currency={trip.currency} />
+                    ) : null}
                   </div>
                 ))}
               </div>
             </div>
           ) : null}
 
-          <BudgetHistory categories={budgetHistory} />
+          <BudgetHistory
+            categories={budgetHistory}
+            currency={workspace.currency}
+          />
         </div>
       </main>
     </div>

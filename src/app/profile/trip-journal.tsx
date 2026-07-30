@@ -3,20 +3,20 @@ import type {
   JournalLocation,
   JournalRecord,
 } from "@/lib/journal/journal-types"
-import { euroRounded as euro } from "@/lib/money"
+import { moneyRounded } from "@/lib/money"
 
 function span(loc: JournalLocation): string {
   if (!loc.startDate || !loc.endDate) return ""
   return ` · ${loc.startDate} – ${loc.endDate}`
 }
 
-function ExpenseLine({ e }: { e: JournalExpense }) {
+function ExpenseLine({ e, currency }: { e: JournalExpense; currency: string }) {
   return (
     <div className="flex items-baseline justify-between gap-2 font-mono text-[11px]">
       <span className="text-muted-foreground">
         {e.title} · {e.category}
       </span>
-      <span className="text-foreground">€{euro(e.amountCents)}</span>
+      <span className="text-foreground">{moneyRounded(e.amountCents, currency)}</span>
     </div>
   )
 }
@@ -24,6 +24,7 @@ function ExpenseLine({ e }: { e: JournalExpense }) {
 function settleUpLine(
   record: JournalRecord,
   memberNames: Record<string, string>,
+  currency: string,
 ): string {
   const s = record.totals.settleUp
   if (!s.creditorUserId || !s.debtorUserId || s.netBalanceCents === 0) {
@@ -31,15 +32,17 @@ function settleUpLine(
   }
   const debtor = memberNames[s.debtorUserId] ?? "Someone"
   const creditor = memberNames[s.creditorUserId] ?? "Someone"
-  return `${debtor} owes ${creditor} €${euro(Math.abs(s.netBalanceCents))}`
+  return `${debtor} owes ${creditor} ${moneyRounded(Math.abs(s.netBalanceCents), currency)}`
 }
 
 export function TripJournal({
   record,
   memberNames,
+  currency,
 }: {
   record: JournalRecord
   memberNames: Record<string, string>
+  currency: string
 }) {
   return (
     <div>
@@ -59,7 +62,9 @@ export function TripJournal({
                 className="flex items-baseline justify-between gap-2 font-mono text-[11px]"
               >
                 <span className="text-muted-foreground">{p.title}</span>
-                <span className="text-foreground">€{euro(p.amountCents)}</span>
+                <span className="text-foreground">
+                  {moneyRounded(p.amountCents, currency)}
+                </span>
               </div>
             ))}
           </div>
@@ -90,7 +95,7 @@ export function TripJournal({
           {loc.expenses.length > 0 ? (
             <div className="mt-1 flex flex-col gap-1">
               {loc.expenses.map((e, i) => (
-                <ExpenseLine key={i} e={e} />
+                <ExpenseLine key={i} e={e} currency={currency} />
               ))}
             </div>
           ) : null}
@@ -104,7 +109,7 @@ export function TripJournal({
           </p>
           <div className="mt-1 flex flex-col gap-1">
             {record.unplacedSpend.map((e, i) => (
-              <ExpenseLine key={i} e={e} />
+              <ExpenseLine key={i} e={e} currency={currency} />
             ))}
           </div>
         </div>
@@ -117,19 +122,21 @@ export function TripJournal({
             className="flex items-baseline justify-between gap-2 font-mono text-[11px]"
           >
             <span className="text-foreground">{c.category}</span>
-            <span className="text-muted-foreground">€{euro(c.amountCents)}</span>
+            <span className="text-muted-foreground">
+              {moneyRounded(c.amountCents, currency)}
+            </span>
           </div>
         ))}
         <div className="flex items-baseline justify-between gap-2 border-t border-rule pt-1.5 font-mono text-[11px]">
           <span className="text-foreground">Total spent</span>
           <span className="text-foreground">
-            €{euro(record.totals.totalSpentCents)}
+            {moneyRounded(record.totals.totalSpentCents, currency)}
           </span>
         </div>
         <div className="flex items-baseline justify-between gap-2 font-mono text-[11px]">
           <span className="text-muted-foreground">Settle up</span>
           <span className="text-muted-foreground">
-            {settleUpLine(record, memberNames)}
+            {settleUpLine(record, memberNames, currency)}
           </span>
         </div>
       </div>
