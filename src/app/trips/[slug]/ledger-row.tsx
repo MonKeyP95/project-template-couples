@@ -3,13 +3,19 @@
 import * as React from "react"
 
 import { Avatar, MonoBadge, type MonoBadgeTone } from "@/components/together"
-import { deleteExpense, updateExpense } from "@/lib/trips/actions"
+import {
+  deleteExpense,
+  setExpenseConfirmed,
+  updateExpense,
+} from "@/lib/trips/actions"
 import {
   EXPENSE_CATEGORY_DEFAULT,
+  homeCents,
+  isForeign,
   type Expense,
   type ExpenseCategoryRow,
 } from "@/lib/trips/expense-types"
-import { money, moneyInput } from "@/lib/money"
+import { currencySymbol, money, moneyInput } from "@/lib/money"
 import { useCurrency } from "@/components/currency-context"
 
 import { ExpenseFields } from "./expense-fields"
@@ -106,6 +112,19 @@ function LedgerRowView({
   const payer = members[expense.paidBy]
   const date = ledgerDate(expense.dayDate)
   const tone = CATEGORY_TONE[expense.category] ?? "ink"
+  const foreign = isForeign(expense, currency)
+
+  function toggleConfirmed() {
+    if (isPending) return
+    startTransition(async () => {
+      const result = await setExpenseConfirmed(
+        expense.id,
+        tripSlug,
+        !expense.homeAmountConfirmed,
+      )
+      if (result.error) setError(result.error)
+    })
+  }
 
   function remove() {
     if (isPending) return
@@ -165,8 +184,30 @@ function LedgerRowView({
       </div>
       <div className="flex flex-col items-end gap-1">
         <div className="t-num text-[15px] text-foreground">
-          {money(expense.amountCents, currency)}
+          {money(expense.amountCents, expense.currency)}
         </div>
+        {foreign ? (
+          <button
+            type="button"
+            onClick={toggleConfirmed}
+            disabled={isPending}
+            aria-pressed={expense.homeAmountConfirmed}
+            aria-label={
+              expense.homeAmountConfirmed
+                ? "Confirmed against your bank"
+                : "Converted at a mid-market rate; tap to confirm"
+            }
+            title={
+              expense.homeAmountConfirmed
+                ? "Confirmed against your bank"
+                : "Converted at a mid-market rate; tap to confirm"
+            }
+            className="t-num border-0 bg-transparent p-0 text-[12px] whitespace-nowrap text-muted-foreground hover:text-foreground"
+          >
+            {expense.homeAmountConfirmed ? "✓" : "~"}{" "}
+            {money(homeCents(expense), currency)}
+          </button>
+        ) : null}
         <div className="flex items-center gap-2">
           {!expense.isSettlement ? (
             <button
@@ -209,6 +250,7 @@ function LedgerRowEditor({
   categories: ExpenseCategoryRow[]
   onDone: () => void
 }) {
+  const { currency } = useCurrency()
   const validCategory = categories.some((c) => c.name === expense.category)
   const defaultCategory =
     categories.find((c) => c.name === EXPENSE_CATEGORY_DEFAULT)?.name ??
@@ -217,6 +259,9 @@ function LedgerRowEditor({
   const [title, setTitle] = React.useState(expense.title)
   const [amount, setAmount] = React.useState(moneyInput(expense.amountCents))
   const [expenseCurrency, setExpenseCurrency] = React.useState(expense.currency)
+  const originalHome =
+    expense.homeAmountCents === null ? "" : moneyInput(expense.homeAmountCents)
+  const [homeAmount, setHomeAmount] = React.useState(originalHome)
   const [category, setCategory] = React.useState<string>(
     validCategory ? expense.category : defaultCategory,
   )
@@ -251,7 +296,9 @@ function LedgerRowEditor({
         title: title.trim(),
         amount,
         currency: expenseCurrency,
-        homeAmount: null,
+        // Only sent when actually edited -- an untouched field must not flip
+        // home_amount_confirmed.
+        homeAmount: homeAmount === originalHome ? null : homeAmount,
         category,
         paidBy,
         dayDate,
@@ -310,6 +357,31 @@ function LedgerRowEditor({
         onLocationChange={chooseLocation}
         disabled={isPending}
       />
+
+      {expenseCurrency === currency ? null : (
+        <label className="mt-3 block">
+          <span className="block font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
+            What it cost you
+          </span>
+          <div className="mt-1 flex items-baseline gap-1.5 border-b border-rule pb-1 focus-within:border-clay">
+            <span className="font-mono text-[14px] text-muted-foreground">
+              {currencySymbol(currency)}
+            </span>
+            <input
+              type="text"
+              inputMode="decimal"
+              value={homeAmount}
+              onChange={(e) => setHomeAmount(e.target.value)}
+              placeholder="0.00"
+              disabled={isPending}
+              className="t-num w-full border-0 bg-transparent text-[14px] text-foreground placeholder:text-muted-foreground focus:outline-none disabled:opacity-50"
+            />
+          </div>
+          <span className="mt-1 block font-mono text-[10px] text-muted-foreground">
+            Set this from your bank statement and we keep this row&apos;s rate.
+          </span>
+        </label>
+      )}
 
       {error ? (
         <div className="mt-3 font-mono text-[10px] text-clay">{error}</div>

@@ -41,6 +41,22 @@ export function moneyInput(cents: number): string {
   return String(Math.round(cents) / 100)
 }
 
+/**
+ * The number alone, with the currency's own decimal rules but no symbol:
+ * (123456, "DKK") -> "1,234.56", (50000, "JPY") -> "500".
+ *
+ * For the few display figures that style the symbol separately from the number
+ * (a small muted symbol beside a large numeral). Pairing `money` with a
+ * `currencySymbol` span would print the symbol twice.
+ */
+export function moneyPlain(cents: number, currency: string): string {
+  const parts = formatter(currency, 2).formatToParts(cents / 100)
+  return parts
+    .filter((p) => p.type !== "currency" && p.type !== "literal")
+    .map((p) => p.value)
+    .join("")
+}
+
 /** The bare symbol for an input prefix: "DKK" -> "kr", "THB" -> "฿". */
 export function currencySymbol(currency: string): string {
   const part = formatter(currency, 2)

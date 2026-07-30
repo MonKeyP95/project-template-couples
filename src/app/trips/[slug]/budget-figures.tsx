@@ -9,7 +9,7 @@ import {
 } from "@/lib/trips/actions"
 import { Avatar, Bar } from "@/components/together"
 import { type SavingsContribution } from "@/lib/trips/savings-types"
-import { money, moneyRounded, currencySymbol } from "@/lib/money"
+import { money, moneyPlain, moneyRounded, currencySymbol } from "@/lib/money"
 import { useCurrency } from "@/components/currency-context"
 import type { MemberToneEntry } from "./packing-tab"
 
@@ -127,6 +127,9 @@ export interface SpentFigureProps {
   tripSlug: string
   spentCents: number
   plannedBudgetCents: number
+  /** True while any foreign expense is still on a mid-market rate. One "~"
+   * character, so the headline number stops overclaiming. */
+  hasUnconfirmed: boolean
 }
 
 export function SpentFigure({
@@ -134,6 +137,7 @@ export function SpentFigure({
   tripSlug,
   spentCents,
   plannedBudgetCents,
+  hasUnconfirmed,
 }: SpentFigureProps) {
   const { currency } = useCurrency()
   const fmt = (cents: number) => money(cents, currency)
@@ -149,9 +153,12 @@ export function SpentFigure({
   return (
     <>
       <div className="mt-2 flex items-baseline gap-1">
-        <span className="t-display text-[22px] text-muted-foreground">{currencySymbol(currency)}</span>
+        <span className="t-display text-[22px] text-muted-foreground">
+          {hasUnconfirmed ? "~" : null}
+          {currencySymbol(currency)}
+        </span>
         <span className="t-display t-num text-[42px] leading-none text-foreground">
-          {fmt(spentCents)}
+          {moneyPlain(spentCents, currency)}
         </span>
         <AmountField
           valueCents={plannedBudgetCents}
@@ -221,14 +228,16 @@ export function SavedFigure({
   return (
     <div className="mt-2">
       <div className="flex items-baseline gap-1">
-        <span className="t-display text-[18px] text-muted-foreground">{currencySymbol(currency)}</span>
+        <span className="t-display text-[18px] text-muted-foreground">
+          {currencySymbol(currency)}
+        </span>
         <button
           type="button"
           onClick={() => setExpanded((v) => !v)}
           aria-expanded={expanded}
           className="t-display t-num border-0 bg-transparent p-0 text-[28px] leading-none text-foreground"
         >
-          {fmt(savedCents)}
+          {moneyPlain(savedCents, currency)}
         </button>
         <AmountField
           additive

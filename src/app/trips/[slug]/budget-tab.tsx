@@ -5,6 +5,7 @@ import * as React from "react"
 import { Avatar, Label, TopoBg } from "@/components/together"
 import {
   homeCents,
+  isForeign,
   type BudgetSummary,
   type Expense,
   type ExpenseCategoryRow,
@@ -86,8 +87,14 @@ export function BudgetTab({
   bufferRec,
   currentUserId,
 }: BudgetTabProps) {
+  const { currency } = useCurrency()
   const [settleOpen, setSettleOpen] = React.useState(false)
   const totalCents = summary.expenseTotalCents
+  // Any foreign row still on a mid-market rate makes the headline approximate.
+  const hasUnconfirmed = expenses.some(
+    (e) =>
+      !e.isSettlement && isForeign(e, currency) && !e.homeAmountConfirmed,
+  )
 
   return (
     <section>
@@ -122,6 +129,7 @@ export function BudgetTab({
             tripSlug={tripSlug}
             spentCents={totalCents}
             plannedBudgetCents={plannedBudgetCents}
+            hasUnconfirmed={hasUnconfirmed}
           />
         </div>
         <LogExpenseRow
