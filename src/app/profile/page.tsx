@@ -343,11 +343,11 @@ export default async function ProfilePage() {
                       <TripJournal
                         record={journal}
                         memberNames={memberNames}
-                        currency={trip.currency}
+                        currency={trip.homeCurrency}
                       />
                     ) : null}
                     {budget ? (
-                      <TripBudget summary={budget} currency={trip.currency} />
+                      <TripBudget summary={budget} currency={trip.homeCurrency} />
                     ) : null}
                   </div>
                 ))}

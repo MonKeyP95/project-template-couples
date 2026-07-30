@@ -93,7 +93,7 @@ export async function getTripRollups(
  *
  * The history is normalised to `workspaceCurrency` because an average across
  * trips has to be in one unit; the summaries are **not**, because each is
- * rendered against its own trip's currency. Normalisation is display-only at
+ * rendered against its own trip's HOME currency. Normalisation is display-only at
  * today's rate, one conversion per trip -- no stored value is touched, so
  * opening the Thailand trip still shows its own numbers.
  */
@@ -109,7 +109,9 @@ export async function getProfileBudgetData(
   const rollups = await getTripRollups(trips)
   const catOrder = [...EXPENSE_CATEGORIES]
 
-  const currencyByTrip = new Map(trips.map((t) => [t.id, t.currency]))
+  // home amounts are denominated in the trip's HOME currency, not what it
+  // spends in -- normalising by the spend currency would convert the wrong unit.
+  const currencyByTrip = new Map(trips.map((t) => [t.id, t.homeCurrency]))
   const foreign = rollups.filter(
     (r) => (currencyByTrip.get(r.tripId) ?? workspaceCurrency) !== workspaceCurrency,
   )

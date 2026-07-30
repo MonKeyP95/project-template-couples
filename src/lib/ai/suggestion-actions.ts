@@ -73,12 +73,12 @@ async function buildPrompt(
   if (surface === "budget") {
     const items = await getBudgetItems(trip.id)
     const lines = items
-      .map((i) => `${i.category}: ${i.subject} ${amount(i.amountCents, trip.currency)}`)
+      .map((i) => `${i.category}: ${i.subject} ${amount(i.amountCents, trip.homeCurrency)}`)
       .join("; ")
     return [
       `The couple is planning ${header}. Surface: budget.`,
       trip.plannedBudgetCents
-        ? `Planned budget: ${amount(trip.plannedBudgetCents, trip.currency)}.`
+        ? `Planned budget: ${amount(trip.plannedBudgetCents, trip.homeCurrency)}.`
         : "No overall budget set yet.",
       items.length ? `Line items: ${lines}.` : "No budget line items yet.",
       "Suggest one budget gap, missing cost, or adjustment.",
@@ -230,7 +230,7 @@ async function buildScopedPrompt(
       modeLine,
       onRoad,
       trip.plannedBudgetCents,
-      trip.currency,
+      trip.homeCurrency,
     )
   if (scope.kind === "day")
     return buildDayPrompt(trip.id, header, modeLine, scope.date)

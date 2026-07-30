@@ -86,7 +86,8 @@ export async function draftAndFillBudget(input: {
       tripDays: dayCountInclusive(trip.startDate, trip.endDate ?? trip.startDate),
       memberCount: input.memberCount,
       budgetBand: prefs.budgetBand,
-      currency: trip.currency,
+      // Budget lines are home amounts, so the model must price in that unit.
+      currency: trip.homeCurrency,
       profileBlock,
       tasteDirective,
       locations: input.locations,
