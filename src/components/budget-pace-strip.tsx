@@ -89,7 +89,7 @@ function BucketRow({
         <span className="font-mono text-[9.5px] uppercase tracking-[0.18em] text-muted-foreground">
           {bucket.label}
           {expandable ? (
-            <Chevron dir={open ? "down" : "right"} className="ml-1.5" />
+            <Chevron dir={open ? "down" : "right"} className="ml-1.5 inline-block" />
           ) : null}
         </span>
         <span className="t-num text-[12px] text-foreground">
