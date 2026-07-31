@@ -547,6 +547,9 @@ export function ItineraryTab({
   const plannedTotalCents = budgetItems.reduce((s, it) => s + it.amountCents, 0)
 
   const active = tripActive(today, tripStartDate, tripEndDate)
+  // Mid-trip the walk opens on the days that remain; the server floor is what
+  // actually protects the earlier ones.
+  const plannerDays = active ? days.filter((d) => d.dayDate >= today) : days
   const itemIsPast = (it: TimelineItem) =>
     it.kind === "location"
       ? groupZone(it.group, today) === "past"
@@ -716,6 +719,14 @@ export function ItineraryTab({
           />
         }
       />
+      <PlanItinerary
+        tripId={tripId}
+        tripSlug={tripSlug}
+        destination={destination}
+        avoid={avoid}
+        locations={locations}
+        days={plannerDays}
+      />
     </div>
   )
 
@@ -729,19 +740,7 @@ export function ItineraryTab({
       </div>
 
       <div className="px-5 pt-4 pb-6 lg:px-10">
-        {active ? null : (
-          <>
-            {planningBlock}
-            <PlanItinerary
-              tripId={tripId}
-              tripSlug={tripSlug}
-              destination={destination}
-              avoid={avoid}
-              locations={locations}
-              days={days}
-            />
-          </>
-        )}
+        {active ? null : planningBlock}
 
         {timeline.length === 0 ? (
           <p className="font-serif text-[15px] italic text-muted-foreground">
