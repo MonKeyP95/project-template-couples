@@ -197,6 +197,38 @@ export function tripActive(today: string, start: string, end: string): boolean {
   return today >= start && today <= end
 }
 
+/** The earliest date the guided planner may write to: today while the trip is
+ * running, null otherwise. Null means no floor -- every day is writable. */
+export function planFloor(
+  today: string,
+  startDate: string,
+  endDate: string,
+): string | null {
+  return tripActive(today, startDate, endDate) ? today : null
+}
+
+/** Minimal day shape the floor helpers read; a full `ItineraryDay` is assignable. */
+export interface DayDateAndLocation {
+  dayDate: string
+  locationId: string | null
+}
+
+/** The earliest day at or after `floor`, optionally restricted to one location.
+ * A null floor means no lower bound. Undefined when no day qualifies. */
+export function firstDayAtOrAfter(
+  days: DayDateAndLocation[],
+  floor: string | null,
+  locationId?: string,
+): string | undefined {
+  let best: string | undefined
+  for (const day of days) {
+    if (floor && day.dayDate < floor) continue
+    if (locationId && day.locationId !== locationId) continue
+    if (best === undefined || day.dayDate < best) best = day.dayDate
+  }
+  return best
+}
+
 /** One-line summary for a day: the typed sub, else a cheap hint from the events
  * (the lone event's text, or "N events"), else "". Pure; safe server or client. */
 export function daySummary(day: ItineraryDay): string {
