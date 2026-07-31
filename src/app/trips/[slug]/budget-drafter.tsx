@@ -13,7 +13,7 @@ import {
   savePreTripItems,
   type SaveBudgetItemInput,
 } from "@/lib/trips/actions"
-import type { BudgetItem } from "@/lib/trips/budget-item-types"
+import { isBufferSubject, type BudgetItem } from "@/lib/trips/budget-item-types"
 import {
   locationDateLabel,
   type DayLocation,
@@ -105,7 +105,6 @@ const STEP_BY_CATEGORY: Record<string, string> = {
   Other: "other",
 }
 const PER_LOCATION = new Set(["accommodation", "food", "groceries", "activities"])
-const isBufferSubject = (s: string) => /^buffer \(/i.test(s.trim())
 
 export interface BudgetDrafterProps {
   tripId: string

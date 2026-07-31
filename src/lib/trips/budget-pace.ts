@@ -1,4 +1,4 @@
-import type { BudgetItem } from "./budget-item-types"
+import { isBufferSubject, type BudgetItem } from "./budget-item-types"
 import { computeTripDays } from "./trip-days"
 
 /** Reserved category excluded from the tracker; mirrors budget-tab.tsx. */
@@ -166,6 +166,7 @@ function makeBucket(
   let plannedCents = 0
   let spentCents = 0
   for (const date of dates) {
+    if (date > watermark) continue
     plannedCents += plannedByDay.get(date) ?? 0
     spentCents += spentByDay.get(date) ?? 0
   }
@@ -240,12 +241,10 @@ export function budgetPace(input: BudgetPaceInput): BudgetPace | null {
   const preTripPlannedCents = input.budgetItems
     .filter((it) => it.category === PRE_TRIP)
     .reduce((sum, it) => sum + it.amountCents, 0)
-  const tripItems = input.budgetItems.filter((it) => it.category !== PRE_TRIP)
+  const tripItems = input.budgetItems.filter(
+    (it) => it.category !== PRE_TRIP && !isBufferSubject(it.subject),
+  )
   const source: "items" | "flat" = tripItems.length > 0 ? "items" : "flat"
-  const onTheRoadBudgetCents =
-    source === "items"
-      ? tripItems.reduce((sum, it) => sum + it.amountCents, 0)
-      : Math.max(0, plannedBudgetCents - preTripPlannedCents)
 
   const plannedByDay = new Map<string, number>()
   if (source === "items") {
@@ -255,7 +254,14 @@ export function budgetPace(input: BudgetPaceInput): BudgetPace | null {
         plannedByDay.set(date, (plannedByDay.get(date) ?? 0) + cents)
       }
     }
-  } else {
+  }
+
+  const onTheRoadBudgetCents =
+    source === "items"
+      ? Math.round(Array.from(plannedByDay.values()).reduce((sum, c) => sum + c, 0))
+      : Math.max(0, plannedBudgetCents - preTripPlannedCents)
+
+  if (source === "flat") {
     const per = onTheRoadBudgetCents / tripDays
     for (const date of tripDates) plannedByDay.set(date, per)
   }

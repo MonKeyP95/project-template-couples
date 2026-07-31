@@ -2,7 +2,7 @@
 
 import * as React from "react"
 
-import { Bar } from "@/components/together"
+import { Bar, Chevron } from "@/components/together"
 import { useCurrency } from "@/components/currency-context"
 import { money } from "@/lib/money"
 import { cn } from "@/lib/utils"
@@ -88,7 +88,9 @@ function BucketRow({
       <div className="flex items-baseline justify-between gap-2">
         <span className="font-mono text-[9.5px] uppercase tracking-[0.18em] text-muted-foreground">
           {bucket.label}
-          {expandable ? <span className="ml-1.5">{open ? "⌄" : "›"}</span> : null}
+          {expandable ? (
+            <Chevron dir={open ? "down" : "right"} className="ml-1.5" />
+          ) : null}
         </span>
         <span className="t-num text-[12px] text-foreground">
           {bucketNote(bucket, currency)}

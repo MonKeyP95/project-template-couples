@@ -40,6 +40,11 @@ export interface BudgetItemRow {
   count: number
 }
 
+/** Identifies the drafter's derived percentage-cushion line, e.g. "Buffer (10%)". */
+export function isBufferSubject(s: string): boolean {
+  return /^buffer \(/i.test(s.trim())
+}
+
 export function rowToBudgetItem(row: BudgetItemRow): BudgetItem {
   return {
     id: row.id,
