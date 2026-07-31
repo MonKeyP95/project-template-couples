@@ -10,7 +10,12 @@ import {
 import type { TripProfile } from "@/lib/trips/trip-profile-types"
 import { getItineraryLocations } from "@/lib/trips/location-queries"
 import { getItineraryDays } from "@/lib/trips/itinerary-queries"
-import { ITINERARY_TONES } from "@/lib/trips/itinerary-types"
+import {
+  ITINERARY_TONES,
+  firstDayAtOrAfter,
+  planFloor,
+} from "@/lib/trips/itinerary-types"
+import { localToday } from "@/lib/time/local-today"
 import type { ItineraryDay, ItineraryEvent } from "@/lib/trips/itinerary-types"
 import type { ItineraryLocation } from "@/lib/trips/location-types"
 import { getCurrentWorkspace } from "@/lib/workspace/queries"
@@ -139,24 +144,27 @@ async function applyPlanEdits(
   days: ItineraryDay[],
   locations: ItineraryLocation[],
   tripName: string,
+  /** Earliest writable date; days before it already happened and are never touched. */
+  floor: string | null,
 ): Promise<{ error?: string; created?: { locations: number; days: number } }> {
   const originals = new Map<string, ItineraryEvent>()
   const dayById = new Map(days.map((d) => [d.id, d] as const))
-  const firstDateByLocation = new Map<string, string>()
   for (const day of days) {
     day.events.forEach((e, i) => originals.set(`${day.id}#${i}`, e))
-    if (day.locationId && !firstDateByLocation.has(day.locationId)) {
-      firstDateByLocation.set(day.locationId, day.dayDate)
-    }
   }
 
-  /** Where an undated new row lands: its place's first day, else the trip's. */
+  /** Where an undated new row lands: its place's first day at or after the
+   * floor, else the trip's. Never a day the rewrite loop will skip, which
+   * would drop the row silently. */
   function fallbackDate(place: string): string | undefined {
     const key = place.trim().toLowerCase()
     const loc = key
       ? locations.find((l) => l.name.trim().toLowerCase() === key)
       : undefined
-    return (loc && firstDateByLocation.get(loc.id)) ?? days[0]?.dayDate
+    return (
+      (loc ? firstDayAtOrAfter(days, floor, loc.id) : undefined) ??
+      firstDayAtOrAfter(days, floor)
+    )
   }
 
   // Positional rename, only while the walk still holds as many places as the
@@ -201,6 +209,12 @@ async function applyPlanEdits(
 
   // Existing days: rewrite the event list to what the walk holds for that date.
   for (const day of days) {
+    // A day before the floor is part of the trip that already happened: never
+    // written, and dropped from `byDate` so the leftover loop cannot recreate it.
+    if (floor && day.dayDate < floor) {
+      byDate.delete(day.dayDate)
+      continue
+    }
     const next = byDate.get(day.dayDate) ?? []
     byDate.delete(day.dayDate)
     if (JSON.stringify(next) === JSON.stringify(day.events)) continue
@@ -221,6 +235,9 @@ async function applyPlanEdits(
   // Whatever is left sits on a date the trip has no day for yet.
   let added = 0
   for (const [date, events] of byDate) {
+    // A row can carry a user-picked past date with no day behind it; creating
+    // one would put a brand-new day behind the floor.
+    if (floor && date < floor) continue
     const locationId = locationForDate(locations, date, placeByDate.get(date) ?? "")
     const name = locations.find((l) => l.id === locationId)?.name ?? tripName
     const res = await addItineraryDay({
@@ -265,7 +282,14 @@ export async function applyPlanEntries(input: {
   const existingDays = await getItineraryDays(input.tripId)
   if (existingDays.length > 0) {
     const locations = await getItineraryLocations(input.tripId)
-    return await applyPlanEdits(input, existingDays, locations, trip.name)
+    // Derived here, never taken from the caller: a wrong floor silently empties
+    // days that already happened.
+    const floor = planFloor(
+      await localToday(),
+      trip.startDate,
+      trip.endDate ?? trip.startDate,
+    )
+    return await applyPlanEdits(input, existingDays, locations, trip.name, floor)
   }
 
   const skeleton = entriesToSkeleton(
