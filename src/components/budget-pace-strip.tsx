@@ -8,12 +8,12 @@ import { money } from "@/lib/money"
 import { cn } from "@/lib/utils"
 import { dayLabel, type BudgetPace, type PaceBucket } from "@/lib/trips/budget-pace"
 
-type Verdict = { text: string; tone: "clay" | "moss" }
+type Verdict = { text: string; tone: "clay" | "muted" }
 
 function verdict(deltaCents: number, currency: string): Verdict {
   if (deltaCents > 0) return { text: `${money(deltaCents, currency)} over`, tone: "clay" }
-  if (deltaCents < 0) return { text: `${money(-deltaCents, currency)} under`, tone: "moss" }
-  return { text: "on budget", tone: "moss" }
+  if (deltaCents < 0) return { text: `${money(-deltaCents, currency)} spare`, tone: "muted" }
+  return { text: "on budget", tone: "muted" }
 }
 
 function pctOf(spentCents: number, plannedCents: number): number {
@@ -25,8 +25,8 @@ function asOf(pace: BudgetPace): string {
   return pace.lastLogged ? `as of ${dayLabel(pace.lastLogged)}` : "nothing logged yet"
 }
 
-function toneClass(tone: "clay" | "moss"): string {
-  return tone === "clay" ? "text-clay" : "text-moss"
+function toneClass(tone: "clay" | "muted"): string {
+  return tone === "clay" ? "text-clay" : "text-muted-foreground"
 }
 
 /** Compact road verdict: one line, one bar, no drill-down. */
@@ -65,7 +65,7 @@ function bucketNote(bucket: PaceBucket, currency: string): string {
   if (!bucket.logged) return "not logged"
   const delta = bucket.spentCents - bucket.plannedCents
   if (delta === 0) return "on budget"
-  return `${money(Math.abs(delta), currency)} ${delta > 0 ? "over" : "under"}`
+  return `${money(Math.abs(delta), currency)} ${delta > 0 ? "over" : "spare"}`
 }
 
 function BucketRow({
@@ -98,7 +98,7 @@ function BucketRow({
         <Bar
           className="mt-1.5"
           pct={pctOf(bucket.spentCents, bucket.plannedCents)}
-          tone={bucket.spentCents > bucket.plannedCents ? "clay" : "moss"}
+          tone={bucket.spentCents > bucket.plannedCents ? "clay" : "muted"}
         />
       ) : (
         <div className="mt-1.5 h-1 w-full rounded-full border border-dashed border-border" />

@@ -1,13 +1,14 @@
 import * as React from "react"
 import { cn } from "@/lib/utils"
 
-export type BarTone = "sea" | "clay" | "moss" | "ink"
+export type BarTone = "sea" | "clay" | "moss" | "ink" | "muted"
 
 const fillClasses: Record<BarTone, string> = {
   sea: "bg-sea",
   clay: "bg-clay",
   moss: "bg-moss",
   ink: "bg-foreground",
+  muted: "bg-muted-foreground",
 }
 
 export interface BarProps {
