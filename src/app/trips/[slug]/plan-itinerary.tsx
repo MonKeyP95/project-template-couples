@@ -18,6 +18,8 @@ import { applyPlanEntries, draftAndApplyItinerary } from "@/lib/ai/itinerary-act
 export interface PlanItineraryProps {
   tripId: string
   tripSlug: string
+  /** The trip's own name — the place, when no locations were ever added. */
+  tripName: string
   destination: string
   /** The trip's saved avoid text; the walk prefills from it and writes it back. */
   avoid: string
@@ -65,9 +67,12 @@ function rowEmpty(row: ItemRow): boolean {
   return row.subject.trim() === "" && row.note.trim() === "" && !row.whenStart && !row.whenEnd
 }
 
-/** The Places step's opening rows: the trip's locations, or one blank row. */
-function seedPlaceNames(saved: SavedPlan): string[] {
-  return saved.places.length > 0 ? saved.places.map((p) => p.name) : [""]
+/** The Places step's opening rows: the trip's locations, or — when none were
+ * ever added — the trip itself, which is the place. The same fallback the write
+ * path uses (applyPlanEdits files a location-less day under `trip.name`). */
+function seedPlaceNames(saved: SavedPlan, tripName: string): string[] {
+  if (saved.places.length > 0) return saved.places.map((p) => p.name)
+  return [tripName.trim()]
 }
 
 /** The walk's opening rows, keyed by step. A seeded row is keyed by its own
@@ -97,6 +102,7 @@ function seedItems(saved: SavedPlan): Record<string, ItemRow[]> {
 export function PlanItinerary({
   tripId,
   tripSlug,
+  tripName,
   destination,
   avoid: initialAvoid,
   locations,
@@ -112,7 +118,9 @@ export function PlanItinerary({
   const title = days.length > 0 ? "Edit your itinerary" : "Plan your itinerary"
   const [open, setOpen] = React.useState(searchParams.get("plan") === "1")
   const [phase, setPhase] = React.useState<Phase>("places")
-  const [placeNames, setPlaceNames] = React.useState<string[]>(() => seedPlaceNames(saved))
+  const [placeNames, setPlaceNames] = React.useState<string[]>(() =>
+    seedPlaceNames(saved, tripName),
+  )
   const [freeText, setFreeText] = React.useState("")
   const [avoid, setAvoid] = React.useState(initialAvoid)
   const [steps, setSteps] = React.useState<ItineraryPlanStep[]>([])
@@ -130,9 +138,14 @@ export function PlanItinerary({
   }
 
   /** Opening always re-reads the itinerary, so a save then reopen shows the
-   * saved state rather than the rows this component mounted with. */
+   * saved state rather than the rows this component mounted with. Editing never
+   * asks where you are going: the trip's locations — or the trip itself — are
+   * the places, so the walk starts at step 1. Back from there still reaches the
+   * Places step to add one. */
   function openWalk() {
     seedWalk()
+    const known = seedPlaceNames(saved, tripName).filter((n) => n.length > 0)
+    if (days.length > 0 && known.length > 0) beginWalk(known)
     setOpen(true)
   }
 
@@ -143,7 +156,7 @@ export function PlanItinerary({
 
   function seedWalk() {
     setPhase("places")
-    setPlaceNames(seedPlaceNames(saved))
+    setPlaceNames(seedPlaceNames(saved, tripName))
     setFreeText("")
     setAvoid(initialAvoid)
     setSteps([])
@@ -154,7 +167,11 @@ export function PlanItinerary({
 
   function startWalk() {
     if (trimmedPlaces.length === 0) return
-    const nextSteps = planItinerarySteps(trimmedPlaces)
+    beginWalk(trimmedPlaces)
+  }
+
+  function beginWalk(names: string[]) {
+    const nextSteps = planItinerarySteps(names)
     setItems((prev) => {
       const next: Record<string, ItemRow[]> = {}
       for (const s of nextSteps) {

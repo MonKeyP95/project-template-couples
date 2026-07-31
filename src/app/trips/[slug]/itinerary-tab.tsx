@@ -722,6 +722,7 @@ export function ItineraryTab({
       <PlanItinerary
         tripId={tripId}
         tripSlug={tripSlug}
+        tripName={tripName}
         destination={destination}
         avoid={avoid}
         locations={locations}
