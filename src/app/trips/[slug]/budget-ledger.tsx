@@ -8,6 +8,7 @@ import {
   type ExpenseCategoryRow,
 } from "@/lib/trips/expense-types"
 import { type SavingsContribution } from "@/lib/trips/savings-types"
+import { deleteSavingsContribution } from "@/lib/trips/actions"
 import {
   dayLocationMap,
   effectiveLocation,
@@ -32,18 +33,36 @@ function savingDate(iso: string): { mon: string; day: string } {
   return { mon: MONTH_SHORT.format(d).toUpperCase(), day: String(d.getUTCDate()) }
 }
 
-/** Read-only savings contribution row, styled like the main-ledger expense row. */
+/** Savings contribution row, styled like the main-ledger expense row. */
 function SavingsLedgerRow({
   saving,
   member,
+  tripSlug,
 }: {
   saving: SavingsContribution
   member: MemberToneEntry | undefined
+  tripSlug: string
 }) {
   const { currency } = useCurrency()
   const date = savingDate(saving.createdAt)
+  const [error, setError] = React.useState<string | null>(null)
+  const [isPending, startTransition] = React.useTransition()
+
+  function remove() {
+    if (isPending) return
+    if (!confirm("Delete this contribution?")) return
+    startTransition(async () => {
+      const result = await deleteSavingsContribution(saving.id, tripSlug)
+      if (result.error) setError(result.error)
+    })
+  }
+
   return (
-    <div className="grid grid-cols-[44px_1fr_auto] items-center gap-3 border-t border-border px-5 py-3">
+    <div
+      className={`grid grid-cols-[44px_1fr_auto] items-center gap-3 border-t border-border px-5 py-3 ${
+        isPending ? "opacity-50" : ""
+      }`}
+    >
       <div className="text-center">
         <div className="font-mono text-[18px] leading-none tracking-[-0.02em] text-foreground">
           {date.day}
@@ -61,11 +80,25 @@ function SavingsLedgerRow({
           <div className="mt-1 font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
             saved
           </div>
+          {error ? (
+            <div className="mt-1 font-mono text-[10px] text-clay">{error}</div>
+          ) : null}
         </div>
       </div>
-      <div className="t-num text-[15px] text-moss">
-        {"+"}
-        {money(saving.amountCents, currency)}
+      <div className="flex items-center gap-2">
+        <span className="t-num text-[15px] text-moss">
+          {"+"}
+          {money(saving.amountCents, currency)}
+        </span>
+        <button
+          type="button"
+          onClick={remove}
+          disabled={isPending}
+          aria-label="Delete contribution"
+          className="border-0 bg-transparent font-mono text-[12px] text-muted-foreground hover:text-foreground"
+        >
+          ×
+        </button>
       </div>
     </div>
   )
@@ -151,6 +184,7 @@ export function Ledger({
                 key={`s-${item.saving.id}`}
                 saving={item.saving}
                 member={members[item.saving.userId]}
+                tripSlug={tripSlug}
               />
             ),
           )}

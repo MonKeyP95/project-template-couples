@@ -225,6 +225,10 @@ export function SavedFigure({
     ? Math.min(100, Math.round((savedCents / plannedBudgetCents) * 100))
     : 0
 
+  // Personal share: an equal split of the goal, one per member.
+  const memberCount = Object.keys(members).length
+  const shareCents = memberCount > 1 ? Math.round(plannedBudgetCents / memberCount) : 0
+
   const saveSaved = (cents: number) =>
     addSavingsContribution({ tripId, tripSlug, amountCents: cents })
 
@@ -290,6 +294,7 @@ export function SavedFigure({
           contributions={contributions}
           perUser={perUser}
           members={members}
+          shareCents={shareCents}
           tripId={tripId}
           tripSlug={tripSlug}
           currentUserId={currentUserId}
@@ -316,6 +321,7 @@ function SavingsDetails({
   contributions,
   perUser,
   members,
+  shareCents,
   tripId,
   tripSlug,
   currentUserId,
@@ -323,6 +329,8 @@ function SavingsDetails({
   contributions: SavingsContribution[]
   perUser: Record<string, number>
   members: Record<string, MemberToneEntry>
+  /** Equal split of the planned budget; 0 hides the per-member progress bar. */
+  shareCents: number
   tripId: string
   tripSlug: string
   currentUserId: string
@@ -340,6 +348,7 @@ function SavingsDetails({
               userId={userId}
               member={member}
               savedCents={perUser[userId] ?? 0}
+              shareCents={shareCents}
               isSelf={userId === currentUserId}
             />
           ))}
@@ -374,6 +383,7 @@ function MemberSavedBox({
   userId,
   member,
   savedCents,
+  shareCents,
   isSelf,
 }: {
   tripId: string
@@ -381,6 +391,8 @@ function MemberSavedBox({
   userId: string
   member: MemberToneEntry
   savedCents: number
+  /** This member's equal share of the planned budget; 0 hides the bar. */
+  shareCents: number
   /** When false, adding (crediting someone else) asks for a confirm first. */
   isSelf: boolean
 }) {
@@ -392,6 +404,9 @@ function MemberSavedBox({
   const [error, setError] = React.useState<string | null>(null)
   const [isPending, startTransition] = React.useTransition()
   const inputRef = React.useRef<HTMLInputElement>(null)
+  const shareToGo = Math.max(0, shareCents - savedCents)
+  const sharePct =
+    shareCents > 0 ? Math.min(100, Math.round((savedCents / shareCents) * 100)) : 0
 
   React.useEffect(() => {
     if (editing && !confirming) inputRef.current?.focus()
@@ -538,6 +553,15 @@ function MemberSavedBox({
           + add
         </span>
       </span>
+      {shareCents > 0 ? (
+        <>
+          <Bar pct={sharePct} tone="moss" className="mt-2.5" />
+          <span className="mt-1.5 flex justify-between font-mono text-[10px] tracking-[0.06em] text-muted-foreground">
+            <span>{sharePct}%</span>
+            <span>{fmt(shareToGo)} to go</span>
+          </span>
+        </>
+      ) : null}
     </button>
   )
 }
