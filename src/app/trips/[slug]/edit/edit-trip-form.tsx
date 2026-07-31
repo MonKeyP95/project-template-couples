@@ -45,7 +45,7 @@ export interface EditTripInitial {
   lat: number | null
   lng: number | null
   currency: string
-  /** Read-only here: set at creation from the workspace, shown for context. */
+  /** Where the money comes from; what every total is reported in. */
   homeCurrency: string
 }
 
@@ -71,6 +71,7 @@ export function EditTripForm({
   const [fuzzyWhen, setFuzzyWhen] = React.useState(initial.fuzzyWhen ?? "")
   const [country, setCountry] = React.useState(initial.country ?? "")
   const [currency, setCurrency] = React.useState(initial.currency)
+  const [homeCurrency, setHomeCurrency] = React.useState(initial.homeCurrency)
   const [advancedOpen, setAdvancedOpen] = React.useState(
     initial.lat !== null || initial.lng !== null,
   )
@@ -116,6 +117,7 @@ export function EditTripForm({
         fuzzyWhen: isDream ? fuzzyWhen.trim() || null : null,
         country: country.trim() || null,
         currency,
+        homeCurrency,
         lat: parseFloatOrNull(lat),
         lng: parseFloatOrNull(lng),
         profile: { idea, transport, vibe, vibeNote, avoid },
@@ -274,8 +276,31 @@ export function EditTripForm({
             ))}
           </select>
           <span className="mt-1 block font-mono text-[10px] text-muted-foreground">
-            Pre-fills the expense form. Totals stay in {initial.homeCurrency},
-            where your bank account is; every expense converts into it.
+            Pre-fills the expense form. Totals stay in {homeCurrency}, where your
+            bank account is; every expense converts into it.
+          </span>
+        </label>
+
+        <label className="mt-5 block">
+          <span className="block font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
+            Totals are in
+          </span>
+          <select
+            value={homeCurrency}
+            onChange={(e) => setHomeCurrency(e.target.value)}
+            disabled={isPending}
+            className="mt-1 block w-full rounded-md border border-border bg-transparent px-3 py-2 text-sm disabled:opacity-50"
+          >
+            {currencyOptions().map((o) => (
+              <option key={o.code} value={o.code}>
+                {o.label}
+              </option>
+            ))}
+          </select>
+          <span className="mt-1 block font-mono text-[10px] text-muted-foreground">
+            Where your bank account is. Changing it relabels this trip&apos;s
+            figures, never converts them — so it is refused once an expense has
+            actually been converted into {initial.homeCurrency}.
           </span>
         </label>
 

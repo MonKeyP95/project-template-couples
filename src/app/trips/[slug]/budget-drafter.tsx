@@ -285,7 +285,9 @@ export function BudgetDrafter({
     return out
   }
 
-  /** The buffer % an existing budget was saved with, read back off its derived line. */
+  /** The buffer % an existing budget was saved with, read back off its derived
+   * line. Null means the saved budget carries no buffer line at all, which the
+   * write path only does for a deliberate 0% — not "unknown". */
   function savedBufferPct(): number | null {
     const it = initialItems.find((i) => isBufferSubject(i.subject))
     const n = Number(it?.subject.match(/\((\d+(?:\.\d+)?)\s*%\)/)?.[1])
@@ -342,7 +344,7 @@ export function BudgetDrafter({
     const restore = !fromScratch && plannedBudgetCents > 0
     seedSession(
       restore ? savedRows() : seedFromItinerary(),
-      (restore ? savedBufferPct() : null) ?? bufferRec.pct,
+      restore ? (savedBufferPct() ?? 0) : bufferRec.pct,
     )
   }
 
@@ -559,7 +561,9 @@ export function BudgetDrafter({
       }
     }
     const buffer = Math.round((subtotalCents(session) * bufferPct) / 100)
-    if (buffer > 0) {
+    // Keyed on the percentage, not the amount: a chosen % with nothing priced
+    // yet still has to be recorded, or reopening loses it.
+    if (bufferPct > 0) {
       items.push({
         category: "Other",
         subject: `Buffer (${bufferPct}%)`,

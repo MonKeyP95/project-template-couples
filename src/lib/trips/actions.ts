@@ -976,6 +976,8 @@ export interface UpdateTripInput {
   lng: number | null
   /** What you spend here; the expense-entry default. */
   currency: string
+  /** Where the money comes from; every total is reported in it. */
+  homeCurrency: string
   profile?: TripProfile
   categories?: { name: string; details: string[] }[]
 }
@@ -1007,6 +1009,9 @@ export async function updateTrip(
   if (!currencyOptions().some((o) => o.code === input.currency)) {
     return { error: "Unknown currency." }
   }
+  if (!currencyOptions().some((o) => o.code === input.homeCurrency)) {
+    return { error: "Unknown currency." }
+  }
 
   const hasLat = input.lat !== null
   const hasLng = input.lng !== null
@@ -1024,6 +1029,45 @@ export async function updateTrip(
 
   const supabase = await createClient()
   const country = input.country?.trim() || null
+
+  // Home currency is a RELABEL, never a conversion: figures recorded before the
+  // change were always this couple's own money and only the label was wrong
+  // (the rule 20260730000003_relabel_legacy_eur_as_home.sql established). That
+  // holds only while nothing has genuinely been converted, so a trip carrying a
+  // real conversion refuses the change rather than misstating it.
+  const { data: homeRow } = await supabase
+    .from("trips")
+    .select("home_currency")
+    .eq("id", input.tripId)
+    .maybeSingle()
+  const oldHome: string | null = homeRow?.home_currency ?? null
+  const homeChanged = oldHome !== null && oldHome !== input.homeCurrency
+  if (homeChanged) {
+    const { count } = await supabase
+      .from("expenses")
+      .select("id", { count: "exact", head: true })
+      .eq("trip_id", input.tripId)
+      .not("home_amount_cents", "is", null)
+    if ((count ?? 0) > 0) {
+      return {
+        error: `This trip already has expenses converted into ${oldHome}. Changing the home currency would misstate them.`,
+      }
+    }
+  }
+  const homePatch = homeChanged ? { home_currency: input.homeCurrency } : {}
+
+  /** Carries the never-converted expenses onto the new label, so a row's
+   * currency and the trip's home currency stay the same fact. Runs only after
+   * the trip row itself is updated. */
+  async function relabelHomeExpenses() {
+    if (!homeChanged || oldHome === null) return
+    await supabase
+      .from("expenses")
+      .update({ currency: input.homeCurrency })
+      .eq("trip_id", input.tripId)
+      .eq("currency", oldHome)
+      .is("home_amount_cents", null)
+  }
 
   // Profile patch: only overwrite trip_profile when the caller sent a profile.
   const profilePatch =
@@ -1131,6 +1175,7 @@ export async function updateTrip(
         lat: input.lat,
         lng: input.lng,
         currency: input.currency,
+        ...homePatch,
         ...profilePatch,
       })
       .eq("id", input.tripId)
@@ -1140,6 +1185,7 @@ export async function updateTrip(
       }
       return { error: error.message }
     }
+    await relabelHomeExpenses()
     revalidatePath("/home")
     revalidatePath(`/trips/${input.currentSlug}`)
     return { slug }
@@ -1171,6 +1217,7 @@ export async function updateTrip(
           lat: input.lat,
           lng: input.lng,
           currency: input.currency,
+          ...homePatch,
           ...profilePatch,
         })
         .eq("id", input.tripId)
@@ -1180,6 +1227,7 @@ export async function updateTrip(
         }
         return { error: updateError.message }
       }
+      await relabelHomeExpenses()
 
       // Atomic: set dates (start + count - 1), move dream days, delete originals.
       const { error: rpcError } = await supabase.rpc("promote_dream_to_dated", {
@@ -1212,6 +1260,7 @@ export async function updateTrip(
       lat: input.lat,
       lng: input.lng,
       currency: input.currency,
+      ...homePatch,
       ...profilePatch,
     })
     .eq("id", input.tripId)
@@ -1222,6 +1271,7 @@ export async function updateTrip(
     }
     return { error: updateError.message }
   }
+  await relabelHomeExpenses()
 
   revalidatePath("/home")
   revalidatePath(`/trips/${input.currentSlug}`)
