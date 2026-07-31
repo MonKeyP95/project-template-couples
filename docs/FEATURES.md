@@ -17,7 +17,7 @@
 
 ## Next (current focus)
 
-- AI assistant — itinerary drafting, restaurant suggestions, hidden gems (Phase 5)
+- ~~AI assistant — itinerary drafting, restaurant suggestions, hidden gems (Phase 5)~~ **shipped 2026-07** — now in "Have it" territory; the open assistant work (proactive nudges, the retrieval harness) is tracked in `TODO.md`, not here.
 
 ## Later
 

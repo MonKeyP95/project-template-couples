@@ -28,7 +28,7 @@ Itinerary drafting, restaurant suggestions, packing-list hints. One provider (Cl
 Google Calendar, Google Maps, restaurant booking — only the ones we actually want on our own trips.
 
 ## Current Phase
-** Phase 4 (dream-trip pipeline + edit trip) shipped 2026-05-28. Phase 4.5 (trip notes) shipped 2026-05-28. Phase 4.6 (inline itinerary editing for dated trips) shipped 2026-05-28. Slice B (itinerary for dreams) and Slice C (drag-to-reschedule) are tracked as carried in `TODO.md`, intentionally. Backlog (`TODO.md`) holds five gap-fill items from the 2026-05-28 doc audit — to be triaged against actual pain on the trip.
+**Phases 1–5 are shipped** (Phase 4 dream-trip pipeline + edit trip, 4.5 trip notes and 4.6 inline itinerary editing all landed 2026-05-28; Phase 5's AI assistant is live as six agent descriptors under `src/lib/ai/agents/`). **Phase 6 (integrations) is optional and unstarted, and nothing else is phased** — work is now individual feature slices and the backlog in `TODO.md`, picked by what actually hurts on a real trip.
 
 ## Sequencing rules
 - One small task at a time. Validate each increment.

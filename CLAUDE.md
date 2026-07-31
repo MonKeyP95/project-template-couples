@@ -8,7 +8,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 The itinerary is now a full **location-organized planner**: days grouped under editable locations that can carry an optional **date span**, **empty-day buffer slots** rendered between/across spans that you click to fill, and **gap-aware confirm-and-push** when an add lands on a taken date — single days, multi-day "added together" blocks (with names), and whole location spans all shift consistently (later days + later location spans move; empties are consumed; `end_date` follows). Dateless **dreams** have a parallel numbered itinerary and promote to dated trips.
 
-**Next: Phase 5 — AI assistant** (Anthropic Claude via `lib/ai/claude.ts`), not yet wired; the moss-bordered `SuggestionCard` is its placeholder. Live punch list in `docs/TODO.md`.
+**Phase 5 (AI assistant) is shipped.** Six agents run against the real Anthropic API — `chat`, `discover`, `suggestion`, `budget-planner`, `itinerary-planner`, `summarize-taste` — one editable descriptor file each under `src/lib/ai/agents/`, all executed by the shared `runAgent` in `src/lib/ai/runtime.ts`, with `src/lib/ai/claude.ts` kept as the import seam. No mocks remain. The MCP seam exists in `runAgent` but no server is wired (every descriptor ships `mcpServers: []`).
+
+**There is no "current phase" left.** Phase 6 (integrations) is optional and unstarted; work is now feature slices and backlog items rather than phases. Live punch list in `docs/TODO.md`.
 
 ### Commands
 - `pnpm dev` — start dev server (Turbopack) on http://localhost:3000
@@ -31,20 +33,17 @@ Read the relevant one before making non-trivial design or scope decisions. Don't
 
 - `docs/VISION.md` — purpose, target users, "why us"
 - `docs/FEATURES.md` — current MVP scope vs. later
-- `docs/PLAN.md` — phases; **currently Phase 1 (Foundation)**
+- `docs/PLAN.md` — phases; **1–5 shipped, 6 (integrations) optional and unstarted**
 - `docs/DESIGN.md` — warm/calm visual language, mobile-first
 - `docs/TECH.md` — stack, what's in MVP vs. added later
 - `docs/DECISIONS.md` — non-obvious choices and why. Append a row when you make one.
 - `docs/TODO.md` — running task list. Update after completing a task.
 
-## MVP Scope (Phase 1–3)
+## Scope
 
-The whole MVP is **three things**:
-1. Auth + pairing (invite partner, shared workspace)
-2. Create a trip (name, dates, destination, members)
-3. Shared trip todo / packing list
+The original MVP — auth + pairing, create a trip, shared packing list — shipped long ago, along with budget, itinerary and the AI assistant. There is no scope gate to enforce any more.
 
-Anything beyond this — budget, itinerary days, AI assistant, integrations — is **explicitly deferred.** If the user asks for something outside MVP scope at this phase, confirm before building it.
+What replaced it: **build the slice that was asked for, not the platform around it.** Confirm before widening a request into a new subsystem, a new table, or a new provider.
 
 ## Stack (current)
 
@@ -52,10 +51,10 @@ Anything beyond this — budget, itinerary days, AI assistant, integrations — 
 - **Tailwind CSS v4** (PostCSS plugin) — *installed*
 - **React 19** — *installed*
 - **Shadcn/ui** (style `base-nova`, primitives on `@base-ui/react`) — *installed and themed*; `button`, `input`, `dialog` under `@/components/ui`. `cn()` at `@/lib/utils`. Palette is the warm `DESIGN.md` set (OKLCH, light + warm-mocha dark) in `src/app/globals.css`. **Note**: this Button has no `asChild` prop — to style a `Link` as a button, use `buttonVariants(...)` directly.
-- **Supabase** — Postgres + Auth + RLS + Realtime — *project provisioned, clients wired* (no tables yet)
+- **Supabase** — Postgres + Auth + RLS + Realtime — *in use*; schema lives in `supabase/migrations/`, applied **by hand** in the SQL editor (no migration tooling). Every SQL file must be re-runnable.
 - **`@supabase/ssr` 0.10** + **`@supabase/supabase-js` 2.106** — clients at `src/lib/supabase/{client,server}.ts`, session refresh in `src/proxy.ts`. No ORM. Cookie pattern: `getAll`/`setAll`.
 - **Vercel** for deployment — *connected* (GitHub integration; push to `main` deploys prod, PRs get previews). Live at https://project-template-couples.vercel.app
-- **Anthropic Claude** is added in Phase 5; do not wire it up early
+- **Anthropic Claude** (`@anthropic-ai/sdk` 0.106) — *in use*; see the AI seam under Architectural Principles
 
 Use the latest stable APIs (App Router patterns, Server Actions, `@supabase/ssr` client pattern).
 
@@ -65,7 +64,7 @@ These come from `docs/TECH.md` and `docs/PLAN.md` — keep them in mind on every
 
 - **Workspace, not couple.** Schema is `workspaces` + `workspace_members(user_id, role)` from day one. UI may assume 2 members; the data model must not.
 - **RLS from day one.** Every shared table has Row-Level Security policies. No "we'll add it later."
-- **AI provider is one file.** When Claude is wired in Phase 5, all calls route through `lib/ai/claude.ts`. No premature provider-agnostic abstraction.
+- **One AI, one file per agent.** Every model call goes through `runAgent` (`src/lib/ai/runtime.ts`); each agent is one descriptor in `src/lib/ai/agents/` owning its own system prompt, tools and MCP servers, and callers import from `src/lib/ai/claude.ts`. To change an AI's behaviour, edit its descriptor — don't add a provider-agnostic abstraction.
 - **Server-first.** Default to Server Components and Server Actions. Reach for client state only on real need.
 - **Mobile-first.** Test on a phone viewport, not desktop.
 
@@ -104,8 +103,8 @@ Exception: if the user explicitly asks Claude to run or screenshot the app, do i
 
 The user has explicitly asked for critical feedback. If a request would:
 
-- Expand MVP scope beyond the 3 items above without finishing them first,
-- Introduce an ORM, state library, or AI provider abstraction before the docs say to,
+- Widen a slice into a subsystem the user didn't ask for,
+- Introduce an ORM, a state library, or a provider-agnostic AI abstraction,
 - Add defensive code or speculative abstractions,
 - Or contradict a row in `docs/DECISIONS.md`,
 
@@ -113,4 +112,4 @@ The user has explicitly asked for critical feedback. If a request would:
 
 ## Stack Versions (as of 2026-05)
 
-Installed versions (locked in `pnpm-lock.yaml`): Next.js 16.2.6, React 19.2.4, Tailwind 4.3.0, TypeScript 5.9.3, ESLint 9.39.4. Node 24 / pnpm 11. To be added: Shadcn/ui (latest CLI), `@supabase/ssr` + `@supabase/supabase-js` (latest), and — only at Phase 5 — `@anthropic-ai/sdk` (latest).
+Installed versions (locked in `pnpm-lock.yaml`): Next.js 16.2.6, React 19.2.4, Tailwind 4.3.0, TypeScript 5.9.3, ESLint 9.39.4, `@anthropic-ai/sdk` 0.106, `@supabase/ssr` 0.10 + `@supabase/supabase-js` 2.106, Shadcn/ui on `@base-ui/react`. Node 24 / pnpm 11.

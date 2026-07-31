@@ -12,7 +12,7 @@ That's it. Anything else is added when we have a concrete need.
 
 ## Added in later phases (only when needed)
 
-- **Anthropic Claude** — added in Phase 5 for the AI assistant. Wrap calls in a single module so the provider can be swapped later. **No** "provider-agnostic" abstraction up front.
+- ~~**Anthropic Claude**~~ — **added 2026-07** (`@anthropic-ai/sdk`), no longer "later". The single-module rule held: every call goes through `runAgent`, one descriptor per agent under `src/lib/ai/agents/`, no provider-agnostic abstraction.
 - **Zod** — when the first form gets validation that's annoying without it.
 - **Zustand** — only if a real client-state need shows up. Most state in App Router is server state.
 - **Drizzle ORM** — revisit at Phase 4+ if `supabase-js` queries get gnarly. Not before.
@@ -30,7 +30,7 @@ These are added one at a time, only if we'd actually use them on our own trips.
 - **Next.js 16** — backend (Route Handlers, Server Actions) and frontend in one repo; good fit for AI streaming. Turbopack is the default dev bundler.
 - **Supabase** — auth, Postgres, RLS, realtime in one product. Removes weeks of glue code for a personal project.
 - **Shadcn/ui** — owned components in our repo, fully themable to the warm/calm design language.
-- **Claude (Phase 5)** — strong at planning/structuring tasks (itinerary drafting). Single provider keeps complexity down.
+- **Claude** — strong at planning/structuring tasks (itinerary drafting). Single provider keeps complexity down.
 
 ## Architectural principles
 
