@@ -365,6 +365,15 @@ export function EditTripForm({
                 if (patch.avoid !== undefined) setAvoid(patch.avoid)
               }}
               disabled={isPending}
+              footerAside={
+                <button
+                  type="submit"
+                  disabled={!canSubmit}
+                  className="rounded-full border border-rule px-3.5 py-1.5 font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground hover:text-foreground disabled:opacity-40"
+                >
+                  {isPending ? "…" : "save"}
+                </button>
+              }
             />
           </div>
         </div>
