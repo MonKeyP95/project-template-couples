@@ -643,6 +643,25 @@ export function BudgetDrafter({
     </div>
   )
 
+  /** The review step's write, offered from every step: editing one line
+   * shouldn't need a walk to the end. Carries the error, which otherwise only
+   * has a home on the review step. */
+  function saveFromHere() {
+    return (
+      <>
+        {error ? <span className="font-mono text-[9px] text-clay">{error}</span> : null}
+        <button
+          type="button"
+          onClick={apply}
+          disabled={isPending}
+          className="rounded-md border border-border bg-transparent px-3 py-1.5 font-mono text-[9.5px] uppercase tracking-[0.2em] text-foreground disabled:opacity-40"
+        >
+          {isPending ? "…" : "save"}
+        </button>
+      </>
+    )
+  }
+
   function renderRow(bucketId: string, row: ItemRow) {
     return (
       <div key={row.id} className="rounded-md border border-rule px-2.5 py-2">
@@ -789,6 +808,7 @@ export function BudgetDrafter({
             >
               cancel
             </button>
+            {saveFromHere()}
             <button
               type="button"
               onClick={() => setStepIndex((s) => s + 1)}
@@ -860,6 +880,7 @@ export function BudgetDrafter({
             >
               cancel
             </button>
+            {saveFromHere()}
             <button
               type="button"
               onClick={goNext}
@@ -924,13 +945,16 @@ export function BudgetDrafter({
           >
             back
           </button>
-          <button
-            type="button"
-            onClick={() => setStepIndex(reviewIndex)}
-            className="rounded-md border-0 bg-foreground px-3 py-1.5 font-mono text-[9.5px] uppercase tracking-[0.2em] text-background"
-          >
-            review
-          </button>
+          <div className="flex items-center gap-1.5">
+            {saveFromHere()}
+            <button
+              type="button"
+              onClick={() => setStepIndex(reviewIndex)}
+              className="rounded-md border-0 bg-foreground px-3 py-1.5 font-mono text-[9.5px] uppercase tracking-[0.2em] text-background"
+            >
+              review
+            </button>
+          </div>
         </div>
       </>
     )
