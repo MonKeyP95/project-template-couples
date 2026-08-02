@@ -1,16 +1,19 @@
 import { Chevron, Label } from "@/components/together"
-import { createWorkspace, renameWorkspace } from "@/lib/workspace/actions"
+import { createWorkspace } from "@/lib/workspace/actions"
 import {
   listUserWorkspaces,
   type WorkspaceSummary,
 } from "@/lib/workspace/queries"
 
-const inputClass =
-  "min-w-0 flex-1 rounded-md border border-border bg-background px-2 py-1.5 text-[13px] text-foreground placeholder:text-muted-foreground"
-
 /** Switch to another workspace. A form post rather than a link, so the cookie
  * is set by the route handler and the method matches the mutation. */
-function SwitchRow({ workspace, next }: { workspace: WorkspaceSummary; next: string }) {
+function SwitchRow({
+  workspace,
+  next,
+}: {
+  workspace: WorkspaceSummary
+  next: string
+}) {
   return (
     <form action="/api/workspace/switch" method="post">
       <input type="hidden" name="to" value={workspace.id} />
@@ -26,58 +29,10 @@ function SwitchRow({ workspace, next }: { workspace: WorkspaceSummary; next: str
   )
 }
 
-function RenameForm({ name }: { name: string }) {
-  return (
-    <form action={renameWorkspace} className="flex gap-1.5">
-      <input
-        name="name"
-        required
-        maxLength={40}
-        defaultValue={name}
-        aria-label="Rename this workspace"
-        className={inputClass}
-      />
-      <button
-        type="submit"
-        className="rounded-md px-2 py-1.5 text-[13px] text-muted-foreground transition-colors hover:text-foreground"
-      >
-        Rename
-      </button>
-    </form>
-  )
-}
-
-function CreateForm() {
-  return (
-    <form action={createWorkspace} className="flex gap-1.5">
-      <input
-        name="name"
-        required
-        maxLength={40}
-        placeholder="New workspace"
-        className={inputClass}
-      />
-      <button
-        type="submit"
-        className="rounded-md bg-sea-tint px-2.5 py-1.5 text-[13px] text-foreground"
-      >
-        Add
-      </button>
-    </form>
-  )
-}
-
-async function loadWorkspaces() {
-  const workspaces = await listUserWorkspaces()
-  if (workspaces.length === 0) return null
-  const active = workspaces.find((w) => w.active) ?? workspaces[0]
-  return { active, others: workspaces.filter((w) => w.id !== active.id) }
-}
-
 /**
- * The active workspace's name, opening a menu of the other workspaces plus
- * rename and create. A native <details> so it stays a Server Component: every
- * entry is a form post, nothing hydrates.
+ * Workspaces menu: the other workspaces to switch to, and a field to add one.
+ * A native <details> so it stays a Server Component: every entry is a form
+ * post, nothing hydrates.
  *
  * `openUp` is for the left rail, where this sits low enough that a downward
  * menu would cover Appearance and Sign out.
@@ -89,14 +44,15 @@ export async function WorkspaceSwitcher({
   next?: string
   openUp?: boolean
 }) {
-  const data = await loadWorkspaces()
-  if (!data) return <Label>Workspace</Label>
-  const { active, others } = data
+  const workspaces = await listUserWorkspaces()
+  if (workspaces.length === 0) return <Label>Workspaces</Label>
+
+  const others = workspaces.filter((w) => !w.active)
 
   return (
     <details className="group relative">
       <summary className="flex cursor-pointer list-none items-center gap-1.5">
-        <Label>{active.name}</Label>
+        <Label>Workspaces</Label>
         <span className="text-[10px] text-muted-foreground transition-transform group-open:rotate-180">
           v
         </span>
@@ -111,10 +67,22 @@ export async function WorkspaceSwitcher({
           <SwitchRow key={w.id} workspace={w} next={next} />
         ))}
         {others.length > 0 ? <div className="my-1.5 h-px bg-border" /> : null}
-        <div className="flex flex-col gap-1.5 p-1">
-          {active.role === "owner" ? <RenameForm name={active.name} /> : null}
-          <CreateForm />
-        </div>
+
+        <form action={createWorkspace} className="flex gap-1.5 p-1">
+          <input
+            name="name"
+            required
+            maxLength={40}
+            placeholder="New workspace"
+            className="min-w-0 flex-1 rounded-md border border-border bg-background px-2 py-1.5 text-[13px] text-foreground placeholder:text-muted-foreground"
+          />
+          <button
+            type="submit"
+            className="rounded-md bg-sea-tint px-2.5 py-1.5 text-[13px] text-foreground"
+          >
+            Add
+          </button>
+        </form>
       </div>
     </details>
   )

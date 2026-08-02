@@ -62,7 +62,6 @@ export async function getCurrentWorkspace(): Promise<CurrentWorkspace | null> {
 export interface WorkspaceSummary {
   id: string
   name: string
-  role: "owner" | "member"
   active: boolean
 }
 
@@ -75,7 +74,7 @@ export async function listUserWorkspaces(): Promise<WorkspaceSummary[]> {
 
   const { data: memberships } = await supabase
     .from("workspace_members")
-    .select("workspace_id, role, workspaces(name)")
+    .select("workspace_id, workspaces(name)")
     .eq("user_id", userData.user.id)
     .order("joined_at", { ascending: true })
 
@@ -86,7 +85,6 @@ export async function listUserWorkspaces(): Promise<WorkspaceSummary[]> {
   return memberships.map((m) => ({
     id: m.workspace_id,
     name: (m.workspaces as unknown as { name: string }).name,
-    role: m.role as "owner" | "member",
     active: m.workspace_id === active?.workspaceId,
   }))
 }

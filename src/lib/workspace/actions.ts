@@ -52,26 +52,6 @@ export async function createWorkspace(formData: FormData): Promise<void> {
   redirect("/home")
 }
 
-/** Renames the active workspace. Owner-gated by the workspaces_update_owner
- * policy, so a member's update simply matches no rows. */
-export async function renameWorkspace(formData: FormData): Promise<void> {
-  const name = String(formData.get("name") ?? "").trim()
-  if (!name) throw new Error("Name required")
-
-  const membership = await resolveActiveMembership()
-  if (!membership) throw new Error("No workspace")
-
-  const supabase = await createClient()
-  const { error } = await supabase
-    .from("workspaces")
-    .update({ name })
-    .eq("id", membership.workspaceId)
-  if (error) throw new Error(error.message)
-
-  revalidatePath("/home")
-  revalidatePath("/profile")
-}
-
 export async function generateInvite(): Promise<InviteResult> {
   const supabase = await createClient()
   const { data: userData } = await supabase.auth.getUser()
