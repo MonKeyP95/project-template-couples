@@ -80,7 +80,12 @@ export async function createWorkspaceWithPeople(
   return {}
 }
 
-export async function generateInvite(): Promise<InviteResult> {
+/**
+ * Mints (or reuses) an invite link for the active workspace. `personId` targets
+ * an existing traveller, so accepting adopts her person row and carries her
+ * expense history over instead of creating a second entry for the same human.
+ */
+export async function generateInvite(personId?: string): Promise<InviteResult> {
   const supabase = await createClient()
   const { data: userData } = await supabase.auth.getUser()
   if (!userData.user) return { error: "Not signed in" }
@@ -91,13 +96,19 @@ export async function generateInvite(): Promise<InviteResult> {
     return { error: "Only the workspace owner can invite" }
   }
 
-  // Reuse an existing unused, unexpired invite if one exists.
-  const { data: existing } = await supabase
+  // Reuse an existing unused, unexpired invite -- but only one aimed at the
+  // same target, or an untargeted link would hand over someone's identity.
+  const existingQuery = supabase
     .from("invites")
     .select("token")
     .eq("workspace_id", membership.workspaceId)
     .is("used_at", null)
     .gt("expires_at", new Date().toISOString())
+
+  const { data: existing } = await (personId
+    ? existingQuery.eq("person_id", personId)
+    : existingQuery.is("person_id", null)
+  )
     .limit(1)
     .maybeSingle()
 
@@ -110,6 +121,7 @@ export async function generateInvite(): Promise<InviteResult> {
       token,
       expires_at: expiresAt,
       created_by: userData.user.id,
+      person_id: personId ?? null,
     })
     if (insertError) return { error: insertError.message }
   }

@@ -34,6 +34,7 @@ import { BudgetHistory } from "./budget-history"
 import { TripBudget } from "./trip-budget"
 import { getTripJournal } from "@/lib/journal/journal-queries"
 import { TripJournal } from "./trip-journal"
+import { InviteTraveller } from "./invite-traveller"
 
 const CATEGORY_LABEL: Record<LearnedCategory, string> = {
   food: "Food",
@@ -198,6 +199,12 @@ export default async function ProfilePage() {
               Save currency
             </Button>
           </form>
+
+          <InviteTraveller
+            people={workspace.people
+              .filter((p) => p.user_id === null)
+              .map((p) => ({ id: p.id, display_name: p.display_name }))}
+          />
 
           <p className="mt-8 border-t border-border pt-8 text-sm text-muted-foreground">
             What we like (used by the AI to suggest places)
