@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server"
+import { resolveActiveMembership } from "@/lib/workspace/active"
 
 export interface WorkspaceMember {
   user_id: string
@@ -17,23 +18,15 @@ export interface CurrentWorkspace {
 }
 
 export async function getCurrentWorkspace(): Promise<CurrentWorkspace | null> {
-  const supabase = await createClient()
-  const { data: userData } = await supabase.auth.getUser()
-  if (!userData.user) return null
-
-  const { data: membership } = await supabase
-    .from("workspace_members")
-    .select("workspace_id, role, workspaces(name, created_at, currency)")
-    .eq("user_id", userData.user.id)
-    .limit(1)
-    .maybeSingle()
-
+  const membership = await resolveActiveMembership()
   if (!membership) return null
+
+  const supabase = await createClient()
 
   const { data: rawMembers } = await supabase
     .from("workspace_members")
     .select("user_id, role")
-    .eq("workspace_id", membership.workspace_id)
+    .eq("workspace_id", membership.workspaceId)
 
   if (!rawMembers || rawMembers.length === 0) return null
 
@@ -52,22 +45,48 @@ export async function getCurrentWorkspace(): Promise<CurrentWorkspace | null> {
     profilesData?.map((p) => [p.id, p.display_name as string]) ?? [],
   )
 
-  const workspaceRow = membership.workspaces as unknown as {
-    name: string
-    created_at: string
-    currency: string
-  }
-
   return {
-    id: membership.workspace_id,
-    name: workspaceRow.name,
-    createdAt: workspaceRow.created_at,
-    role: membership.role as "owner" | "member",
-    currency: workspaceRow.currency,
+    id: membership.workspaceId,
+    name: membership.workspace.name,
+    createdAt: membership.workspace.created_at,
+    role: membership.role,
+    currency: membership.workspace.currency,
     members: rawMembers.map((m) => ({
       user_id: m.user_id,
       role: m.role as "owner" | "member",
       display_name: nameById.get(m.user_id) ?? "Unknown",
     })),
   }
+}
+
+export interface WorkspaceSummary {
+  id: string
+  name: string
+  role: "owner" | "member"
+  active: boolean
+}
+
+/** Every workspace the caller belongs to, oldest first, flagged with which one
+ * is currently active. Drives the switcher. */
+export async function listUserWorkspaces(): Promise<WorkspaceSummary[]> {
+  const supabase = await createClient()
+  const { data: userData } = await supabase.auth.getUser()
+  if (!userData.user) return []
+
+  const { data: memberships } = await supabase
+    .from("workspace_members")
+    .select("workspace_id, role, workspaces(name)")
+    .eq("user_id", userData.user.id)
+    .order("joined_at", { ascending: true })
+
+  if (!memberships || memberships.length === 0) return []
+
+  const active = await resolveActiveMembership()
+
+  return memberships.map((m) => ({
+    id: m.workspace_id,
+    name: (m.workspaces as unknown as { name: string }).name,
+    role: m.role as "owner" | "member",
+    active: m.workspace_id === active?.workspaceId,
+  }))
 }
