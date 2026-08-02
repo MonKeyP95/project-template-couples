@@ -203,7 +203,7 @@ export interface SavedFigureProps {
   contributions: SavingsContribution[]
   perUser: Record<string, number>
   members: Record<string, MemberToneEntry>
-  currentUserId: string
+  currentPersonId: string
 }
 
 export function SavedFigure({
@@ -214,7 +214,7 @@ export function SavedFigure({
   contributions,
   perUser,
   members,
-  currentUserId,
+  currentPersonId,
 }: SavedFigureProps) {
   const { currency } = useCurrency()
   const fmt = (cents: number) => money(cents, currency)
@@ -297,7 +297,7 @@ export function SavedFigure({
           shareCents={shareCents}
           tripId={tripId}
           tripSlug={tripSlug}
-          currentUserId={currentUserId}
+          currentPersonId={currentPersonId}
         />
       ) : null}
     </div>
@@ -324,7 +324,7 @@ function SavingsDetails({
   shareCents,
   tripId,
   tripSlug,
-  currentUserId,
+  currentPersonId,
 }: {
   contributions: SavingsContribution[]
   perUser: Record<string, number>
@@ -333,7 +333,7 @@ function SavingsDetails({
   shareCents: number
   tripId: string
   tripSlug: string
-  currentUserId: string
+  currentPersonId: string
 }) {
   const memberEntries = Object.entries(members)
   return (
@@ -349,7 +349,7 @@ function SavingsDetails({
               member={member}
               savedCents={perUser[userId] ?? 0}
               shareCents={shareCents}
-              isSelf={userId === currentUserId}
+              isSelf={userId === currentPersonId}
             />
           ))}
         </div>

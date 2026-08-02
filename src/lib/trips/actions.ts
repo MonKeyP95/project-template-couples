@@ -3275,12 +3275,36 @@ export interface AddSavingsContributionInput {
   tripId: string
   tripSlug: string
   amountCents: number
-  /** Member to credit. Defaults to the caller; RLS requires it be a trip member. */
+  /** Person to credit. Defaults to the caller; RLS requires it be a person in
+   * the trip's workspace. */
   userId?: string
 }
 
 export interface SavingsActionResult {
   error?: string
+}
+
+/** The caller's person row in the trip's workspace. Savings and expenses name
+ * a person, not an account, so a bare auth uid is no longer a valid subject. */
+async function personIdForTrip(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  tripId: string,
+  userId: string,
+): Promise<string | null> {
+  const { data: trip } = await supabase
+    .from("trips")
+    .select("workspace_id")
+    .eq("id", tripId)
+    .maybeSingle()
+  if (!trip) return null
+
+  const { data: person } = await supabase
+    .from("workspace_people")
+    .select("id")
+    .eq("workspace_id", trip.workspace_id)
+    .eq("user_id", userId)
+    .maybeSingle()
+  return person?.id ?? null
 }
 
 /**
@@ -3301,9 +3325,14 @@ export async function addSavingsContribution(
   const { data: userData, error: userError } = await supabase.auth.getUser()
   if (userError || !userData.user) return { error: "Not signed in." }
 
+  const subjectId =
+    input.userId ??
+    (await personIdForTrip(supabase, input.tripId, userData.user.id))
+  if (!subjectId) return { error: "No person to credit." }
+
   const { error } = await supabase.from("trip_savings_contributions").insert({
     trip_id: input.tripId,
-    user_id: input.userId ?? userData.user.id,
+    user_id: subjectId,
     amount_cents: input.amountCents,
   })
 

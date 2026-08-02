@@ -18,7 +18,7 @@ import type { ItineraryLocation } from "@/lib/trips/location-types"
 export interface LogExpenseRowProps {
   tripId: string
   tripSlug: string
-  currentUserId: string
+  currentPersonId: string
   members: Record<string, MemberToneEntry>
   locations: ItineraryLocation[]
   categories: ExpenseCategoryRow[]
@@ -27,7 +27,7 @@ export interface LogExpenseRowProps {
 export function LogExpenseRow({
   tripId,
   tripSlug,
-  currentUserId,
+  currentPersonId,
   members,
   locations,
   categories,
@@ -43,7 +43,7 @@ export function LogExpenseRow({
   const [title, setTitle] = React.useState("")
   const [amount, setAmount] = React.useState("")
   const [category, setCategory] = React.useState<string>(defaultCategory)
-  const [paidBy, setPaidBy] = React.useState<string>(currentUserId)
+  const [paidBy, setPaidBy] = React.useState<string>(currentPersonId)
   const [dayDate, setDayDate] = React.useState<string | null>(initialDay)
   const [locationId, setLocationId] = React.useState<string | null>(null)
   const [expenseCurrency, setExpenseCurrency] = React.useState(tripCurrency)
@@ -70,7 +70,7 @@ export function LogExpenseRow({
     setTitle("")
     setAmount("")
     setCategory(defaultCategory)
-    setPaidBy(currentUserId)
+    setPaidBy(currentPersonId)
     setDayDate(initialDay)
     setLocationId(null)
     setExpenseCurrency(tripCurrency)

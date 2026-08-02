@@ -339,7 +339,7 @@ export function ItineraryTab({
   budgetItems,
   categories,
   members,
-  currentUserId,
+  currentPersonId,
 }: {
   tripId: string
   tripSlug: string
@@ -354,7 +354,7 @@ export function ItineraryTab({
   budgetItems: BudgetItem[]
   categories: ExpenseCategoryRow[]
   members: Record<string, MemberToneEntry>
-  currentUserId: string
+  currentPersonId: string
 }) {
   const { currency } = useCurrency()
   const [days, setDays] = React.useState<ItineraryDay[]>(initialItems)
@@ -787,7 +787,7 @@ export function ItineraryTab({
                     today={today}
                     categories={categories}
                     members={members}
-                    currentUserId={currentUserId}
+                    currentPersonId={currentPersonId}
                     sortable={locations.length === 0}
                   />
                 </div>
@@ -973,7 +973,7 @@ export function ItineraryTab({
                           today={today}
                           categories={categories}
                           members={members}
-                          currentUserId={currentUserId}
+                          currentPersonId={currentPersonId}
                           sortable={sortable}
                         />
                       )
@@ -1172,7 +1172,7 @@ function DaySegmentView({
   today,
   categories,
   members,
-  currentUserId,
+  currentPersonId,
   sortable,
 }: {
   seg: DaySegment
@@ -1188,7 +1188,7 @@ function DaySegmentView({
   today: string
   categories: ExpenseCategoryRow[]
   members: Record<string, MemberToneEntry>
-  currentUserId: string
+  currentPersonId: string
   sortable: boolean
 }) {
   const cards = seg.days.map((day) => {
@@ -1207,7 +1207,7 @@ function DaySegmentView({
       locations,
       categories,
       members,
-      currentUserId,
+      currentPersonId,
     }
     return sortable ? (
       <SortableDayCard key={day.id} id={day.id} {...cardProps} />
@@ -1269,7 +1269,7 @@ interface DayCardProps {
   locations: ItineraryLocation[]
   categories: ExpenseCategoryRow[]
   members: Record<string, MemberToneEntry>
-  currentUserId: string
+  currentPersonId: string
 }
 
 function SortableDayCard({ id, ...rest }: DayCardProps & { id: string }) {
@@ -1304,7 +1304,7 @@ function DayCard({
   locations,
   categories,
   members,
-  currentUserId,
+  currentPersonId,
 }: DayCardProps) {
   if (isEditing) {
     return (
@@ -1331,7 +1331,7 @@ function DayCard({
       locations={locations}
       categories={categories}
       members={members}
-      currentUserId={currentUserId}
+      currentPersonId={currentPersonId}
     />
   )
 }
@@ -1350,7 +1350,7 @@ function DayView({
   locations,
   categories,
   members,
-  currentUserId,
+  currentPersonId,
 }: {
   day: ItineraryDay
   tripId: string
@@ -1365,7 +1365,7 @@ function DayView({
   locations: ItineraryLocation[]
   categories: ExpenseCategoryRow[]
   members: Record<string, MemberToneEntry>
-  currentUserId: string
+  currentPersonId: string
 }) {
   // Which event's panel is open (press the event), and whether that panel's
   // expense form has been asked for. Only one event is open at a time.
@@ -1461,7 +1461,7 @@ function DayView({
                             locations.find((l) => l.id === day.locationId)
                               ?.currency ?? null
                           }
-                          currentUserId={currentUserId}
+                          currentPersonId={currentPersonId}
                           categories={categories}
                           members={members}
                           onClose={() => setOpenExpense(null)}

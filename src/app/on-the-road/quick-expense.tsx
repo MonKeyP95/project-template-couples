@@ -17,7 +17,7 @@ export interface QuickExpenseProps {
   today: string
   /** First day of the trip; the picker never offers a day before it. */
   tripStartDate: string
-  currentUserId: string
+  currentPersonId: string
   categories: ExpenseCategoryRow[]
   spentTodayCents: number
   /** Currency of today's location; null = the trip's. */
@@ -29,7 +29,7 @@ export function QuickExpense({
   tripSlug,
   today,
   tripStartDate,
-  currentUserId,
+  currentPersonId,
   categories,
   spentTodayCents,
   locationCurrency,
@@ -76,7 +76,7 @@ export function QuickExpense({
         amount,
         currency: expenseCurrency,
         category,
-        paidBy: currentUserId,
+        paidBy: currentPersonId,
         dayDate,
         locationId: null,
       })

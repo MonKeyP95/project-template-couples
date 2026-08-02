@@ -68,7 +68,7 @@ export interface BudgetTabProps {
   budgetItems: BudgetItem[]
   itinerarySeeds: Record<string, string[]>
   bufferRec: { pct: number; reason: string }
-  currentUserId: string
+  currentPersonId: string
 }
 
 export function BudgetTab({
@@ -94,7 +94,7 @@ export function BudgetTab({
   budgetItems,
   itinerarySeeds,
   bufferRec,
-  currentUserId,
+  currentPersonId,
 }: BudgetTabProps) {
   const { currency } = useCurrency()
   const [settleOpen, setSettleOpen] = React.useState(false)
@@ -147,7 +147,7 @@ export function BudgetTab({
             contributions={savingsContributions}
             perUser={savedPerUser}
             members={members}
-            currentUserId={currentUserId}
+            currentPersonId={currentPersonId}
           />
         </div>
       </div>
@@ -167,7 +167,7 @@ export function BudgetTab({
         <LogExpenseRow
           tripId={tripId}
           tripSlug={tripSlug}
-          currentUserId={currentUserId}
+          currentPersonId={currentPersonId}
           members={members}
           locations={locations}
           categories={expenseCategories}
@@ -215,7 +215,7 @@ export function BudgetTab({
 
       <CompactSettle
         summary={summary}
-        currentUserId={currentUserId}
+        currentPersonId={currentPersonId}
         tripId={tripId}
         tripSlug={tripSlug}
         alwaysShow
@@ -441,7 +441,7 @@ function SplitBreakdown({
 
 function CompactSettle({
   summary,
-  currentUserId,
+  currentPersonId,
   tripId,
   tripSlug,
   alwaysShow = false,
@@ -450,7 +450,7 @@ function CompactSettle({
   children,
 }: {
   summary: BudgetSummary
-  currentUserId: string
+  currentPersonId: string
   tripId: string
   tripSlug: string
   alwaysShow?: boolean
@@ -464,8 +464,8 @@ function CompactSettle({
   const isSquare = owedCents === 0
   if (isSquare && !alwaysShow) return null
 
-  const youPay = summary.debtorUserId === currentUserId
-  const youGet = summary.creditorUserId === currentUserId
+  const youPay = summary.debtorUserId === currentPersonId
+  const youGet = summary.creditorUserId === currentPersonId
   const label = isSquare
     ? "all square"
     : youPay

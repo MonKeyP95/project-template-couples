@@ -225,7 +225,7 @@ export default async function OnTheRoadPage() {
           tripSlug={trip.slug}
           today={today}
           tripStartDate={trip.startDate ?? today}
-          currentUserId={userData.user.id}
+          currentPersonId={workspace.myPersonId ?? ""}
           categories={categories}
           spentTodayCents={spentTodayCents}
           locationCurrency={

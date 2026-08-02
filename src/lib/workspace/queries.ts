@@ -7,6 +7,13 @@ export interface WorkspaceMember {
   display_name: string
 }
 
+export interface WorkspacePerson {
+  id: string
+  display_name: string
+  /** null for an avatar: a traveller with no account. */
+  user_id: string | null
+}
+
 export interface CurrentWorkspace {
   id: string
   name: string
@@ -15,6 +22,10 @@ export interface CurrentWorkspace {
   /** The workspace's home currency; the default a new trip is created with. */
   currency: string
   members: WorkspaceMember[]
+  /** Everyone who can hold money on a trip: members plus avatars. */
+  people: WorkspacePerson[]
+  /** The signed-in user's person id. Compare ids against this, never auth uid. */
+  myPersonId: string | null
 }
 
 export async function getCurrentWorkspace(): Promise<CurrentWorkspace | null> {
@@ -45,6 +56,22 @@ export async function getCurrentWorkspace(): Promise<CurrentWorkspace | null> {
     profilesData?.map((p) => [p.id, p.display_name as string]) ?? [],
   )
 
+  const { data: peopleRows } = await supabase
+    .from("workspace_people")
+    .select("id, display_name, user_id")
+    .eq("workspace_id", membership.workspaceId)
+    .order("created_at", { ascending: true })
+
+  const people: WorkspacePerson[] = (peopleRows ?? []).map((p) => ({
+    id: p.id,
+    display_name: p.display_name,
+    user_id: p.user_id,
+  }))
+
+  const { data: userData } = await supabase.auth.getUser()
+  const myPersonId =
+    people.find((p) => p.user_id === userData.user?.id)?.id ?? null
+
   return {
     id: membership.workspaceId,
     name: membership.workspace.name,
@@ -56,6 +83,8 @@ export async function getCurrentWorkspace(): Promise<CurrentWorkspace | null> {
       role: m.role as "owner" | "member",
       display_name: nameById.get(m.user_id) ?? "Unknown",
     })),
+    people,
+    myPersonId,
   }
 }
 

@@ -22,7 +22,7 @@ export interface EventExpenseProps {
   locationId: string | null
   /** Currency of the event's location; null = the trip's. */
   locationCurrency: string | null
-  currentUserId: string
+  currentPersonId: string
   categories: ExpenseCategoryRow[]
   members: Record<string, MemberToneEntry>
   /** Collapse the form (parent controls visibility, via pressing the event). */
@@ -44,7 +44,7 @@ export function EventExpense({
   dayDate,
   locationId,
   locationCurrency,
-  currentUserId,
+  currentPersonId,
   categories,
   members,
   onClose,
@@ -62,7 +62,7 @@ export function EventExpense({
       categories.find((c) => c.name === "Other")?.name ??
       "",
   )
-  const [paidBy, setPaidBy] = React.useState(currentUserId)
+  const [paidBy, setPaidBy] = React.useState(currentPersonId)
   const [error, setError] = React.useState<string | null>(null)
   const [isPending, startTransition] = React.useTransition()
 

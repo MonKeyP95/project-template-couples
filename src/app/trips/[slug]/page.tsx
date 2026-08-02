@@ -138,14 +138,16 @@ function computeDaysOut(startDate: string | null): number | null {
 function memberToneMap(
   workspace: CurrentWorkspace,
 ): Record<string, MemberToneEntry> {
-  const owner = workspace.members.find((m) => m.role === "owner")
   const map: Record<string, MemberToneEntry> = {}
-  for (const m of workspace.members) {
-    const initial = (m.display_name ?? "?").trim().charAt(0).toUpperCase()
-    map[m.user_id] = {
+  for (const p of workspace.people) {
+    const initial = (p.display_name ?? "?").trim().charAt(0).toUpperCase()
+    map[p.id] = {
       initial,
-      displayName: m.display_name,
-      tone: owner && m.user_id === owner.user_id ? "sea" : "clay",
+      displayName: p.display_name,
+      // The signed-in user reads as "sea"; everyone else, member or avatar, as
+      // "clay". Previously keyed off the workspace owner, which says nothing
+      // useful once a workspace can hold people who never sign in.
+      tone: p.id === workspace.myPersonId ? "sea" : "clay",
     }
   }
   return map
@@ -191,7 +193,7 @@ export default async function TripPage({
   const activeTab: TabId = isTab(tab) ? tab : "budget"
 
   const memberTones = memberToneMap(workspace)
-  const memberIds = workspace.members.map((m) => m.user_id)
+  const memberIds = workspace.people.map((p) => p.id)
   const partnerId =
     workspace.members.find((m) => m.user_id !== userData.user!.id)?.user_id ??
     null
@@ -325,7 +327,7 @@ export default async function TripPage({
               budgetItems={budgetItems ?? []}
               categories={expenseCategories ?? []}
               members={memberTones}
-              currentUserId={userData.user.id}
+              currentPersonId={workspace.myPersonId ?? ""}
             />
           )
         ) : activeTab === "packing" ? (
@@ -365,7 +367,7 @@ export default async function TripPage({
             budgetItems={budgetItems ?? []}
             itinerarySeeds={itinerarySeeds}
             bufferRec={bufferRec}
-            currentUserId={userData.user.id}
+            currentPersonId={workspace.myPersonId ?? ""}
           />
         ) : (
           <NotesTab

@@ -5,6 +5,7 @@ import { ArrowLeft, ArrowRight, LogOut } from "lucide-react"
 import { Avatar, Chevron, Coord, Label } from "@/components/together"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { WorkspaceSwitcher } from "@/components/workspace-switcher"
+import { addPerson } from "@/lib/workspace/actions"
 import { cn } from "@/lib/utils"
 import type { CurrentWorkspace } from "@/lib/workspace/queries"
 
@@ -135,19 +136,35 @@ export async function LeftRail({
           <WorkspaceSwitcher openUp />
         </div>
         <div className="flex flex-col gap-2">
-          {workspace.members.map((m, i) => (
-            <div key={m.user_id} className="flex items-center gap-2.5">
+          {workspace.people.map((p, i) => (
+            <div key={p.id} className="flex items-center gap-2.5">
               <Avatar
-                name={m.display_name}
+                name={p.display_name}
                 size={24}
                 tone={i === 0 ? "sea" : "clay"}
               />
               <div className="font-serif text-[13px] italic text-foreground">
-                {m.display_name}
+                {p.display_name}
               </div>
             </div>
           ))}
         </div>
+
+        <form action={addPerson} className="mt-2.5 flex gap-1.5">
+          <input
+            name="name"
+            required
+            maxLength={40}
+            placeholder="Add a traveller"
+            className="min-w-0 flex-1 rounded-md border border-border bg-background px-2 py-1.5 text-[13px] text-foreground placeholder:text-muted-foreground"
+          />
+          <button
+            type="submit"
+            className="rounded-md bg-sea-tint px-2.5 py-1.5 text-[13px] text-foreground"
+          >
+            Add
+          </button>
+        </form>
       </div>
 
       <div className="flex items-center justify-between border-t border-border pt-5">
