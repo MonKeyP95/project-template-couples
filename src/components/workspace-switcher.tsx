@@ -1,5 +1,5 @@
 import { Label } from "@/components/together"
-import { createWorkspace } from "@/lib/workspace/actions"
+import { createWorkspace, renameWorkspace } from "@/lib/workspace/actions"
 import { listUserWorkspaces } from "@/lib/workspace/queries"
 
 /**
@@ -37,6 +37,25 @@ export async function WorkspaceSwitcher({ next = "/home" }: { next?: string }) {
         ))}
 
         {others.length > 0 ? <div className="my-1.5 h-px bg-border" /> : null}
+
+        {active.role === "owner" ? (
+          <form action={renameWorkspace} className="flex gap-1.5 p-1">
+            <input
+              name="name"
+              required
+              maxLength={40}
+              defaultValue={active.name}
+              aria-label="Rename this workspace"
+              className="min-w-0 flex-1 rounded-md border border-border bg-background px-2 py-1.5 text-[13px] text-foreground"
+            />
+            <button
+              type="submit"
+              className="rounded-md px-2.5 py-1.5 text-[13px] text-muted-foreground transition-colors hover:text-foreground"
+            >
+              Rename
+            </button>
+          </form>
+        ) : null}
 
         <form action={createWorkspace} className="flex gap-1.5 p-1">
           <input
