@@ -26,6 +26,13 @@ from public.workspace_members wm
 left join public.profiles p on p.id = wm.user_id
 on conflict do nothing;
 
+-- Drop the old foreign keys FIRST. They still point at auth.users, and the
+-- data migration below writes person ids -- which Postgres would check against
+-- users and reject.
+alter table public.expenses drop constraint if exists expenses_paid_by_fkey;
+alter table public.trip_savings_contributions
+  drop constraint if exists trip_savings_contributions_user_id_fkey;
+
 -- Data migration: rewrite the two subject columns from user ids to person ids.
 -- Self-limiting -- after one pass these hold person ids, which match no user_id.
 update public.expenses e
@@ -40,14 +47,11 @@ from public.trips t
 join public.workspace_people wp on wp.workspace_id = t.workspace_id
 where s.trip_id = t.id and wp.user_id = s.user_id;
 
--- Repoint the foreign keys, now that no row references auth.users.
-alter table public.expenses drop constraint if exists expenses_paid_by_fkey;
+-- Point them at people, now that no row references auth.users.
 alter table public.expenses
   add constraint expenses_paid_by_fkey
   foreign key (paid_by) references public.workspace_people(id) on delete restrict;
 
-alter table public.trip_savings_contributions
-  drop constraint if exists trip_savings_contributions_user_id_fkey;
 alter table public.trip_savings_contributions
   add constraint trip_savings_contributions_user_id_fkey
   foreign key (user_id) references public.workspace_people(id) on delete restrict;

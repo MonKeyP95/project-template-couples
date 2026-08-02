@@ -35,7 +35,7 @@ B1 does **not** include invite-targeting. Until B2 lands, a plain invite accepte
 **Interfaces:**
 - Produces: table `public.workspace_people (id, workspace_id, display_name, user_id, created_at)`; `expenses.paid_by` and `trip_savings_contributions.user_id` referencing it; a trigger keeping member rows and person rows in step.
 
-**Order matters:** create and backfill the table, migrate the data, *then* swap the foreign keys. Swapping first would reject every existing row.
+**Order matters, and the obvious order is wrong.** Create and backfill the table, **drop the old foreign keys**, migrate the data, *then* add the new ones. Leaving the old FKs in place during the update fails with `violates foreign key constraint "expenses_paid_by_fkey" … not present in table "users"` — the column still points at `auth.users`, so every person id written is checked against `users` and rejected. Adding the new FKs before the data migration fails symmetrically. The drop must bracket the update on one side and the add on the other.
 
 - [ ] **Step 1: Write the migration**
 
