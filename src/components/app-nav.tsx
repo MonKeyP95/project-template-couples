@@ -5,7 +5,6 @@ import { ArrowLeft, ArrowRight, LogOut } from "lucide-react"
 import { Avatar, Chevron, Coord, Label } from "@/components/together"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { WorkspaceSwitcher } from "@/components/workspace-switcher"
-import { addPerson } from "@/lib/workspace/actions"
 import { cn } from "@/lib/utils"
 import type { CurrentWorkspace } from "@/lib/workspace/queries"
 
@@ -149,22 +148,6 @@ export async function LeftRail({
             </div>
           ))}
         </div>
-
-        <form action={addPerson} className="mt-2.5 flex gap-1.5">
-          <input
-            name="name"
-            required
-            maxLength={40}
-            placeholder="Add a traveller"
-            className="min-w-0 flex-1 rounded-md border border-border bg-background px-2 py-1.5 text-[13px] text-foreground placeholder:text-muted-foreground"
-          />
-          <button
-            type="submit"
-            className="rounded-md bg-sea-tint px-2.5 py-1.5 text-[13px] text-foreground"
-          >
-            Add
-          </button>
-        </form>
       </div>
 
       <div className="flex items-center justify-between border-t border-border pt-5">

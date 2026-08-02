@@ -118,25 +118,6 @@ export async function setWorkspaceCurrency(formData: FormData): Promise<void> {
   revalidatePath("/profile")
 }
 
-/** Adds a traveller with no account to the active workspace. Wired straight to
- * `<form action={...}>`, so it throws rather than returning an error shape. */
-export async function addPerson(formData: FormData): Promise<void> {
-  const name = String(formData.get("name") ?? "").trim()
-  if (!name) throw new Error("Name required")
-
-  const membership = await resolveActiveMembership()
-  if (!membership) throw new Error("No workspace")
-
-  const supabase = await createClient()
-  const { error } = await supabase.from("workspace_people").insert({
-    workspace_id: membership.workspaceId,
-    display_name: name,
-  })
-  if (error) throw new Error(error.message)
-
-  revalidatePath("/home")
-}
-
 export async function acceptInvite(token: string): Promise<{ error?: string }> {
   const supabase = await createClient()
   const { data, error } = await supabase.rpc("accept_invite", {
