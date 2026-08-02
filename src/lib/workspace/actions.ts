@@ -4,7 +4,6 @@ import { randomBytes } from "node:crypto"
 
 import { revalidatePath } from "next/cache"
 import { cookies } from "next/headers"
-import { redirect } from "next/navigation"
 
 import { createClient } from "@/lib/supabase/server"
 import { currencyOptions } from "@/lib/fx/currency-list"
@@ -35,21 +34,50 @@ async function setActiveWorkspace(workspaceId: string): Promise<void> {
   })
 }
 
-/** Creates a workspace, makes the caller its owner, and switches to it.
- * Wired straight to `<form action={...}>`, so it throws rather than returning
- * an error shape. */
-export async function createWorkspace(formData: FormData): Promise<void> {
-  const name = String(formData.get("name") ?? "").trim()
-  if (!name) throw new Error("Name required")
+export interface CreateWorkspaceInput {
+  name: string
+  /** Travellers with no account. Blank entries are ignored. */
+  travellers: string[]
+}
+
+/** Creates a workspace, makes the caller its owner, switches to it, and adds
+ * any travellers who have no account. The invite path is separate: a new
+ * workspace is solo and empty, so /home offers the invite link. */
+export async function createWorkspaceWithPeople(
+  input: CreateWorkspaceInput,
+): Promise<{ error?: string }> {
+  const name = input.name.trim()
+  if (!name) return { error: "Name this workspace." }
 
   const supabase = await createClient()
   const { data, error } = await supabase.rpc("create_workspace", {
     p_name: name,
   })
-  if (error) throw new Error(error.message)
+  if (error) return { error: error.message }
 
-  await setActiveWorkspace(data as string)
-  redirect("/home")
+  const workspaceId = data as string
+  // Set before the people insert, so a failure there still leaves the caller
+  // in the workspace that was genuinely created.
+  await setActiveWorkspace(workspaceId)
+
+  const travellers = input.travellers
+    .map((t) => t.trim())
+    .filter((t) => t.length > 0)
+
+  if (travellers.length > 0) {
+    const { error: peopleError } = await supabase
+      .from("workspace_people")
+      .insert(
+        travellers.map((display_name) => ({
+          workspace_id: workspaceId,
+          display_name,
+        })),
+      )
+    if (peopleError) return { error: peopleError.message }
+  }
+
+  revalidatePath("/home")
+  return {}
 }
 
 export async function generateInvite(): Promise<InviteResult> {

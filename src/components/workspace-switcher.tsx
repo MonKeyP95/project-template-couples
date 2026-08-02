@@ -1,5 +1,6 @@
+import Link from "next/link"
+
 import { Chevron, Label } from "@/components/together"
-import { createWorkspace } from "@/lib/workspace/actions"
 import {
   listUserWorkspaces,
   type WorkspaceSummary,
@@ -68,21 +69,13 @@ export async function WorkspaceSwitcher({
         ))}
         {others.length > 0 ? <div className="my-1.5 h-px bg-border" /> : null}
 
-        <form action={createWorkspace} className="flex gap-1.5 p-1">
-          <input
-            name="name"
-            required
-            maxLength={40}
-            placeholder="New workspace"
-            className="min-w-0 flex-1 rounded-md border border-border bg-background px-2 py-1.5 text-[13px] text-foreground placeholder:text-muted-foreground"
-          />
-          <button
-            type="submit"
-            className="rounded-md bg-sea-tint px-2.5 py-1.5 text-[13px] text-foreground"
-          >
-            Add
-          </button>
-        </form>
+        <Link
+          href="/workspaces/new"
+          className="flex items-center justify-between rounded-md px-2.5 py-2 text-[13.5px] text-muted-foreground transition-colors hover:bg-sea-tint hover:text-foreground"
+        >
+          <span>New workspace</span>
+          <Chevron />
+        </Link>
       </div>
     </details>
   )
