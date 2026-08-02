@@ -4,6 +4,7 @@ import { ArrowLeft, ArrowRight, LogOut } from "lucide-react"
 
 import { Avatar, Chevron, Coord, Label } from "@/components/together"
 import { ThemeToggle } from "@/components/theme-toggle"
+import { WorkspaceSwitcher } from "@/components/workspace-switcher"
 import { cn } from "@/lib/utils"
 import type { CurrentWorkspace } from "@/lib/workspace/queries"
 
@@ -70,7 +71,7 @@ export function buildNavDestinations(opts: {
   return items
 }
 
-export function LeftRail({
+export async function LeftRail({
   workspace,
   initialDark,
   destinations,
@@ -85,7 +86,7 @@ export function LeftRail({
   return (
     <aside className="hidden lg:flex lg:w-[220px] lg:flex-shrink-0 lg:flex-col lg:gap-9 lg:border-r lg:border-border lg:bg-card lg:px-6 lg:py-8">
       <div>
-        <Label>Together</Label>
+        <WorkspaceSwitcher />
         <div className="t-display mt-2 text-[28px] leading-[0.95] text-foreground">
           {workspace.members.map((m, i) => (
             <span key={m.user_id}>

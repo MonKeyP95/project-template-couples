@@ -12,6 +12,7 @@ import {
 } from "@/components/together"
 import { LeftRail, MobileHeaderNav, buildNavDestinations } from "@/components/app-nav"
 import { AssistantBlock } from "@/components/assistant-block"
+import { WorkspaceSwitcher } from "@/components/workspace-switcher"
 import { createClient } from "@/lib/supabase/server"
 import { isDarkTheme } from "@/lib/theme"
 import { getTodayForTrip } from "@/lib/trips/itinerary-queries"
@@ -66,6 +67,12 @@ export default async function HomePage() {
     ? await listTripsForWorkspace(workspace.id)
     : { now: [], upcoming: [], past: [], dreams: [] }
 
+  const noTripsYet =
+    buckets.now.length === 0 &&
+    buckets.upcoming.length === 0 &&
+    buckets.past.length === 0 &&
+    buckets.dreams.length === 0
+
   // Hero claim: prefer the earliest "now" trip; otherwise the soonest "upcoming".
   const hero = buckets.now[0] ?? buckets.upcoming[0] ?? null
   const navDestinations = buildNavDestinations({
@@ -113,7 +120,7 @@ export default async function HomePage() {
         />
       ) : null}
       <header className="mb-9 flex items-center justify-between md:hidden">
-        <Label>Together · Workspace</Label>
+        <WorkspaceSwitcher />
         {members.length >= 2 ? (
           <PairAvatar
             a={members[0].display_name}
@@ -128,7 +135,9 @@ export default async function HomePage() {
       <section className="md:flex md:items-start md:justify-between">
         <div>
           <Label className="mb-2.5 block md:hidden">{dateLabel}</Label>
-          <Label className="hidden md:block">Together · Workspace</Label>
+          <div className="hidden md:block">
+            <WorkspaceSwitcher />
+          </div>
           <h1 className="t-display text-[44px] text-foreground md:mt-2 md:text-[62px] md:leading-[0.95]">
             Hello,{" "}
             <br className="md:hidden" />
@@ -170,7 +179,7 @@ export default async function HomePage() {
         </Coord>
       </section>
 
-      {youOnly ? (
+      {youOnly && noTripsYet ? (
         <section className="mt-10 md:mt-12 md:max-w-[540px]">
           <InviteCard />
         </section>

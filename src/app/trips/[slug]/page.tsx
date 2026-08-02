@@ -45,7 +45,11 @@ import type { DayForecast } from "@/lib/weather/get-weather"
 import { pickWeatherLocation } from "@/lib/weather/place-for-weather"
 import { detectWeatherPacking } from "@/lib/nudges/weather-packing"
 import { listTripsForWorkspace } from "@/lib/trips/list-queries"
-import { getTripBySlug, type TripHeader } from "@/lib/trips/queries"
+import {
+  findWorkspaceForTripSlug,
+  getTripBySlug,
+  type TripHeader,
+} from "@/lib/trips/queries"
 import { getTripShareState } from "@/lib/trips/shared-trip-queries"
 import { ShareTripDialog } from "@/components/share-trip-dialog"
 import {
@@ -165,7 +169,17 @@ export default async function TripPage({
   if (!workspace) notFound()
 
   const header = await getTripBySlug(workspace.id, slug)
-  if (!header) notFound()
+  if (!header) {
+    // The slug may belong to another of the caller's workspaces — follow it
+    // rather than 404ing on a bookmark saved before the last switch.
+    const elsewhere = await findWorkspaceForTripSlug(slug, workspace.id)
+    if (elsewhere) {
+      redirect(
+        `/api/workspace/switch?to=${elsewhere}&next=${encodeURIComponent(`/trips/${slug}`)}`,
+      )
+    }
+    notFound()
+  }
 
   const shareState = await getTripShareState(header.id)
 

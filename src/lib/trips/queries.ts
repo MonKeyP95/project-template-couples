@@ -112,3 +112,21 @@ export async function getTripProfile(tripId: string): Promise<TripProfile> {
     .maybeSingle()
   return parseTripProfile(data?.trip_profile)
 }
+
+/** The one other workspace of the caller's holding this slug, or null when
+ * none or more than one does. RLS restricts the scan to their own workspaces,
+ * so this cannot see anyone else's trips. */
+export async function findWorkspaceForTripSlug(
+  slug: string,
+  excludeWorkspaceId: string,
+): Promise<string | null> {
+  const supabase = await createClient()
+  const { data } = await supabase
+    .from("trips")
+    .select("workspace_id")
+    .eq("slug", slug)
+    .neq("workspace_id", excludeWorkspaceId)
+
+  if (!data || data.length !== 1) return null
+  return data[0].workspace_id as string
+}
