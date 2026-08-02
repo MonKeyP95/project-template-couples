@@ -86,7 +86,7 @@ export async function LeftRail({
   return (
     <aside className="hidden lg:flex lg:w-[220px] lg:flex-shrink-0 lg:flex-col lg:gap-9 lg:border-r lg:border-border lg:bg-card lg:px-6 lg:py-8">
       <div>
-        <WorkspaceSwitcher />
+        <Label>Together</Label>
         <div className="t-display mt-2 text-[28px] leading-[0.95] text-foreground">
           {workspace.members.map((m, i) => (
             <span key={m.user_id}>
@@ -131,7 +131,9 @@ export async function LeftRail({
       </div>
 
       <div className="mt-auto">
-        <Label className="mb-2.5 block">Members</Label>
+        <div className="mb-2.5">
+          <WorkspaceSwitcher openUp />
+        </div>
         <div className="flex flex-col gap-2">
           {workspace.members.map((m, i) => (
             <div key={m.user_id} className="flex items-center gap-2.5">

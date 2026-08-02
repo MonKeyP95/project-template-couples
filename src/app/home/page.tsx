@@ -135,9 +135,7 @@ export default async function HomePage() {
       <section className="md:flex md:items-start md:justify-between">
         <div>
           <Label className="mb-2.5 block md:hidden">{dateLabel}</Label>
-          <div className="hidden md:block">
-            <WorkspaceSwitcher />
-          </div>
+          <Label className="hidden md:block">Together · Workspace</Label>
           <h1 className="t-display text-[44px] text-foreground md:mt-2 md:text-[62px] md:leading-[0.95]">
             Hello,{" "}
             <br className="md:hidden" />

@@ -1,77 +1,120 @@
-import { Label } from "@/components/together"
+import { Chevron, Label } from "@/components/together"
 import { createWorkspace, renameWorkspace } from "@/lib/workspace/actions"
-import { listUserWorkspaces } from "@/lib/workspace/queries"
+import {
+  listUserWorkspaces,
+  type WorkspaceSummary,
+} from "@/lib/workspace/queries"
+
+const inputClass =
+  "min-w-0 flex-1 rounded-md border border-border bg-background px-2 py-1.5 text-[13px] text-foreground placeholder:text-muted-foreground"
+
+/** Switch to another workspace. A form post rather than a link, so the cookie
+ * is set by the route handler and the method matches the mutation. */
+function SwitchRow({ workspace, next }: { workspace: WorkspaceSummary; next: string }) {
+  return (
+    <form action="/api/workspace/switch" method="post">
+      <input type="hidden" name="to" value={workspace.id} />
+      <input type="hidden" name="next" value={next} />
+      <button
+        type="submit"
+        className="flex w-full items-center justify-between rounded-md px-2.5 py-2 text-left text-[13.5px] text-muted-foreground transition-colors hover:bg-sea-tint hover:text-foreground"
+      >
+        <span className="truncate">{workspace.name}</span>
+        <Chevron />
+      </button>
+    </form>
+  )
+}
+
+function RenameForm({ name }: { name: string }) {
+  return (
+    <form action={renameWorkspace} className="flex gap-1.5">
+      <input
+        name="name"
+        required
+        maxLength={40}
+        defaultValue={name}
+        aria-label="Rename this workspace"
+        className={inputClass}
+      />
+      <button
+        type="submit"
+        className="rounded-md px-2 py-1.5 text-[13px] text-muted-foreground transition-colors hover:text-foreground"
+      >
+        Rename
+      </button>
+    </form>
+  )
+}
+
+function CreateForm() {
+  return (
+    <form action={createWorkspace} className="flex gap-1.5">
+      <input
+        name="name"
+        required
+        maxLength={40}
+        placeholder="New workspace"
+        className={inputClass}
+      />
+      <button
+        type="submit"
+        className="rounded-md bg-sea-tint px-2.5 py-1.5 text-[13px] text-foreground"
+      >
+        Add
+      </button>
+    </form>
+  )
+}
+
+async function loadWorkspaces() {
+  const workspaces = await listUserWorkspaces()
+  if (workspaces.length === 0) return null
+  const active = workspaces.find((w) => w.active) ?? workspaces[0]
+  return { active, others: workspaces.filter((w) => w.id !== active.id) }
+}
 
 /**
- * Workspace identity and switcher. A native <details> so it stays a Server
- * Component: every entry is a form post, nothing hydrates.
+ * The active workspace's name, opening a menu of the other workspaces plus
+ * rename and create. A native <details> so it stays a Server Component: every
+ * entry is a form post, nothing hydrates.
+ *
+ * `openUp` is for the left rail, where this sits low enough that a downward
+ * menu would cover Appearance and Sign out.
  */
-export async function WorkspaceSwitcher({ next = "/home" }: { next?: string }) {
-  const workspaces = await listUserWorkspaces()
-  if (workspaces.length === 0) return <Label>Together · Workspace</Label>
-
-  const active = workspaces.find((w) => w.active) ?? workspaces[0]
-  const others = workspaces.filter((w) => w.id !== active.id)
+export async function WorkspaceSwitcher({
+  next = "/home",
+  openUp = false,
+}: {
+  next?: string
+  openUp?: boolean
+}) {
+  const data = await loadWorkspaces()
+  if (!data) return <Label>Workspace</Label>
+  const { active, others } = data
 
   return (
     <details className="group relative">
       <summary className="flex cursor-pointer list-none items-center gap-1.5">
-        <Label>Together · {active.name}</Label>
+        <Label>{active.name}</Label>
         <span className="text-[10px] text-muted-foreground transition-transform group-open:rotate-180">
           v
         </span>
       </summary>
 
-      <div className="absolute left-0 top-full z-20 mt-2 w-[240px] rounded-lg border border-border bg-card p-2 shadow-lg">
+      <div
+        className={`absolute left-0 z-20 w-[210px] rounded-lg border border-border bg-card p-2 shadow-lg ${
+          openUp ? "bottom-full mb-2" : "top-full mt-2"
+        }`}
+      >
         {others.map((w) => (
-          <form key={w.id} action="/api/workspace/switch" method="post">
-            <input type="hidden" name="to" value={w.id} />
-            <input type="hidden" name="next" value={next} />
-            <button
-              type="submit"
-              className="w-full rounded-md px-2.5 py-2 text-left text-[13.5px] text-muted-foreground transition-colors hover:bg-sea-tint hover:text-foreground"
-            >
-              {w.name}
-            </button>
-          </form>
+          <SwitchRow key={w.id} workspace={w} next={next} />
         ))}
-
         {others.length > 0 ? <div className="my-1.5 h-px bg-border" /> : null}
-
-        {active.role === "owner" ? (
-          <form action={renameWorkspace} className="flex gap-1.5 p-1">
-            <input
-              name="name"
-              required
-              maxLength={40}
-              defaultValue={active.name}
-              aria-label="Rename this workspace"
-              className="min-w-0 flex-1 rounded-md border border-border bg-background px-2 py-1.5 text-[13px] text-foreground"
-            />
-            <button
-              type="submit"
-              className="rounded-md px-2.5 py-1.5 text-[13px] text-muted-foreground transition-colors hover:text-foreground"
-            >
-              Rename
-            </button>
-          </form>
-        ) : null}
-
-        <form action={createWorkspace} className="flex gap-1.5 p-1">
-          <input
-            name="name"
-            required
-            maxLength={40}
-            placeholder="New workspace"
-            className="min-w-0 flex-1 rounded-md border border-border bg-background px-2 py-1.5 text-[13px] text-foreground placeholder:text-muted-foreground"
-          />
-          <button
-            type="submit"
-            className="rounded-md bg-sea-tint px-2.5 py-1.5 text-[13px] text-foreground"
-          >
-            Add
-          </button>
-        </form>
+        <div className="flex flex-col gap-1.5 p-1">
+          {active.role === "owner" ? <RenameForm name={active.name} /> : null}
+          <CreateForm />
+        </div>
       </div>
     </details>
   )
