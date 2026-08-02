@@ -2,9 +2,9 @@ import type { ReactNode } from "react"
 import Link from "next/link"
 import { ArrowLeft, ArrowRight, LogOut } from "lucide-react"
 
-import { Avatar, Chevron, Coord, Label } from "@/components/together"
+import { Chevron, Coord, Label } from "@/components/together"
 import { ThemeToggle } from "@/components/theme-toggle"
-import { WorkspaceSwitcher } from "@/components/workspace-switcher"
+import { WorkspaceList } from "@/components/workspace-switcher"
 import { cn } from "@/lib/utils"
 import type { CurrentWorkspace } from "@/lib/workspace/queries"
 
@@ -131,23 +131,7 @@ export async function LeftRail({
       </div>
 
       <div className="mt-auto">
-        <div className="mb-2.5">
-          <WorkspaceSwitcher openUp />
-        </div>
-        <div className="flex flex-col gap-2">
-          {workspace.people.map((p, i) => (
-            <div key={p.id} className="flex items-center gap-2.5">
-              <Avatar
-                name={p.display_name}
-                size={24}
-                tone={i === 0 ? "sea" : "clay"}
-              />
-              <div className="font-serif text-[13px] italic text-foreground">
-                {p.display_name}
-              </div>
-            </div>
-          ))}
-        </div>
+        <WorkspaceList />
       </div>
 
       <div className="flex items-center justify-between border-t border-border pt-5">

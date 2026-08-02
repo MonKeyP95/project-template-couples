@@ -90,7 +90,9 @@ export async function getCurrentWorkspace(): Promise<CurrentWorkspace | null> {
 
 export interface WorkspaceSummary {
   id: string
-  name: string
+  /** Everyone in it, newest first. This is what names a workspace on screen --
+   * "Signe & Noam". Falls back to the stored name when it has no people yet. */
+  people: string[]
   active: boolean
 }
 
@@ -109,11 +111,54 @@ export async function listUserWorkspaces(): Promise<WorkspaceSummary[]> {
 
   if (!memberships || memberships.length === 0) return []
 
+  const workspaceIds = memberships.map((m) => m.workspace_id)
+
+  // Newest first, so a later-added traveller leads. Not enough on its own: the
+  // people rows for workspaces that predate the table were backfilled by one
+  // insert, so they all share a created_at and this ordering is a tie for them.
+  const { data: peopleRows } = await supabase
+    .from("workspace_people")
+    .select("workspace_id, display_name, user_id")
+    .in("workspace_id", workspaceIds)
+    .order("created_at", { ascending: false })
+
+  // Who created each workspace, which is the signal that survives the tie.
+  const { data: ownerRows } = await supabase
+    .from("workspace_members")
+    .select("workspace_id, user_id")
+    .in("workspace_id", workspaceIds)
+    .eq("role", "owner")
+
+  const ownerByWorkspace = new Map(
+    ownerRows?.map((o) => [o.workspace_id, o.user_id]) ?? [],
+  )
+
+  type PersonRow = { display_name: string; user_id: string | null }
+  const peopleByWorkspace = new Map<string, PersonRow[]>()
+  for (const p of peopleRows ?? []) {
+    const rows = peopleByWorkspace.get(p.workspace_id) ?? []
+    rows.push(p)
+    peopleByWorkspace.set(p.workspace_id, rows)
+  }
+
   const active = await resolveActiveMembership()
 
-  return memberships.map((m) => ({
-    id: m.workspace_id,
-    name: (m.workspaces as unknown as { name: string }).name,
-    active: m.workspace_id === active?.workspaceId,
-  }))
+  return memberships.map((m) => {
+    const rows = peopleByWorkspace.get(m.workspace_id) ?? []
+    const ownerId = ownerByWorkspace.get(m.workspace_id)
+    // The creator trails; everyone they invited or added comes first.
+    const ordered = [
+      ...rows.filter((p) => p.user_id !== ownerId),
+      ...rows.filter((p) => p.user_id === ownerId),
+    ]
+
+    return {
+      id: m.workspace_id,
+      people:
+        ordered.length > 0
+          ? ordered.map((p) => p.display_name)
+          : [(m.workspaces as unknown as { name: string }).name],
+      active: m.workspace_id === active?.workspaceId,
+    }
+  })
 }
