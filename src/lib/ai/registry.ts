@@ -207,6 +207,44 @@ export const TOOL_REGISTRY: Record<string, Anthropic.Messages.ToolUnion> = {
       required: ["items"],
     },
   },
+
+  propose_road_suggestion: {
+    name: "propose_road_suggestion",
+    description:
+      "Return the one proactive suggestion for today. An empty title is a valid answer.",
+    strict: true,
+    input_schema: {
+      type: "object",
+      additionalProperties: false,
+      properties: {
+        title: {
+          type: "string",
+          description:
+            "The suggestion itself, six words at most — it becomes the itinerary event's text. Empty string when nothing is worth suggesting today.",
+        },
+        body: {
+          type: "string",
+          description:
+            "One or two sentences on why it fits them today. Empty when title is empty.",
+        },
+        category: {
+          type: "string",
+          description:
+            "One of the trip's expense categories, exactly as given. Empty when none fits.",
+        },
+        suggestedTime: {
+          type: "string",
+          description: "HH:MM 24h when the thing has a clock time, else empty.",
+        },
+        sourceUrl: {
+          type: "string",
+          description:
+            "The URL of the local finding this is built on. Empty when it is not built on one. Never invented.",
+        },
+      },
+      required: ["title", "body", "category", "suggestedTime", "sourceUrl"],
+    },
+  },
 }
 
 /** Resolve tool names to Anthropic tool definitions, in order. Throws on an
