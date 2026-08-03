@@ -158,6 +158,55 @@ export const TOOL_REGISTRY: Record<string, Anthropic.Messages.ToolUnion> = {
       required: ["label", "body"],
     },
   },
+
+  propose_dispatch: {
+    name: "propose_dispatch",
+    description:
+      "Return up to two things happening where the couple is today. An empty list is a valid answer.",
+    strict: true,
+    input_schema: {
+      type: "object",
+      additionalProperties: false,
+      properties: {
+        items: {
+          type: "array",
+          items: {
+            type: "object",
+            additionalProperties: false,
+            properties: {
+              kind: {
+                type: "string",
+                enum: ["whats_on", "disrupted", "conditions"],
+                description:
+                  "whats_on: a festival, market, holiday, concert or match. disrupted: a strike, closure, protest or weather warning. conditions: surf, snow, tide, air quality — something they care about doing.",
+              },
+              title: {
+                type: "string",
+                description: "The name of the thing. Six words at most.",
+              },
+              body: {
+                type: "string",
+                description:
+                  "One sentence on what it is and why it matters to them today.",
+              },
+              window: {
+                type: "string",
+                description:
+                  "The date or span it applies to, e.g. 'Sat 8 Aug' or 'through the weekend'. Never empty — if you cannot date it, do not return it.",
+              },
+              sourceUrl: {
+                type: "string",
+                description:
+                  "A real URL from the web search backing this item. Never empty, never invented.",
+              },
+            },
+            required: ["kind", "title", "body", "window", "sourceUrl"],
+          },
+        },
+      },
+      required: ["items"],
+    },
+  },
 }
 
 /** Resolve tool names to Anthropic tool definitions, in order. Throws on an
