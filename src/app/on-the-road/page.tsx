@@ -13,6 +13,7 @@ import { formatShortDate, daySummary } from "@/lib/trips/itinerary-types"
 import { getTripWeather } from "@/lib/weather/get-trip-weather"
 import { DispatchBox } from "@/components/dispatch-box"
 import { getDispatchForDay } from "@/lib/trips/dispatch-queries"
+import { getSuggestionForDay } from "@/lib/trips/road-suggestion-queries"
 import { isAiEnabled } from "@/lib/ai/ai-mode"
 import { DispatchTrigger } from "./dispatch-trigger"
 import {
@@ -133,6 +134,24 @@ export default async function OnTheRoadPage() {
   const weatherPlace = { ...trip, locationName }
   const weather = await getTripWeather(weatherPlace)
   const dispatch = await getDispatchForDay(trip.id, today)
+  const suggestionRow = await getSuggestionForDay(trip.id, today)
+  // Only an unanswered, non-empty row is a card. That one condition covers
+  // answered, auto-dismissed-empty, and no row at all.
+  const suggestion =
+    suggestionRow && suggestionRow.outcome === "pending" && suggestionRow.title
+      ? {
+          id: suggestionRow.id,
+          title: suggestionRow.title,
+          body: suggestionRow.body,
+          category: suggestionRow.category,
+          suggestedTime: suggestionRow.suggestedTime,
+          sourceUrl: suggestionRow.sourceUrl,
+          tripId: trip.id,
+          tripSlug: trip.slug,
+          dayDate: today,
+          dayId: todayDay?.id ?? null,
+        }
+      : null
   const aiOn = await isAiEnabled()
 
   return (
@@ -186,10 +205,11 @@ export default async function OnTheRoadPage() {
           <DispatchBox
             weather={weather}
             items={dispatch?.items ?? []}
+            suggestion={suggestion}
             storageKey={`${trip.slug}:${today}`}
             className="mt-3"
           />
-          {!dispatch && aiOn ? (
+          {(!dispatch || !suggestionRow) && aiOn ? (
             <DispatchTrigger tripSlug={trip.slug} dayDate={today} />
           ) : null}
         </div>

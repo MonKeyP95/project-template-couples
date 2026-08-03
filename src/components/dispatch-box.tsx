@@ -3,11 +3,13 @@
 import * as React from "react"
 
 import { WeatherCard } from "@/components/weather-card"
+import { RoadSuggestionCard } from "@/components/road-suggestion-card"
 import type { Weather } from "@/lib/weather/get-weather"
 import {
   DISPATCH_KIND_LABEL,
   type DispatchItem,
 } from "@/lib/trips/dispatch-types"
+import type { SuggestionCardData } from "@/lib/trips/road-suggestion-types"
 
 const ADVANCE_MS = 7000
 const REDUCED_MOTION = "(prefers-reduced-motion: reduce)"
@@ -67,53 +69,86 @@ const seenKey = (storageKey: string) => `dispatch-seen:${storageKey}`
 export function DispatchBox({
   weather,
   items,
+  suggestion,
   storageKey,
   className,
 }: {
   weather: Weather | null
   items: DispatchItem[]
+  /** Today's unanswered suggestion, or null. Always renders last. */
+  suggestion: SuggestionCardData | null
   /** Distinguishes one trip-day from another in localStorage. */
   storageKey: string
   className?: string
 }) {
   const isClient = useIsClient()
 
-  const cards: React.ReactNode[] = [
-    ...(weather ? [<WeatherCard key="weather" weather={weather} />] : []),
-    ...items.map((item, i) => <ItemCard key={`item-${i}`} item={item} />),
-  ]
-  if (cards.length === 0) return null
+  if (!weather && items.length === 0 && !suggestion) return null
 
   // Server and hydration render the first card, static. The live deck takes
   // over immediately after, which is where the random start is chosen.
   if (!isClient) {
-    return <Frame className={className} cards={cards} index={0} />
+    return (
+      <Frame
+        className={className}
+        cards={buildCards(weather, items, suggestion, () => {})}
+        index={0}
+      />
+    )
   }
   return (
     <LiveDeck
-      cards={cards}
+      weather={weather}
+      items={items}
+      suggestion={suggestion}
       storageKey={storageKey}
-      hasWeather={weather !== null}
       className={className}
     />
   )
 }
 
+/** The deck in order: weather, today's findings, then the suggestion.
+ * `onInteract` is what the suggestion card calls to stop the rotation. */
+function buildCards(
+  weather: Weather | null,
+  items: DispatchItem[],
+  suggestion: SuggestionCardData | null,
+  onInteract: () => void,
+): React.ReactNode[] {
+  return [
+    ...(weather ? [<WeatherCard key="weather" weather={weather} />] : []),
+    ...items.map((item, i) => <ItemCard key={`item-${i}`} item={item} />),
+    ...(suggestion
+      ? [
+          <RoadSuggestionCard
+            key="suggestion"
+            data={suggestion}
+            onInteract={onInteract}
+          />,
+        ]
+      : []),
+  ]
+}
+
 function LiveDeck({
-  cards,
+  weather,
+  items,
+  suggestion,
   storageKey,
-  hasWeather,
   className,
 }: {
-  cards: React.ReactNode[]
+  weather: Weather | null
+  items: DispatchItem[]
+  suggestion: SuggestionCardData | null
   storageKey: string
-  hasWeather: boolean
   className?: string
 }) {
   const reduced = useReducedMotion()
+  const [stopped, setStopped] = React.useState(false)
+  const cards = buildCards(weather, items, suggestion, () => setStopped(true))
   const count = cards.length
   const [index, setIndex] = React.useState(() =>
-    pickStart(storageKey, count, hasWeather),
+    pickStart(storageKey, count, weather !== null),
   )
   const [paused, setPaused] = React.useState(false)
 
@@ -122,16 +157,20 @@ function LiveDeck({
   }, [storageKey])
 
   React.useEffect(() => {
-    if (count < 2 || paused || reduced) return
+    if (count < 2 || paused || reduced || stopped) return
     const timer = setInterval(() => setIndex((i) => (i + 1) % count), ADVANCE_MS)
     return () => clearInterval(timer)
-  }, [count, paused, reduced])
+  }, [count, paused, reduced, stopped])
+
+  // Answering removes the suggestion card, so a held index can outrun the deck.
+  // Clamping beats resetting: landing on the last card is the least surprising.
+  const active = Math.min(index, count - 1)
 
   return (
     <Frame
       className={className}
       cards={cards}
-      index={index}
+      index={active}
       onSelect={setIndex}
       onPointerEnter={() => setPaused(true)}
       onPointerLeave={() => setPaused(false)}
