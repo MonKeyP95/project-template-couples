@@ -11,7 +11,10 @@ import { getItineraryLocations } from "@/lib/trips/location-queries"
 import { slugToTone } from "@/lib/trips/slug-tone"
 import { formatShortDate, daySummary } from "@/lib/trips/itinerary-types"
 import { getTripWeather } from "@/lib/weather/get-trip-weather"
-import { WeatherCard } from "@/components/weather-card"
+import { DispatchBox } from "@/components/dispatch-box"
+import { getDispatchForDay } from "@/lib/trips/dispatch-queries"
+import { isAiEnabled } from "@/lib/ai/ai-mode"
+import { DispatchTrigger } from "./dispatch-trigger"
 import {
   getTripExpenseCategories,
   getTripExpenses,
@@ -129,6 +132,8 @@ export default async function OnTheRoadPage() {
   const searchDestination = locationName ?? trip.country ?? trip.name
   const weatherPlace = { ...trip, locationName }
   const weather = await getTripWeather(weatherPlace)
+  const dispatch = await getDispatchForDay(trip.id, today)
+  const aiOn = await isAiEnabled()
 
   return (
     <CurrencyProvider
@@ -178,7 +183,15 @@ export default async function OnTheRoadPage() {
           <div className="t-display mt-2 text-[36px] leading-none text-foreground">
             <em>{place}</em>
           </div>
-          {weather ? <WeatherCard weather={weather} className="mt-3" /> : null}
+          <DispatchBox
+            weather={weather}
+            items={dispatch?.items ?? []}
+            storageKey={`${trip.slug}:${today}`}
+            className="mt-3"
+          />
+          {!dispatch && aiOn ? (
+            <DispatchTrigger tripSlug={trip.slug} dayDate={today} />
+          ) : null}
         </div>
       </section>
 
