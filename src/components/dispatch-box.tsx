@@ -3,13 +3,11 @@
 import * as React from "react"
 
 import { WeatherCard } from "@/components/weather-card"
-import { RoadSuggestionCard } from "@/components/road-suggestion-card"
 import type { Weather } from "@/lib/weather/get-weather"
 import {
   DISPATCH_KIND_LABEL,
   type DispatchItem,
 } from "@/lib/trips/dispatch-types"
-import type { SuggestionCardData } from "@/lib/trips/road-suggestion-types"
 
 const ADVANCE_MS = 7000
 const REDUCED_MOTION = "(prefers-reduced-motion: reduce)"
@@ -69,83 +67,61 @@ const seenKey = (storageKey: string) => `dispatch-seen:${storageKey}`
 export function DispatchBox({
   weather,
   items,
-  suggestion,
   storageKey,
   className,
 }: {
   weather: Weather | null
   items: DispatchItem[]
-  /** Today's unanswered suggestion, or null. Always renders last. */
-  suggestion: SuggestionCardData | null
   /** Distinguishes one trip-day from another in localStorage. */
   storageKey: string
   className?: string
 }) {
   const isClient = useIsClient()
 
-  if (!weather && items.length === 0 && !suggestion) return null
+  if (!weather && items.length === 0) return null
 
   // Server and hydration render the first card, static. The live deck takes
   // over immediately after, which is where the random start is chosen.
   if (!isClient) {
     return (
-      <Frame
-        className={className}
-        cards={buildCards(weather, items, suggestion, () => {})}
-        index={0}
-      />
+      <Frame className={className} cards={buildCards(weather, items)} index={0} />
     )
   }
   return (
     <LiveDeck
       weather={weather}
       items={items}
-      suggestion={suggestion}
       storageKey={storageKey}
       className={className}
     />
   )
 }
 
-/** The deck in order: weather, today's findings, then the suggestion.
- * `onInteract` is what the suggestion card calls to stop the rotation. */
+/** The deck in order: weather, then today's findings. Every card is read-only,
+ * so rotating past one never costs the reader anything. */
 function buildCards(
   weather: Weather | null,
   items: DispatchItem[],
-  suggestion: SuggestionCardData | null,
-  onInteract: () => void,
 ): React.ReactNode[] {
   return [
     ...(weather ? [<WeatherCard key="weather" weather={weather} />] : []),
     ...items.map((item, i) => <ItemCard key={`item-${i}`} item={item} />),
-    ...(suggestion
-      ? [
-          <RoadSuggestionCard
-            key="suggestion"
-            data={suggestion}
-            onInteract={onInteract}
-          />,
-        ]
-      : []),
   ]
 }
 
 function LiveDeck({
   weather,
   items,
-  suggestion,
   storageKey,
   className,
 }: {
   weather: Weather | null
   items: DispatchItem[]
-  suggestion: SuggestionCardData | null
   storageKey: string
   className?: string
 }) {
   const reduced = useReducedMotion()
-  const [stopped, setStopped] = React.useState(false)
-  const cards = buildCards(weather, items, suggestion, () => setStopped(true))
+  const cards = buildCards(weather, items)
   const count = cards.length
   const [index, setIndex] = React.useState(() =>
     pickStart(storageKey, count, weather !== null),
@@ -157,12 +133,13 @@ function LiveDeck({
   }, [storageKey])
 
   React.useEffect(() => {
-    if (count < 2 || paused || reduced || stopped) return
+    if (count < 2 || paused || reduced) return
     const timer = setInterval(() => setIndex((i) => (i + 1) % count), ADVANCE_MS)
     return () => clearInterval(timer)
-  }, [count, paused, reduced, stopped])
+  }, [count, paused, reduced])
 
-  // Answering removes the suggestion card, so a held index can outrun the deck.
+  // The deck grows from one card to several when the findings land and the page
+  // refreshes, so a held index can outrun the count it was picked against.
   // Clamping beats resetting: landing on the last card is the least surprising.
   const active = Math.min(index, count - 1)
 

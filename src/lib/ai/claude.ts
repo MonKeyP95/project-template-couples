@@ -24,10 +24,6 @@ export {
 } from "./agents/itinerary-planner"
 export { generateSuggestion } from "./agents/suggestion"
 export { generateDispatch, type DispatchQuery } from "./agents/dispatch"
-export {
-  proposeRoadSuggestion,
-  type RoadSuggestionQuery,
-} from "./agents/road-suggestion"
 
 /** A trivial real round-trip. Returns Claude's reply text (expected: "pong"). */
 export async function pingClaude(): Promise<string> {
