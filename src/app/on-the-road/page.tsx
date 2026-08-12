@@ -187,6 +187,14 @@ export default async function OnTheRoadPage() {
             weather={weather}
             items={dispatch?.items ?? []}
             storageKey={`${trip.slug}:${today}`}
+            tripId={trip.id}
+            tripSlug={trip.slug}
+            today={today}
+            days={days.map((d) => ({
+              id: d.id,
+              dayDate: d.dayDate,
+              label: `${d.dow} ${d.dom} ${d.mon}`,
+            }))}
             className="mt-3"
           />
           {!dispatch && aiOn ? (

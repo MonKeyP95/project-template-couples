@@ -3,11 +3,12 @@
 import * as React from "react"
 
 import { WeatherCard } from "@/components/weather-card"
-import type { Weather } from "@/lib/weather/get-weather"
 import {
-  DISPATCH_KIND_LABEL,
-  type DispatchItem,
-} from "@/lib/trips/dispatch-types"
+  DispatchItemCard,
+  type DispatchDay,
+} from "@/components/dispatch-item-card"
+import type { Weather } from "@/lib/weather/get-weather"
+import type { DispatchItem } from "@/lib/trips/dispatch-types"
 
 const ADVANCE_MS = 7000
 const REDUCED_MOTION = "(prefers-reduced-motion: reduce)"
@@ -68,23 +69,37 @@ export function DispatchBox({
   weather,
   items,
   storageKey,
+  tripId,
+  tripSlug,
+  today,
+  days,
   className,
 }: {
   weather: Weather | null
   items: DispatchItem[]
   /** Distinguishes one trip-day from another in localStorage. */
   storageKey: string
+  tripId: string
+  tripSlug: string
+  today: string
+  days: DispatchDay[]
   className?: string
 }) {
   const isClient = useIsClient()
+  const ctx = { tripId, tripSlug, today, days }
 
   if (!weather && items.length === 0) return null
 
-  // Server and hydration render the first card, static. The live deck takes
-  // over immediately after, which is where the random start is chosen.
+  // Server and hydration render the first card, static and collapsed. The live
+  // deck takes over immediately after, which is where the random start is
+  // chosen and where a card can be opened.
   if (!isClient) {
     return (
-      <Frame className={className} cards={buildCards(weather, items)} index={0} />
+      <Frame
+        className={className}
+        cards={buildCards(weather, items, ctx, null, () => {})}
+        index={0}
+      />
     )
   }
   return (
@@ -92,20 +107,46 @@ export function DispatchBox({
       weather={weather}
       items={items}
       storageKey={storageKey}
+      ctx={ctx}
       className={className}
     />
   )
 }
 
-/** The deck in order: weather, then today's findings. Every card is read-only,
- * so rotating past one never costs the reader anything. */
+/** What every item card needs to act: the trip, today, and the days it can
+ * drop an event on. */
+interface CardContext {
+  tripId: string
+  tripSlug: string
+  today: string
+  days: DispatchDay[]
+}
+
+/** The deck in order: weather, then today's findings. Weather is not pressable;
+ * every item is. `expanded` is a deck index, so the weather offset applies. */
 function buildCards(
   weather: Weather | null,
   items: DispatchItem[],
+  ctx: CardContext,
+  expanded: number | null,
+  onToggle: (deckIndex: number | null) => void,
 ): React.ReactNode[] {
+  const offset = weather ? 1 : 0
   return [
     ...(weather ? [<WeatherCard key="weather" weather={weather} />] : []),
-    ...items.map((item, i) => <ItemCard key={`item-${i}`} item={item} />),
+    ...items.map((item, i) => (
+      <DispatchItemCard
+        key={`item-${i}`}
+        item={item}
+        index={i}
+        tripId={ctx.tripId}
+        tripSlug={ctx.tripSlug}
+        today={ctx.today}
+        days={ctx.days}
+        expanded={expanded === i + offset}
+        onToggle={(next) => onToggle(next ? i + offset : null)}
+      />
+    )),
   ]
 }
 
@@ -113,30 +154,34 @@ function LiveDeck({
   weather,
   items,
   storageKey,
+  ctx,
   className,
 }: {
   weather: Weather | null
   items: DispatchItem[]
   storageKey: string
+  ctx: CardContext
   className?: string
 }) {
   const reduced = useReducedMotion()
-  const cards = buildCards(weather, items)
-  const count = cards.length
   const [index, setIndex] = React.useState(() =>
-    pickStart(storageKey, count, weather !== null),
+    pickStart(storageKey, (weather ? 1 : 0) + items.length, weather !== null),
   )
   const [paused, setPaused] = React.useState(false)
+  const [expanded, setExpanded] = React.useState<number | null>(null)
+  const cards = buildCards(weather, items, ctx, expanded, setExpanded)
+  const count = cards.length
 
   React.useEffect(() => {
     window.localStorage.setItem(seenKey(storageKey), "1")
   }, [storageKey])
 
+  // An opened card holds the deck still: the reader is mid-decision on it.
   React.useEffect(() => {
-    if (count < 2 || paused || reduced) return
+    if (count < 2 || paused || reduced || expanded !== null) return
     const timer = setInterval(() => setIndex((i) => (i + 1) % count), ADVANCE_MS)
     return () => clearInterval(timer)
-  }, [count, paused, reduced])
+  }, [count, paused, reduced, expanded])
 
   // The deck grows from one card to several when the findings land and the page
   // refreshes, so a held index can outrun the count it was picked against.
@@ -148,7 +193,10 @@ function LiveDeck({
       className={className}
       cards={cards}
       index={active}
-      onSelect={setIndex}
+      onSelect={(i) => {
+        setExpanded(null)
+        setIndex(i)
+      }}
       onPointerEnter={() => setPaused(true)}
       onPointerLeave={() => setPaused(false)}
       onFocusCapture={() => setPaused(true)}
@@ -204,30 +252,6 @@ function Frame({
           ))}
         </div>
       ) : null}
-    </div>
-  )
-}
-
-function ItemCard({ item }: { item: DispatchItem }) {
-  return (
-    <div className="rounded-lg border border-border bg-card px-3.5 py-2.5">
-      <div className="font-mono text-[10px] uppercase tracking-[0.12em] text-muted-foreground">
-        {DISPATCH_KIND_LABEL[item.kind]}
-      </div>
-      <a
-        href={item.sourceUrl}
-        target="_blank"
-        rel="noreferrer"
-        className="mt-1 block text-[13px] text-foreground underline-offset-2 hover:underline"
-      >
-        {item.title}
-      </a>
-      <div className="mt-0.5 text-[12px] leading-snug text-muted-foreground">
-        {item.body}
-      </div>
-      <div className="mt-1.5 font-mono text-[10px] uppercase tracking-[0.12em] text-muted-foreground">
-        {item.window}
-      </div>
     </div>
   )
 }
