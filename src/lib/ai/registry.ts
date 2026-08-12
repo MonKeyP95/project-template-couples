@@ -208,6 +208,45 @@ export const TOOL_REGISTRY: Record<string, Anthropic.Messages.ToolUnion> = {
     },
   },
 
+  propose_detail: {
+    name: "propose_detail",
+    description:
+      "Return what the couple wanted to know about one dispatch item, with real links.",
+    strict: true,
+    input_schema: {
+      type: "object",
+      additionalProperties: false,
+      properties: {
+        detail: {
+          type: "string",
+          description:
+            "Two to four sentences answering what was asked about this one item. No preamble, no restating the question.",
+        },
+        links: {
+          type: "array",
+          description:
+            "Up to three real URLs from the search that back the answer. An empty list is allowed.",
+          items: {
+            type: "object",
+            additionalProperties: false,
+            properties: {
+              label: {
+                type: "string",
+                description: "Three words at most, e.g. 'Official programme'.",
+              },
+              url: {
+                type: "string",
+                description: "A real URL from a search result. Never invented.",
+              },
+            },
+            required: ["label", "url"],
+          },
+        },
+      },
+      required: ["detail", "links"],
+    },
+  },
+
 }
 
 /** Resolve tool names to Anthropic tool definitions, in order. Throws on an

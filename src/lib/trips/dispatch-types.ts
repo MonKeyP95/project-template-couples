@@ -29,3 +29,16 @@ export const DISPATCH_KIND_LABEL: Record<DispatchKind, string> = {
 
 /** The most items one day's dispatch may carry. */
 export const MAX_DISPATCH_ITEMS = 2
+
+export interface DispatchLink {
+  /** Three words at most — this is a chip, not a sentence. */
+  label: string
+  url: string
+}
+
+/** What "learn more" returns for one card: a short answer plus real links.
+ * Page-lifetime only — never stored on the dispatch row. */
+export interface DispatchDetail {
+  detail: string
+  links: DispatchLink[]
+}
