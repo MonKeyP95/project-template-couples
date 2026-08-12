@@ -98,9 +98,15 @@ Calls the server action, then renders inline under the two buttons:
 
 - A short paragraph — what it is, where, when exactly, cost, how to get there.
 - Two to three links (label + url), each opening in a new tab.
-- A persistent free-text input, placeholder `ask about this…`, with a send
-  affordance. Submitting re-runs the same call carrying the question; the answer
-  replaces the paragraph and links. The input stays for the next question.
+- A persistent free-text input, placeholder `ask about this…`. Submitting re-runs
+  the same call carrying the question, and **the answer stacks under the ones
+  before it** — the question in small caps above its own paragraph and links,
+  separated by a hairline. The first draft replaced instead of stacking, which in
+  use meant asking anything destroyed the detail you had opened the card for.
+  The input stays at the bottom for the next question.
+- An answer that comes back empty — the model finished without calling
+  `propose_detail` — is not stacked. It shows a one-line error instead, so a
+  blank block never lands on the card.
 
 While in flight: `learning…` on the button (or the input disabled). Errors render
 as a single clay-coloured line, matching `DiscoverySection`.
@@ -216,8 +222,9 @@ slice.
 ## Out of scope
 
 - Persisting the learn-more answer. It is page-lifetime state.
-- A conversation thread. Each question replaces the previous answer; there is no
-  history and no follow-up context beyond the item itself.
+- A conversation. Answers stack **on screen only**: each call still carries just
+  the item and the new question, with no history sent to the model, so a
+  context-dependent follow-up ("and for kids?") will not read as one.
 - Adding a dispatch item as an expense, a note, or a budget line.
 - Any planning-mode surface for dispatch.
 - Extracting the discovery confirm row into a shared component.
@@ -261,9 +268,10 @@ slice.
    defaults to the Activities category in the event's expense form.
 7. `learn more` returns a paragraph plus links within a few seconds, rendered
    inside the card.
-8. Typing a question in `ask about this…` replaces the answer with one addressing
-   the question; the box stays for another question.
-9. Collapsing and re-expanding the same card shows the last answer without
+8. Typing a question in `ask about this…` adds its answer **below** the previous
+   one, with the question above it and the earlier answer still readable; the box
+   stays for another question.
+9. Collapsing and re-expanding the same card shows every answer without
    re-searching.
 10. All of the above works on a phone viewport: the expanded card does not
     overflow, and the box growing does not push the page around unpleasantly.

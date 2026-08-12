@@ -59,7 +59,9 @@ export function DispatchItemCard({
   )
   const [newDate, setNewDate] = React.useState(today)
   const [time, setTime] = React.useState("")
-  const [detail, setDetail] = React.useState<DispatchDetail | null>(null)
+  const [answers, setAnswers] = React.useState<
+    { question: string; detail: DispatchDetail }[]
+  >([])
   const [question, setQuestion] = React.useState("")
   const [loading, setLoading] = React.useState(false)
   const [error, setError] = React.useState<string | null>(null)
@@ -88,6 +90,8 @@ export function DispatchItemCard({
     })
   }
 
+  /** Answers stack: the first one is what the card is about, and a follow-up is
+   * read alongside it, not instead of it. */
   function learn(ask: string) {
     setLoading(true)
     setError(null)
@@ -97,7 +101,14 @@ export function DispatchItemCard({
         setError(result.error)
         return
       }
-      setDetail(result.detail ?? null)
+      const detail = result.detail
+      // Empty means the model finished without proposing; stacking it would
+      // push a blank block onto the card.
+      if (!detail || (!detail.detail.trim() && detail.links.length === 0)) {
+        setError("Nothing came back on that one.")
+        return
+      }
+      setAnswers((prev) => [...prev, { question: ask, detail }])
       setQuestion("")
     })
   }
@@ -219,26 +230,38 @@ export function DispatchItemCard({
             </div>
           ) : null}
 
-          {detail ? (
-            <div className="flex flex-col gap-1.5">
-              <p className="text-[12px] leading-snug text-muted-foreground">
-                {detail.detail}
-              </p>
-              {detail.links.length ? (
-                <div className="flex flex-wrap gap-x-3 gap-y-1">
-                  {detail.links.map((link, i) => (
-                    <a
-                      key={i}
-                      href={link.url}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="font-mono text-[10px] uppercase tracking-[0.14em] text-sea hover:underline"
-                    >
-                      {link.label}
-                    </a>
-                  ))}
+          {answers.length ? (
+            <div className="flex flex-col gap-2">
+              {answers.map((answer, i) => (
+                <div
+                  key={i}
+                  className={`flex flex-col gap-1 ${i ? "border-t border-rule pt-2" : ""}`}
+                >
+                  {answer.question ? (
+                    <div className="font-mono text-[10px] uppercase tracking-[0.14em] text-foreground">
+                      {answer.question}
+                    </div>
+                  ) : null}
+                  <p className="text-[12px] leading-snug text-muted-foreground">
+                    {answer.detail.detail}
+                  </p>
+                  {answer.detail.links.length ? (
+                    <div className="flex flex-wrap gap-x-3 gap-y-1">
+                      {answer.detail.links.map((link, j) => (
+                        <a
+                          key={j}
+                          href={link.url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="font-mono text-[10px] uppercase tracking-[0.14em] text-sea hover:underline"
+                        >
+                          {link.label}
+                        </a>
+                      ))}
+                    </div>
+                  ) : null}
                 </div>
-              ) : null}
+              ))}
               <form
                 onSubmit={(e) => {
                   e.preventDefault()
