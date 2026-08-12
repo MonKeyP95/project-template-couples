@@ -169,19 +169,26 @@ function LiveDeck({
   )
   const [paused, setPaused] = React.useState(false)
   const [expanded, setExpanded] = React.useState<number | null>(null)
-  const cards = buildCards(weather, items, ctx, expanded, setExpanded)
+  // Opening a card holds the deck for good, not just while it is open: the
+  // reader has a place in it now, and an answer they asked for lives on that
+  // card. Resuming on collapse rotates their place away seven seconds later.
+  const [held, setHeld] = React.useState(false)
+  const toggle = (deckIndex: number | null) => {
+    if (deckIndex !== null) setHeld(true)
+    setExpanded(deckIndex)
+  }
+  const cards = buildCards(weather, items, ctx, expanded, toggle)
   const count = cards.length
 
   React.useEffect(() => {
     window.localStorage.setItem(seenKey(storageKey), "1")
   }, [storageKey])
 
-  // An opened card holds the deck still: the reader is mid-decision on it.
   React.useEffect(() => {
-    if (count < 2 || paused || reduced || expanded !== null) return
+    if (count < 2 || paused || reduced || held) return
     const timer = setInterval(() => setIndex((i) => (i + 1) % count), ADVANCE_MS)
     return () => clearInterval(timer)
-  }, [count, paused, reduced, expanded])
+  }, [count, paused, reduced, held])
 
   // The deck grows from one card to several when the findings land and the page
   // refreshes, so a held index can outrun the count it was picked against.

@@ -54,9 +54,14 @@ opens the source, it does not expand the card).
 
 Rules:
 
-- Expanding stops the rotation timer. The dots stay live — selecting another dot
-  collapses the expanded card and moves to that one.
-- `×` collapses and the timer resumes.
+- Expanding stops the rotation timer, and **collapsing does not restart it** —
+  once a card has been opened the deck is held for the rest of the visit. The
+  first draft resumed on collapse; in use that rotated the reader's place away
+  seven seconds later, taking the answer they had just asked for with it (the
+  state was never lost, the card carrying it simply stopped being the one on
+  screen). The dots stay live throughout, so the deck is still navigable by
+  hand — selecting one collapses the expanded card and moves to it.
+- `×` collapses the card; the deck stays where it is.
 - All three kinds (`whats_on`, `disrupted`, `conditions`) get both actions. A ferry
   strike is worth putting on Tuesday too.
 - The weather card is untouched: no press, no actions.
@@ -246,7 +251,7 @@ slice.
 
 1. On `/on-the-road` with a dispatch item on screen, pressing the card expands it
    and the rotation stops — it stays on that card indefinitely.
-2. `×` collapses the card and the rotation resumes.
+2. `×` collapses the card and the box **stays on it** — leaving it alone for half a minute does not move it on, and re-pressing shows the same card with its answer still there.
 3. Pressing the source link opens the source and does not expand the card.
 4. `add to a date` shows a day dropdown defaulting to today plus a time field;
    `add` puts the item on the chosen day, and the `added` pill appears.
