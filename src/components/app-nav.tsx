@@ -1,6 +1,6 @@
 import type { ReactNode } from "react"
 import Link from "next/link"
-import { ArrowLeft, ArrowRight, LogOut } from "lucide-react"
+import { LogOut } from "lucide-react"
 
 import { Chevron, Coord, Label } from "@/components/together"
 import { ThemeToggle } from "@/components/theme-toggle"
@@ -11,12 +11,11 @@ import type { CurrentWorkspace } from "@/lib/workspace/queries"
 export type NavKey = "home" | "on-the-road" | "checklists" | "trip" | "manual" | "profile"
 
 /**
- * Left-to-right order for the mobile prev/next arrows. Mobile-only and
- * intentionally excludes `checklists` (a desktop-only destination — editing
- * checklists is a desktop task; mobile consumes them via packing's Import items).
- * `manual` rides along so the help page is reachable on a phone.
+ * Left-to-right order for the mobile menu pill. Excludes `checklists` (desktop-only:
+ * mobile consumes them via packing's Import items) and `manual`, which is linked
+ * from Profile so four items fit at phone width.
  */
-const MOBILE_NAV_ORDER: NavKey[] = ["home", "trip", "on-the-road", "manual", "profile"]
+const MOBILE_NAV_ORDER: NavKey[] = ["home", "trip", "on-the-road", "profile"]
 
 /** Posts to the existing /api/signout route, then redirects to the landing page. */
 export function SignOutButton({ className }: { className?: string }) {
@@ -147,15 +146,10 @@ export async function LeftRail({
   )
 }
 
-const arrowLabel = "flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground hover:text-foreground"
-
 /**
- * In-header mobile nav row (not sticky — sits inside each page's header). Prev/next
- * arrows over the mobile page order: the current page sits between them and the arrows
- * wrap around. Two pages -> a single (right) arrow; `current` not in the order (e.g.
- * /checklists) -> a lone `<- Home`; one page -> no arrows. `center` fills the middle
- * slot (the trip page passes its "edit trip" link). Sign-out always sits in that
- * middle slot, so it reads the same on every page.
+ * Mobile nav: an in-header row holding `center` (the trip page's "edit trip") and
+ * sign-out, plus the fixed bottom menu pill over MOBILE_NAV_ORDER. Pages leave
+ * room for the pill with bottom padding.
  */
 export function MobileHeaderNav({
   destinations,
@@ -168,64 +162,58 @@ export function MobileHeaderNav({
   center?: ReactNode
   className?: string
 }) {
-  const ordered = MOBILE_NAV_ORDER.map((key) =>
+  return (
+    <>
+      <div className={cn("flex items-center justify-center gap-3 lg:hidden", className)}>
+        {center}
+        <SignOutButton className="flex items-center text-muted-foreground hover:text-foreground" />
+      </div>
+      <MobileNavPill destinations={destinations} current={current} />
+    </>
+  )
+}
+
+/** Shorter labels so four items fit the pill at phone width. */
+const PILL_LABEL: Partial<Record<NavKey, string>> = { "on-the-road": "Road" }
+
+function MobileNavPill({
+  destinations,
+  current,
+}: {
+  destinations: NavDestination[]
+  current: NavKey
+}) {
+  const items = MOBILE_NAV_ORDER.map((key) =>
     destinations.find((d) => d.key === key),
   ).filter((d): d is NavDestination => d !== undefined)
 
-  const i = ordered.findIndex((d) => d.key === current)
-
-  let left: ReactNode = <span />
-  let right: ReactNode = null
-
-  if (i === -1) {
-    // Current page isn't in the mobile order (checklists is desktop-only): back to Home.
-    const home = ordered.find((d) => d.key === "home")
-    if (home) left = <PrevArrow dest={home} />
-  } else if (ordered.length > 1) {
-    const n = ordered.length
-    const prev = ordered[(i - 1 + n) % n]
-    const next = ordered[(i + 1) % n]
-    if (prev.key !== next.key) left = <PrevArrow dest={prev} />
-    right = <NextArrow dest={next} />
-  }
-  // ordered.length === 1 (only Home): no neighbour to point at — arrows stay empty.
-
-  // Sign-out always sits in the middle slot (beside the center content when there is
-  // one, e.g. the trip page's "edit trip"), so the right slot stays the clean arrow edge.
-  const signOut = (
-    <SignOutButton className="flex items-center text-muted-foreground hover:text-foreground" />
-  )
-
   return (
-    <div className={cn("flex items-center lg:hidden", className)}>
-      <div className="flex flex-1 items-center justify-start">{left}</div>
-      <div className="flex min-w-0 items-center gap-3">
-        {center}
-        {signOut}
+    <div className="fixed inset-x-0 bottom-7 z-40 lg:hidden">
+      <div className="mx-auto w-full max-w-[440px] px-4">
+        <nav
+          aria-label="Menu"
+          className="flex gap-1 rounded-full border border-border bg-card/80 p-1.5 shadow-md backdrop-blur-xl"
+        >
+          {items.map((d) => {
+            const isActive = d.key === current
+            return (
+              <Link
+                key={d.key}
+                href={d.href}
+                aria-current={isActive ? "page" : undefined}
+                className={cn(
+                  "flex-1 rounded-full py-2.5 text-center font-mono text-[10px] uppercase tracking-[0.2em] transition-colors",
+                  isActive
+                    ? "bg-foreground text-background"
+                    : "text-muted-foreground hover:text-foreground",
+                )}
+              >
+                {PILL_LABEL[d.key] ?? d.label}
+              </Link>
+            )
+          })}
+        </nav>
       </div>
-      <div className="flex flex-1 items-center justify-end gap-3">{right}</div>
     </div>
-  )
-}
-
-function PrevArrow({ dest }: { dest: NavDestination }) {
-  return (
-    <Link href={dest.href} className={arrowLabel}>
-      <ArrowLeft className="size-3.5" strokeWidth={1.75} />
-      <span className={dest.italic ? "font-serif italic normal-case" : undefined}>
-        {dest.label}
-      </span>
-    </Link>
-  )
-}
-
-function NextArrow({ dest }: { dest: NavDestination }) {
-  return (
-    <Link href={dest.href} className={arrowLabel}>
-      <span className={dest.italic ? "font-serif italic normal-case" : undefined}>
-        {dest.label}
-      </span>
-      <ArrowRight className="size-3.5" strokeWidth={1.75} />
-    </Link>
   )
 }

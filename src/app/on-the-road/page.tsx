@@ -141,7 +141,7 @@ export default async function OnTheRoadPage() {
       spendCurrency={trip.currency}
       rates={rates}
     >
-    <main className="relative mx-auto min-h-screen w-full max-w-[440px] pb-16 lg:flex lg:max-w-none lg:items-stretch lg:pb-0">
+    <main className="relative mx-auto min-h-screen w-full max-w-[440px] pb-28 lg:flex lg:max-w-none lg:items-stretch lg:pb-0">
       <RealtimeRefresh
         tripId={trip.id}
         tables={["expenses", "trip_notes", "itinerary_days"]}

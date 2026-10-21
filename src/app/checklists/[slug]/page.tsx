@@ -54,7 +54,7 @@ export default async function ChecklistDetailPage({
         destinations={navDestinations}
         current="checklists"
       />
-      <main className="w-full lg:min-w-0 lg:flex-1">
+      <main className="w-full pb-28 lg:min-w-0 lg:flex-1 lg:pb-0">
         <MobileHeaderNav
           destinations={navDestinations}
           current="checklists"

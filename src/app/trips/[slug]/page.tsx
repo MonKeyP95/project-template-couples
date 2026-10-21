@@ -1,5 +1,7 @@
 import Link from "next/link"
+import { headers } from "next/headers"
 import { notFound, redirect } from "next/navigation"
+import { userAgent } from "next/server"
 
 import {
   Bar,
@@ -67,6 +69,7 @@ import { BudgetTab } from "./budget-tab"
 import { ItineraryTab } from "./itinerary-tab"
 import { DreamItineraryTab } from "./dream-itinerary-tab"
 import { NotesTab } from "./notes-tab"
+import { MobileTrip } from "./mobile-trip"
 import { TripRoutePanel } from "./trip-route-panel"
 import {
   PackingTab,
@@ -197,6 +200,10 @@ export default async function TripPage({
 
   const detail = getTripDetailBySlug(slug)
   const activeTab: TabId = isTab(tab) ? tab : "budget"
+  // Phones get the one-page layout, so every section's data loads; desktop keeps
+  // loading only the active tab.
+  const isMobile = userAgent({ headers: await headers() }).device.type === "mobile"
+  const wants = (t: TabId) => isMobile || activeTab === t
 
   const memberTones = memberToneMap(workspace)
   const memberIds = workspace.people.map((p) => p.id)
@@ -206,25 +213,25 @@ export default async function TripPage({
 
   // Right rail needs packing + budget counts always, so load both at the page
   // level and share the result with the active tab below.
-  const showItinerary = activeTab === "itinerary"
+  const showItinerary = wants("itinerary")
   const isDream = header.startDate === null
   const [datedItinerary, dreamItinerary, locations, notes, packingItems, packingCategories, expenses, expenseCategories, savings, budgetMoves, budgetItems] =
     await Promise.all([
-      (showItinerary && !isDream) || activeTab === "budget"
+      (showItinerary && !isDream) || wants("budget")
         ? getItineraryDays(header.id)
         : Promise.resolve(null),
       showItinerary && isDream ? getDreamItineraryDays(header.id) : Promise.resolve(null),
       getItineraryLocations(header.id),
-      activeTab === "notes" ? getTripNotes(header.id) : Promise.resolve(null),
+      wants("notes") ? getTripNotes(header.id) : Promise.resolve(null),
       getPackingItems(header.id),
       getPackingCategories(header.id),
       getTripExpenses(header.id),
-      activeTab === "budget" || (showItinerary && !isDream)
+      wants("budget") || (showItinerary && !isDream)
         ? getTripExpenseCategories(header.id)
         : Promise.resolve(null),
       getTripSavings(header.id, memberIds),
-      activeTab === "budget" ? getTripBudgetMoves(header.id) : Promise.resolve(null),
-      activeTab === "budget" || activeTab === "itinerary"
+      wants("budget") ? getTripBudgetMoves(header.id) : Promise.resolve(null),
+      wants("budget") || wants("itinerary")
         ? getBudgetItems(header.id)
         : Promise.resolve(null),
     ])
@@ -260,7 +267,7 @@ export default async function TripPage({
   // per location), and recommend a buffer from the couple's past overspend.
   const itinerarySeeds: Record<string, string[]> = {}
   let bufferRec = { pct: 10, reason: "a typical starting buffer" }
-  if (activeTab === "budget") {
+  if (wants("budget")) {
     const seen = new Set<string>()
     for (const day of datedItinerary ?? []) {
       for (const ev of day.events) {
@@ -281,6 +288,113 @@ export default async function TripPage({
       workspace.currency,
     )
     bufferRec = recommendBufferPct(summaries)
+  }
+
+  const itinerary = header.startDate === null ? (
+    <DreamItineraryTab
+      tripId={header.id}
+      tripSlug={header.slug}
+      initialItems={dreamItinerary ?? []}
+    />
+  ) : (
+    <ItineraryTab
+      tripId={header.id}
+      tripSlug={header.slug}
+      tripName={header.name}
+      destination={header.country ?? header.name}
+      avoid={header.tripProfile.avoid}
+      tripStartDate={header.startDate}
+      tripEndDate={header.endDate ?? header.startDate}
+      today={today}
+      initialItems={datedItinerary ?? []}
+      initialLocations={locations ?? []}
+      budgetItems={budgetItems ?? []}
+      categories={expenseCategories ?? []}
+      members={memberTones}
+      currentPersonId={workspace.myPersonId ?? ""}
+    />
+  )
+  const packing = (layout: "tab" | "boxes") => (
+    <PackingTab
+      tripId={header.id}
+      tripSlug={header.slug}
+      destination={header.country ?? header.name}
+      currentUserId={userData.user!.id}
+      partnerId={partnerId}
+      initialItems={packingItems}
+      initialCategories={packingCategories}
+      members={memberTones}
+      daysOut={computeDaysOut(header.startDate)}
+      packingNudge={packingNudge}
+      layout={layout}
+    />
+  )
+  const budget = (
+    <BudgetTab
+      tripId={header.id}
+      tripSlug={header.slug}
+      destination={header.country ?? header.name}
+      tripName={header.name}
+      tripDays={computeTripDays(header.startDate, header.endDate)}
+      startDate={header.startDate}
+      endDate={header.endDate}
+      today={today}
+      expenses={expenses}
+      expenseCategories={expenseCategories ?? []}
+      summary={budgetSummary}
+      members={memberTones}
+      plannedBudgetCents={header.plannedBudgetCents}
+      savedCents={savings.totalCents}
+      savingsContributions={savings.contributions}
+      savedPerUser={savings.perUser}
+      locations={locations ?? []}
+      itineraryDays={datedItinerary ?? []}
+      moves={budgetMoves ?? []}
+      budgetItems={budgetItems ?? []}
+      itinerarySeeds={itinerarySeeds}
+      bufferRec={bufferRec}
+      currentPersonId={workspace.myPersonId ?? ""}
+    />
+  )
+  const notesSection = (
+    <NotesTab
+      tripId={header.id}
+      tripSlug={header.slug}
+      destination={header.country ?? header.name}
+      initialNotes={notes ?? []}
+      locations={locations ?? []}
+      members={memberTones}
+    />
+  )
+
+  if (isMobile) {
+    return (
+      <CurrencyProvider
+        currency={header.homeCurrency}
+        spendCurrency={header.currency}
+        rates={rates}
+      >
+        <main className="relative mx-auto min-h-screen w-full max-w-[440px] pt-14 pb-32">
+          <RefreshOnVisible />
+          <MobileTrip
+            header={header}
+            destinations={navDestinations}
+            dateRange={formatDateRange(header.startDate, header.endDate)}
+            dayCount={
+              isDream
+                ? (dreamItinerary ?? []).length
+                : computeTripDays(header.startDate, header.endDate)
+            }
+            spentCents={budgetSummary.expenseTotalCents}
+            notesCount={(notes ?? []).length}
+            itinerary={itinerary}
+            budget={budget}
+            packingAndDocuments={packing("boxes")}
+            notes={notesSection}
+          />
+        </main>
+      </CurrencyProvider>
+    )
   }
 
   return (
@@ -311,80 +425,13 @@ export default async function TripPage({
             <WeatherStrip detail={detail} />
           </div>
         ) : null}
-        {activeTab === "itinerary" ? (
-          header.startDate === null ? (
-            <DreamItineraryTab
-              tripId={header.id}
-              tripSlug={header.slug}
-              initialItems={dreamItinerary ?? []}
-            />
-          ) : (
-            <ItineraryTab
-              tripId={header.id}
-              tripSlug={header.slug}
-              tripName={header.name}
-              destination={header.country ?? header.name}
-              avoid={header.tripProfile.avoid}
-              tripStartDate={header.startDate}
-              tripEndDate={header.endDate ?? header.startDate}
-              today={today}
-              initialItems={datedItinerary ?? []}
-              initialLocations={locations ?? []}
-              budgetItems={budgetItems ?? []}
-              categories={expenseCategories ?? []}
-              members={memberTones}
-              currentPersonId={workspace.myPersonId ?? ""}
-            />
-          )
-        ) : activeTab === "packing" ? (
-          <PackingTab
-            tripId={header.id}
-            tripSlug={header.slug}
-            destination={header.country ?? header.name}
-            currentUserId={userData.user.id}
-            partnerId={partnerId}
-            initialItems={packingItems}
-            initialCategories={packingCategories}
-            members={memberTones}
-            daysOut={computeDaysOut(header.startDate)}
-            packingNudge={packingNudge}
-          />
-        ) : activeTab === "budget" ? (
-          <BudgetTab
-            tripId={header.id}
-            tripSlug={header.slug}
-            destination={header.country ?? header.name}
-            tripName={header.name}
-            tripDays={computeTripDays(header.startDate, header.endDate)}
-            startDate={header.startDate}
-            endDate={header.endDate}
-            today={today}
-            expenses={expenses}
-            expenseCategories={expenseCategories ?? []}
-            summary={budgetSummary}
-            members={memberTones}
-            plannedBudgetCents={header.plannedBudgetCents}
-            savedCents={savings.totalCents}
-            savingsContributions={savings.contributions}
-            savedPerUser={savings.perUser}
-            locations={locations ?? []}
-            itineraryDays={datedItinerary ?? []}
-            moves={budgetMoves ?? []}
-            budgetItems={budgetItems ?? []}
-            itinerarySeeds={itinerarySeeds}
-            bufferRec={bufferRec}
-            currentPersonId={workspace.myPersonId ?? ""}
-          />
-        ) : (
-          <NotesTab
-            tripId={header.id}
-            tripSlug={header.slug}
-            destination={header.country ?? header.name}
-            initialNotes={notes ?? []}
-            locations={locations ?? []}
-            members={memberTones}
-          />
-        )}
+        {activeTab === "itinerary"
+          ? itinerary
+          : activeTab === "packing"
+            ? packing("tab")
+            : activeTab === "budget"
+              ? budget
+              : notesSection}
       </div>
 
       <DesktopRightRail
@@ -402,8 +449,6 @@ export default async function TripPage({
         }}
         currency={header.homeCurrency}
       />
-
-      <BottomNav slug={header.slug} active={activeTab} />
     </main>
     </CurrencyProvider>
   )
@@ -527,41 +572,11 @@ function WeatherStrip({ detail }: { detail: TripDetail }) {
   )
 }
 
-function BottomNav({ slug, active }: { slug: string; active: TabId }) {
-  return (
-    <div className="fixed inset-x-0 bottom-7 z-40 lg:hidden">
-      <div className="mx-auto w-full max-w-[440px] px-4">
-        <nav className="flex gap-1 rounded-full border border-border bg-card/80 p-1.5 shadow-md backdrop-blur-xl">
-          {TABS.map((t) => {
-            const isActive = t.id === active
-            const href =
-              t.id === "budget"
-                ? `/trips/${slug}`
-                : `/trips/${slug}?tab=${t.id}`
-            return (
-              <Link
-                key={t.id}
-                href={href}
-                aria-current={isActive ? "page" : undefined}
-                className={`flex-1 rounded-full py-2.5 text-center font-mono text-[10px] uppercase tracking-[0.2em] transition-colors ${
-                  isActive
-                    ? "bg-foreground text-background"
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                {t.label}
-              </Link>
-            )
-          })}
-        </nav>
-      </div>
-    </div>
-  )
-}
-
+/** Tab row for the non-phone layout. Shown at every width so narrow desktop
+ * windows and tablets keep a way between tabs; phones use MobileTrip instead. */
 function DesktopTabs({ slug, active }: { slug: string; active: TabId }) {
   return (
-    <div className="hidden border-b border-border lg:flex lg:gap-7 lg:px-10 lg:pt-3">
+    <div className="flex gap-5 overflow-x-auto border-b border-border px-5 lg:gap-7 lg:px-10 lg:pt-3">
       {TABS.map((t) => {
         const isActive = t.id === active
         const href =

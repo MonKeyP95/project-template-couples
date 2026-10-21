@@ -37,7 +37,7 @@ export default async function ManualPage() {
         destinations={navDestinations}
         current="manual"
       />
-      <main className="w-full px-5 pt-14 pb-16 lg:min-w-0 lg:flex-1 lg:px-12 lg:pt-12">
+      <main className="w-full px-5 pt-14 pb-28 lg:min-w-0 lg:flex-1 lg:px-12 lg:pt-12 lg:pb-16">
         <MobileHeaderNav
           destinations={navDestinations}
           current="manual"

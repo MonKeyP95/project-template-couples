@@ -4,6 +4,7 @@ import * as React from "react"
 
 import { CheckRow, Coord, Label, SegBtn, TopoBg } from "@/components/together"
 import { AssistantBlock } from "@/components/assistant-block"
+import { BoxCard, BoxSection } from "@/components/collapsible-box"
 import { PlanningPlaceDoor } from "./find-a-place-planning"
 import type { Nudge } from "@/lib/nudges/types"
 import {
@@ -58,6 +59,9 @@ export interface PackingTabProps {
   members: Record<string, MemberToneEntry>
   daysOut: number | null
   packingNudge?: Nudge | null
+  /** "boxes" (mobile one-page trip): Packing and the shared Documents category
+   * render as two collapsible boxes off this one state and Realtime channel. */
+  layout?: "tab" | "boxes"
 }
 
 interface RealtimeRow {
@@ -89,6 +93,9 @@ type View = "mine" | "shared" | "partner"
 /** Catch-all for items added from the list-level line, which asks for no category. */
 const LOOSE_CATEGORY = "Other"
 
+/** The shared category the boxes layout lifts into its own Documents box. */
+const DOCUMENTS_CATEGORY = "Documents"
+
 export function PackingTab({
   tripId,
   tripSlug,
@@ -100,6 +107,7 @@ export function PackingTab({
   members,
   daysOut,
   packingNudge,
+  layout = "tab",
 }: PackingTabProps) {
   const [items, setItems] = React.useState<PackingItem[]>(initialItems)
   const [lastInitial, setLastInitial] = React.useState(initialItems)
@@ -222,16 +230,15 @@ export function PackingTab({
     return {}
   }
 
-  /** Adds without asking for a category: lands in "Other", created on first use. */
-  async function addLooseItem(
+  /** Adds to a named category, creating it on first use. */
+  async function addToCategory(
+    name: string,
     owner: string | null,
     label: string,
   ): Promise<{ error?: string }> {
-    const exists = categories.some(
-      (c) => c.ownerId === owner && c.name === LOOSE_CATEGORY,
-    )
-    if (!exists) await addCategory(LOOSE_CATEGORY, owner)
-    return addItem(LOOSE_CATEGORY, owner, label)
+    const exists = categories.some((c) => c.ownerId === owner && c.name === name)
+    if (!exists) await addCategory(name, owner)
+    return addItem(name, owner, label)
   }
 
   async function removeCategory(
@@ -280,6 +287,12 @@ export function PackingTab({
   }
 
   const parts = partitionByOwner(categories, items, currentUserId, partnerId)
+  const isDoc = (name: string) => layout === "boxes" && name === DOCUMENTS_CATEGORY
+  const shared: OwnerScope = {
+    categories: parts.shared.categories.filter((c) => !isDoc(c.name)),
+    items: parts.shared.items.filter((i) => !isDoc(i.category)),
+  }
+  const documents = parts.shared.items.filter((i) => isDoc(i.category))
   const partnerName = partnerId
     ? (members[partnerId]?.displayName ?? "Partner").split(" ")[0]
     : null
@@ -302,9 +315,9 @@ export function PackingTab({
       ? { scope: parts.mine, owner: currentUserId, readOnly: false }
       : view === "partner"
         ? { scope: parts.partner, owner: partnerId, readOnly: true }
-        : { scope: parts.shared, owner: null, readOnly: false }
+        : { scope: shared, owner: null, readOnly: false }
 
-  return (
+  const section = (
     <section>
       <div className="relative overflow-hidden bg-clay-tint px-5 pt-6 pb-4">
         <TopoBg tone="clay" opacity={0.1} />
@@ -362,7 +375,7 @@ export function PackingTab({
           onUpdate={update}
           onDelete={remove}
           onAddItem={addItem}
-          onAddLooseItem={(label) => addLooseItem(active.owner, label)}
+          onAddLooseItem={(label) => addToCategory(LOOSE_CATEGORY, active.owner, label)}
           onAddCategory={addCategory}
           onRemoveCategory={removeCategory}
           onReorder={reorder}
@@ -370,6 +383,64 @@ export function PackingTab({
         />
       </div>
     </section>
+  )
+
+  if (layout === "tab") return section
+
+  const packed = [...parts.mine.items, ...shared.items]
+  return (
+    <>
+      <BoxCard>
+        <BoxSection summary={<BoxCount label="Packing" items={packed} noun="packed" />}>
+          {section}
+        </BoxSection>
+      </BoxCard>
+      <BoxCard>
+        <BoxSection summary={<BoxCount label="Documents" items={documents} noun="ready" />}>
+          <div className="px-5 pt-2 pb-4">
+            {documents.map((item) => (
+              <ItemRow
+                key={item.id}
+                item={item}
+                member={members[item.addedBy]}
+                readOnly={false}
+                isEditing={editingId === item.id}
+                onToggle={() => toggle(item.id)}
+                onStartEdit={() => setEditingId(item.id)}
+                onStopEdit={() => setEditingId(null)}
+                onUpdate={update}
+                onDelete={() => remove(item.id)}
+              />
+            ))}
+            <AddItemRow
+              alwaysOpen
+              placeholder="Add a document…"
+              onAdd={(label) => addToCategory(DOCUMENTS_CATEGORY, null, label)}
+            />
+          </div>
+        </BoxSection>
+      </BoxCard>
+    </>
+  )
+}
+
+function BoxCount({
+  label,
+  items,
+  noun,
+}: {
+  label: string
+  items: PackingItem[]
+  noun: string
+}) {
+  const done = items.filter((i) => i.done).length
+  return (
+    <div className="flex items-baseline justify-between gap-3">
+      <Label>{label}</Label>
+      <span className="font-mono text-[11px] text-muted-foreground">
+        {done} of {items.length} {noun}
+      </span>
+    </div>
   )
 }
 

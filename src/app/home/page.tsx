@@ -111,7 +111,7 @@ export default async function HomePage() {
           current="home"
         />
       ) : null}
-      <main className="w-full px-5 pt-14 pb-10 lg:min-w-0 lg:flex-1 lg:px-12 lg:pt-12 lg:pb-16">
+      <main className="w-full px-5 pt-14 pb-28 lg:min-w-0 lg:flex-1 lg:px-12 lg:pt-12 lg:pb-16">
       {workspace ? (
         <MobileHeaderNav
           destinations={navDestinations}

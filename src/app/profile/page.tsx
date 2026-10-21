@@ -1,3 +1,4 @@
+import Link from "next/link"
 import { redirect } from "next/navigation"
 
 import { updateProfile } from "@/lib/auth/actions"
@@ -139,7 +140,7 @@ export default async function ProfilePage() {
         destinations={navDestinations}
         current="profile"
       />
-      <main className="w-full px-5 pt-14 pb-16 lg:min-w-0 lg:flex-1 lg:px-12 lg:pt-12">
+      <main className="w-full px-5 pt-14 pb-28 lg:min-w-0 lg:flex-1 lg:px-12 lg:pt-12 lg:pb-16">
         <MobileHeaderNav
           destinations={navDestinations}
           current="profile"
@@ -172,6 +173,14 @@ export default async function ProfilePage() {
                 {profile?.created_at
                   ? new Date(profile.created_at).toLocaleDateString("en-GB")
                   : "—"}
+              </dd>
+            </div>
+            <div className="flex justify-between lg:hidden">
+              <dt className="text-muted-foreground">Help</dt>
+              <dd>
+                <Link href="/manual" className="underline underline-offset-4">
+                  Manual
+                </Link>
               </dd>
             </div>
           </dl>
