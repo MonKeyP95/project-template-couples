@@ -26,9 +26,11 @@ import {
   updateDreamItineraryDay,
 } from "@/lib/trips/actions"
 import {
+  dreamSlots,
   rowToDreamDay,
   withDreamOrdinals,
   type DreamDay,
+  type DreamSlot,
 } from "@/lib/trips/dream-itinerary-types"
 import { ITINERARY_TONES, type ItineraryTone } from "@/lib/trips/itinerary-types"
 
@@ -55,18 +57,24 @@ export function DreamItineraryTab({
   tripId,
   tripSlug,
   initialItems,
+  dayCount,
 }: {
   tripId: string
   tripSlug: string
   initialItems: DreamDay[]
+  /** Planned length; when set, days sit at real positions with empty slots. */
+  dayCount: number | null
 }) {
-  const [days, setDays] = React.useState<DreamDay[]>(initialItems)
+  const positional = dayCount !== null
+  const [days, setDays] = React.useState<DreamDay[]>(() =>
+    withDreamOrdinals(initialItems, positional),
+  )
   const [lastInitial, setLastInitial] = React.useState(initialItems)
   const [editingId, setEditingId] = React.useState<string | null>(null)
 
   if (initialItems !== lastInitial) {
     setLastInitial(initialItems)
-    setDays(initialItems)
+    setDays(withDreamOrdinals(initialItems, positional))
   }
 
   React.useEffect(() => {
@@ -87,20 +95,21 @@ export function DreamItineraryTab({
             setDays((prev) =>
               prev.some((d) => d.id === incoming.id)
                 ? prev
-                : withDreamOrdinals([...prev, incoming]),
+                : withDreamOrdinals([...prev, incoming], positional),
             )
           } else if (payload.eventType === "UPDATE") {
             const incoming = rowToDreamDay(payload.new as RealtimeRow)
             setDays((prev) =>
               withDreamOrdinals(
                 prev.map((d) => (d.id === incoming.id ? incoming : d)),
+                positional,
               ),
             )
           } else if (payload.eventType === "DELETE") {
             const old = payload.old as { id?: string }
             if (old.id) {
               setDays((prev) =>
-                withDreamOrdinals(prev.filter((d) => d.id !== old.id)),
+                withDreamOrdinals(prev.filter((d) => d.id !== old.id), positional),
               )
             }
           }
@@ -111,7 +120,7 @@ export function DreamItineraryTab({
     return () => {
       supabase.removeChannel(channel)
     }
-  }, [tripId])
+  }, [tripId, positional])
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
@@ -134,6 +143,7 @@ export function DreamItineraryTab({
     const slots = days.map((d) => d.dayIndex).sort((a, b) => a - b)
     const reassigned = withDreamOrdinals(
       reordered.map((d, i) => ({ ...d, dayIndex: slots[i] })),
+      positional,
     )
     setDays(reassigned)
 
@@ -157,7 +167,7 @@ export function DreamItineraryTab({
       </div>
 
       <div className="px-5 pt-2.5 lg:px-10">
-        {days.length === 0 ? (
+        {days.length === 0 && !positional ? (
           <p className="font-serif text-[15px] italic text-muted-foreground">
             No days dreamed up yet — add the first one.
           </p>
@@ -172,18 +182,28 @@ export function DreamItineraryTab({
               items={days.map((d) => d.id)}
               strategy={verticalListSortingStrategy}
             >
-              {days.map((day, i) => (
-                <SortableDreamDayCard
-                  key={day.id}
-                  id={day.id}
-                  day={day}
-                  tripSlug={tripSlug}
-                  isLast={i === days.length - 1}
-                  isEditing={editingId === day.id}
-                  onStartEdit={() => setEditingId(day.id)}
-                  onStopEdit={() => setEditingId(null)}
-                />
-              ))}
+              {slotsFor(days, dayCount).map((slot, i, all) =>
+                slot.kind === "empty" ? (
+                  <div key={`empty-${slot.dayIndex}`} className="py-1.5">
+                    <AddDreamDayRow
+                      tripId={tripId}
+                      tripSlug={tripSlug}
+                      dayIndex={slot.dayIndex}
+                    />
+                  </div>
+                ) : (
+                  <SortableDreamDayCard
+                    key={slot.day.id}
+                    id={slot.day.id}
+                    day={slot.day}
+                    tripSlug={tripSlug}
+                    isLast={i === all.length - 1}
+                    isEditing={editingId === slot.day.id}
+                    onStartEdit={() => setEditingId(slot.day.id)}
+                    onStopEdit={() => setEditingId(null)}
+                  />
+                ),
+              )}
             </SortableContext>
           </DndContext>
         )}
@@ -194,6 +214,13 @@ export function DreamItineraryTab({
       </div>
     </section>
   )
+}
+
+/** Without a day count, just the days in order; with one, every position. */
+function slotsFor(days: DreamDay[], dayCount: number | null): DreamSlot[] {
+  return dayCount === null
+    ? days.map((day) => ({ kind: "day", day }))
+    : dreamSlots(days, dayCount)
 }
 
 interface DreamDayCardProps {
@@ -400,9 +427,12 @@ function DreamDayEditor({
 function AddDreamDayRow({
   tripId,
   tripSlug,
+  dayIndex,
 }: {
   tripId: string
   tripSlug: string
+  /** Set for an empty slot: fills that position with one day. */
+  dayIndex?: number
 }) {
   const [expanded, setExpanded] = React.useState(false)
   const [tag, setTag] = React.useState("")
@@ -436,6 +466,7 @@ function AddDreamDayRow({
         tag,
         tone,
         count: Number(count),
+        dayIndex,
       })
       if (result.error) {
         setError(result.error)
@@ -443,6 +474,19 @@ function AddDreamDayRow({
       }
       reset()
     })
+  }
+
+  if (!expanded && dayIndex) {
+    return (
+      <button
+        type="button"
+        onClick={() => setExpanded(true)}
+        className="flex min-h-12 w-full items-center justify-between rounded-[10px] border border-dashed border-rule bg-transparent px-3.5 text-[15px] text-foreground hover:border-foreground"
+      >
+        <span>Day {dayIndex}</span>
+        <span className="text-[13px] text-sea">+ add</span>
+      </button>
+    )
   }
 
   if (!expanded) {
@@ -459,7 +503,7 @@ function AddDreamDayRow({
 
   return (
     <DreamDayForm
-      heading="Add day"
+      heading={dayIndex ? `Day ${dayIndex}` : "Add day"}
       tag={tag}
       setTag={setTag}
       title={title}
@@ -468,8 +512,8 @@ function AddDreamDayRow({
       setSub={setSub}
       tone={tone}
       setTone={setTone}
-      count={count}
-      setCount={setCount}
+      count={dayIndex ? undefined : count}
+      setCount={dayIndex ? undefined : setCount}
       error={error}
       isPending={isPending}
       submitLabel="add"

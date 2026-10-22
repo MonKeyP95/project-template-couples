@@ -88,11 +88,18 @@ function HeaderLine({ header }: { header: TripHeader }) {
 function TripCard({ header, dateRange, dayCount, itinerary }: MobileTripProps) {
   const p = header.tripProfile
   const rows = [
-    ["Vibe", [...p.vibe, p.vibeNote].filter(Boolean).join(", ")],
-    ["Getting around", p.transport.join(", ")],
+    ["Sleeping", p.stay],
+    ["Getting around", p.move || p.transport.join(", ")],
+    ["Doing", p.acts],
+    ["Eating", p.food],
     ["Avoid", p.avoid],
+    ["Vibe", [...p.vibe, p.vibeNote].filter(Boolean).join(", ")],
   ].filter(([, value]) => value)
-  const days = header.startDate ? `${dayCount} days` : "no dates yet"
+  const days = header.startDate
+    ? `${dayCount} days`
+    : dayCount > 0
+      ? `${dayCount} days · no dates yet`
+      : "no dates yet"
   return (
     <BoxCard>
       <BoxSection

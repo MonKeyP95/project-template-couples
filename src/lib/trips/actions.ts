@@ -2302,6 +2302,8 @@ export interface AddDreamDayInput {
   tone: ItineraryTone
   /** Number of identical days to create (default 1). Dreams have no dates. */
   count?: number
+  /** Fill this empty position (one day, `count` ignored) instead of appending. */
+  dayIndex?: number
 }
 
 export interface AddDreamDayResult {
@@ -2335,18 +2337,21 @@ export async function addDreamItineraryDay(
   if (userError || !userData.user) return { error: "Not signed in." }
   const userId = userData.user.id
 
-  const { data: maxRow } = await supabase
-    .from("dream_itinerary_days")
-    .select("day_index")
-    .eq("trip_id", input.tripId)
-    .order("day_index", { ascending: false })
-    .limit(1)
-    .maybeSingle()
-  const nextIndex = (maxRow?.day_index ?? 0) + 1
+  let nextIndex = input.dayIndex ?? 0
+  if (!nextIndex) {
+    const { data: maxRow } = await supabase
+      .from("dream_itinerary_days")
+      .select("day_index")
+      .eq("trip_id", input.tripId)
+      .order("day_index", { ascending: false })
+      .limit(1)
+      .maybeSingle()
+    nextIndex = (maxRow?.day_index ?? 0) + 1
+  }
 
   const sub = input.sub.trim()
 
-  const rows = Array.from({ length: count }, (_, i) => ({
+  const rows = Array.from({ length: input.dayIndex ? 1 : count }, (_, i) => ({
     trip_id: input.tripId,
     day_index: nextIndex + i,
     title,

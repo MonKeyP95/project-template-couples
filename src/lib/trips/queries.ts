@@ -10,6 +10,8 @@ export interface TripHeader {
   startDate: string | null
   endDate: string | null
   fuzzyWhen: string | null
+  /** Planned length of a dateless trip; null for dated trips and older dreams. */
+  dayCount: number | null
   lat: number | null
   lng: number | null
   /** Planned budget goal in cents (0 = unset). */
@@ -36,6 +38,7 @@ interface TripRow {
   start_date: string | null
   end_date: string | null
   fuzzy_when: string | null
+  day_count: number | null
   lat: string | number | null
   lng: string | number | null
   planned_budget_cents: number
@@ -57,7 +60,7 @@ export async function getTripBySlug(
   const tripQuery = supabase
     .from("trips")
     .select(
-      "id, workspace_id, slug, name, country, start_date, end_date, fuzzy_when, lat, lng, planned_budget_cents, currency, home_currency, trip_profile",
+      "id, workspace_id, slug, name, country, start_date, end_date, fuzzy_when, day_count, lat, lng, planned_budget_cents, currency, home_currency, trip_profile",
     )
     .eq("workspace_id", workspaceId)
     .eq("slug", slug)
@@ -89,6 +92,7 @@ export async function getTripBySlug(
     startDate: trip.start_date,
     endDate: trip.end_date,
     fuzzyWhen: trip.fuzzy_when,
+    dayCount: trip.day_count,
     lat: asNumber(trip.lat),
     lng: asNumber(trip.lng),
     plannedBudgetCents: trip.planned_budget_cents,

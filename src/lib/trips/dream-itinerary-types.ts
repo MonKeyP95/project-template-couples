@@ -35,11 +35,30 @@ export function rowToDreamDay(row: DreamRow): DreamDay {
   }
 }
 
-/** Sort by dayIndex ascending and re-pad `d` ordinals. Pure; safe for client-side use after Realtime deltas. */
-export function withDreamOrdinals(days: DreamDay[]): DreamDay[] {
+/** Sort by dayIndex ascending and re-pad `d` ordinals. `positional` (dreams
+ * with a day count) labels each day by its dayIndex instead of its sort
+ * position, so gaps stay visible. Pure; safe after Realtime deltas. */
+export function withDreamOrdinals(
+  days: DreamDay[],
+  positional = false,
+): DreamDay[] {
   const sorted = [...days].sort((a, b) => a.dayIndex - b.dayIndex)
   return sorted.map((day, i) => ({
     ...day,
-    d: String(i + 1).padStart(2, "0"),
+    d: String(positional ? day.dayIndex : i + 1).padStart(2, "0"),
   }))
+}
+
+export type DreamSlot =
+  | { kind: "day"; day: DreamDay }
+  | { kind: "empty"; dayIndex: number }
+
+/** Positions 1..max(dayCount, last dayIndex): each row in place, gaps empty. */
+export function dreamSlots(days: DreamDay[], dayCount: number): DreamSlot[] {
+  const byIndex = new Map(days.map((d) => [d.dayIndex, d]))
+  const last = Math.max(dayCount, ...days.map((d) => d.dayIndex))
+  return Array.from({ length: last }, (_, i) => {
+    const day = byIndex.get(i + 1)
+    return day ? { kind: "day", day } : { kind: "empty", dayIndex: i + 1 }
+  })
 }

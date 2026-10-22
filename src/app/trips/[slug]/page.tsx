@@ -302,6 +302,7 @@ export default async function TripPage({
       tripId={header.id}
       tripSlug={header.slug}
       initialItems={dreamItinerary ?? []}
+      dayCount={header.dayCount}
     />
   ) : (
     <ItineraryTab
@@ -400,7 +401,7 @@ export default async function TripPage({
             dateRange={formatDateRange(header.startDate, header.endDate)}
             dayCount={
               isDream
-                ? (dreamItinerary ?? []).length
+                ? (header.dayCount ?? (dreamItinerary ?? []).length)
                 : computeTripDays(header.startDate, header.endDate)
             }
             spentCents={budgetSummary.expenseTotalCents}
