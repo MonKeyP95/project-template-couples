@@ -32,3 +32,8 @@ export async function getTripReceipts(tripId: string): Promise<Receipt[]> {
     url: urlByPath.get(row.storage_path) ?? "",
   }))
 }
+
+/** Request time for the receipt pile's "reading…" vs "couldn't read" cut-off. */
+export function receiptClockMs(): number {
+  return Date.now()
+}

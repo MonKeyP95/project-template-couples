@@ -3,6 +3,9 @@
 import * as React from "react"
 
 import { Avatar, Label, TopoBg } from "@/components/together"
+import { AddReceiptsButton } from "@/components/receipts/add-receipts-button"
+import { ReceiptPile } from "@/components/receipts/receipt-pile"
+import type { Receipt } from "@/lib/trips/receipt-types"
 import {
   homeCents,
   isForeign,
@@ -69,6 +72,9 @@ export interface BudgetTabProps {
   itinerarySeeds: Record<string, string[]>
   bufferRec: { pct: number; reason: string }
   currentPersonId: string
+  receipts: Receipt[]
+  /** Server render time, for the receipt pile. */
+  nowMs: number
 }
 
 export function BudgetTab({
@@ -95,6 +101,8 @@ export function BudgetTab({
   itinerarySeeds,
   bufferRec,
   currentPersonId,
+  receipts,
+  nowMs,
 }: BudgetTabProps) {
   const { currency } = useCurrency()
   const [settleOpen, setSettleOpen] = React.useState(false)
@@ -240,6 +248,15 @@ export function BudgetTab({
               destination={destination}
             />
           }
+        />
+      </div>
+      <div className="flex flex-col gap-3 px-5 pt-4">
+        <AddReceiptsButton tripId={tripId} tripSlug={tripSlug} />
+        <ReceiptPile
+          tripSlug={tripSlug}
+          receipts={receipts}
+          expenses={expenses}
+          nowMs={nowMs}
         />
       </div>
       <Ledger
