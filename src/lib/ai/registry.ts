@@ -247,6 +247,41 @@ export const TOOL_REGISTRY: Record<string, Anthropic.Messages.ToolUnion> = {
     },
   },
 
+  submit_receipt: {
+    name: "submit_receipt",
+    description: "Return what the receipt shows. Null for anything it doesn't show.",
+    strict: true,
+    input_schema: {
+      type: "object",
+      additionalProperties: false,
+      properties: {
+        merchant: { type: ["string", "null"], description: "Shop, restaurant or company name." },
+        date: { type: ["string", "null"], description: "Purchase date as yyyy-mm-dd." },
+        totalCents: {
+          type: ["integer", "null"],
+          description: "Total paid, in hundredths of the currency (12.40 -> 1240).",
+        },
+        currency: { type: ["string", "null"], description: "ISO 4217 code, e.g. EUR." },
+        items: {
+          type: "array",
+          items: {
+            type: "object",
+            additionalProperties: false,
+            properties: {
+              label: { type: "string" },
+              amountCents: { type: ["integer", "null"] },
+            },
+            required: ["label", "amountCents"],
+          },
+        },
+        summary: {
+          type: ["string", "null"],
+          description: "One short line, e.g. 'Groceries at Pingo Doce, Funchal'.",
+        },
+      },
+      required: ["merchant", "date", "totalCents", "currency", "items", "summary"],
+    },
+  },
 }
 
 /** Resolve tool names to Anthropic tool definitions, in order. Throws on an

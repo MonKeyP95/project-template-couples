@@ -24,6 +24,7 @@ export {
 } from "./agents/itinerary-planner"
 export { generateSuggestion } from "./agents/suggestion"
 export { generateDispatch, type DispatchQuery } from "./agents/dispatch"
+export { readReceiptFile, type ReceiptFile } from "./agents/read-receipt"
 export {
   generateDispatchDetail,
   type DispatchDetailQuery,
