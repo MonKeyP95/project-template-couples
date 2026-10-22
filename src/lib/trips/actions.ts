@@ -33,6 +33,8 @@ import {
   type ItineraryLocation,
 } from "@/lib/trips/location-types"
 import { slugToTone } from "@/lib/trips/slug-tone"
+import { slugify } from "@/lib/trips/slugify"
+import { tripHeadline, type PrefKey } from "@/lib/trips/trip-note-parse"
 import {
   EMPTY_TRIP_PROFILE,
   cleanTripProfile,
@@ -782,17 +784,17 @@ export async function setCategoryDetails(
 }
 
 export interface CreateTripInput {
-  name: string
-  slug: string
-  isDream: boolean
+  /** The free-text note; stored as the trip idea. */
+  note: string
+  days: number
+  /** Optional; the end date follows from `days`. Null makes it a dream. */
   startDate: string | null
-  endDate: string | null
-  fuzzyWhen: string | null
-  country: string | null
-  lat: number | null
-  lng: number | null
-  profile?: TripProfile
-  categories?: { name: string; details: string[] }[]
+  /** Whole units of the workspace currency; 0 = no budget. */
+  budget: number
+  place: string | null
+  what: string
+  /** Page 2 answers; null when skipped. */
+  prefs: Record<PrefKey, string> | null
 }
 
 export interface CreateTripResult {
@@ -802,65 +804,31 @@ export interface CreateTripResult {
 }
 
 const SLUG_RE = /^[a-z0-9-]+$/
+const MAX_TRIP_DAYS = 365
+
+function addDays(date: string, n: number): string {
+  const d = new Date(`${date}T00:00:00Z`)
+  d.setUTCDate(d.getUTCDate() + n)
+  return d.toISOString().slice(0, 10)
+}
 
 /**
- * Creates a trip in the current workspace plus a trip_members row for every
- * workspace member. Returns `{ error }` on validation / DB failure so the form
- * can surface the message inline; returns `{ slug }` on success and lets the
- * client route to /trips/<slug>.
+ * Creates a trip from the new-trip flow, plus a trip_members row for every
+ * workspace member and the default expense categories. With a start date it is
+ * a dated trip; without, a dream that keeps its length in `day_count`. The name
+ * comes from the headline; a taken slug gets `-2`, `-3`, ...
  */
 export async function createTrip(
   input: CreateTripInput,
 ): Promise<CreateTripResult> {
-  const name = input.name.trim()
-  if (!name) return { error: "Name required." }
-
-  const slug = input.slug.trim()
-  if (!SLUG_RE.test(slug)) {
-    return { error: "Slug must be lowercase letters, numbers, hyphens." }
+  if (!Number.isInteger(input.days) || input.days < 1 || input.days > MAX_TRIP_DAYS) {
+    return { error: `How long must be 1 to ${MAX_TRIP_DAYS} days.` }
   }
-
-  let startDate: string | null
-  let endDate: string | null
-  let fuzzyWhen: string | null
-
-  if (input.isDream) {
-    if (input.startDate || input.endDate) {
-      return { error: "Dreams have no dates." }
-    }
-    startDate = null
-    endDate = null
-    fuzzyWhen = input.fuzzyWhen?.trim() || null
-    if (fuzzyWhen && fuzzyWhen.length > 64) {
-      return { error: "When? must be 64 characters or fewer." }
-    }
-  } else {
-    if (!input.startDate || !input.endDate) {
-      return { error: "Start and end dates required." }
-    }
-    if (input.endDate < input.startDate) {
-      return { error: "End date must be on or after start date." }
-    }
-    if (input.fuzzyWhen) {
-      return { error: "Trips don't have a 'when?' label." }
-    }
-    startDate = input.startDate
-    endDate = input.endDate
-    fuzzyWhen = null
+  if (input.startDate && !DATE_RE.test(input.startDate)) {
+    return { error: "Start date invalid." }
   }
-
-  const hasLat = input.lat !== null
-  const hasLng = input.lng !== null
-  if (hasLat !== hasLng) {
-    return { error: "Coordinates invalid." }
-  }
-  if (hasLat) {
-    if (!Number.isFinite(input.lat) || input.lat! < -90 || input.lat! > 90) {
-      return { error: "Coordinates invalid." }
-    }
-    if (!Number.isFinite(input.lng) || input.lng! < -180 || input.lng! > 180) {
-      return { error: "Coordinates invalid." }
-    }
+  if (!Number.isFinite(input.budget) || input.budget < 0) {
+    return { error: "Budget invalid." }
   }
 
   const workspace = await getCurrentWorkspace()
@@ -870,90 +838,68 @@ export async function createTrip(
   const { data: userData, error: userError } = await supabase.auth.getUser()
   if (userError || !userData.user) return { error: "Not signed in." }
 
-  const country = input.country?.trim() || null
-
-  const tripProfile = cleanTripProfile(input.profile ?? EMPTY_TRIP_PROFILE)
-
-  const { error: insertError } = await supabase.from("trips").insert({
+  const place = input.place?.trim() || null
+  const name = tripHeadline(input.what, place ?? "")
+  const startDate = input.startDate || null
+  const row = {
     workspace_id: workspace.id,
-    slug,
     name,
-    country,
+    country: place,
     start_date: startDate,
-    end_date: endDate,
-    fuzzy_when: fuzzyWhen,
-    lat: input.lat,
-    lng: input.lng,
+    end_date: startDate ? addDays(startDate, input.days - 1) : null,
+    day_count: startDate ? null : input.days,
+    planned_budget_cents: Math.round(input.budget * 100),
     // Both copied, not looked up: changing the workspace currency later must
     // not rewrite a recorded trip's numbers. `currency` is the spend default
     // (editable per trip); `home_currency` is where the bank account is.
     currency: workspace.currency,
     home_currency: workspace.currency,
-    trip_profile: tripProfile,
+    trip_profile: cleanTripProfile({
+      ...EMPTY_TRIP_PROFILE,
+      ...input.prefs,
+      idea: input.note,
+    }),
     created_by: userData.user.id,
-  })
-
-  if (insertError) {
-    if (insertError.code === "23505") {
-      return { error: "A trip with that slug already exists." }
-    }
-    return { error: insertError.message }
   }
 
-  const { data: tripRow, error: lookupError } = await supabase
-    .from("trips")
-    .select("id")
-    .eq("workspace_id", workspace.id)
-    .eq("slug", slug)
-    .maybeSingle()
-  if (lookupError || !tripRow) {
-    return { error: lookupError?.message ?? "Trip not found after insert." }
+  const base = slugify(name) || "trip"
+  let slug = base
+  let tripId: string | null = null
+  for (let n = 2; n <= 10 && !tripId; n++) {
+    const { data, error } = await supabase
+      .from("trips")
+      .insert({ ...row, slug })
+      .select("id")
+      .single()
+    if (data) tripId = data.id
+    else if (error?.code === "23505") slug = `${base}-${n}`
+    else return { error: error?.message ?? "Could not create trip." }
   }
+  if (!tripId) return { error: "Could not find a free name; try again." }
 
-  const memberRows = workspace.members.map((m) => ({
-    trip_id: tripRow.id,
-    user_id: m.user_id,
-    role: "member" as const,
-  }))
-  const { error: membersError } = await supabase
-    .from("trip_members")
-    .insert(memberRows)
+  const { error: membersError } = await supabase.from("trip_members").insert(
+    workspace.members.map((m) => ({
+      trip_id: tripId,
+      user_id: m.user_id,
+      role: "member" as const,
+    })),
+  )
   if (membersError) return { error: membersError.message }
 
-  const rawCategories =
-    input.categories && input.categories.length > 0
-      ? input.categories
-      : EXPENSE_CATEGORIES.map((name) => ({ name, details: [] as string[] }))
-
-  const seen = new Set<string>()
-  const cleanCategories: { name: string; details: string[] }[] = []
-  for (const c of rawCategories) {
-    const nm = c.name.trim()
-    if (!nm || seen.has(nm)) continue
-    seen.add(nm)
-    const details = Array.from(
-      new Set(c.details.map((d) => d.trim()).filter(Boolean)),
-    ).slice(0, 20)
-    cleanCategories.push({ name: nm, details })
-  }
-  if (cleanCategories.length === 0) {
-    for (const name of EXPENSE_CATEGORIES) {
-      cleanCategories.push({ name, details: [] })
-    }
-  }
-
-  const categoryRows = cleanCategories.map((c, i) => ({
-    trip_id: tripRow.id,
-    name: c.name,
-    sort_order: i,
-    details: c.details,
-    created_by: userData.user.id,
-  }))
   const { error: categoriesError } = await supabase
     .from("expense_categories")
-    .insert(categoryRows)
+    .insert(
+      EXPENSE_CATEGORIES.map((name, i) => ({
+        trip_id: tripId,
+        name,
+        sort_order: i,
+        details: [],
+        created_by: userData.user.id,
+      })),
+    )
   if (categoriesError) return { error: categoriesError.message }
 
+  revalidatePath("/home")
   return { slug }
 }
 

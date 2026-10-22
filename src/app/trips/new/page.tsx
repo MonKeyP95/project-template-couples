@@ -36,7 +36,7 @@ export default async function NewTripPage() {
       </Link>
       <Label className="mt-6">Together · New trip</Label>
       <hr className="mt-3 border-rule" />
-      <NewTripForm />
+      <NewTripForm currency={workspace.currency} />
     </main>
   )
 }
