@@ -11,6 +11,8 @@ export interface AddReceiptsButtonProps {
   /** Attach straight to this expense; omit to drop into the pile. */
   expenseId?: string | null
   label?: string
+  /** Defaults to "receipt". */
+  kind?: "receipt" | "document"
 }
 
 /** Pick one or more photos/PDFs and upload them one by one. */
@@ -19,6 +21,7 @@ export function AddReceiptsButton({
   tripSlug,
   expenseId = null,
   label = "add receipts",
+  kind = "receipt",
 }: AddReceiptsButtonProps) {
   const router = useRouter()
   const inputRef = React.useRef<HTMLInputElement>(null)
@@ -31,7 +34,7 @@ export function AddReceiptsButton({
     for (const [i, file] of files.entries()) {
       setProgress(`adding ${i + 1}/${files.length}…`)
       const { error } = await uploadAndRead(
-        { tripId, tripSlug, file, expenseId },
+        { tripId, tripSlug, file, expenseId, kind },
         () => router.refresh(),
       )
       if (error) failed.push(`${file.name}: ${error}`)

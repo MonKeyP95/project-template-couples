@@ -25,7 +25,8 @@ import {
   getTripExpenses,
   getTripExpenseCategories,
 } from "@/lib/trips/expense-queries"
-import { getTripReceipts, receiptClockMs } from "@/lib/trips/receipt-queries"
+import { getTripDocuments, getTripReceipts, receiptClockMs } from "@/lib/trips/receipt-queries"
+import { DocumentsSection } from "@/components/documents/documents-section"
 import { getTripSavings } from "@/lib/trips/savings-queries"
 import { getTripBudgetMoves } from "@/lib/trips/budget-move-queries"
 import { getBudgetItems } from "@/lib/trips/budget-item-queries"
@@ -219,7 +220,7 @@ export default async function TripPage({
   // level and share the result with the active tab below.
   const showItinerary = wants("itinerary")
   const isDream = header.startDate === null
-  const [datedItinerary, dreamItinerary, locations, notes, packingItems, packingCategories, expenses, expenseCategories, savings, budgetMoves, budgetItems, receipts] =
+  const [datedItinerary, dreamItinerary, locations, notes, packingItems, packingCategories, expenses, expenseCategories, savings, budgetMoves, budgetItems, receipts, documents] =
     await Promise.all([
       (showItinerary && !isDream) || wants("budget")
         ? getItineraryDays(header.id)
@@ -239,6 +240,7 @@ export default async function TripPage({
         ? getBudgetItems(header.id)
         : Promise.resolve(null),
       wants("budget") ? getTripReceipts(header.id) : Promise.resolve([]),
+      wants("notes") ? getTripDocuments(header.id) : Promise.resolve([]),
     ])
 
   const budgetSummary = summarizeBudget(expenses, memberIds)
@@ -364,6 +366,14 @@ export default async function TripPage({
       nowMs={receiptClockMs()}
     />
   )
+  const documentsSection = (
+    <DocumentsSection
+      tripId={header.id}
+      tripSlug={header.slug}
+      documents={documents}
+      nowMs={receiptClockMs()}
+    />
+  )
   const notesSection = (
     <NotesTab
       tripId={header.id}
@@ -398,8 +408,8 @@ export default async function TripPage({
             itinerary={itinerary}
             budget={budget}
             packingAround={(between) => packing("boxes", between)}
-            documents={null}
-            documentsCount={0}
+            documents={documentsSection}
+            documentsCount={documents.length}
             notes={notesSection}
           />
         </main>
@@ -443,7 +453,7 @@ export default async function TripPage({
               ? budget
               : (
                 <TripFolder
-                  documents={null}
+                  documents={documentsSection}
                   notes={notesSection}
                   checklist={packing("checklist")}
                 />
