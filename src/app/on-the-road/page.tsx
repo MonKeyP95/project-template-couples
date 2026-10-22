@@ -20,7 +20,9 @@ import {
   getTripExpenses,
 } from "@/lib/trips/expense-queries"
 import { homeCents } from "@/lib/trips/expense-types"
-import { getTripReceipts, receiptClockMs } from "@/lib/trips/receipt-queries"
+import { getTripDocuments, getTripReceipts, receiptClockMs } from "@/lib/trips/receipt-queries"
+import { documentsForDay } from "@/lib/trips/document-types"
+import { DocumentsToday } from "./documents-today"
 import { AddReceiptsButton } from "@/components/receipts/add-receipts-button"
 import { ReceiptPile } from "@/components/receipts/receipt-pile"
 import { getNotesForDay } from "@/lib/trips/note-queries"
@@ -80,6 +82,7 @@ export default async function OnTheRoadPage() {
   const categories = await getTripExpenseCategories(trip.id)
   const expenses = await getTripExpenses(trip.id)
   const receipts = await getTripReceipts(trip.id)
+  const documentsToday = documentsForDay(await getTripDocuments(trip.id), today)
   const spentTodayCents = expenses
     .filter((e) => !e.isSettlement && e.dayDate === today)
     .reduce((sum, e) => sum + homeCents(e), 0)
@@ -268,6 +271,8 @@ export default async function OnTheRoadPage() {
           nowMs={receiptClockMs()}
         />
       </section>
+
+      <DocumentsToday items={documentsToday} today={today} tripSlug={trip.slug} />
 
       <QuickNote
         tripId={trip.id}
