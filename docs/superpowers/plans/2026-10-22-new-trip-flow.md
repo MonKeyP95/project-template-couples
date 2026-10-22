@@ -33,7 +33,7 @@
 ### Task 1: Migration - `day_count` and position-keeping promotion
 
 **Files:**
-- Create: `supabase/migrations/20261022000001_trip_day_count.sql`
+- Create: `supabase/migrations/20261022000003_trip_day_count.sql`
 
 - [ ] **Step 1:** Write the migration:
   - `alter table public.trips add column if not exists day_count int;` plus a `drop constraint if exists trips_day_count_check` / `add constraint trips_day_count_check check (day_count is null or day_count >= 1)`.
@@ -152,6 +152,6 @@
 
 **Files:** `docs/TODO.md`, `docs/DECISIONS.md` (both already hold uncommitted edits - stage only with `git add -p` hunks you wrote, or ask)
 
-- [ ] **Step 1:** TODO: "New trip flow - implemented; build and lint clean; unverified in app" plus the spec's in-app checklist and "paste `20261022000001_trip_day_count.sql`".
+- [ ] **Step 1:** TODO: "New trip flow - implemented; build and lint clean; unverified in app" plus the spec's in-app checklist and "paste `20261022000003_trip_day_count.sql`".
 - [ ] **Step 2:** DECISIONS rows: one flow for trips/dreams (dates decide the label); pattern matching over AI for the note; `day_count` only for dateless trips with real positions; vibe chips dropped from creation.
 - [ ] **Step 3:** Commit `docs: new trip flow in TODO and DECISIONS`.
