@@ -43,6 +43,17 @@ export const RECEIPT_MIMES: readonly ReceiptMime[] = [
 
 export const RECEIPT_PDF_MAX_BYTES = 10 * 1024 * 1024
 
+/** Error text for a file we can't take as a receipt, or null. Images have no size cap; they are shrunk before upload. */
+export function checkReceiptFile(file: File): string | null {
+  if (!RECEIPT_MIMES.includes(file.type as ReceiptMime)) {
+    return "Use a photo (JPEG, PNG, WebP) or a PDF."
+  }
+  if (file.type === "application/pdf" && file.size > RECEIPT_PDF_MAX_BYTES) {
+    return "PDF is over 10 MB."
+  }
+  return null
+}
+
 /** A read still pending after this long is treated as failed (the reading tab may have closed). */
 export const READ_STALE_MS = 2 * 60 * 1000
 
