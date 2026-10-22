@@ -8,6 +8,7 @@ import { slugify } from "@/lib/trips/slugify"
 import { StepShell, type LocalCategory } from "../profile-fields"
 import { ProfileWalkthrough } from "../profile-walkthrough"
 import { EXPENSE_CATEGORIES } from "@/lib/trips/expense-types"
+import { EMPTY_TRIP_PROFILE } from "@/lib/trips/trip-profile-types"
 
 const SLUG_RE = /^[a-z0-9-]+$/
 
@@ -70,7 +71,7 @@ export function NewTripForm() {
         country: country.trim() || null,
         lat: parseFloatOrNull(lat),
         lng: parseFloatOrNull(lng),
-        profile: { idea, transport, vibe, vibeNote, avoid },
+        profile: { ...EMPTY_TRIP_PROFILE, idea, transport, vibe, vibeNote, avoid },
         categories,
       })
       if (result.error) {

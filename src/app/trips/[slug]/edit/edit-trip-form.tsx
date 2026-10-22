@@ -120,7 +120,7 @@ export function EditTripForm({
         homeCurrency,
         lat: parseFloatOrNull(lat),
         lng: parseFloatOrNull(lng),
-        profile: { idea, transport, vibe, vibeNote, avoid },
+        profile: { ...initialProfile, idea, transport, vibe, vibeNote, avoid },
         categories,
       })
       if (result.error) {

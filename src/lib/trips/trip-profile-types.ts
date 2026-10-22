@@ -23,6 +23,14 @@ export interface TripProfile {
   vibeNote: string
   /** Free text: what they would rather not do. A hard constraint for the assistant. */
   avoid: string
+  /** Free text from the new trip flow: where they will sleep. */
+  stay: string
+  /** Free text: how they will get around. */
+  move: string
+  /** Free text: what they will do. */
+  acts: string
+  /** Free text: groceries or eating out. */
+  food: string
 }
 
 export const EMPTY_TRIP_PROFILE: TripProfile = {
@@ -31,6 +39,10 @@ export const EMPTY_TRIP_PROFILE: TripProfile = {
   vibe: [],
   vibeNote: "",
   avoid: "",
+  stay: "",
+  move: "",
+  acts: "",
+  food: "",
 }
 
 /** Tolerant parse of the jsonb `trip_profile` column. Filters transport/vibe to
@@ -44,8 +56,9 @@ export function parseTripProfile(raw: unknown): TripProfile {
     Array.isArray(v)
       ? v.filter((x): x is string => typeof x === "string" && allowed.includes(x))
       : []
-  const legacyHeadline = typeof r.headline === "string" ? r.headline : ""
-  const legacyBrief = typeof r.brief === "string" ? r.brief : ""
+  const str = (v: unknown): string => (typeof v === "string" ? v : "")
+  const legacyHeadline = str(r.headline)
+  const legacyBrief = str(r.brief)
   const idea =
     typeof r.idea === "string" && r.idea.trim()
       ? r.idea
@@ -54,7 +67,29 @@ export function parseTripProfile(raw: unknown): TripProfile {
     idea,
     transport: pickArr(r.transport, TRIP_TRANSPORT),
     vibe: pickArr(r.vibe, TRIP_VIBES),
-    vibeNote: typeof r.vibeNote === "string" ? r.vibeNote : "",
-    avoid: typeof r.avoid === "string" ? r.avoid : "",
+    vibeNote: str(r.vibeNote),
+    avoid: str(r.avoid),
+    stay: str(r.stay),
+    move: str(r.move),
+    acts: str(r.acts),
+    food: str(r.food),
+  }
+}
+
+/** The profile as it is written: trimmed, capped, chips filtered to their sets. */
+export function cleanTripProfile(p: TripProfile): TripProfile {
+  const text = (s: string) => s.trim().slice(0, 500)
+  return {
+    idea: p.idea.trim().slice(0, 2000),
+    transport: p.transport.filter((t) =>
+      (TRIP_TRANSPORT as readonly string[]).includes(t),
+    ),
+    vibe: p.vibe.filter((v) => (TRIP_VIBES as readonly string[]).includes(v)),
+    vibeNote: text(p.vibeNote),
+    avoid: text(p.avoid),
+    stay: text(p.stay),
+    move: text(p.move),
+    acts: text(p.acts),
+    food: text(p.food),
   }
 }

@@ -35,8 +35,7 @@ import {
 import { slugToTone } from "@/lib/trips/slug-tone"
 import {
   EMPTY_TRIP_PROFILE,
-  TRIP_TRANSPORT,
-  TRIP_VIBES,
+  cleanTripProfile,
   type TripProfile,
 } from "@/lib/trips/trip-profile-types"
 
@@ -873,16 +872,7 @@ export async function createTrip(
 
   const country = input.country?.trim() || null
 
-  const p = input.profile ?? EMPTY_TRIP_PROFILE
-  const tripProfile = {
-    idea: p.idea.trim().slice(0, 2000),
-    transport: p.transport.filter((t) =>
-      (TRIP_TRANSPORT as readonly string[]).includes(t),
-    ),
-    vibe: p.vibe.filter((v) => (TRIP_VIBES as readonly string[]).includes(v)),
-    vibeNote: p.vibeNote.trim().slice(0, 500),
-    avoid: p.avoid.trim().slice(0, 500),
-  }
+  const tripProfile = cleanTripProfile(input.profile ?? EMPTY_TRIP_PROFILE)
 
   const { error: insertError } = await supabase.from("trips").insert({
     workspace_id: workspace.id,
@@ -1079,19 +1069,7 @@ export async function updateTrip(
   const profilePatch =
     input.profile === undefined
       ? {}
-      : {
-          trip_profile: {
-            idea: input.profile.idea.trim().slice(0, 2000),
-            transport: input.profile.transport.filter((t) =>
-              (TRIP_TRANSPORT as readonly string[]).includes(t),
-            ),
-            vibe: input.profile.vibe.filter((v) =>
-              (TRIP_VIBES as readonly string[]).includes(v),
-            ),
-            vibeNote: input.profile.vibeNote.trim().slice(0, 500),
-            avoid: input.profile.avoid.trim().slice(0, 500),
-          },
-        }
+      : { trip_profile: cleanTripProfile(input.profile) }
 
   // Category reconcile: run only when categories are supplied. Categories are
   // independent of the date/slug branches, so this runs once up front; on the
@@ -1901,20 +1879,9 @@ export async function saveTripProfile(
   const { data: userData, error: userError } = await supabase.auth.getUser()
   if (userError || !userData.user) return { error: "Not signed in." }
 
-  const p = input.profile
-  const clean = {
-    idea: p.idea.trim().slice(0, 2000),
-    transport: p.transport.filter((t) =>
-      (TRIP_TRANSPORT as readonly string[]).includes(t),
-    ),
-    vibe: p.vibe.filter((v) => (TRIP_VIBES as readonly string[]).includes(v)),
-    vibeNote: p.vibeNote.trim().slice(0, 500),
-    avoid: p.avoid.trim().slice(0, 500),
-  }
-
   const { error } = await supabase
     .from("trips")
-    .update({ trip_profile: clean })
+    .update({ trip_profile: cleanTripProfile(input.profile) })
     .eq("id", input.tripId)
   if (error) return { error: error.message }
 

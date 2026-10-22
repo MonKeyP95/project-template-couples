@@ -22,6 +22,11 @@ export async function buildProfileBlock(
       parts.push(`Vibe in their words: ${profile.vibeNote.trim()}.`)
     if (profile.transport.length)
       parts.push(`Getting around: ${profile.transport.join(", ")}.`)
+    if (profile.stay.trim()) parts.push(`Where they'll sleep: ${profile.stay.trim()}.`)
+    if (profile.move.trim())
+      parts.push(`Getting around in their words: ${profile.move.trim()}.`)
+    if (profile.acts.trim()) parts.push(`Plans to do: ${profile.acts.trim()}.`)
+    if (profile.food.trim()) parts.push(`Food: ${profile.food.trim()}.`)
     if (profile.avoid.trim())
       parts.push(`Avoid, treat as a hard constraint: ${profile.avoid.trim()}.`)
 
