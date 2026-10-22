@@ -4,10 +4,14 @@ import { revalidatePath } from "next/cache"
 
 import { createClient } from "@/lib/supabase/server"
 import { readReceiptFile } from "@/lib/ai/claude"
-import { normalizeReading, type ReceiptMime } from "@/lib/trips/receipt-types"
+import { normalizeReading, type ReceiptMime, type ReceiptReading } from "@/lib/trips/receipt-types"
 
 export interface ReceiptActionResult {
   error?: string
+}
+
+export interface ReadReceiptResult extends ReceiptActionResult {
+  reading?: ReceiptReading
 }
 
 type Supabase = Awaited<ReturnType<typeof createClient>>
@@ -18,7 +22,7 @@ function revalidateReceipts(tripSlug: string) {
 }
 
 /** Download the file, have Claude read it, store the result or mark it failed. */
-async function runRead(supabase: Supabase, receiptId: string): Promise<ReceiptActionResult> {
+async function runRead(supabase: Supabase, receiptId: string): Promise<ReadReceiptResult> {
   try {
     const { data: row, error } = await supabase
       .from("receipts")
@@ -40,7 +44,7 @@ async function runRead(supabase: Supabase, receiptId: string): Promise<ReceiptAc
       .from("receipts")
       .update({ reading, read_status: "done" })
       .eq("id", receiptId)
-    return {}
+    return { reading }
   } catch (e) {
     console.error("readReceipt failed", receiptId, e)
     await supabase.from("receipts").update({ read_status: "failed" }).eq("id", receiptId)
@@ -81,7 +85,7 @@ export async function addReceipt(input: AddReceiptInput): Promise<ReceiptActionR
 export async function readReceipt(
   receiptId: string,
   tripSlug: string,
-): Promise<ReceiptActionResult> {
+): Promise<ReadReceiptResult> {
   const supabase = await createClient()
   const result = await runRead(supabase, receiptId)
   revalidateReceipts(tripSlug)

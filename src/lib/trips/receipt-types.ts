@@ -58,6 +58,30 @@ export function normalizeReading(raw: ReceiptReading): ReceiptReading {
   return { ...raw, date, currency: currency && /^[A-Z]{3}$/.test(currency) ? currency : null }
 }
 
+export interface ExpenseDraft {
+  title: string
+  /** As typed in the amount field, e.g. "23.4". */
+  amount: string
+  currency: string
+  dayDate: string | null
+}
+
+/**
+ * Fill an expense form from a receipt. Title and amount fill only while empty,
+ * so nothing typed is overwritten; the currency moves with the amount it
+ * belongs to. The date always takes the receipt's, since the form's is a
+ * default (today) rather than something typed.
+ */
+export function prefillFromReading(draft: ExpenseDraft, reading: ReceiptReading): ExpenseDraft {
+  const fillAmount = draft.amount === "" && reading.totalCents !== null
+  return {
+    title: draft.title === "" && reading.merchant ? reading.merchant : draft.title,
+    amount: fillAmount ? String(reading.totalCents! / 100) : draft.amount,
+    currency: fillAmount && reading.currency ? reading.currency : draft.currency,
+    dayDate: reading.date ?? draft.dayDate,
+  }
+}
+
 /** Error text for a file we can't take as a receipt, or null. Images have no size cap; they are shrunk before upload. */
 export function checkReceiptFile(file: File): string | null {
   if (!RECEIPT_MIMES.includes(file.type as ReceiptMime)) {

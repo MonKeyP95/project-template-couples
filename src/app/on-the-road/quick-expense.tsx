@@ -4,7 +4,8 @@ import * as React from "react"
 import { useRouter } from "next/navigation"
 
 import { logExpense } from "@/lib/trips/actions"
-import { uploadAndRead } from "@/lib/trips/receipt-upload"
+import { attachReceipt } from "@/lib/trips/receipt-actions"
+import { prefillFromReading, type ReceiptReading } from "@/lib/trips/receipt-types"
 import { ReceiptCameraButton } from "@/components/receipts/receipt-camera-button"
 import { Label } from "@/components/together"
 import type { ExpenseCategoryRow } from "@/lib/trips/expense-types"
@@ -61,7 +62,20 @@ export function QuickExpense({
   }, [today, tripStartDate])
   const [error, setError] = React.useState<string | null>(null)
   const [isPending, startTransition] = React.useTransition()
-  const [receiptFile, setReceiptFile] = React.useState<File | null>(null)
+  const [receiptId, setReceiptId] = React.useState<string | null>(null)
+  const [readingReceipt, setReadingReceipt] = React.useState(false)
+
+  function fillFromReceipt(reading: ReceiptReading) {
+    const next = prefillFromReading(
+      { title: name, amount, currency: expenseCurrency, dayDate },
+      reading,
+    )
+    setName(next.title)
+    setAmount(next.amount)
+    setExpenseCurrency(next.currency)
+    // The picker only offers trip days up to today.
+    if (dayOptions.some((o) => o.value === next.dayDate)) setDayDate(next.dayDate!)
+  }
 
   const canSubmit =
     name.trim().length > 0 &&
@@ -70,7 +84,7 @@ export function QuickExpense({
 
   function submit(e: React.FormEvent) {
     e.preventDefault()
-    if (isPending || !canSubmit) return
+    if (isPending || readingReceipt || !canSubmit) return
     startTransition(async () => {
       const result = await logExpense({
         tripId,
@@ -90,13 +104,10 @@ export function QuickExpense({
       setName("")
       setAmount("")
       setError(null)
-      if (receiptFile) {
-        const upload = await uploadAndRead(
-          { tripId, tripSlug, file: receiptFile, expenseId: result.expenseId! },
-          () => router.refresh(),
-        )
-        setReceiptFile(null)
-        if (upload.error) setError("Expense saved; receipt not saved. Add it from the pile.")
+      if (receiptId) {
+        const attach = await attachReceipt(receiptId, result.expenseId!, tripSlug)
+        setReceiptId(null)
+        if (attach.error) setError("Expense saved; receipt left in the pile to match.")
       }
       router.refresh()
     })
@@ -135,8 +146,12 @@ export function QuickExpense({
             className="min-w-0 flex-1 rounded-lg border border-border bg-background px-3 py-2 text-[14px] text-foreground"
           />
           <ReceiptCameraButton
-            file={receiptFile}
-            onFileChange={setReceiptFile}
+            tripId={tripId}
+            tripSlug={tripSlug}
+            receiptId={receiptId}
+            onReceiptIdChange={setReceiptId}
+            onReading={fillFromReceipt}
+            onBusyChange={setReadingReceipt}
             onError={setError}
             disabled={isPending}
           />
@@ -169,10 +184,10 @@ export function QuickExpense({
           </select>
           <button
             type="submit"
-            disabled={isPending || !canSubmit}
+            disabled={isPending || readingReceipt || !canSubmit}
             className="rounded-full border-0 bg-foreground px-4 py-2 font-mono text-[10px] uppercase tracking-[0.2em] text-background disabled:opacity-40"
           >
-            {isPending ? "…" : "add"}
+            {isPending || readingReceipt ? "…" : "add"}
           </button>
         </div>
         {error ? (
