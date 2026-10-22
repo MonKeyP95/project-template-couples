@@ -268,6 +268,7 @@ export function BudgetTab({
         itineraryDays={itineraryDays}
         categories={expenseCategories}
         contributions={savingsContributions}
+        receipts={receipts}
       />
     </section>
   )

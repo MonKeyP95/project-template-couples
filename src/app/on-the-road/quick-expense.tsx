@@ -4,6 +4,8 @@ import * as React from "react"
 import { useRouter } from "next/navigation"
 
 import { logExpense } from "@/lib/trips/actions"
+import { uploadReceipt } from "@/lib/trips/receipt-upload"
+import { checkReceiptFile } from "@/lib/trips/receipt-types"
 import { Label } from "@/components/together"
 import type { ExpenseCategoryRow } from "@/lib/trips/expense-types"
 import { money } from "@/lib/money"
@@ -59,6 +61,15 @@ export function QuickExpense({
   }, [today, tripStartDate])
   const [error, setError] = React.useState<string | null>(null)
   const [isPending, startTransition] = React.useTransition()
+  const [receiptFile, setReceiptFile] = React.useState<File | null>(null)
+  const receiptInputRef = React.useRef<HTMLInputElement>(null)
+
+  function pickReceipt(file: File | undefined) {
+    if (!file) return
+    const invalid = checkReceiptFile(file)
+    setError(invalid)
+    setReceiptFile(invalid ? null : file)
+  }
 
   const canSubmit =
     name.trim().length > 0 &&
@@ -87,6 +98,18 @@ export function QuickExpense({
       setName("")
       setAmount("")
       setError(null)
+      if (receiptFile) {
+        const upload = await uploadReceipt({
+          tripId,
+          tripSlug,
+          file: receiptFile,
+          expenseId: result.expenseId!,
+        })
+        setReceiptFile(null)
+        if (upload.error) {
+          setError("Expense saved; receipt not saved. Add it from the pile.")
+        }
+      }
       router.refresh()
     })
   }
@@ -150,6 +173,32 @@ export function QuickExpense({
               </option>
             ))}
           </select>
+          <input
+            ref={receiptInputRef}
+            type="file"
+            accept="image/*,application/pdf"
+            capture="environment"
+            className="hidden"
+            onChange={(e) => {
+              pickReceipt(e.target.files?.[0])
+              e.target.value = ""
+            }}
+          />
+          <button
+            type="button"
+            disabled={isPending}
+            onClick={() =>
+              receiptFile ? setReceiptFile(null) : receiptInputRef.current?.click()
+            }
+            aria-label={receiptFile ? "Remove receipt" : "Add a receipt"}
+            className={`shrink-0 rounded-full border px-3 py-2 font-mono text-[10px] uppercase tracking-[0.2em] disabled:opacity-40 ${
+              receiptFile
+                ? "border-foreground text-foreground"
+                : "border-border text-muted-foreground"
+            }`}
+          >
+            {receiptFile ? "receipt ✓" : "receipt"}
+          </button>
           <button
             type="submit"
             disabled={isPending || !canSubmit}

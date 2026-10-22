@@ -8,6 +8,7 @@ import {
   type ExpenseCategoryRow,
 } from "@/lib/trips/expense-types"
 import { type SavingsContribution } from "@/lib/trips/savings-types"
+import type { Receipt } from "@/lib/trips/receipt-types"
 import { deleteSavingsContribution } from "@/lib/trips/actions"
 import {
   dayLocationMap,
@@ -113,6 +114,7 @@ export function Ledger({
   itineraryDays,
   categories,
   contributions = [],
+  receipts = [],
   label = "Ledger",
   defaultExpanded = true,
   bare = false,
@@ -126,6 +128,8 @@ export function Ledger({
   categories: ExpenseCategoryRow[]
   /** When supplied, savings contributions interleave by date as "saved" rows. */
   contributions?: SavingsContribution[]
+  /** The trip's receipts; rows show a marker for the ones attached to them. */
+  receipts?: Receipt[]
   label?: string
   defaultExpanded?: boolean
   /** Card-friendly styling: soft top divider, transparent background. */
@@ -135,6 +139,10 @@ export function Ledger({
   const dayMap = dayLocationMap(itineraryDays)
   const locationsById = Object.fromEntries(locations.map((l) => [l.id, l.name]))
   const hasLocations = locations.length > 0
+  const receiptsByExpense = new Map<string, Receipt[]>()
+  for (const r of receipts) {
+    if (r.expenseId) receiptsByExpense.set(r.expenseId, [...(receiptsByExpense.get(r.expenseId) ?? []), r])
+  }
   const items = [
     ...expenses.map((e) => ({ kind: "expense" as const, at: e.createdAt, expense: e })),
     ...moves.map((m) => ({ kind: "move" as const, at: m.createdAt, move: m })),
@@ -172,6 +180,7 @@ export function Ledger({
                     ? effectiveLocation(item.expense, dayMap, locationsById)
                     : undefined
                 }
+                receipts={receiptsByExpense.get(item.expense.id)}
               />
             ) : item.kind === "move" ? (
               <BudgetMoveRow

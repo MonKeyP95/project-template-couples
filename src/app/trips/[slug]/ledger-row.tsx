@@ -18,6 +18,9 @@ import {
 import { currencySymbol, money, moneyInput } from "@/lib/money"
 import { useCurrency } from "@/components/currency-context"
 
+import { ReceiptView } from "@/components/receipts/receipt-view"
+import type { Receipt } from "@/lib/trips/receipt-types"
+
 import { ExpenseFields } from "./expense-fields"
 import type { MemberToneEntry } from "./packing-tab"
 import type { ItineraryLocation } from "@/lib/trips/location-types"
@@ -57,6 +60,8 @@ export interface LedgerRowProps {
   locations: ItineraryLocation[]
   categories: ExpenseCategoryRow[]
   locationChip?: { name: string | null; tagged: boolean }
+  /** Receipts attached to this expense. */
+  receipts?: Receipt[]
 }
 
 export function LedgerRow({
@@ -66,6 +71,7 @@ export function LedgerRow({
   locations,
   categories,
   locationChip,
+  receipts = [],
 }: LedgerRowProps) {
   const [editing, setEditing] = React.useState(false)
 
@@ -88,6 +94,7 @@ export function LedgerRow({
       members={members}
       tripSlug={tripSlug}
       locationChip={locationChip}
+      receipts={receipts}
       onEdit={() => setEditing(true)}
     />
   )
@@ -98,14 +105,17 @@ function LedgerRowView({
   members,
   tripSlug,
   locationChip,
+  receipts,
   onEdit,
 }: {
   expense: Expense
   members: Record<string, MemberToneEntry>
   tripSlug: string
   locationChip?: { name: string | null; tagged: boolean }
+  receipts: Receipt[]
   onEdit: () => void
 }) {
+  const [receiptOpen, setReceiptOpen] = React.useState(false)
   const { currency } = useCurrency()
   const [error, setError] = React.useState<string | null>(null)
   const [isPending, startTransition] = React.useTransition()
@@ -176,6 +186,23 @@ function LedgerRowView({
             >
               {locationChip.name ? `@${locationChip.name}` : "unassigned"}
             </span>
+          ) : null}
+          {receipts.length ? (
+            <>
+              <button
+                type="button"
+                onClick={() => setReceiptOpen(true)}
+                className="border-0 bg-transparent font-mono text-[10px] text-muted-foreground underline underline-offset-2"
+              >
+                {receipts.length === 1 ? "receipt" : `${receipts.length} receipts`}
+              </button>
+              <ReceiptView
+                receipt={receipts[0]}
+                tripSlug={tripSlug}
+                open={receiptOpen}
+                onOpenChange={setReceiptOpen}
+              />
+            </>
           ) : null}
         </div>
         {error ? (
