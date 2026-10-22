@@ -3,7 +3,12 @@
 import { revalidatePath } from "next/cache"
 
 import { createClient } from "@/lib/supabase/server"
-import { readReceiptFile } from "@/lib/ai/claude"
+import { readDocumentFile, readReceiptFile } from "@/lib/ai/claude"
+import {
+  normalizeDocumentReading,
+  type DocumentEntry,
+  type DocumentReading,
+} from "@/lib/trips/document-types"
 import { normalizeReading, type ReceiptMime, type ReceiptReading } from "@/lib/trips/receipt-types"
 
 export interface ReceiptActionResult {
@@ -21,12 +26,15 @@ function revalidateReceipts(tripSlug: string) {
   revalidatePath("/on-the-road")
 }
 
-/** Download the file, have Claude read it, store the result or mark it failed. */
+/**
+ * Download the file, have Claude read it, store the result or mark it failed.
+ * A document's entries are written only while unset, so a hand edit sticks.
+ */
 async function runRead(supabase: Supabase, receiptId: string): Promise<ReadReceiptResult> {
   try {
     const { data: row, error } = await supabase
       .from("receipts")
-      .select("storage_path, mime_type")
+      .select("storage_path, mime_type, kind, entries")
       .eq("id", receiptId)
       .single()
     if (error) throw error
@@ -35,11 +43,25 @@ async function runRead(supabase: Supabase, receiptId: string): Promise<ReadRecei
       .from("receipts")
       .download(row.storage_path)
     if (downloadError) throw downloadError
-
-    const reading = normalizeReading(await readReceiptFile({
+    const file = {
       base64: Buffer.from(await blob.arrayBuffer()).toString("base64"),
       mimeType: row.mime_type as ReceiptMime,
-    }))
+    }
+
+    if (row.kind === "document") {
+      const reading = normalizeDocumentReading(await readDocumentFile(file))
+      await supabase
+        .from("receipts")
+        .update({
+          reading,
+          read_status: "done",
+          ...(row.entries === null ? { entries: reading.entries } : {}),
+        })
+        .eq("id", receiptId)
+      return {}
+    }
+
+    const reading = normalizeReading(await readReceiptFile(file))
     await supabase
       .from("receipts")
       .update({ reading, read_status: "done" })
@@ -59,6 +81,9 @@ export interface AddReceiptInput {
   storagePath: string
   mimeType: ReceiptMime
   expenseId: string | null
+  kind: "receipt" | "document"
+  /** The file's name at upload; a document's title when its read has none. */
+  originalName: string | null
 }
 
 /**
@@ -74,6 +99,8 @@ export async function addReceipt(input: AddReceiptInput): Promise<ReceiptActionR
     expense_id: input.expenseId,
     storage_path: input.storagePath,
     mime_type: input.mimeType,
+    kind: input.kind,
+    original_name: input.originalName,
   })
   if (error) return { error: error.message }
 
@@ -129,6 +156,40 @@ export async function deleteReceipt(
 
   const { error: deleteError } = await supabase.from("receipts").delete().eq("id", receiptId)
   if (deleteError) return { error: deleteError.message }
+
+  revalidateReceipts(tripSlug)
+  return {}
+}
+
+const EMPTY_DOCUMENT_READING: DocumentReading = {
+  title: null,
+  summary: null,
+  reference: null,
+  link: null,
+  entries: [],
+}
+
+/** Save a hand edit of a document's title and dated entries. */
+export async function updateDocument(
+  documentId: string,
+  patch: { title: string | null; entries: DocumentEntry[] },
+  tripSlug: string,
+): Promise<ReceiptActionResult> {
+  const supabase = await createClient()
+  const { data: row, error } = await supabase
+    .from("receipts")
+    .select("reading")
+    .eq("id", documentId)
+    .single()
+  if (error) return { error: error.message }
+
+  const reading: DocumentReading = { ...(row.reading ?? EMPTY_DOCUMENT_READING), title: patch.title }
+  const entries = normalizeDocumentReading({ ...EMPTY_DOCUMENT_READING, entries: patch.entries }).entries
+  const { error: updateError } = await supabase
+    .from("receipts")
+    .update({ reading, entries })
+    .eq("id", documentId)
+  if (updateError) return { error: updateError.message }
 
   revalidateReceipts(tripSlug)
   return {}

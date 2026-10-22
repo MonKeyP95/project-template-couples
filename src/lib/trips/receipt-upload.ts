@@ -23,6 +23,8 @@ export interface UploadReceiptInput {
   tripSlug: string
   file: File
   expenseId: string | null
+  /** Defaults to "receipt". */
+  kind?: "receipt" | "document"
 }
 
 /**
@@ -57,6 +59,8 @@ export async function uploadReceipt(
       storagePath,
       mimeType,
       expenseId: input.expenseId,
+      kind: input.kind ?? "receipt",
+      originalName: input.file.name || null,
     })
     return result.error ? result : { receiptId }
   } catch {
