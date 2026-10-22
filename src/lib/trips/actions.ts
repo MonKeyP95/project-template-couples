@@ -920,6 +920,8 @@ export interface UpdateTripInput {
   currency: string
   /** Where the money comes from; every total is reported in it. */
   homeCurrency: string
+  /** Planned length of a dream; ignored (cleared) for dated trips. */
+  dayCount: number | null
   profile?: TripProfile
   categories?: { name: string; details: string[] }[]
 }
@@ -1093,6 +1095,13 @@ export async function updateTrip(
     if (fuzzyWhen && fuzzyWhen.length > 64) {
       return { error: "When? must be 64 characters or fewer." }
     }
+    const dayCount = input.dayCount
+    if (
+      dayCount !== null &&
+      (!Number.isInteger(dayCount) || dayCount < 1 || dayCount > MAX_TRIP_DAYS)
+    ) {
+      return { error: `How long must be 1 to ${MAX_TRIP_DAYS} days.` }
+    }
     const { error } = await supabase
       .from("trips")
       .update({
@@ -1102,6 +1111,7 @@ export async function updateTrip(
         start_date: null,
         end_date: null,
         fuzzy_when: fuzzyWhen,
+        day_count: dayCount,
         lat: input.lat,
         lng: input.lng,
         currency: input.currency,
@@ -1187,6 +1197,7 @@ export async function updateTrip(
       start_date: input.startDate,
       end_date: input.endDate,
       fuzzy_when: null,
+      day_count: null,
       lat: input.lat,
       lng: input.lng,
       currency: input.currency,

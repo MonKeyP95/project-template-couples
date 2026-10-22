@@ -8,6 +8,7 @@ import { currencyOptions } from "@/lib/fx/currency-list"
 import { type LocalCategory } from "../../profile-fields"
 import { ProfileWalkthrough } from "../../profile-walkthrough"
 import { type TripProfile } from "@/lib/trips/trip-profile-types"
+import { PREF_TOPICS } from "@/lib/trips/trip-note-parse"
 
 const SLUG_RE = /^[a-z0-9-]+$/
 
@@ -41,6 +42,7 @@ export interface EditTripInitial {
   startDate: string | null
   endDate: string | null
   fuzzyWhen: string | null
+  dayCount: number | null
   country: string | null
   lat: number | null
   lng: number | null
@@ -52,12 +54,15 @@ export interface EditTripInitial {
 export function EditTripForm({
   tripId,
   dreamDayCount,
+  promoteDays,
   initial,
   initialProfile,
   initialCategories,
 }: {
   tripId: string
   dreamDayCount: number
+  /** The dated trip's length after promotion. */
+  promoteDays: number
   initial: EditTripInitial
   initialProfile: TripProfile
   initialCategories: LocalCategory[]
@@ -90,6 +95,15 @@ export function EditTripForm({
   )
   const [categories, setCategories] =
     React.useState<LocalCategory[]>(initialCategories)
+  const [prefs, setPrefs] = React.useState({
+    stay: initialProfile.stay,
+    move: initialProfile.move,
+    acts: initialProfile.acts,
+    food: initialProfile.food,
+  })
+  const [days, setDays] = React.useState(
+    initial.dayCount === null ? "" : String(initial.dayCount),
+  )
 
   const [error, setError] = React.useState<string | null>(null)
   const [isPending, startTransition] = React.useTransition()
@@ -120,7 +134,16 @@ export function EditTripForm({
         homeCurrency,
         lat: parseFloatOrNull(lat),
         lng: parseFloatOrNull(lng),
-        profile: { ...initialProfile, idea, transport, vibe, vibeNote, avoid },
+        dayCount: isDream ? Number(days) || null : null,
+        profile: {
+          ...initialProfile,
+          ...prefs,
+          idea,
+          transport,
+          vibe,
+          vibeNote,
+          avoid,
+        },
         categories,
       })
       if (result.error) {
@@ -179,20 +202,36 @@ export function EditTripForm({
         </label>
 
         {isDream ? (
-          <label className="mt-5 block">
-            <span className="block font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
-              When?
-            </span>
-            <input
-              type="text"
-              value={fuzzyWhen}
-              onChange={(e) => setFuzzyWhen(e.target.value)}
-              placeholder="summer 2030, someday, ..."
-              maxLength={64}
-              disabled={isPending}
-              className="mt-1 w-full border-0 border-b border-rule bg-transparent py-1.5 text-[14px] text-foreground placeholder:text-muted-foreground focus:border-clay focus:outline-none disabled:opacity-50"
-            />
-          </label>
+          <>
+            <label className="mt-5 block">
+              <span className="block font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
+                How long (days)
+              </span>
+              <input
+                type="text"
+                inputMode="numeric"
+                value={days}
+                onChange={(e) => setDays(e.target.value.replace(/\D/g, ""))}
+                placeholder="10"
+                disabled={isPending}
+                className="t-num mt-1 w-full border-0 border-b border-rule bg-transparent py-1.5 text-[14px] text-foreground placeholder:text-muted-foreground focus:border-clay focus:outline-none disabled:opacity-50"
+              />
+            </label>
+            <label className="mt-5 block">
+              <span className="block font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
+                When?
+              </span>
+              <input
+                type="text"
+                value={fuzzyWhen}
+                onChange={(e) => setFuzzyWhen(e.target.value)}
+                placeholder="summer 2030, someday, ..."
+                maxLength={64}
+                disabled={isPending}
+                className="mt-1 w-full border-0 border-b border-rule bg-transparent py-1.5 text-[14px] text-foreground placeholder:text-muted-foreground focus:border-clay focus:outline-none disabled:opacity-50"
+              />
+            </label>
+          </>
         ) : promotingDreamWithDays ? (
           <div className="mt-5">
             <label className="block">
@@ -209,8 +248,8 @@ export function EditTripForm({
             </label>
             {startDate ? (
               <p className="mt-2 font-mono text-[10px] leading-relaxed text-muted-foreground">
-                {dreamDayCount} planned days → {fmtPreview(startDate)}–
-                {fmtPreview(derivedEnd(startDate, dreamDayCount))}
+                {promoteDays} planned days → {fmtPreview(startDate)}–
+                {fmtPreview(derivedEnd(startDate, promoteDays))}
                 <br />
                 (end date set by your itinerary)
               </p>
@@ -347,6 +386,29 @@ export function EditTripForm({
             </label>
           </div>
         ) : null}
+
+        <div className="mt-8 border-t border-rule pt-6">
+          <span className="block font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
+            Preferences
+          </span>
+          {PREF_TOPICS.filter(
+            (t): t is typeof t & { key: keyof typeof prefs } => t.key !== "avoid",
+          ).map((t) => (
+            <label key={t.key} className="mt-4 block">
+              <span className="block text-[14px] text-foreground">{t.title}</span>
+              <textarea
+                value={prefs[t.key]}
+                onChange={(e) =>
+                  setPrefs((p) => ({ ...p, [t.key]: e.target.value }))
+                }
+                rows={2}
+                placeholder={t.hint}
+                disabled={isPending}
+                className="mt-1.5 block w-full resize-none rounded-lg border border-border bg-card px-3 py-2 text-[14px] leading-snug text-foreground placeholder:text-muted-foreground focus:border-clay focus:outline-none disabled:opacity-50"
+              />
+            </label>
+          ))}
+        </div>
 
         <div className="mt-8 border-t border-rule pt-6">
           <span className="block font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">

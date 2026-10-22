@@ -26,11 +26,17 @@ export default async function EditTripPage({
   const trip = await getTripBySlug(workspace.id, slug)
   if (!trip) notFound()
 
-  const { count } = await supabase
+  const { data: dreamRows } = await supabase
     .from("dream_itinerary_days")
-    .select("id", { count: "exact", head: true })
+    .select("day_index")
     .eq("trip_id", trip.id)
-  const dreamDayCount = count ?? 0
+  const indices = (dreamRows ?? []).map((r) => r.day_index)
+  const dreamDayCount = indices.length
+  // Mirrors promote_dream_to_dated: positions are real once day_count is set.
+  const promoteDays =
+    trip.dayCount === null
+      ? dreamDayCount
+      : Math.max(trip.dayCount, ...indices)
 
   const categories = await getTripExpenseCategories(trip.id)
 
@@ -48,6 +54,7 @@ export default async function EditTripPage({
       <EditTripForm
         tripId={trip.id}
         dreamDayCount={dreamDayCount}
+        promoteDays={promoteDays}
         initial={{
           name: trip.name,
           slug: trip.slug,
@@ -55,6 +62,7 @@ export default async function EditTripPage({
           startDate: trip.startDate,
           endDate: trip.endDate,
           fuzzyWhen: trip.fuzzyWhen,
+          dayCount: trip.dayCount,
           country: trip.country,
           currency: trip.currency,
           homeCurrency: trip.homeCurrency,
