@@ -3,6 +3,7 @@
 import * as React from "react"
 import { useRouter } from "next/navigation"
 
+import { readReceipt } from "@/lib/trips/receipt-actions"
 import { uploadReceipt } from "@/lib/trips/receipt-upload"
 
 export interface AddReceiptsButtonProps {
@@ -27,10 +28,13 @@ export function AddReceiptsButton({
 
   async function upload(files: File[]) {
     const failed: string[] = []
+    setErrors([])
     for (const [i, file] of files.entries()) {
       setProgress(`adding ${i + 1}/${files.length}…`)
-      const { error } = await uploadReceipt({ tripId, tripSlug, file, expenseId })
+      const { error, receiptId } = await uploadReceipt({ tripId, tripSlug, file, expenseId })
       if (error) failed.push(`${file.name}: ${error}`)
+      // Read in the background; a failed read is recorded on the row, so both outcomes just refresh.
+      if (receiptId) readReceipt(receiptId, tripSlug).then(() => router.refresh(), () => router.refresh())
     }
     setProgress(null)
     setErrors(failed)

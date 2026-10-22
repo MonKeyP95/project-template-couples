@@ -43,6 +43,21 @@ export const RECEIPT_MIMES: readonly ReceiptMime[] = [
 
 export const RECEIPT_PDF_MAX_BYTES = 10 * 1024 * 1024
 
+/**
+ * Model output as stored: a date that isn't a real yyyy-mm-dd and a currency
+ * that isn't a 3-letter code become null, so the UI's date and money
+ * formatters can't throw on them.
+ */
+export function normalizeReading(raw: ReceiptReading): ReceiptReading {
+  const date =
+    raw.date && /^\d{4}-\d{2}-\d{2}$/.test(raw.date) &&
+    new Date(`${raw.date}T00:00:00Z`).toISOString().startsWith(raw.date)
+      ? raw.date
+      : null
+  const currency = raw.currency?.trim().toUpperCase() ?? null
+  return { ...raw, date, currency: currency && /^[A-Z]{3}$/.test(currency) ? currency : null }
+}
+
 /** Error text for a file we can't take as a receipt, or null. Images have no size cap; they are shrunk before upload. */
 export function checkReceiptFile(file: File): string | null {
   if (!RECEIPT_MIMES.includes(file.type as ReceiptMime)) {
@@ -86,8 +101,10 @@ export function suggestExpenseMatches(
     .map((e) => {
       const sameCurrency = e.currency === reading.currency
       const exact = sameCurrency && e.amountCents === reading.totalCents
-      const dayGap =
-        reading.date && e.dayDate
+      // An undated expense can't be ruled out by date, so it ranks by amount only.
+      const dayGap = !e.dayDate
+        ? MAX_DAY_GAP
+        : reading.date
           ? Math.abs(Date.parse(e.dayDate) - Date.parse(reading.date)) / DAY_MS
           : 99
       const amountGap =

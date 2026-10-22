@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache"
 
 import { createClient } from "@/lib/supabase/server"
 import { readReceiptFile } from "@/lib/ai/claude"
-import type { ReceiptMime } from "@/lib/trips/receipt-types"
+import { normalizeReading, type ReceiptMime } from "@/lib/trips/receipt-types"
 
 export interface ReceiptActionResult {
   error?: string
@@ -32,10 +32,10 @@ async function runRead(supabase: Supabase, receiptId: string): Promise<ReceiptAc
       .download(row.storage_path)
     if (downloadError) throw downloadError
 
-    const reading = await readReceiptFile({
+    const reading = normalizeReading(await readReceiptFile({
       base64: Buffer.from(await blob.arrayBuffer()).toString("base64"),
       mimeType: row.mime_type as ReceiptMime,
-    })
+    }))
     await supabase
       .from("receipts")
       .update({ reading, read_status: "done" })
@@ -58,8 +58,9 @@ export interface AddReceiptInput {
 }
 
 /**
- * Record a receipt whose file the browser already uploaded, then read it.
- * The file never passes through here (server actions cap bodies at 1 MB).
+ * Record a receipt whose file the browser already uploaded. The file never
+ * passes through here (server actions cap bodies at 1 MB). The caller then
+ * calls `readReceipt`, so the card shows "reading…" while Claude reads.
  */
 export async function addReceipt(input: AddReceiptInput): Promise<ReceiptActionResult> {
   const supabase = await createClient()
@@ -72,12 +73,11 @@ export async function addReceipt(input: AddReceiptInput): Promise<ReceiptActionR
   })
   if (error) return { error: error.message }
 
-  const result = await runRead(supabase, input.receiptId)
   revalidateReceipts(input.tripSlug)
-  return result
+  return {}
 }
 
-/** "Read again" for a receipt whose read failed. */
+/** Read a receipt with Claude: right after upload, and as "read again". */
 export async function readReceipt(
   receiptId: string,
   tripSlug: string,

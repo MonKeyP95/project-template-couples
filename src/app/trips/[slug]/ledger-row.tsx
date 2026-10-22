@@ -115,7 +115,7 @@ function LedgerRowView({
   receipts: Receipt[]
   onEdit: () => void
 }) {
-  const [receiptOpen, setReceiptOpen] = React.useState(false)
+  const [openReceiptId, setOpenReceiptId] = React.useState<string | null>(null)
   const { currency } = useCurrency()
   const [error, setError] = React.useState<string | null>(null)
   const [isPending, startTransition] = React.useTransition()
@@ -187,23 +187,25 @@ function LedgerRowView({
               {locationChip.name ? `@${locationChip.name}` : "unassigned"}
             </span>
           ) : null}
-          {receipts.length ? (
-            <>
-              <button
-                type="button"
-                onClick={() => setReceiptOpen(true)}
-                className="border-0 bg-transparent font-mono text-[10px] text-muted-foreground underline underline-offset-2"
-              >
-                {receipts.length === 1 ? "receipt" : `${receipts.length} receipts`}
-              </button>
-              <ReceiptView
-                receipt={receipts[0]}
-                tripSlug={tripSlug}
-                open={receiptOpen}
-                onOpenChange={setReceiptOpen}
-              />
-            </>
-          ) : null}
+          {receipts.map((r, i) => (
+            <button
+              key={r.id}
+              type="button"
+              onClick={() => setOpenReceiptId(r.id)}
+              className="border-0 bg-transparent font-mono text-[10px] text-muted-foreground underline underline-offset-2"
+            >
+              {receipts.length === 1 ? "receipt" : `receipt ${i + 1}`}
+            </button>
+          ))}
+          {receipts.map((r) => (
+            <ReceiptView
+              key={r.id}
+              receipt={r}
+              tripSlug={tripSlug}
+              open={openReceiptId === r.id}
+              onOpenChange={(open) => setOpenReceiptId(open ? r.id : null)}
+            />
+          ))}
         </div>
         {error ? (
           <div className="mt-1 font-mono text-[10px] text-clay">{error}</div>

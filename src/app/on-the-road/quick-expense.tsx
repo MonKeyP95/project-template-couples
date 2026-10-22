@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 
 import { logExpense } from "@/lib/trips/actions"
 import { uploadReceipt } from "@/lib/trips/receipt-upload"
+import { readReceipt } from "@/lib/trips/receipt-actions"
 import { checkReceiptFile } from "@/lib/trips/receipt-types"
 import { Label } from "@/components/together"
 import type { ExpenseCategoryRow } from "@/lib/trips/expense-types"
@@ -108,6 +109,10 @@ export function QuickExpense({
         setReceiptFile(null)
         if (upload.error) {
           setError("Expense saved; receipt not saved. Add it from the pile.")
+        }
+        // Read in the background so the form frees up at the counter.
+        if (upload.receiptId) {
+          readReceipt(upload.receiptId, tripSlug).then(() => router.refresh(), () => router.refresh())
         }
       }
       router.refresh()

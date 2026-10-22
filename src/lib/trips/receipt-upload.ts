@@ -26,30 +26,40 @@ export interface UploadReceiptInput {
 }
 
 /**
- * Upload straight from the browser to Storage, then record and read it on the
- * server. Nothing is recorded when the upload fails.
+ * Upload straight from the browser to Storage, then record it on the server.
+ * Nothing is recorded when the upload fails. Reading is the caller's next
+ * step (`readReceipt` with the returned id), so the card shows "reading…".
  */
-export async function uploadReceipt(input: UploadReceiptInput): Promise<{ error?: string }> {
+export async function uploadReceipt(
+  input: UploadReceiptInput,
+): Promise<{ error?: string; receiptId?: string }> {
   const invalid = checkReceiptFile(input.file)
   if (invalid) return { error: invalid }
 
-  const isPdf = input.file.type === "application/pdf"
-  const body = isPdf ? input.file : await shrinkImage(input.file)
-  const mimeType = isPdf ? "application/pdf" : "image/jpeg"
-  const receiptId = crypto.randomUUID()
-  const storagePath = `${input.tripId}/${receiptId}.${isPdf ? "pdf" : "jpg"}`
+  // A dropped connection rejects the server-action call instead of returning
+  // { error }, and an undecodable photo rejects in shrinkImage.
+  try {
+    const isPdf = input.file.type === "application/pdf"
+    const body = isPdf ? input.file : await shrinkImage(input.file)
+    const mimeType = isPdf ? "application/pdf" : "image/jpeg"
+    const receiptId = crypto.randomUUID()
+    const storagePath = `${input.tripId}/${receiptId}.${isPdf ? "pdf" : "jpg"}`
 
-  const { error } = await createClient()
-    .storage.from("receipts")
-    .upload(storagePath, body, { contentType: mimeType })
-  if (error) return { error: "Upload failed, receipt not saved." }
+    const { error } = await createClient()
+      .storage.from("receipts")
+      .upload(storagePath, body, { contentType: mimeType })
+    if (error) return { error: "Upload failed, receipt not saved." }
 
-  return addReceipt({
-    tripId: input.tripId,
-    tripSlug: input.tripSlug,
-    receiptId,
-    storagePath,
-    mimeType,
-    expenseId: input.expenseId,
-  })
+    const result = await addReceipt({
+      tripId: input.tripId,
+      tripSlug: input.tripSlug,
+      receiptId,
+      storagePath,
+      mimeType,
+      expenseId: input.expenseId,
+    })
+    return result.error ? result : { receiptId }
+  } catch {
+    return { error: "Upload failed, receipt not saved." }
+  }
 }
