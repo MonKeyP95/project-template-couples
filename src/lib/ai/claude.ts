@@ -25,6 +25,7 @@ export {
 export { generateSuggestion } from "./agents/suggestion"
 export { generateDispatch, type DispatchQuery } from "./agents/dispatch"
 export { readReceiptFile, type ReceiptFile } from "./agents/read-receipt"
+export { readDocumentFile } from "./agents/read-document"
 export {
   generateDispatchDetail,
   type DispatchDetailQuery,

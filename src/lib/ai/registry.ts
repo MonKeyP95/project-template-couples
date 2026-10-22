@@ -282,6 +282,45 @@ export const TOOL_REGISTRY: Record<string, Anthropic.Messages.ToolUnion> = {
       required: ["merchant", "date", "totalCents", "currency", "items", "summary"],
     },
   },
+
+  submit_document: {
+    name: "submit_document",
+    description: "Return what the document shows. Null for anything it doesn't show.",
+    strict: true,
+    input_schema: {
+      type: "object",
+      additionalProperties: false,
+      properties: {
+        title: {
+          type: ["string", "null"],
+          description: "Short and specific, e.g. 'Hostel Lisboa' or 'Flights TLV-LIS'.",
+        },
+        summary: { type: ["string", "null"], description: "One short line of what it covers." },
+        reference: { type: ["string", "null"], description: "Booking, confirmation or ticket number." },
+        link: { type: ["string", "null"], description: "A web address printed in the document." },
+        entries: {
+          type: "array",
+          description:
+            "One entry per separate leg or event (outbound and return flights are two entries); " +
+            "one span entry for a continuous stay or rental.",
+          items: {
+            type: "object",
+            additionalProperties: false,
+            properties: {
+              label: { type: ["string", "null"], description: "e.g. 'Outbound TLV-LIS', 'Stay', 'Car rental'." },
+              startDate: { type: "string", description: "yyyy-mm-dd" },
+              endDate: { type: ["string", "null"], description: "yyyy-mm-dd last day of a span, else null." },
+              startTime: { type: ["string", "null"], description: "HH:MM 24-hour: departure, check-in, pickup." },
+              endTime: { type: ["string", "null"], description: "HH:MM 24-hour: check-out, return." },
+              address: { type: ["string", "null"] },
+            },
+            required: ["label", "startDate", "endDate", "startTime", "endTime", "address"],
+          },
+        },
+      },
+      required: ["title", "summary", "reference", "link", "entries"],
+    },
+  },
 }
 
 /** Resolve tool names to Anthropic tool definitions, in order. Throws on an
