@@ -18,7 +18,10 @@ export interface MobileTripProps {
   notesCount: number
   itinerary: ReactNode
   budget: ReactNode
-  packingAndDocuments: ReactNode
+  /** The one PackingTab, rendering Packing, then `between`, then Checklist. */
+  packingAround: (between: ReactNode) => ReactNode
+  documents: ReactNode
+  documentsCount: number
   notes: ReactNode
 }
 
@@ -42,14 +45,24 @@ export function MobileTrip(props: MobileTripProps) {
       <HeaderLine header={header} />
       <TripCard {...props} />
       <BudgetCard {...props} />
-      {props.packingAndDocuments}
-      <BoxCard>
-        <BoxSection
-          summary={<SummaryRow label="Notes" detail={`${props.notesCount}`} />}
-        >
-          {props.notes}
-        </BoxSection>
-      </BoxCard>
+      {props.packingAround(
+        <>
+          <BoxCard>
+            <BoxSection
+              summary={<SummaryRow label="Documents" detail={`${props.documentsCount}`} />}
+            >
+              {props.documents}
+            </BoxSection>
+          </BoxCard>
+          <BoxCard>
+            <BoxSection
+              summary={<SummaryRow label="Notes" detail={`${props.notesCount}`} />}
+            >
+              {props.notes}
+            </BoxSection>
+          </BoxCard>
+        </>,
+      )}
     </div>
   )
 }

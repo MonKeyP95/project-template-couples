@@ -70,6 +70,8 @@ import { BudgetTab } from "./budget-tab"
 import { ItineraryTab } from "./itinerary-tab"
 import { DreamItineraryTab } from "./dream-itinerary-tab"
 import { NotesTab } from "./notes-tab"
+import { TripFolder } from "./trip-folder"
+import type { ReactNode } from "react"
 import { MobileTrip } from "./mobile-trip"
 import { TripRoutePanel } from "./trip-route-panel"
 import {
@@ -83,7 +85,8 @@ const TABS: { id: TabId; label: string }[] = [
   { id: "budget", label: "Budget" },
   { id: "itinerary", label: "Itinerary" },
   { id: "packing", label: "Packing" },
-  { id: "notes", label: "Notes" },
+  // Id stays "notes" so existing ?tab=notes links land here.
+  { id: "notes", label: "Trip folder" },
 ]
 
 function isTab(value: string | undefined): value is TabId {
@@ -316,7 +319,7 @@ export default async function TripPage({
       currentPersonId={workspace.myPersonId ?? ""}
     />
   )
-  const packing = (layout: "tab" | "boxes") => (
+  const packing = (layout: "tab" | "boxes" | "checklist", between?: ReactNode) => (
     <PackingTab
       tripId={header.id}
       tripSlug={header.slug}
@@ -329,6 +332,7 @@ export default async function TripPage({
       daysOut={computeDaysOut(header.startDate)}
       packingNudge={packingNudge}
       layout={layout}
+      between={between}
     />
   )
   const budget = (
@@ -393,7 +397,9 @@ export default async function TripPage({
             notesCount={(notes ?? []).length}
             itinerary={itinerary}
             budget={budget}
-            packingAndDocuments={packing("boxes")}
+            packingAround={(between) => packing("boxes", between)}
+            documents={null}
+            documentsCount={0}
             notes={notesSection}
           />
         </main>
@@ -435,7 +441,13 @@ export default async function TripPage({
             ? packing("tab")
             : activeTab === "budget"
               ? budget
-              : notesSection}
+              : (
+                <TripFolder
+                  documents={null}
+                  notes={notesSection}
+                  checklist={packing("checklist")}
+                />
+              )}
       </div>
 
       <DesktopRightRail

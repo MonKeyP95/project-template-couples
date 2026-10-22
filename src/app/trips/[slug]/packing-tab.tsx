@@ -59,9 +59,15 @@ export interface PackingTabProps {
   members: Record<string, MemberToneEntry>
   daysOut: number | null
   packingNudge?: Nudge | null
-  /** "boxes" (mobile one-page trip): Packing and the shared Documents category
-   * render as two collapsible boxes off this one state and Realtime channel. */
-  layout?: "tab" | "boxes"
+  /**
+   * The shared "Documents" category is the Checklist and never shows inside
+   * Packing. "tab": packing only (desktop Packing tab). "boxes" (phone): the
+   * Packing box, then `between`, then the Checklist box, all off this one state
+   * and Realtime channel. "checklist": the checklist alone (desktop Trip folder).
+   */
+  layout?: "tab" | "boxes" | "checklist"
+  /** Rendered between the Packing and Checklist boxes ("boxes" only). */
+  between?: React.ReactNode
 }
 
 interface RealtimeRow {
@@ -108,6 +114,7 @@ export function PackingTab({
   daysOut,
   packingNudge,
   layout = "tab",
+  between,
 }: PackingTabProps) {
   const [items, setItems] = React.useState<PackingItem[]>(initialItems)
   const [lastInitial, setLastInitial] = React.useState(initialItems)
@@ -287,7 +294,7 @@ export function PackingTab({
   }
 
   const parts = partitionByOwner(categories, items, currentUserId, partnerId)
-  const isDoc = (name: string) => layout === "boxes" && name === DOCUMENTS_CATEGORY
+  const isDoc = (name: string) => name === DOCUMENTS_CATEGORY
   const shared: OwnerScope = {
     categories: parts.shared.categories.filter((c) => !isDoc(c.name)),
     items: parts.shared.items.filter((i) => !isDoc(i.category)),
@@ -387,6 +394,31 @@ export function PackingTab({
 
   if (layout === "tab") return section
 
+  const checklist = (
+    <div className="px-5 pt-2 pb-4">
+      {documents.map((item) => (
+        <ItemRow
+          key={item.id}
+          item={item}
+          member={members[item.addedBy]}
+          readOnly={false}
+          isEditing={editingId === item.id}
+          onToggle={() => toggle(item.id)}
+          onStartEdit={() => setEditingId(item.id)}
+          onStopEdit={() => setEditingId(null)}
+          onUpdate={update}
+          onDelete={() => remove(item.id)}
+        />
+      ))}
+      <AddItemRow
+        alwaysOpen
+        placeholder="Add an item to bring…"
+        onAdd={(label) => addToCategory(DOCUMENTS_CATEGORY, null, label)}
+      />
+    </div>
+  )
+  if (layout === "checklist") return checklist
+
   const packed = [...parts.mine.items, ...shared.items]
   return (
     <>
@@ -395,29 +427,10 @@ export function PackingTab({
           {section}
         </BoxSection>
       </BoxCard>
+      {between}
       <BoxCard>
-        <BoxSection summary={<BoxCount label="Documents" items={documents} noun="ready" />}>
-          <div className="px-5 pt-2 pb-4">
-            {documents.map((item) => (
-              <ItemRow
-                key={item.id}
-                item={item}
-                member={members[item.addedBy]}
-                readOnly={false}
-                isEditing={editingId === item.id}
-                onToggle={() => toggle(item.id)}
-                onStartEdit={() => setEditingId(item.id)}
-                onStopEdit={() => setEditingId(null)}
-                onUpdate={update}
-                onDelete={() => remove(item.id)}
-              />
-            ))}
-            <AddItemRow
-              alwaysOpen
-              placeholder="Add a document…"
-              onAdd={(label) => addToCategory(DOCUMENTS_CATEGORY, null, label)}
-            />
-          </div>
+        <BoxSection summary={<BoxCount label="Checklist" items={documents} noun="ready" />}>
+          {checklist}
         </BoxSection>
       </BoxCard>
     </>
