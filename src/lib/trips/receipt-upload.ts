@@ -1,5 +1,5 @@
 import { createClient } from "@/lib/supabase/client"
-import { addReceipt } from "@/lib/trips/receipt-actions"
+import { addReceipt, readReceipt } from "@/lib/trips/receipt-actions"
 import { checkReceiptFile } from "@/lib/trips/receipt-types"
 
 const MAX_EDGE_PX = 1600
@@ -62,4 +62,20 @@ export async function uploadReceipt(
   } catch {
     return { error: "Upload failed, receipt not saved." }
   }
+}
+
+/**
+ * Upload a receipt, then read it in the background. `onChange` runs once the
+ * upload is recorded and again when the read ends (either outcome is on the row).
+ */
+export async function uploadAndRead(
+  input: UploadReceiptInput,
+  onChange: () => void,
+): Promise<{ error?: string }> {
+  const { error, receiptId } = await uploadReceipt(input)
+  if (receiptId) {
+    onChange()
+    readReceipt(receiptId, input.tripSlug).then(onChange, onChange)
+  }
+  return { error }
 }

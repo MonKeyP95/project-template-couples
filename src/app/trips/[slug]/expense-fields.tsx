@@ -42,6 +42,8 @@ export interface ExpenseFieldsProps {
   locationId: string | null
   onLocationChange: (value: string | null) => void
   disabled: boolean
+  /** Shown to the right of the title, e.g. the add form's receipt camera. */
+  titleAction?: React.ReactNode
 }
 
 /**
@@ -71,6 +73,7 @@ export function ExpenseFields({
   locationId,
   onLocationChange,
   disabled,
+  titleAction,
 }: ExpenseFieldsProps) {
   const { currency } = useCurrency()
   const locationCurrencies = Array.from(
@@ -81,15 +84,18 @@ export function ExpenseFields({
 
   return (
     <>
-      <input
-        ref={titleRef}
-        type="text"
-        value={title}
-        onChange={(e) => onTitleChange(e.target.value)}
-        placeholder="Add an expense…"
-        disabled={disabled}
-        className="w-full border-0 border-b border-rule bg-transparent py-1.5 text-[14px] text-foreground placeholder:text-muted-foreground focus:border-clay focus:outline-none disabled:opacity-50"
-      />
+      <div className="flex items-center gap-3">
+        <input
+          ref={titleRef}
+          type="text"
+          value={title}
+          onChange={(e) => onTitleChange(e.target.value)}
+          placeholder="Add an expense…"
+          disabled={disabled}
+          className="w-full border-0 border-b border-rule bg-transparent py-1.5 text-[14px] text-foreground placeholder:text-muted-foreground focus:border-clay focus:outline-none disabled:opacity-50"
+        />
+        {titleAction}
+      </div>
 
       <div className="mt-3 grid grid-cols-2 gap-3">
         <label className="block">

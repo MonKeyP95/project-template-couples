@@ -1,8 +1,11 @@
 "use client"
 
 import * as React from "react"
+import { useRouter } from "next/navigation"
 
 import { logExpense } from "@/lib/trips/actions"
+import { uploadAndRead } from "@/lib/trips/receipt-upload"
+import { ReceiptCameraButton } from "@/components/receipts/receipt-camera-button"
 import { deviceToday } from "@/lib/time/today"
 import {
   EXPENSE_CATEGORY_DEFAULT,
@@ -59,6 +62,8 @@ export function LogExpenseRow({
   }
   const [error, setError] = React.useState<string | null>(null)
   const [isPending, startTransition] = React.useTransition()
+  const [receiptFile, setReceiptFile] = React.useState<File | null>(null)
+  const router = useRouter()
   const titleRef = React.useRef<HTMLInputElement>(null)
 
   React.useEffect(() => {
@@ -75,6 +80,7 @@ export function LogExpenseRow({
     setLocationId(null)
     setExpenseCurrency(tripCurrency)
     setError(null)
+    setReceiptFile(null)
   }
 
   function submit(e: React.FormEvent) {
@@ -104,6 +110,14 @@ export function LogExpenseRow({
       setTitle("")
       setAmount("")
       setError(null)
+      if (receiptFile) {
+        const upload = await uploadAndRead(
+          { tripId, tripSlug, file: receiptFile, expenseId: result.expenseId! },
+          () => router.refresh(),
+        )
+        setReceiptFile(null)
+        if (upload.error) setError("Expense saved; receipt not saved. Add it from the pile.")
+      }
       titleRef.current?.focus()
     })
   }
@@ -175,6 +189,14 @@ export function LogExpenseRow({
         locationId={locationId}
         onLocationChange={chooseLocation}
         disabled={isPending}
+        titleAction={
+          <ReceiptCameraButton
+            file={receiptFile}
+            onFileChange={setReceiptFile}
+            onError={setError}
+            disabled={isPending}
+          />
+        }
       />
 
       {error ? (
