@@ -251,6 +251,8 @@ async function resolveHomeAmount(
 
 export interface LogExpenseResult {
   error?: string
+  /** The new row's id, so a receipt can be attached to it. */
+  expenseId?: string
 }
 
 // int4 ceiling — matches the type of expenses.amount_cents.
@@ -290,24 +292,28 @@ export async function logExpense(
   const home = await resolveHomeAmount(input.tripId, input.currency, cents)
   if ("error" in home) return { error: home.error }
 
-  const { error } = await supabase.from("expenses").insert({
-    trip_id: input.tripId,
-    title,
-    amount_cents: cents,
-    currency: input.currency,
-    home_amount_cents: home.homeAmountCents,
-    fx_rate: home.fxRate,
-    paid_by: input.paidBy,
-    category: input.category,
-    day_date: input.dayDate,
-    location_id: input.locationId,
-    is_settlement: false,
-  })
+  const { data, error } = await supabase
+    .from("expenses")
+    .insert({
+      trip_id: input.tripId,
+      title,
+      amount_cents: cents,
+      currency: input.currency,
+      home_amount_cents: home.homeAmountCents,
+      fx_rate: home.fxRate,
+      paid_by: input.paidBy,
+      category: input.category,
+      day_date: input.dayDate,
+      location_id: input.locationId,
+      is_settlement: false,
+    })
+    .select("id")
+    .single()
 
   if (error) return { error: error.message }
 
   revalidatePath(`/trips/${input.tripSlug}`)
-  return {}
+  return { expenseId: data.id }
 }
 
 /**
@@ -1292,6 +1298,16 @@ export async function deleteTrip(
   currentSlug: string,
 ): Promise<void> {
   const supabase = await createClient()
+  // Row cascades don't reach Storage, so remove the trip's receipt files first.
+  const { data: files } = await supabase.storage
+    .from("receipts")
+    .list(tripId, { limit: 1000 })
+  if (files?.length) {
+    await supabase.storage
+      .from("receipts")
+      .remove(files.map((f) => `${tripId}/${f.name}`))
+  }
+
   const { error } = await supabase.from("trips").delete().eq("id", tripId)
   if (error) throw new Error(error.message)
 
