@@ -2,12 +2,6 @@
 
 import type { DraftField, TripDraft } from "./new-trip-form"
 
-const EXAMPLES = [
-  "2 weeks surfing",
-  "10 days in Portugal, 1500 eur",
-  "a week hiking in the Alps, budget 2k, we cook",
-]
-
 const eyebrow =
   "font-mono text-[11px] uppercase tracking-[0.16em] text-muted-foreground"
 const lineInput =
@@ -57,19 +51,6 @@ export function NotePage({
           aria-label="Tell me about the trip"
           className="mt-6 block w-full resize-none rounded-xl border border-border bg-card p-3.5 text-[18px] leading-snug text-foreground placeholder:text-muted-foreground focus:border-clay focus:outline-none"
         />
-        <div className="mt-4 text-[13px] text-muted-foreground">Try one:</div>
-        <div className="mt-2 flex flex-wrap gap-2">
-          {EXAMPLES.map((x) => (
-            <button
-              key={x}
-              type="button"
-              onClick={() => onNote(x)}
-              className={`${chip} border-rule bg-transparent text-foreground hover:border-foreground`}
-            >
-              {x}
-            </button>
-          ))}
-        </div>
       </div>
 
       <div>
