@@ -48,8 +48,7 @@ export function NotePage({
       </div>
 
       <div>
-        <span className="block text-[17px] text-foreground">When?</span>
-        <div className="mt-1.5 grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-2 gap-4">
           {(["start", "end"] as const).map((f) => (
             <label key={f} className="block">
               <span className={eyebrow}>{f === "start" ? "From" : "To"}</span>
