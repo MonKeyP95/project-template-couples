@@ -9,13 +9,7 @@ const lineInput =
 const chip =
   "min-h-10 rounded-full border px-3.5 text-[14px] transition-colors"
 
-function endLabel(start: string, days: number): string {
-  const d = new Date(`${start}T00:00:00`)
-  d.setDate(d.getDate() + days - 1)
-  return `to ${d.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" })}`
-}
-
-/** Page 1: the note, how long (+ dates), budget, and where if the note has no place. */
+/** Page 1: the note, when, budget, and where if the note has no place. */
 export function NotePage({
   draft,
   symbol,
@@ -33,7 +27,7 @@ export function NotePage({
   onDraft: (patch: Partial<TripDraft>) => void
   onContinue: () => void
 }) {
-  const days = parseInt(draft.days, 10) || 0
+  const halfDated = !draft.start !== !draft.end
   return (
     <div className="mt-6 flex flex-col gap-7">
       <div>
@@ -41,7 +35,7 @@ export function NotePage({
           Tell me about the trip.
         </h1>
         <p className="mt-2.5 text-[15px] leading-snug text-muted-foreground">
-          However you&apos;d say it. How long, where or what, roughly what it costs.
+          However you&apos;d say it. How long, where or what, what it costs.
         </p>
         <textarea
           value={draft.note}
@@ -54,50 +48,32 @@ export function NotePage({
       </div>
 
       <div>
-        <label className="block">
-          <span className="block text-[17px] text-foreground">How long is the trip?</span>
-          <span className="mt-1.5 flex items-baseline gap-2 border-b border-rule">
-            <input
-              type="text"
-              inputMode="numeric"
-              value={draft.days}
-              onChange={(e) => onEdit("days", e.target.value.replace(/\D/g, ""))}
-              placeholder="10"
-              className={`${lineInput} w-16 border-b-0`}
-            />
-            <span className="text-[16px] text-muted-foreground">days</span>
-          </span>
-        </label>
-        {draft.showDates ? (
-          <div className="mt-2 flex flex-wrap items-center gap-3">
-            <label className="flex items-center gap-2 text-[14px] text-muted-foreground">
-              From
+        <span className="block text-[17px] text-foreground">When?</span>
+        <div className="mt-1.5 grid grid-cols-2 gap-4">
+          {(["start", "end"] as const).map((f) => (
+            <label key={f} className="block">
+              <span className={eyebrow}>{f === "start" ? "From" : "To"}</span>
               <input
                 type="date"
-                value={draft.start}
-                onChange={(e) => onDraft({ start: e.target.value })}
-                className="t-num border-0 border-b border-rule bg-transparent py-1.5 text-[16px] text-foreground focus:border-clay focus:outline-none"
+                value={draft[f]}
+                min={f === "end" ? draft.start || undefined : undefined}
+                onChange={(e) => onEdit(f, e.target.value)}
+                className="t-num mt-1 block w-full border-0 border-b border-rule bg-transparent py-2 text-[16px] text-foreground focus:border-clay focus:outline-none"
               />
             </label>
-            {draft.start && days > 0 ? (
-              <span className="text-[14px] text-muted-foreground">
-                {endLabel(draft.start, days)}
-              </span>
-            ) : null}
-          </div>
-        ) : (
-          <button
-            type="button"
-            onClick={() => onDraft({ showDates: true })}
-            className="mt-1 h-11 border-0 bg-transparent p-0 text-[14px] text-sea underline underline-offset-4"
-          >
-            + Add dates
-          </button>
-        )}
+          ))}
+        </div>
+        <p className="mt-2 text-[13px] text-muted-foreground">
+          {halfDated
+            ? "Pick both dates, or neither."
+            : draft.start
+              ? null
+              : "No dates yet? It's saved as a dream."}
+        </p>
       </div>
 
       <label className="block">
-        <span className="block text-[17px] text-foreground">Roughly what&apos;s the budget?</span>
+        <span className="block text-[17px] text-foreground">Budget</span>
         <span className="mt-1.5 flex items-baseline gap-2 border-b border-rule">
           <span className="text-[20px] text-muted-foreground">{symbol}</span>
           <input
@@ -153,7 +129,7 @@ export function NotePage({
       <button
         type="button"
         onClick={onContinue}
-        disabled={days < 1}
+        disabled={!draft.note.trim() || halfDated}
         className="mt-3 h-[52px] rounded-[10px] border-0 bg-primary text-[16px] font-medium text-primary-foreground disabled:opacity-40"
       >
         Continue

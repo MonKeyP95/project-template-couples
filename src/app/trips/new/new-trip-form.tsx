@@ -15,9 +15,10 @@ import { PrefsPage } from "./prefs-page"
 
 export interface TripDraft {
   note: string
-  days: string
+  /** Length read from the note; fills To, and is a dream's planned length. */
+  days: number
   start: string
-  showDates: boolean
+  end: string
   budget: string
   place: string
   unsure: boolean
@@ -25,18 +26,30 @@ export interface TripDraft {
   prefs: Record<PrefKey, string>
 }
 
-export type DraftField = "days" | "budget" | "place" | PrefKey
+export type DraftField = "start" | "end" | "budget" | "place" | PrefKey
 
 const EMPTY_DRAFT: TripDraft = {
   note: "",
-  days: "",
+  days: 0,
   start: "",
-  showDates: false,
+  end: "",
   budget: "",
   place: "",
   unsure: false,
   what: "",
   prefs: { stay: "", move: "", acts: "", food: "", avoid: "" },
+}
+
+function addDays(date: string, n: number): string {
+  const d = new Date(`${date}T00:00:00Z`)
+  d.setUTCDate(d.getUTCDate() + n)
+  return d.toISOString().slice(0, 10)
+}
+
+/** To follows From + the note's length until the user picks To themselves. */
+function autoEnd(d: TripDraft, endTouched: boolean): string {
+  if (endTouched || !d.start || d.days < 1) return d.end
+  return addDays(d.start, d.days - 1)
 }
 
 /** The note-first new trip flow: basic profile, then optional preferences. */
@@ -53,30 +66,37 @@ export function NewTripForm({ currency }: { currency: string }) {
     const r = readNote(note, currency, symbol)
     const guessed = prefillPrefs(note)
     const keep = (f: DraftField) => touched.has(f)
-    setDraft((d) => ({
-      ...d,
-      note,
-      what: r.what,
-      days: keep("days") ? d.days : r.days ? String(r.days) : "",
-      budget: keep("budget") ? d.budget : r.budget ? String(r.budget) : "",
-      place: keep("place") ? d.place : r.place,
-      unsure: r.place ? false : d.unsure,
-      prefs: Object.fromEntries(
-        Object.entries(guessed).map(([k, v]) => [
-          k,
-          keep(k as PrefKey) ? d.prefs[k as PrefKey] : v,
-        ]),
-      ) as Record<PrefKey, string>,
-    }))
+    setDraft((d) => {
+      const next = { ...d, days: r.days }
+      return {
+        ...next,
+        end: autoEnd(next, keep("end")),
+        note,
+        what: r.what,
+        budget: keep("budget") ? d.budget : r.budget ? String(r.budget) : "",
+        place: keep("place") ? d.place : r.place,
+        unsure: r.place ? false : d.unsure,
+        prefs: Object.fromEntries(
+          Object.entries(guessed).map(([k, v]) => [
+            k,
+            keep(k as PrefKey) ? d.prefs[k as PrefKey] : v,
+          ]),
+        ) as Record<PrefKey, string>,
+      }
+    })
   }
 
   function edit(field: DraftField, value: string) {
-    setTouched((t) => new Set(t).add(field))
-    setDraft((d) =>
-      field === "days" || field === "budget" || field === "place"
+    if (field !== "start") setTouched((t) => new Set(t).add(field))
+    setDraft((d) => {
+      if (field === "start") {
+        const next = { ...d, start: value }
+        return { ...next, end: autoEnd(next, touched.has("end")) }
+      }
+      return field === "end" || field === "budget" || field === "place"
         ? { ...d, [field]: value }
-        : { ...d, prefs: { ...d.prefs, [field]: value } },
-    )
+        : { ...d, prefs: { ...d.prefs, [field]: value } }
+    })
   }
 
   function create(withPrefs: boolean) {
@@ -84,8 +104,9 @@ export function NewTripForm({ currency }: { currency: string }) {
     startTransition(async () => {
       const result = await createTrip({
         note: draft.note,
-        days: Number(draft.days),
-        startDate: draft.showDates && draft.start ? draft.start : null,
+        startDate: draft.start || null,
+        endDate: draft.end || null,
+        days: draft.days || null,
         budget: Number(draft.budget) || 0,
         place: draft.unsure ? null : draft.place,
         what: draft.what,

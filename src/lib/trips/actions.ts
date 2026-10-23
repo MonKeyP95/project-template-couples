@@ -786,9 +786,11 @@ export async function setCategoryDetails(
 export interface CreateTripInput {
   /** The free-text note; stored as the trip idea. */
   note: string
-  days: number
-  /** Optional; the end date follows from `days`. Null makes it a dream. */
+  /** Both set for a dated trip; both null make it a dream. */
   startDate: string | null
+  endDate: string | null
+  /** A dream's planned length (from the note); ignored for dated trips. */
+  days: number | null
   /** Whole units of the workspace currency; 0 = no budget. */
   budget: number
   place: string | null
@@ -806,26 +808,31 @@ export interface CreateTripResult {
 const SLUG_RE = /^[a-z0-9-]+$/
 const MAX_TRIP_DAYS = 365
 
-function addDays(date: string, n: number): string {
-  const d = new Date(`${date}T00:00:00Z`)
-  d.setUTCDate(d.getUTCDate() + n)
-  return d.toISOString().slice(0, 10)
-}
-
 /**
  * Creates a trip from the new-trip flow, plus a trip_members row for every
- * workspace member and the default expense categories. With a start date it is
- * a dated trip; without, a dream that keeps its length in `day_count`. The name
+ * workspace member and the default expense categories. With dates it is a
+ * dated trip; without, a dream that keeps any length from the note in
+ * `day_count`. The name
  * comes from the headline; a taken slug gets `-2`, `-3`, ...
  */
 export async function createTrip(
   input: CreateTripInput,
 ): Promise<CreateTripResult> {
-  if (!Number.isInteger(input.days) || input.days < 1 || input.days > MAX_TRIP_DAYS) {
-    return { error: `How long must be 1 to ${MAX_TRIP_DAYS} days.` }
+  const startDate = input.startDate || null
+  const endDate = input.endDate || null
+  if (!startDate !== !endDate) return { error: "Pick both dates, or neither." }
+  if (startDate && endDate) {
+    if (!DATE_RE.test(startDate) || !DATE_RE.test(endDate)) {
+      return { error: "Dates invalid." }
+    }
+    if (endDate < startDate) return { error: "To must be on or after From." }
   }
-  if (input.startDate && !DATE_RE.test(input.startDate)) {
-    return { error: "Start date invalid." }
+  const days = startDate ? null : input.days
+  if (
+    days !== null &&
+    (!Number.isInteger(days) || days < 1 || days > MAX_TRIP_DAYS)
+  ) {
+    return { error: `A trip is 1 to ${MAX_TRIP_DAYS} days.` }
   }
   if (!Number.isFinite(input.budget) || input.budget < 0) {
     return { error: "Budget invalid." }
@@ -840,14 +847,13 @@ export async function createTrip(
 
   const place = input.place?.trim() || null
   const name = tripHeadline(input.what, place ?? "")
-  const startDate = input.startDate || null
   const row = {
     workspace_id: workspace.id,
     name,
     country: place,
     start_date: startDate,
-    end_date: startDate ? addDays(startDate, input.days - 1) : null,
-    day_count: startDate ? null : input.days,
+    end_date: endDate,
+    day_count: days,
     planned_budget_cents: Math.round(input.budget * 100),
     // Both copied, not looked up: changing the workspace currency later must
     // not rewrite a recorded trip's numbers. `currency` is the spend default
