@@ -98,6 +98,55 @@ export const TOOL_REGISTRY: Record<string, Anthropic.Messages.ToolUnion> = {
     },
   },
 
+  propose_dream_itinerary: {
+    name: "propose_dream_itinerary",
+    description: "Return the drafted itinerary events for a trip with numbered days.",
+    strict: true,
+    input_schema: {
+      type: "object",
+      additionalProperties: false,
+      properties: {
+        events: {
+          type: "array",
+          items: {
+            type: "object",
+            additionalProperties: false,
+            properties: {
+              category: {
+                type: "string",
+                enum: ["Accommodation", "Transportation", "Activities", "Food", "Other"],
+                description: "Which kind of event this is.",
+              },
+              place: {
+                type: "string",
+                description: "The exact itinerary place name given for this event, or empty.",
+              },
+              text: {
+                type: "string",
+                description: "Short label for the event, e.g. 'Surf lesson' or 'Dinner - seafood'.",
+              },
+              day: {
+                type: "integer",
+                description: "Day number 1..N within the trip. 0 if you can't place it.",
+              },
+              time: {
+                type: "string",
+                description: "HH:MM 24h, or empty.",
+              },
+            },
+            required: ["category", "place", "text", "day", "time"],
+          },
+        },
+        question: {
+          type: "string",
+          description:
+            "Empty when you proposed events. When the input is too thin to ground on, leave events empty and put ONE short clarifying question here.",
+        },
+      },
+      required: ["events", "question"],
+    },
+  },
+
   propose_places: {
     name: "propose_places",
     description: "Return the final shortlist of place suggestions.",
