@@ -303,6 +303,9 @@ export default async function TripPage({
       tripSlug={header.slug}
       initialItems={dreamItinerary ?? []}
       dayCount={header.dayCount}
+      tripName={header.name}
+      destination={header.country ?? header.name}
+      avoid={header.tripProfile.avoid}
     />
   ) : (
     <ItineraryTab

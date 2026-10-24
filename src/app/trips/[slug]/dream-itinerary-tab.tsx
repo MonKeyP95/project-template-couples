@@ -33,6 +33,7 @@ import {
   type DreamSlot,
 } from "@/lib/trips/dream-itinerary-types"
 import { ITINERARY_TONES, type ItineraryTone } from "@/lib/trips/itinerary-types"
+import { PlanItinerary } from "./plan-itinerary"
 
 const itineraryBorder: Record<ItineraryTone, string> = {
   sea: "border-l-sea",
@@ -58,12 +59,18 @@ export function DreamItineraryTab({
   tripSlug,
   initialItems,
   dayCount,
+  tripName,
+  destination,
+  avoid,
 }: {
   tripId: string
   tripSlug: string
   initialItems: DreamDay[]
   /** Planned length; when set, days sit at real positions with empty slots. */
   dayCount: number | null
+  tripName: string
+  destination: string
+  avoid: string
 }) {
   const positional = dayCount !== null
   const [days, setDays] = React.useState<DreamDay[]>(() =>
@@ -212,6 +219,16 @@ export function DreamItineraryTab({
       <div className="px-5 pt-4 pb-6 lg:px-10">
         <AddDreamDayRow tripId={tripId} tripSlug={tripSlug} />
       </div>
+      <PlanItinerary
+        tripId={tripId}
+        tripSlug={tripSlug}
+        tripName={tripName}
+        destination={destination}
+        avoid={avoid}
+        locations={[]}
+        days={[]}
+        dream={{ dayCount, cards: days }}
+      />
     </section>
   )
 }

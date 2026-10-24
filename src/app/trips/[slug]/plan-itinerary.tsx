@@ -14,6 +14,11 @@ import {
 import type { ItineraryDay } from "@/lib/trips/itinerary-types"
 import type { ItineraryLocation } from "@/lib/trips/location-types"
 import { applyPlanEntries, draftAndApplyItinerary } from "@/lib/ai/itinerary-actions"
+import {
+  applyDreamPlanEntries,
+  draftAndApplyDreamItinerary,
+} from "@/lib/ai/dream-itinerary-actions"
+import { placesFromCards } from "@/lib/ai/dream-plan"
 
 export interface PlanItineraryProps {
   tripId: string
@@ -26,6 +31,8 @@ export interface PlanItineraryProps {
   /** The trip's existing locations and days — the walk opens on them. */
   locations: ItineraryLocation[]
   days: ItineraryDay[]
+  /** Set on a dream: days are numbered, results become dream day cards. */
+  dream?: { dayCount: number | null; cards: { dayIndex: number; tag: string }[] }
 }
 
 interface ItemRow {
@@ -44,6 +51,37 @@ interface ItemRow {
 
 type Phase = "places" | "walk" | "review"
 
+/** A dream row's day picker: "Day 1".."Day N", the stand-in for a date input. */
+function DaySelect({
+  label,
+  value,
+  dayCount,
+  from = 1,
+  onChange,
+}: {
+  label: string
+  value: string
+  dayCount: number
+  from?: number
+  onChange: (value: string) => void
+}) {
+  return (
+    <select
+      aria-label={label}
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      className="rounded border border-border bg-transparent px-1.5 py-1 font-mono text-[10px] text-foreground outline-none focus:border-foreground"
+    >
+      <option value="">{label === "Day" ? "day" : "to"}</option>
+      {Array.from({ length: Math.max(0, dayCount - from + 1) }, (_, i) => from + i).map((d) => (
+        <option key={d} value={String(d)}>
+          Day {d}
+        </option>
+      ))}
+    </select>
+  )
+}
+
 function fmtDate(d: string): string {
   const t = Date.parse(`${d}T00:00:00Z`)
   return Number.isFinite(t)
@@ -51,16 +89,19 @@ function fmtDate(d: string): string {
     : d
 }
 
-/** The picked date or range as a hint string: "12 Jan – 14 Jan", "12 Jan", or "". */
-function rangeLabel(row: ItemRow): string {
-  if (row.whenStart && row.whenEnd) return `${fmtDate(row.whenStart)} – ${fmtDate(row.whenEnd)}`
-  if (row.whenStart) return fmtDate(row.whenStart)
+/** The picked date or range as a hint string: "12 Jan – 14 Jan", "12 Jan", or "".
+ * On a dream the values are day numbers: "Day 3 – 5", "Day 3". */
+function rangeLabel(row: ItemRow, dream: boolean): string {
+  const fmt = dream ? (d: string) => d : fmtDate
+  const prefix = dream ? "Day " : ""
+  if (row.whenStart && row.whenEnd) return `${prefix}${fmt(row.whenStart)} – ${fmt(row.whenEnd)}`
+  if (row.whenStart) return `${prefix}${fmt(row.whenStart)}`
   return ""
 }
 
 /** The `when` hint fed to the assistant: date/range joined with the free note. */
-function rowWhen(row: ItemRow): string {
-  return [rangeLabel(row), row.note.trim()].filter(Boolean).join(" · ")
+function rowWhen(row: ItemRow, dream: boolean): string {
+  return [rangeLabel(row, dream), row.note.trim()].filter(Boolean).join(" · ")
 }
 
 function rowEmpty(row: ItemRow): boolean {
@@ -107,6 +148,7 @@ export function PlanItinerary({
   avoid: initialAvoid,
   locations,
   days,
+  dream,
 }: PlanItineraryProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -115,12 +157,22 @@ export function PlanItinerary({
     () => savedPlanFromItinerary(locations, days),
     [locations, days],
   )
-  const title = days.length > 0 ? "Edit your itinerary" : "Plan your itinerary"
+  const hasDays = dream ? dream.cards.length > 0 : days.length > 0
+  const title = hasDays ? "Edit your itinerary" : "Plan your itinerary"
+  /** A dream with no length yet asks for one on the Places step. */
+  const asksDays = dream !== undefined && dream.dayCount === null
+  const [daysAsked, setDaysAsked] = React.useState("")
+  const dayCount = dream ? (dream.dayCount ?? (parseInt(daysAsked, 10) || 0)) : 0
+  const daysValid = !asksDays || (dayCount >= Math.max(1, dream.cards.length) && dayCount <= 365)
   const [open, setOpen] = React.useState(searchParams.get("plan") === "1")
   const [phase, setPhase] = React.useState<Phase>("places")
-  const [placeNames, setPlaceNames] = React.useState<string[]>(() =>
-    seedPlaceNames(saved, tripName),
-  )
+  const [placeNames, setPlaceNames] = React.useState<string[]>(seedPlaces)
+
+  function seedPlaces(): string[] {
+    if (!dream) return seedPlaceNames(saved, tripName)
+    const fromCards = placesFromCards(dream.cards)
+    return fromCards.length > 0 ? fromCards : [destination]
+  }
   const [freeText, setFreeText] = React.useState("")
   const [avoid, setAvoid] = React.useState(initialAvoid)
   const [steps, setSteps] = React.useState<ItineraryPlanStep[]>([])
@@ -144,8 +196,8 @@ export function PlanItinerary({
    * Places step to add one. */
   function openWalk() {
     seedWalk()
-    const known = seedPlaceNames(saved, tripName).filter((n) => n.length > 0)
-    if (days.length > 0 && known.length > 0) beginWalk(known)
+    const known = seedPlaces().filter((n) => n.length > 0)
+    if (hasDays && !asksDays && known.length > 0) beginWalk(known)
     setOpen(true)
   }
 
@@ -156,7 +208,8 @@ export function PlanItinerary({
 
   function seedWalk() {
     setPhase("places")
-    setPlaceNames(seedPlaceNames(saved, tripName))
+    setPlaceNames(seedPlaces())
+    setDaysAsked("")
     setFreeText("")
     setAvoid(initialAvoid)
     setSteps([])
@@ -166,7 +219,7 @@ export function PlanItinerary({
   }
 
   function startWalk() {
-    if (trimmedPlaces.length === 0) return
+    if (trimmedPlaces.length === 0 || !daysValid) return
     beginWalk(trimmedPlaces)
   }
 
@@ -224,7 +277,7 @@ export function PlanItinerary({
           category: step.category,
           place: step.place ?? "",
           subject: row.subject.trim(),
-          when: rowWhen(row),
+          when: rowWhen(row, dream !== undefined),
           date: row.whenStart || undefined,
           endDate: row.whenEnd || undefined,
           serverId: row.serverId,
@@ -240,13 +293,10 @@ export function PlanItinerary({
     setError(null)
     const entries = collectEntries()
     startTransition(async () => {
-      const r = await applyPlanEntries({
-        tripId,
-        tripSlug,
-        places: trimmedPlaces,
-        entries,
-        avoid: avoid.trim(),
-      })
+      const input = { tripId, tripSlug, places: trimmedPlaces, entries, avoid: avoid.trim() }
+      const r = dream
+        ? await applyDreamPlanEntries({ ...input, dayCount: asksDays ? dayCount : null })
+        : await applyPlanEntries(input)
       if (r.error) {
         setError(r.error)
         return
@@ -261,14 +311,17 @@ export function PlanItinerary({
     setError(null)
     const entries = collectEntries()
     startTransition(async () => {
-      const r = await draftAndApplyItinerary({
+      const input = {
         tripId,
         tripSlug,
         places: trimmedPlaces,
         entries,
         freeText: freeText.trim(),
         avoid: avoid.trim(),
-      })
+      }
+      const r = dream
+        ? await draftAndApplyDreamItinerary({ ...input, dayCount: asksDays ? dayCount : null })
+        : await draftAndApplyItinerary(input)
       if (r.error) {
         setError(r.error)
         return
@@ -348,6 +401,20 @@ export function PlanItinerary({
           </button>
         </div>
 
+        {asksDays ? (
+          <label className="mt-4 block">
+            <span className="block text-[13px] text-foreground">How many days?</span>
+            <input
+              type="text"
+              inputMode="numeric"
+              value={daysAsked}
+              placeholder="10"
+              onChange={(e) => setDaysAsked(e.target.value.replace(/\D/g, ""))}
+              className="mt-1.5 w-20 border-0 border-b border-border bg-transparent text-[13px] text-foreground outline-none focus:border-foreground"
+            />
+          </label>
+        ) : null}
+
         <div className="mt-4 text-[13px] text-foreground">Sum up this trip in a few words</div>
         <textarea
           value={freeText}
@@ -370,7 +437,7 @@ export function PlanItinerary({
             <button
               type="button"
               onClick={startWalk}
-              disabled={trimmedPlaces.length === 0}
+              disabled={trimmedPlaces.length === 0 || !daysValid}
               className="rounded-md border-0 bg-foreground px-3 py-1.5 font-mono text-[9.5px] uppercase tracking-[0.2em] text-background disabled:opacity-40"
             >
               next
@@ -488,13 +555,22 @@ export function PlanItinerary({
                   onChange={(e) => patchItem(step.key, row.id, { note: e.target.value })}
                   className="min-w-0 flex-1 border-0 border-b border-border bg-transparent font-mono text-[11px] tracking-[0.04em] text-muted-foreground outline-none focus:border-foreground"
                 />
-                <input
-                  type="date"
-                  aria-label="Date"
-                  value={row.whenStart ?? ""}
-                  onChange={(e) => patchItem(step.key, row.id, { whenStart: e.target.value })}
-                  className="rounded border border-border bg-transparent px-1.5 py-1 font-mono text-[10px] text-foreground outline-none focus:border-foreground"
-                />
+                {dream ? (
+                  <DaySelect
+                    label="Day"
+                    value={row.whenStart ?? ""}
+                    dayCount={dayCount}
+                    onChange={(v) => patchItem(step.key, row.id, { whenStart: v })}
+                  />
+                ) : (
+                  <input
+                    type="date"
+                    aria-label="Date"
+                    value={row.whenStart ?? ""}
+                    onChange={(e) => patchItem(step.key, row.id, { whenStart: e.target.value })}
+                    className="rounded border border-border bg-transparent px-1.5 py-1 font-mono text-[10px] text-foreground outline-none focus:border-foreground"
+                  />
+                )}
                 <button
                   type="button"
                   onClick={() =>
@@ -511,7 +587,15 @@ export function PlanItinerary({
                 >
                   range
                 </button>
-                {row.range ? (
+                {row.range && dream ? (
+                  <DaySelect
+                    label="End day"
+                    value={row.whenEnd ?? ""}
+                    dayCount={dayCount}
+                    from={parseInt(row.whenStart ?? "", 10) || 1}
+                    onChange={(v) => patchItem(step.key, row.id, { whenEnd: v })}
+                  />
+                ) : row.range ? (
                   <input
                     type="date"
                     aria-label="End date"
@@ -575,7 +659,7 @@ export function PlanItinerary({
             ? `${step.place} · ${subject}`
             : `${step.place} · ${step.title}`
           : subject || step.title
-        lines.push({ id: row.id, primary, when: rowWhen(row) })
+        lines.push({ id: row.id, primary, when: rowWhen(row, dream !== undefined) })
       }
     }
 
