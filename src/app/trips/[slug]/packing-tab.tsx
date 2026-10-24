@@ -35,6 +35,7 @@ import {
 import { Download } from "lucide-react"
 import { ImportItemsDialog } from "./import-items-dialog"
 import {
+  CHECKLIST_CATEGORY as DOCUMENTS_CATEGORY,
   groupPackingItems,
   partitionByOwner,
   type OwnerScope,
@@ -99,8 +100,6 @@ type View = "mine" | "shared" | "partner"
 /** Catch-all for items added from the list-level line, which asks for no category. */
 const LOOSE_CATEGORY = "Other"
 
-/** The shared category the boxes layout lifts into its own Documents box. */
-const DOCUMENTS_CATEGORY = "Documents"
 
 export function PackingTab({
   tripId,

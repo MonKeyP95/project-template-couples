@@ -34,7 +34,7 @@ async function runRead(supabase: Supabase, receiptId: string): Promise<ReadRecei
   try {
     const { data: row, error } = await supabase
       .from("receipts")
-      .select("storage_path, mime_type, kind, entries")
+      .select("storage_path, mime_type, kind")
       .eq("id", receiptId)
       .single()
     if (error) throw error
@@ -50,14 +50,27 @@ async function runRead(supabase: Supabase, receiptId: string): Promise<ReadRecei
 
     if (row.kind === "document") {
       const reading = normalizeDocumentReading(await readDocumentFile(file))
+      // The read takes seconds and the user may edit meanwhile, so check the
+      // row as it is now: a title typed by hand wins over the read's.
+      const { data: current } = await supabase
+        .from("receipts")
+        .select("reading")
+        .eq("id", receiptId)
+        .single()
       await supabase
         .from("receipts")
         .update({
-          reading,
+          reading: { ...reading, title: current?.reading?.title ?? reading.title },
           read_status: "done",
-          ...(row.entries === null ? { entries: reading.entries } : {}),
         })
         .eq("id", receiptId)
+      // Entries only fill while unset, decided by the database, not by a
+      // snapshot from before the read: a hand edit saved mid-read sticks.
+      await supabase
+        .from("receipts")
+        .update({ entries: reading.entries })
+        .eq("id", receiptId)
+        .is("entries", null)
       return {}
     }
 

@@ -40,6 +40,7 @@ import { getItineraryLocations } from "@/lib/trips/location-queries"
 import { getDreamItineraryDays } from "@/lib/trips/dream-itinerary-queries"
 import { getTripNotes } from "@/lib/trips/note-queries"
 import { getPackingCategories, getPackingItems } from "@/lib/trips/packing-queries"
+import { CHECKLIST_CATEGORY } from "@/lib/trips/packing-types"
 import { computeTripDays } from "@/lib/trips/trip-days"
 import {
   getTripSeasonalEstimate,
@@ -244,8 +245,11 @@ export default async function TripPage({
     ])
 
   const budgetSummary = summarizeBudget(expenses, memberIds)
+  // The Checklist category isn't packing, so it stays out of the packing count.
   const myPackingItems = packingItems.filter(
-    (i) => i.ownerId === null || i.ownerId === userData.user!.id,
+    (i) =>
+      (i.ownerId === null || i.ownerId === userData.user!.id) &&
+      i.category !== CHECKLIST_CATEGORY,
   )
   const packingTotal = myPackingItems.length
   const packingDone = myPackingItems.filter((i) => i.done).length

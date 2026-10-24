@@ -130,7 +130,8 @@ function DocumentViewBody({
       <div className="flex gap-2">
         <button
           type="button"
-          disabled={isPending}
+          // A day without a date would be dropped on save, so wait for one.
+          disabled={isPending || entries.some((e) => !e.startDate)}
           onClick={() =>
             run(() => updateDocument(doc.id, { title: title.trim() || null, entries }, tripSlug))
           }

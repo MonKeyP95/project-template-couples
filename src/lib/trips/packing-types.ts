@@ -82,3 +82,9 @@ export function partitionByOwner(
     partner: partnerId ? pick(partnerId) : { categories: [], items: [] },
   }
 }
+
+/**
+ * The shared category shown as the Checklist (passport, licence…), never
+ * inside Packing. Its stored name stays "Documents"; only the heading changed.
+ */
+export const CHECKLIST_CATEGORY = "Documents"
