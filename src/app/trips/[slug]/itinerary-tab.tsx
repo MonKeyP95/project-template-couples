@@ -66,9 +66,10 @@ import {
 import {
   ITINERARY_TONES,
   dateOfIndex,
+  dayIndexOf,
   formatEventTime,
   formatShortDate,
-  reassignDayDate,
+  reassignDayIndex,
   reorderRangeSlots,
   rowToItineraryDay,
   planFloor,
@@ -84,6 +85,7 @@ import {
   type ItineraryLocationRow,
 } from "@/lib/trips/location-types"
 import { slugToTone } from "@/lib/trips/slug-tone"
+import { DayInput } from "./day-input"
 import { moneyRounded } from "@/lib/money"
 import { useCurrency } from "@/components/currency-context"
 import { currencyOptions } from "@/lib/fx/currency-list"
@@ -172,29 +174,23 @@ function toSegments(days: ItineraryDay[]): DaySegment[] {
   return segments
 }
 
-function nextDayAfter(yyyyMmDd: string): string {
-  const d = new Date(`${yyyyMmDd}T00:00:00Z`)
-  d.setUTCDate(d.getUTCDate() + 1)
-  return d.toISOString().slice(0, 10)
-}
-
-/** Order locations by earliest day date, empties last by sortOrder. */
+/** Order locations by earliest day, empties last by sortOrder. */
 function orderTabs(
   locations: ItineraryLocation[],
   days: ItineraryDay[],
 ): ItineraryLocation[] {
-  const earliest = new Map<string, string>()
+  const earliest = new Map<string, number>()
   for (const d of days) {
     if (!d.locationId) continue
     const cur = earliest.get(d.locationId)
-    if (cur === undefined || d.dayDate < cur) earliest.set(d.locationId, d.dayDate)
+    if (cur === undefined || d.dayIndex < cur) earliest.set(d.locationId, d.dayIndex)
   }
   return [...locations].sort((a, b) => {
-    const da = a.startDate ?? earliest.get(a.id)
-    const db = b.startDate ?? earliest.get(b.id)
-    if (da && db) return da < db ? -1 : da > db ? 1 : a.sortOrder - b.sortOrder
-    if (da) return -1
-    if (db) return 1
+    const da = a.startIndex ?? earliest.get(a.id)
+    const db = b.startIndex ?? earliest.get(b.id)
+    if (da !== undefined && db !== undefined) return da - db || a.sortOrder - b.sortOrder
+    if (da !== undefined) return -1
+    if (db !== undefined) return 1
     return a.sortOrder - b.sortOrder
   })
 }
@@ -208,17 +204,17 @@ interface DayGroup {
   tone: ItineraryTone | null
   /** 1-based location number. */
   ord: number | null
-  /** Declared span start; null = implied by days. */
-  start: string | null
-  /** Declared span end; null = implied by days. */
-  end: string | null
+  /** Declared span start day number; null = implied by days. */
+  start: number | null
+  /** Declared span end day number; null = implied by days. */
+  end: number | null
   /** What you spend here; null = the trip's currency. */
   currency: string | null
   days: ItineraryDay[]
 }
 
-function byDate(a: ItineraryDay, b: ItineraryDay): number {
-  return a.dayDate < b.dayDate ? -1 : a.dayDate > b.dayDate ? 1 : 0
+function byIndex(a: ItineraryDay, b: ItineraryDay): number {
+  return a.dayIndex - b.dayIndex
 }
 
 type TimelineItem =
@@ -226,7 +222,7 @@ type TimelineItem =
   | { kind: "loose"; seg: DaySegment }
 
 /**
- * One date-sorted sequence of timeline items: each location is a collapsible
+ * One day-sorted sequence of timeline items: each location is a collapsible
  * block; each run of location-less days is a bare "loose" segment (single day
  * or a group_id trek). No "In transit" bucket -- loose days float at their date.
  */
@@ -246,37 +242,36 @@ function buildTimeline(
     }
   }
 
-  const items: { item: TimelineItem; sort: string | null }[] = []
+  const items: { item: TimelineItem; sort: number | null }[] = []
 
   orderTabs(locations, days).forEach((loc, i) => {
-    const gdays = (byLoc.get(loc.id) ?? []).slice().sort(byDate)
+    const gdays = (byLoc.get(loc.id) ?? []).slice().sort(byIndex)
     const group: DayGroup = {
       key: loc.id,
       name: loc.name,
       tone: slugToTone(loc.id),
       ord: i + 1,
-      start: loc.startDate,
-      end: loc.endDate,
+      start: loc.startIndex,
+      end: loc.endIndex,
       currency: loc.currency,
       days: gdays,
     }
     items.push({
       item: { kind: "location", group },
-      sort: loc.startDate ?? gdays[0]?.dayDate ?? null,
+      sort: loc.startIndex ?? gdays[0]?.dayIndex ?? null,
     })
   })
 
-  for (const seg of toSegments(loose.slice().sort(byDate))) {
-    items.push({ item: { kind: "loose", seg }, sort: seg.days[0].dayDate })
+  for (const seg of toSegments(loose.slice().sort(byIndex))) {
+    items.push({ item: { kind: "loose", seg }, sort: seg.days[0].dayIndex })
   }
 
   return items
     .map((x, idx) => ({ ...x, idx }))
     .sort((a, b) => {
-      if (a.sort && b.sort)
-        return a.sort < b.sort ? -1 : a.sort > b.sort ? 1 : a.idx - b.idx
-      if (a.sort) return -1
-      if (b.sort) return 1
+      if (a.sort !== null && b.sort !== null) return a.sort - b.sort || a.idx - b.idx
+      if (a.sort !== null) return -1
+      if (b.sort !== null) return 1
       return a.idx - b.idx
     })
     .map((x) => x.item)
@@ -284,12 +279,12 @@ function buildTimeline(
 
 /** Zone a location group: past if its whole span is before today, future if
  * wholly after, else current (contains/straddles today, or undated). */
-function groupZone(group: DayGroup, today: string): DayZone {
-  const dates = group.days.map((d) => d.dayDate)
-  const lows = [group.start, ...dates].filter((v): v is string => Boolean(v))
-  const highs = [group.end, ...dates].filter((v): v is string => Boolean(v))
-  if (highs.length && highs.reduce((a, b) => (a > b ? a : b)) < today) return "past"
-  if (lows.length && lows.reduce((a, b) => (a < b ? a : b)) > today) return "future"
+function groupZone(group: DayGroup, todayIndex: number): DayZone {
+  const idx = group.days.map((d) => d.dayIndex)
+  const lows = [group.start, ...idx].filter((v): v is number => v !== null)
+  const highs = [group.end, ...idx].filter((v): v is number => v !== null)
+  if (highs.length && Math.max(...highs) < todayIndex) return "past"
+  if (lows.length && Math.min(...lows) > todayIndex) return "future"
   return "today"
 }
 
@@ -304,9 +299,10 @@ function defaultCollapsed(
 ): Set<string> {
   const s = new Set<string>()
   if (!tripActive(today, start, end)) return s
+  const todayIndex = dayIndexOf(today, start)
   for (const item of buildTimeline(locations, days)) {
     if (item.kind !== "location") continue
-    if (groupZone(item.group, today) === "future") s.add(item.group.key)
+    if (groupZone(item.group, todayIndex) === "future") s.add(item.group.key)
   }
   return s
 }
@@ -501,10 +497,7 @@ export function ItineraryTab({
     }
   }, [tripId])
 
-  const defaultDate =
-    days.length > 0
-      ? nextDayAfter(days[days.length - 1].dayDate)
-      : tripStartDate
+  const defaultIndex = days.length > 0 ? days[days.length - 1].dayIndex + 1 : 1
 
   const dragSensors = useSensors(
     useSensor(MouseSensor, { activationConstraint: { distance: 8 } }),
@@ -512,26 +505,28 @@ export function ItineraryTab({
   )
   const [, startReschedule] = React.useTransition()
 
-  // Reorder a group's days and empty-day gaps as one sequence over `slotDates`
+  // Reorder a group's days and empty-day gaps as one sequence over `slotIndexes`
   // (see reorderRangeSlots). Optimistic; rolls back on error. The caller builds
-  // slotDates and pre-filters out past dates so a live trip stays out of the past.
+  // slotIndexes and pre-filters out past days so a live trip stays out of the past.
   function onGroupDragEnd(
     groupDays: ItineraryDay[],
-    slotDates: string[],
+    slotIndexes: number[],
     e: DragEndEvent,
   ) {
     const over = e.over
     const activeId = String(e.active.id)
     if (!over || activeId === String(over.id)) return
-    const changes = reorderRangeSlots(groupDays, slotDates, activeId, String(over.id))
+    const changes = reorderRangeSlots(groupDays, slotIndexes, activeId, String(over.id))
     if (changes.length === 0) return
 
     const snapshot = days
-    const newDateById = new Map(changes.map((c) => [c.id, c.date]))
+    const newIndexById = new Map(changes.map((c) => [c.id, c.dayIndex]))
     setDays((prev) =>
       withOrdinals(
         prev.map((d) =>
-          newDateById.has(d.id) ? reassignDayDate(d, newDateById.get(d.id)!) : d,
+          newIndexById.has(d.id)
+            ? reassignDayIndex(d, newIndexById.get(d.id)!, tripStartDate)
+            : d,
         ),
       ),
     )
@@ -560,13 +555,16 @@ export function ItineraryTab({
   const plannedTotalCents = budgetItems.reduce((s, it) => s + it.amountCents, 0)
 
   const active = tripActive(today, tripStartDate, tripEndDate)
+  const todayIndex = dayIndexOf(today, tripStartDate)
+  const plan = planFloor(today, tripStartDate, tripEndDate)
+  const floorIndex = plan === null ? null : dayIndexOf(plan, tripStartDate)
   // Mid-trip the walk opens on the days that remain; the server floor is what
   // actually protects the earlier ones.
-  const plannerDays = active ? days.filter((d) => d.dayDate >= today) : days
+  const plannerDays = active ? days.filter((d) => d.dayIndex >= todayIndex) : days
   const itemIsPast = (it: TimelineItem) =>
     it.kind === "location"
-      ? groupZone(it.group, today) === "past"
-      : it.seg.days[it.seg.days.length - 1].dayDate < today
+      ? groupZone(it.group, todayIndex) === "past"
+      : it.seg.days[it.seg.days.length - 1].dayIndex < todayIndex
   const pastDayTotal = active
     ? timeline.reduce(
         (n, it) =>
@@ -581,13 +579,12 @@ export function ItineraryTab({
     : 0
 
   const [addDayFor, setAddDayFor] = React.useState<string | null>(null)
-  const [addDayDate, setAddDayDate] = React.useState("")
   const [addingLocation, setAddingLocation] = React.useState(false)
   const [newLocName, setNewLocName] = React.useState("")
   const [renamingId, setRenamingId] = React.useState<string | null>(null)
   const [renameVal, setRenameVal] = React.useState("")
-  const [renameStart, setRenameStart] = React.useState("")
-  const [renameEnd, setRenameEnd] = React.useState("")
+  const [renameStart, setRenameStart] = React.useState<number | null>(null)
+  const [renameEnd, setRenameEnd] = React.useState<number | null>(null)
   const [renameCurrency, setRenameCurrency] = React.useState("")
   const [renameError, setRenameError] = React.useState<string | null>(null)
   const [, startLoc] = React.useTransition()
@@ -616,9 +613,9 @@ export function ItineraryTab({
     e.preventDefault()
     const name = renameVal.trim()
     if (!name) return
-    const start = renameStart.trim()
-    const end = renameEnd.trim()
-    const useSpan = Boolean(start && end)
+    const start = renameStart
+    const end = renameEnd
+    const useSpan = start !== null && end !== null
     if (useSpan && end < start) return
     setRenameError(null)
     startLoc(async () => {
@@ -646,8 +643,8 @@ export function ItineraryTab({
             tripId,
             tripSlug,
             name,
-            start,
-            end,
+            start!,
+            end!,
             renameCurrency || null,
           )
           if (pushed.error) {
@@ -674,12 +671,11 @@ export function ItineraryTab({
   const planningBlock = (
     <div className={`space-y-2 ${active ? "pt-4 opacity-70" : "pb-4"}`}>
       <AddDayRow
-        key={`add-loose-${addDayFor === LOOSE_KEY ? addDayDate : ""}`}
+        key="add-loose"
         tripId={tripId}
         tripSlug={tripSlug}
-        defaultDate={
-          addDayFor === LOOSE_KEY && addDayDate ? addDayDate : defaultDate
-        }
+        tripStartDate={tripStartDate}
+        defaultIndex={defaultIndex}
         locationId={null}
         open={addDayFor === LOOSE_KEY}
         onClose={() => setAddDayFor(null)}
@@ -687,10 +683,7 @@ export function ItineraryTab({
       {addDayFor === LOOSE_KEY ? null : (
         <button
           type="button"
-          onClick={() => {
-            setAddDayDate("")
-            setAddDayFor(LOOSE_KEY)
-          }}
+          onClick={() => setAddDayFor(LOOSE_KEY)}
           className="block w-full rounded-lg border border-dashed border-rule py-3 font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground hover:border-foreground hover:text-foreground"
         >
           + day
@@ -796,8 +789,9 @@ export function ItineraryTab({
                     locations={locations}
                     collapsedDays={collapsedDays}
                     toggleDay={toggleDay}
-                    dimBefore={active ? today : null}
-                    today={today}
+                    dimBefore={active ? todayIndex : null}
+                    todayIndex={todayIndex}
+                    tripStartDate={tripStartDate}
                     categories={categories}
                     members={members}
                     currentPersonId={currentPersonId}
@@ -811,7 +805,7 @@ export function ItineraryTab({
               )
             }
             const group = item.group
-            const groupPast = active && groupZone(group, today) === "past"
+            const groupPast = active && groupZone(group, todayIndex) === "past"
             if (groupPast && !pastBarOpen) return null
             const open = !collapsed.has(group.key)
             const isLoc = true
@@ -824,8 +818,8 @@ export function ItineraryTab({
                   ? group.days[0].date
                   : `${group.days[0].date} – ${last.date}`
             const spanRange =
-              group.start && group.end
-                ? `${formatShortDate(group.start)} – ${formatShortDate(group.end)}`
+              group.start !== null && group.end !== null
+                ? `${formatShortDate(dateOfIndex(group.start, tripStartDate))} – ${formatShortDate(dateOfIndex(group.end, tripStartDate))}`
                 : ""
             return (
               <div
@@ -854,22 +848,22 @@ export function ItineraryTab({
                           className="t-display w-full border-0 border-b border-rule bg-transparent text-[20px] leading-none text-foreground focus:border-clay focus:outline-none"
                         />
                         <div className="flex items-center gap-2">
-                          <input
-                            type="date"
-                            aria-label="Location start date"
+                          <DayInput
+                            ariaLabel="Location start date"
                             value={renameStart}
-                            onChange={(e) => setRenameStart(e.target.value)}
+                            onChange={setRenameStart}
+                            startDate={tripStartDate}
                             className="t-num border-0 border-b border-rule bg-transparent py-1 text-[12px] text-foreground focus:border-clay focus:outline-none"
                           />
                           <span className="font-mono text-[10px] text-muted-foreground">
                             –
                           </span>
-                          <input
-                            type="date"
-                            aria-label="Location end date"
+                          <DayInput
+                            ariaLabel="Location end date"
                             value={renameEnd}
-                            min={renameStart || undefined}
-                            onChange={(e) => setRenameEnd(e.target.value)}
+                            min={renameStart}
+                            onChange={setRenameEnd}
+                            startDate={tripStartDate}
                             className="t-num border-0 border-b border-rule bg-transparent py-1 text-[12px] text-foreground focus:border-clay focus:outline-none"
                           />
                           <select
@@ -932,8 +926,8 @@ export function ItineraryTab({
                         aria-label="Edit location"
                         onClick={() => {
                           setRenameVal(group.name)
-                          setRenameStart(group.start ?? "")
-                          setRenameEnd(group.end ?? "")
+                          setRenameStart(group.start)
+                          setRenameEnd(group.end)
                           setRenameCurrency(group.currency ?? "")
                           setRenameError(null)
                           setRenamingId(group.key)
@@ -986,8 +980,9 @@ export function ItineraryTab({
                           locations={locations}
                           collapsedDays={collapsedDays}
                           toggleDay={toggleDay}
-                          dimBefore={active ? today : null}
-                          today={today}
+                          dimBefore={active ? todayIndex : null}
+                          todayIndex={todayIndex}
+                          tripStartDate={tripStartDate}
                           categories={categories}
                           members={members}
                           currentPersonId={currentPersonId}
@@ -995,7 +990,7 @@ export function ItineraryTab({
                           onEditBlock={openBlock}
                           selection={selection}
                           scopeKey={group.key}
-                          orderedIds={[...group.days].sort(byDate).map((d) => d.id)}
+                          orderedIds={[...group.days].sort(byIndex).map((d) => d.id)}
                         />
                       )
 
@@ -1003,7 +998,7 @@ export function ItineraryTab({
                         canSort ? row.seg.days.map((d) => d.id) : []
 
                       const isCurrentLoc =
-                        active && groupZone(group, today) === "today"
+                        active && groupZone(group, todayIndex) === "today"
                       if (!isCurrentLoc)
                         return {
                           rendered: rows.map((r) => renderRow(r, canSort)),
@@ -1011,9 +1006,9 @@ export function ItineraryTab({
                         }
 
                       const rowEnd = (row: Row) =>
-                        row.seg.days[row.seg.days.length - 1].dayDate
-                      const pastRows = rows.filter((r) => rowEnd(r) < today)
-                      const liveRows = rows.filter((r) => rowEnd(r) >= today)
+                        row.seg.days[row.seg.days.length - 1].dayIndex
+                      const pastRows = rows.filter((r) => rowEnd(r) < todayIndex)
+                      const liveRows = rows.filter((r) => rowEnd(r) >= todayIndex)
                       const pastDayCount = pastRows.reduce(
                         (n, r) => n + r.seg.days.length,
                         0,
@@ -1051,18 +1046,18 @@ export function ItineraryTab({
                       }
                       })()
                       if (group.days.length === 0) return dayRows.rendered
-                      // Occupied dates only (all span dates are real rows now);
+                      // Occupied days only (all span days are real rows now);
                       // past-filtered on a live trip so the past can't be a drop.
-                      const slotDates = group.days
-                        .map((d) => d.dayDate)
-                        .sort()
-                        .filter((d) => !active || d >= today)
+                      const slotIndexes = group.days
+                        .map((d) => d.dayIndex)
+                        .sort((a, b) => a - b)
+                        .filter((i) => !active || i >= todayIndex)
                       return (
                         <DndContext
                           id={`dnd-${group.key}`}
                           sensors={dragSensors}
                           collisionDetection={closestCenter}
-                          onDragEnd={(e) => onGroupDragEnd(group.days, slotDates, e)}
+                          onDragEnd={(e) => onGroupDragEnd(group.days, slotIndexes, e)}
                         >
                           <SortableContext
                             items={dayRows.ids}
@@ -1076,16 +1071,11 @@ export function ItineraryTab({
 
                     <div className="pt-2">
                       <AddDayRow
-                        key={`add-${group.key}-${
-                          addDayFor === group.key ? addDayDate : ""
-                        }`}
+                        key={`add-${group.key}`}
                         tripId={tripId}
                         tripSlug={tripSlug}
-                        defaultDate={
-                          addDayFor === group.key && addDayDate
-                            ? addDayDate
-                            : defaultDate
-                        }
+                        tripStartDate={tripStartDate}
+                        defaultIndex={defaultIndex}
                         locationId={isLoc ? group.key : null}
                         open={addDayFor === group.key}
                         onClose={() => setAddDayFor(null)}
@@ -1093,10 +1083,7 @@ export function ItineraryTab({
                       {addDayFor === group.key ? null : (
                         <button
                           type="button"
-                          onClick={() => {
-                            setAddDayDate("")
-                            setAddDayFor(group.key)
-                          }}
+                          onClick={() => setAddDayFor(group.key)}
                           className="block w-full rounded-lg border border-dashed border-rule py-2 font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground hover:border-foreground hover:text-foreground"
                         >
                           + day
@@ -1118,18 +1105,18 @@ export function ItineraryTab({
             )
             })
             if (locations.length !== 0) return rendered
-            // Locationless: one loose run, no empty slots rendered, so the slot
-            // dates are the occupied dates only (past-filtered on a live trip).
-            const looseSlotDates = days
-              .map((d) => d.dayDate)
-              .sort()
-              .filter((d) => !active || d >= today)
+            // Locationless: one loose run, no empty slots rendered, so the slots
+            // are the occupied days only (past-filtered on a live trip).
+            const looseSlotIndexes = days
+              .map((d) => d.dayIndex)
+              .sort((a, b) => a - b)
+              .filter((i) => !active || i >= todayIndex)
             return (
               <DndContext
                 id="dnd-loose"
                 sensors={dragSensors}
                 collisionDetection={closestCenter}
-                onDragEnd={(e) => onGroupDragEnd(days, looseSlotDates, e)}
+                onDragEnd={(e) => onGroupDragEnd(days, looseSlotIndexes, e)}
               >
                 <SortableContext
                   items={days.map((d) => d.id)}
@@ -1189,7 +1176,7 @@ export function ItineraryTab({
           tripSlug={tripSlug}
           days={days.filter((d) => blockEdit.dayIds.includes(d.id))}
           groupId={blockEdit.groupId}
-          floor={planFloor(today, tripStartDate, tripEndDate)}
+          floor={floorIndex}
           onClose={() => setBlockEdit(null)}
         />
       ) : null}
@@ -1208,7 +1195,8 @@ function DaySegmentView({
   collapsedDays,
   toggleDay,
   dimBefore,
-  today,
+  todayIndex,
+  tripStartDate,
   categories,
   members,
   currentPersonId,
@@ -1227,8 +1215,9 @@ function DaySegmentView({
   locations: ItineraryLocation[]
   collapsedDays: Set<string>
   toggleDay: (id: string) => void
-  dimBefore: string | null
-  today: string
+  dimBefore: number | null
+  todayIndex: number
+  tripStartDate: string
   categories: ExpenseCategoryRow[]
   members: Record<string, MemberToneEntry>
   currentPersonId: string
@@ -1247,7 +1236,8 @@ function DaySegmentView({
       expanded: !collapsedDays.has(day.id),
       onToggle: () => toggleDay(day.id),
       dimBefore,
-      today,
+      todayIndex,
+      tripStartDate,
       isLast: day.id === lastDayId,
       isEditing: editingId === day.id,
       onStartEdit: () => setEditingId(day.id),
@@ -1319,8 +1309,9 @@ interface DayCardProps {
   isEditing: boolean
   expanded: boolean
   onToggle: () => void
-  dimBefore: string | null
-  today: string
+  dimBefore: number | null
+  todayIndex: number
+  tripStartDate: string
   onStartEdit: () => void
   onStopEdit: () => void
   dragHandle?: React.ReactNode
@@ -1357,7 +1348,8 @@ function DayCard({
   expanded,
   onToggle,
   dimBefore,
-  today,
+  todayIndex,
+  tripStartDate,
   onStartEdit,
   onStopEdit,
   dragHandle,
@@ -1373,6 +1365,7 @@ function DayCard({
       <DayEditor
         day={day}
         tripSlug={tripSlug}
+        tripStartDate={tripStartDate}
         locations={locations}
         onDone={onStopEdit}
       />
@@ -1387,7 +1380,7 @@ function DayCard({
       expanded={expanded}
       onToggle={onToggle}
       dimBefore={dimBefore}
-      today={today}
+      todayIndex={todayIndex}
       onStartEdit={onStartEdit}
       dragHandle={dragHandle}
       locations={locations}
@@ -1408,7 +1401,7 @@ function DayView({
   expanded,
   onToggle,
   dimBefore,
-  today,
+  todayIndex,
   onStartEdit,
   dragHandle,
   locations,
@@ -1424,8 +1417,8 @@ function DayView({
   isLast: boolean
   expanded: boolean
   onToggle: () => void
-  dimBefore: string | null
-  today: string
+  dimBefore: number | null
+  todayIndex: number
   onStartEdit: () => void
   dragHandle?: React.ReactNode
   locations: ItineraryLocation[]
@@ -1476,7 +1469,7 @@ function DayView({
         className={`flex-1 cursor-auto rounded-lg border px-3.5 py-3 border-l-[3px] ${
           selected ? "border-sea bg-sea/10" : "border-border bg-card"
         } ${itineraryBorder[day.tone]} ${
-          dimBefore && day.dayDate < dimBefore ? "opacity-60" : ""
+          dimBefore !== null && day.dayIndex < dimBefore ? "opacity-60" : ""
         }`}
       >
         <div className="mb-1.5 flex items-center justify-between">
@@ -1563,7 +1556,7 @@ function DayView({
                       )}
                     </div>
                   ) : null}
-                  {day.dayDate < today ? (
+                  {day.dayIndex < todayIndex ? (
                     <EventRating
                       tripSlug={tripSlug}
                       dayId={day.id}
@@ -1622,15 +1615,17 @@ function DayView({
 function DayEditor({
   day,
   tripSlug,
+  tripStartDate,
   locations,
   onDone,
 }: {
   day: ItineraryDay
   tripSlug: string
+  tripStartDate: string
   locations: ItineraryLocation[]
   onDone: () => void
 }) {
-  const [dayDate, setDayDate] = React.useState(day.dayDate)
+  const [dayIndex, setDayIndex] = React.useState<number | null>(day.dayIndex)
   const [title, setTitle] = React.useState(day.title)
   const [sub, setSub] = React.useState(day.sub)
   const [events, setEvents] = React.useState<EventDraft[]>(() =>
@@ -1645,13 +1640,13 @@ function DayEditor({
 
   function save(e: React.FormEvent) {
     e.preventDefault()
-    if (isPending || !title.trim()) return
+    if (isPending || !title.trim() || dayIndex === null) return
     setError(null)
     startTransition(async () => {
       const result = await updateItineraryDay({
         dayId: day.id,
         tripSlug,
-        dayDate,
+        dayIndex,
         title,
         sub,
         events: events.map(draftToEvent),
@@ -1669,8 +1664,9 @@ function DayEditor({
   return (
     <DayForm
       heading="Edit day"
-      dayDate={dayDate}
-      setDayDate={setDayDate}
+      tripStartDate={tripStartDate}
+      dayIndex={dayIndex}
+      setDayIndex={setDayIndex}
       title={title}
       setTitle={setTitle}
       sub={sub}
@@ -1694,20 +1690,22 @@ function DayEditor({
 function AddDayRow({
   tripId,
   tripSlug,
-  defaultDate,
+  tripStartDate,
+  defaultIndex,
   locationId,
   open,
   onClose,
 }: {
   tripId: string
   tripSlug: string
-  defaultDate: string
+  tripStartDate: string
+  defaultIndex: number
   locationId: string | null
   open: boolean
   onClose: () => void
 }) {
-  const [dayDate, setDayDate] = React.useState(defaultDate)
-  const [endDate, setEndDate] = React.useState("")
+  const [dayIndex, setDayIndex] = React.useState<number | null>(defaultIndex)
+  const [endIndex, setEndIndex] = React.useState<number | null>(null)
   const [groupName, setGroupName] = React.useState("")
   const [title, setTitle] = React.useState("")
   const [sub, setSub] = React.useState("")
@@ -1718,8 +1716,8 @@ function AddDayRow({
 
   function reset() {
     onClose()
-    setDayDate(defaultDate)
-    setEndDate("")
+    setDayIndex(defaultIndex)
+    setEndIndex(null)
     setGroupName("")
     setTitle("")
     setSub("")
@@ -1730,14 +1728,14 @@ function AddDayRow({
 
   function submit(e: React.FormEvent) {
     e.preventDefault()
-    if (isPending || !title.trim()) return
+    if (isPending || !title.trim() || dayIndex === null) return
     setError(null)
     startTransition(async () => {
       const payload = {
         tripId,
         tripSlug,
-        dayDate,
-        endDate,
+        dayIndex,
+        endIndex: endIndex ?? undefined,
         groupName,
         title,
         sub,
@@ -1774,10 +1772,11 @@ function AddDayRow({
   return (
     <DayForm
       heading="Add day"
-      dayDate={dayDate}
-      setDayDate={setDayDate}
-      endDate={endDate}
-      setEndDate={setEndDate}
+      tripStartDate={tripStartDate}
+      dayIndex={dayIndex}
+      setDayIndex={setDayIndex}
+      endIndex={endIndex}
+      setEndIndex={setEndIndex}
       groupName={groupName}
       setGroupName={setGroupName}
       title={title}
@@ -1800,10 +1799,11 @@ function AddDayRow({
 
 function DayForm({
   heading,
-  dayDate,
-  setDayDate,
-  endDate,
-  setEndDate,
+  tripStartDate,
+  dayIndex,
+  setDayIndex,
+  endIndex,
+  setEndIndex,
   groupName,
   setGroupName,
   title,
@@ -1824,11 +1824,12 @@ function DayForm({
   onCancel,
 }: {
   heading: string
-  dayDate: string
-  setDayDate: (s: string) => void
-  /** When provided (Add mode), a second "To" date enables multi-day creation. */
-  endDate?: string
-  setEndDate?: (s: string) => void
+  tripStartDate: string
+  dayIndex: number | null
+  setDayIndex: (i: number | null) => void
+  /** When provided (Add mode), a second "To" day enables multi-day creation. */
+  endIndex?: number | null
+  setEndIndex?: (i: number | null) => void
   /** When provided (Add mode), the block-name field for multi-day spans. */
   groupName?: string
   setGroupName?: (s: string) => void
@@ -1863,27 +1864,27 @@ function DayForm({
       <div className="grid grid-cols-2 gap-3">
         <label className="block">
           <span className="block font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
-            {setEndDate ? "From" : "Date"}
+            {setEndIndex ? "From" : "Date"}
           </span>
-          <input
-            type="date"
-            value={dayDate}
-            onChange={(e) => setDayDate(e.target.value)}
+          <DayInput
+            value={dayIndex}
+            onChange={setDayIndex}
+            startDate={tripStartDate}
             disabled={isPending}
             required
             className="t-num mt-1 w-full border-0 border-b border-rule bg-transparent py-1.5 text-[14px] text-foreground focus:border-clay focus:outline-none disabled:opacity-50"
           />
         </label>
-        {setEndDate ? (
+        {setEndIndex ? (
           <label className="block">
             <span className="block font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
               To
             </span>
-            <input
-              type="date"
-              value={endDate ?? ""}
-              min={dayDate}
-              onChange={(e) => setEndDate(e.target.value)}
+            <DayInput
+              value={endIndex ?? null}
+              min={dayIndex}
+              onChange={setEndIndex}
+              startDate={tripStartDate}
               disabled={isPending}
               className="t-num mt-1 w-full border-0 border-b border-rule bg-transparent py-1.5 text-[14px] text-foreground placeholder:text-muted-foreground focus:border-clay focus:outline-none disabled:opacity-50"
             />
@@ -1891,7 +1892,7 @@ function DayForm({
         ) : null}
       </div>
 
-      {setEndDate && setGroupName && endDate ? (
+      {setEndIndex && setGroupName && endIndex != null ? (
         <label className="mt-3 block">
           <span className="block font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
             Block name

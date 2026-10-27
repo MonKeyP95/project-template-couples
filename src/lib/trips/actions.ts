@@ -1414,9 +1414,10 @@ export async function deleteNote(
 export interface AddItineraryDayInput {
   tripId: string
   tripSlug: string
-  dayDate: string
-  /** Optional inclusive end date. When later than dayDate, one entry per day in the range is created. */
-  endDate?: string
+  /** 1-based day number of the (first) day. */
+  dayIndex: number
+  /** Optional inclusive last day number. When later than dayIndex, one entry per day in the range is created. */
+  endIndex?: number
   /** Optional name for a multi-day block; only used when a span (2+ days) is created. */
   groupName?: string
   title: string
@@ -1506,9 +1507,9 @@ async function growTripLength(tripId: string, lastIndex: number): Promise<void> 
 }
 
 /**
- * Inserts one or more itinerary days. With no endDate (or one equal to
- * dayDate) it creates a single day; a later endDate creates one identical,
- * independent entry per date in the inclusive range. RLS gates membership.
+ * Inserts one or more itinerary days. With no endIndex (or one equal to
+ * dayIndex) it creates a single day; a later endIndex creates one identical,
+ * independent entry per day in the inclusive range. RLS gates membership.
  * The unique (trip_id, day_index) constraint makes the range insert
  * all-or-nothing, so a collision rejects the whole range with a friendly error.
  */
@@ -1518,18 +1519,15 @@ export async function addItineraryDay(
   const title = input.title.trim()
   if (!title) return { error: "Title required." }
   const tag = input.tag?.trim() || null
-  if (!DATE_RE.test(input.dayDate)) return { error: "Invalid date." }
   if (!ITINERARY_TONES.includes(input.tone)) return { error: "Invalid tone." }
-
-  const endDate = input.endDate?.trim() || input.dayDate
-  if (!DATE_RE.test(endDate)) return { error: "Invalid date." }
-  if (endDate < input.dayDate) {
+  const first = input.dayIndex
+  const last = input.endIndex ?? first
+  if (!Number.isInteger(first) || !Number.isInteger(last)) return { error: "Invalid day." }
+  if (last < first) {
     return { error: "End date must be on or after start date." }
   }
   const start = await getTripStartDate(input.tripId)
   if (!start) return { error: "This trip has no dates." }
-  const first = dayIndexOf(input.dayDate, start)
-  const last = dayIndexOf(endDate, start)
   const count = last - first + 1
   if (count > MAX_RANGE_DAYS) {
     return { error: `Range can span at most ${MAX_RANGE_DAYS} days.` }
@@ -1538,7 +1536,7 @@ export async function addItineraryDay(
   // Lower bound: a day can't precede the trip's first day. The length is
   // intentionally elastic (push/span features grow it), so only Day 1 is a floor.
   if (first < 1) {
-    return { error: `That date is before the trip starts (${start}).` }
+    return { error: "That day is before the trip starts." }
   }
 
   const supabase = await createClient()
@@ -1807,11 +1805,11 @@ export async function rateEvent(
   // Durable corpus: log a row for every real rating (AI-free). Survives editing
   // or deleting the event/day/trip because workspace_id is the anchor.
   if (rating) {
-    const trip = row.trips as unknown as { workspace_id: string; start_date: string }
+    const trip = row.trips as unknown as { workspace_id: string; start_date: string | null }
     await supabase.from("event_ratings").insert({
       workspace_id: trip.workspace_id,
       trip_id: row.trip_id,
-      day_date: dateOfIndex(row.day_index, trip.start_date),
+      day_date: trip.start_date ? dateOfIndex(row.day_index, trip.start_date) : null,
       event_text: target.text,
       note: note || null,
       rating,
@@ -1859,11 +1857,8 @@ export async function saveTripProfile(
 export async function insertItineraryDayWithShift(
   input: AddItineraryDayInput,
 ): Promise<AddItineraryDayResult> {
-  const endDate = input.endDate?.trim() || input.dayDate
-  const start = await getTripStartDate(input.tripId)
-  if (!start) return { error: "This trip has no dates." }
-  const first = dayIndexOf(input.dayDate, start)
-  const count = dayIndexOf(endDate, start) - first + 1
+  const first = input.dayIndex
+  const count = (input.endIndex ?? first) - first + 1
 
   const events = normalizeDayEvents(input.events)
 
@@ -1889,7 +1884,7 @@ export async function insertItineraryDayWithShift(
 export interface UpdateItineraryDayInput {
   dayId: string
   tripSlug: string
-  dayDate: string
+  dayIndex: number
   title: string
   sub: string
   events: ItineraryEvent[]
@@ -1913,8 +1908,11 @@ export async function updateItineraryDay(
 ): Promise<UpdateItineraryDayResult> {
   const title = input.title.trim()
   if (!title) return { error: "Title required." }
-  if (!DATE_RE.test(input.dayDate)) return { error: "Invalid date." }
+  if (!Number.isInteger(input.dayIndex)) return { error: "Invalid day." }
   if (!ITINERARY_TONES.includes(input.tone)) return { error: "Invalid tone." }
+  // Lower bound (mirrors addItineraryDay): can't move a day before Day 1.
+  if (input.dayIndex < 1) return { error: "That day is before the trip starts." }
+  const dayIndex = input.dayIndex
 
   const supabase = await createClient()
   const sub = input.sub.trim()
@@ -1926,13 +1924,6 @@ export async function updateItineraryDay(
     .eq("id", input.dayId)
     .maybeSingle()
   if (!dayRow) return { error: "Day not found." }
-  const start = await getTripStartDate(dayRow.trip_id)
-  if (!start) return { error: "This trip has no dates." }
-  // Lower bound (mirrors addItineraryDay): can't move a day before Day 1.
-  const dayIndex = dayIndexOf(input.dayDate, start)
-  if (dayIndex < 1) {
-    return { error: `That date is before the trip starts (${start}).` }
-  }
 
   const patch: {
     day_index: number
@@ -2014,8 +2005,8 @@ export interface EditItineraryBlockInput {
   oldTitle: string
   newTitle: string
   events: BlockEventEdit[]
-  /** Days before this date are not rewritten; null = no floor. */
-  floor: string | null
+  /** Days before this day number are not rewritten; null = no floor. */
+  floor: number | null
 }
 
 /**
@@ -2037,8 +2028,6 @@ export async function editItineraryBlock(
     .select("id, day_index, title, events, group_id, group_name")
     .in("id", input.dayIds)
   if (loadError) return { error: loadError.message }
-  const start = input.floor ? await getTripStartDate(input.tripId) : null
-  const floorIndex = input.floor && start ? dayIndexOf(input.floor, start) : null
 
   const groupName = input.groupName.trim() || null
   if (input.groupId) {
@@ -2062,7 +2051,7 @@ export async function editItineraryBlock(
 
   const edit = { oldTitle: input.oldTitle, newTitle, events: input.events }
   const writes = rows
-    .filter((r) => floorIndex === null || r.day_index >= floorIndex)
+    .filter((r) => input.floor === null || r.day_index >= input.floor)
     .map((r) => {
       const before = normalizeDayEvents(parseEvents(r.events))
       const next = applyBlockEdit({ title: r.title, events: before }, edit)
@@ -2424,15 +2413,13 @@ export interface RescheduleItineraryResult {
 export async function rescheduleItineraryDaysTo(
   tripId: string,
   tripSlug: string,
-  assignments: { id: string; date: string }[],
+  assignments: { id: string; dayIndex: number }[],
 ): Promise<RescheduleItineraryResult> {
-  const start = await getTripStartDate(tripId)
-  if (!start) return { error: "This trip has no dates." }
   const supabase = await createClient()
   const { error } = await supabase.rpc("reschedule_itinerary_days_to", {
     p_trip_id: tripId,
     p_day_ids: assignments.map((a) => a.id),
-    p_indexes: assignments.map((a) => dayIndexOf(a.date, start)),
+    p_indexes: assignments.map((a) => a.dayIndex),
   })
   if (error) return { error: error.message }
 
@@ -3184,8 +3171,8 @@ export async function renameItineraryLocation(
   tripId: string,
   tripSlug: string,
   name: string,
-  startDate: string | null,
-  endDate: string | null,
+  startIndex: number | null,
+  endIndex: number | null,
   currency: string | null,
 ): Promise<RenameLocationResult> {
   const trimmed = name.trim()
@@ -3193,14 +3180,11 @@ export async function renameItineraryLocation(
   if (currency !== null && !currencyOptions().some((o) => o.code === currency)) {
     return { error: "Unknown currency." }
   }
-  if (startDate && endDate && endDate < startDate) {
+  const span =
+    startIndex !== null && endIndex !== null ? { start: startIndex, end: endIndex } : null
+  if (span && span.end < span.start) {
     return { error: "End date must be on or after start date." }
   }
-  const tripStart = startDate && endDate ? await getTripStartDate(tripId) : null
-  if (startDate && endDate && !tripStart) return { error: "This trip has no dates." }
-  const span = tripStart && startDate && endDate
-    ? { start: dayIndexOf(startDate, tripStart), end: dayIndexOf(endDate, tripStart) }
-    : null
 
   const supabase = await createClient()
 
@@ -3269,8 +3253,8 @@ export async function setLocationSpanWithShift(
   tripId: string,
   tripSlug: string,
   name: string,
-  startDate: string,
-  endDate: string,
+  startIndex: number,
+  endIndex: number,
   currency: string | null,
 ): Promise<RenameLocationResult> {
   const trimmed = name.trim()
@@ -3278,14 +3262,9 @@ export async function setLocationSpanWithShift(
   if (currency !== null && !currencyOptions().some((o) => o.code === currency)) {
     return { error: "Unknown currency." }
   }
-  if (endDate < startDate) {
+  if (endIndex < startIndex) {
     return { error: "End date must be on or after start date." }
   }
-
-  const tripStart = await getTripStartDate(tripId)
-  if (!tripStart) return { error: "This trip has no dates." }
-  const startIndex = dayIndexOf(startDate, tripStart)
-  const endIndex = dayIndexOf(endDate, tripStart)
 
   const supabase = await createClient()
   const { error } = await supabase.rpc("set_location_span_with_shift", {

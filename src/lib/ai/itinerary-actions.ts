@@ -12,6 +12,7 @@ import { getItineraryLocations } from "@/lib/trips/location-queries"
 import { getItineraryDays } from "@/lib/trips/itinerary-queries"
 import {
   ITINERARY_TONES,
+  dayIndexOf,
   firstDayAtOrAfter,
   planFloor,
 } from "@/lib/trips/itinerary-types"
@@ -90,7 +91,8 @@ export async function applyItinerarySkeleton(
   const workspace = await getCurrentWorkspace()
   if (!workspace) return { error: "Not signed in." }
   const trip = await getTripBySlug(workspace.id, input.tripSlug)
-  if (!trip) return { error: "Trip not found." }
+  if (!trip || !trip.startDate) return { error: "Trip not found." }
+  const start = trip.startDate
 
   const existing = await getItineraryLocations(input.tripId)
   const byName = new Map(existing.map((l) => [l.name.trim().toLowerCase(), l.id]))
@@ -112,7 +114,7 @@ export async function applyItinerarySkeleton(
       const res = await addItineraryDay({
         tripId: input.tripId,
         tripSlug: input.tripSlug,
-        dayDate: day.date,
+        dayIndex: dayIndexOf(day.date, start),
         title: day.title,
         sub: "",
         events: day.events.map((e) => ({ text: e.text, time: e.time, category: e.category })),
@@ -146,6 +148,8 @@ async function applyPlanEdits(
   tripName: string,
   /** Earliest writable date; days before it already happened and are never touched. */
   floor: string | null,
+  /** The trip's start date; the walk's dates convert to day numbers against it. */
+  start: string,
 ): Promise<{ error?: string; created?: { locations: number; days: number } }> {
   const originals = new Map<string, ItineraryEvent>()
   const dayById = new Map(days.map((d) => [d.id, d] as const))
@@ -178,8 +182,8 @@ async function applyPlanEdits(
         input.tripId,
         input.tripSlug,
         name,
-        loc.startDate,
-        loc.endDate,
+        loc.startIndex,
+        loc.endIndex,
         // Name-only rename: keep whatever currency the location already had.
         loc.currency,
       )
@@ -221,7 +225,7 @@ async function applyPlanEdits(
     const res = await updateItineraryDay({
       dayId: day.id,
       tripSlug: input.tripSlug,
-      dayDate: day.dayDate,
+      dayIndex: day.dayIndex,
       title: day.title,
       sub: day.sub,
       events: next,
@@ -243,7 +247,7 @@ async function applyPlanEdits(
     const res = await addItineraryDay({
       tripId: input.tripId,
       tripSlug: input.tripSlug,
-      dayDate: date,
+      dayIndex: dayIndexOf(date, start),
       title: name,
       sub: "",
       events,
@@ -289,7 +293,7 @@ export async function applyPlanEntries(input: {
       trip.startDate,
       trip.endDate ?? trip.startDate,
     )
-    return await applyPlanEdits(input, existingDays, locations, trip.name, floor)
+    return await applyPlanEdits(input, existingDays, locations, trip.name, floor, trip.startDate)
   }
 
   const skeleton = entriesToSkeleton(
