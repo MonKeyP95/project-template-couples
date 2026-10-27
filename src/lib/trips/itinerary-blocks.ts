@@ -117,3 +117,11 @@ export function leftoverRuns(
   if (run.length > 0) runs.push(run)
   return runs
 }
+
+/** The block a selection edits in place: the one block every picked day is
+ * in, even if they are only part of it. Null for loose days, a mix, or days
+ * from two blocks, which become a new block. */
+export function selectionBlock(picked: { groupId: string | null }[]): string | null {
+  const gid = picked[0]?.groupId ?? null
+  return gid !== null && picked.every((d) => d.groupId === gid) ? gid : null
+}

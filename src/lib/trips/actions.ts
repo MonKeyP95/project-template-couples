@@ -2035,11 +2035,13 @@ export async function editItineraryBlock(
 
   const groupName = input.groupName.trim() || null
   if (input.groupId) {
+    // The name belongs to the whole block, which may be more days than were picked.
     if (rows.some((r) => r.group_name !== groupName)) {
       const { error } = await supabase
         .from("itinerary_days")
         .update({ group_name: groupName })
-        .in("id", input.dayIds)
+        .eq("trip_id", input.tripId)
+        .eq("group_id", input.groupId)
       if (error) return { error: error.message }
     }
   } else {

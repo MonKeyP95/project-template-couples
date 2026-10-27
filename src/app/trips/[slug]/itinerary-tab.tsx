@@ -85,6 +85,7 @@ import {
 } from "@/lib/trips/location-types"
 import { slugToTone } from "@/lib/trips/slug-tone"
 import { DayInput } from "./day-input"
+import { selectionBlock } from "@/lib/trips/itinerary-blocks"
 import { moneyRounded } from "@/lib/money"
 import { useCurrency } from "@/components/currency-context"
 import { currencyOptions } from "@/lib/fx/currency-list"
@@ -343,17 +344,13 @@ export function ItineraryTab({
   // days is kept date-sorted (withOrdinals), so these ids are in date order.
   const looseIds = days.filter((d) => !d.locationId).map((d) => d.id)
 
-  /** Edit the selected days; reuse their block only if they are all of it. */
+  /** Edit the selected days. Days all inside one block keep that block, even
+   * when only part of it is picked; anything else becomes a new block. */
   function editSelection() {
     const picked = days.filter((d) => selection.selected.has(d.id))
-    const gid = picked[0]?.groupId ?? null
-    const wholeBlock =
-      gid !== null &&
-      picked.every((d) => d.groupId === gid) &&
-      days.filter((d) => d.groupId === gid).length === picked.length
     openBlock(
       picked.map((d) => d.id),
-      wholeBlock ? gid : null,
+      selectionBlock(picked),
     )
     selection.clear()
   }
