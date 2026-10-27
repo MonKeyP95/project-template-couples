@@ -172,8 +172,8 @@ export async function copySharedTrip(
             trip_id: tripId,
             name: l.name,
             sort_order: l.sortOrder,
-            start_date: span ? addDays(startDate, span.min - 1) : null,
-            end_date: span ? addDays(startDate, span.max - 1) : null,
+            start_index: span ? span.min : null,
+            end_index: span ? span.max : null,
             created_by: userId,
           }
         }),
@@ -187,7 +187,7 @@ export async function copySharedTrip(
     const { error: daysError } = await supabase.from("itinerary_days").insert(
       trip.days.map((d) => ({
         trip_id: tripId,
-        day_date: addDays(startDate, d.ordinal - 1),
+        day_index: d.ordinal,
         title: d.title,
         events: d.events,
         tag: d.tag,

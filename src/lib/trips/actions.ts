@@ -17,8 +17,11 @@ import { inferRatingCategory } from "@/lib/preferences/couple-summary-types"
 import { listChecklists } from "@/lib/checklists/queries"
 import type { PackingCategory, PackingItem } from "@/lib/trips/packing-types"
 import { rowToNote, type TripNote } from "@/lib/trips/note-queries"
+import { getTripStartDate } from "@/lib/trips/itinerary-queries"
 import {
   ITINERARY_TONES,
+  dateOfIndex,
+  dayIndexOf,
   parseEvents,
   rowToItineraryDay,
   type ItineraryDay,
@@ -1439,90 +1442,74 @@ const DATE_RE = /^\d{4}-\d{2}-\d{2}$/
 /** Safety cap on how many days a single multi-day add can create. */
 const MAX_RANGE_DAYS = 31
 
-/** Inclusive list of yyyy-mm-dd dates from start to end. */
-function enumerateDates(start: string, end: string): string[] {
-  const dates: string[] = []
-  const d = new Date(`${start}T00:00:00Z`)
-  const last = new Date(`${end}T00:00:00Z`)
-  while (d <= last) {
-    dates.push(d.toISOString().slice(0, 10))
-    d.setUTCDate(d.getUTCDate() + 1)
-  }
-  return dates
-}
-
 /**
- * Materializes an empty itinerary_days row for every date in [startDate,
- * endDate] under `locationId`. Insert-only: dates already taken (this
- * location's real days, or a prior fill) are skipped, so it is safe to call
- * after any span write and safe to re-run. Empty rows carry no title/tag and
- * default tone 'sand'; their look is refined separately. Skips via an existing-
- * dates fetch (not on-conflict) because the (trip_id, day_date) unique
- * constraint is deferrable and cannot arbiter an ON CONFLICT.
+ * Materializes an empty itinerary_days row for every day number in
+ * [startIndex, endIndex] under `locationId`. Insert-only: numbers already taken
+ * (this location's real days, or a prior fill) are skipped, so it is safe to
+ * call after any span write and safe to re-run. Empty rows carry no title/tag
+ * and default tone 'sand'; their look is refined separately. Skips via an
+ * existing-numbers fetch (not on-conflict) because the (trip_id, day_index)
+ * unique constraint is deferrable and cannot arbiter an ON CONFLICT.
  */
 async function fillLocationSpanDays(
   supabase: Awaited<ReturnType<typeof createClient>>,
   tripId: string,
   locationId: string,
-  startDate: string,
-  endDate: string,
+  startIndex: number,
+  endIndex: number,
 ): Promise<void> {
   const { data: userData } = await supabase.auth.getUser()
   const userId = userData.user?.id
   if (!userId) return
   const { data: existing } = await supabase
     .from("itinerary_days")
-    .select("day_date")
+    .select("day_index")
     .eq("trip_id", tripId)
-    .gte("day_date", startDate)
-    .lte("day_date", endDate)
-  const taken = new Set((existing ?? []).map((r) => r.day_date))
-  const rows = enumerateDates(startDate, endDate)
-    .filter((day_date) => !taken.has(day_date))
-    .map((day_date) => ({
+    .gte("day_index", startIndex)
+    .lte("day_index", endIndex)
+  const taken = new Set((existing ?? []).map((r) => r.day_index))
+  const rows = []
+  for (let day_index = startIndex; day_index <= endIndex; day_index++) {
+    if (taken.has(day_index)) continue
+    rows.push({
       trip_id: tripId,
-      day_date,
+      day_index,
       tone: "sand",
       location_id: locationId,
       created_by: userId,
-    }))
+    })
+  }
   if (rows.length === 0) return
   await supabase.from("itinerary_days").insert(rows)
 }
 
-/** Trip's start_date (yyyy-mm-dd), or null for a dateless dream. */
-async function tripStartDate(tripId: string): Promise<string | null> {
-  const supabase = await createClient()
-  const { data } = await supabase
-    .from("trips")
-    .select("start_date")
-    .eq("id", tripId)
-    .maybeSingle()
-  return data?.start_date ?? null
-}
-
 /**
- * Grows trips.end_date to `date` when it currently falls short (forward-only,
- * mirroring the push/span RPCs) so the header always covers planned content.
- * No-op for a dateless dream (null end_date).
+ * Grows the trip's length to `lastIndex` days when it currently falls short
+ * (forward-only, mirroring the push/span RPCs) so the header always covers
+ * planned content. end_date follows day_count; it stays null for a dream.
  */
-async function growTripEndDate(tripId: string, date: string): Promise<void> {
+async function growTripLength(tripId: string, lastIndex: number): Promise<void> {
   const supabase = await createClient()
   const { data } = await supabase
     .from("trips")
-    .select("end_date")
+    .select("start_date, day_count")
     .eq("id", tripId)
     .maybeSingle()
-  if (data?.end_date && date > data.end_date) {
-    await supabase.from("trips").update({ end_date: date }).eq("id", tripId)
-  }
+  if (!data || lastIndex <= (data.day_count ?? 0)) return
+  await supabase
+    .from("trips")
+    .update({
+      day_count: lastIndex,
+      end_date: data.start_date ? dateOfIndex(lastIndex, data.start_date) : null,
+    })
+    .eq("id", tripId)
 }
 
 /**
  * Inserts one or more itinerary days. With no endDate (or one equal to
  * dayDate) it creates a single day; a later endDate creates one identical,
  * independent entry per date in the inclusive range. RLS gates membership.
- * The unique (trip_id, day_date) constraint makes the range insert
+ * The unique (trip_id, day_index) constraint makes the range insert
  * all-or-nothing, so a collision rejects the whole range with a friendly error.
  */
 export async function addItineraryDay(
@@ -1539,15 +1526,18 @@ export async function addItineraryDay(
   if (endDate < input.dayDate) {
     return { error: "End date must be on or after start date." }
   }
-  const dates = enumerateDates(input.dayDate, endDate)
-  if (dates.length > MAX_RANGE_DAYS) {
+  const start = await getTripStartDate(input.tripId)
+  if (!start) return { error: "This trip has no dates." }
+  const first = dayIndexOf(input.dayDate, start)
+  const last = dayIndexOf(endDate, start)
+  const count = last - first + 1
+  if (count > MAX_RANGE_DAYS) {
     return { error: `Range can span at most ${MAX_RANGE_DAYS} days.` }
   }
 
-  // Lower bound: a day can't precede the trip's first day. end_date is
-  // intentionally elastic (push/span features grow it), so only start is a floor.
-  const start = await tripStartDate(input.tripId)
-  if (start && input.dayDate < start) {
+  // Lower bound: a day can't precede the trip's first day. The length is
+  // intentionally elastic (push/span features grow it), so only Day 1 is a floor.
+  if (first < 1) {
     return { error: `That date is before the trip starts (${start}).` }
   }
 
@@ -1563,15 +1553,15 @@ export async function addItineraryDay(
     .from("itinerary_locations")
     .select("name")
     .eq("trip_id", input.tripId)
-    .lte("start_date", endDate)
-    .gte("end_date", input.dayDate)
+    .lte("start_index", last)
+    .gte("end_index", first)
     .limit(1)
   if (input.locationId) spanQuery = spanQuery.neq("id", input.locationId)
   const { data: spanHit } = await spanQuery.maybeSingle()
   if (spanHit) {
     return {
       error:
-        dates.length > 1
+        count > 1
           ? `Those dates are inside ${spanHit.name} — add them there, or pick other dates.`
           : `That date is inside ${spanHit.name} — add the day there, or pick another date.`,
     }
@@ -1581,13 +1571,13 @@ export async function addItineraryDay(
   const events = normalizeDayEvents(input.events)
 
   // A multi-day span shares one group_id so the UI can mark "added together".
-  const groupId = dates.length > 1 ? crypto.randomUUID() : null
+  const groupId = count > 1 ? crypto.randomUUID() : null
   // Only a span carries a name; a blank field stores null.
-  const groupName = dates.length > 1 ? input.groupName?.trim() || null : null
+  const groupName = count > 1 ? input.groupName?.trim() || null : null
 
-  const rows = dates.map((day_date) => ({
+  const rows = Array.from({ length: count }, (_, i) => ({
     trip_id: input.tripId,
-    day_date,
+    day_index: first + i,
     title,
     sub,
     events,
@@ -1602,13 +1592,13 @@ export async function addItineraryDay(
   const { data, error } = await supabase
     .from("itinerary_days")
     .insert(rows)
-    .select("id, day_date, title, sub, events, tag, tone, group_id, group_name, location_id")
+    .select("id, day_index, title, sub, events, tag, tone, group_id, group_name, location_id")
 
   if (error) {
     if (error.code === "23505") {
       return {
         error:
-          dates.length > 1
+          count > 1
             ? "Some days in that range are already planned."
             : "Another day already uses that date.",
         dateTaken: true,
@@ -1617,9 +1607,9 @@ export async function addItineraryDay(
     return { error: error.message }
   }
 
-  await growTripEndDate(input.tripId, endDate)
+  await growTripLength(input.tripId, last)
   revalidatePath(`/trips/${input.tripSlug}`)
-  return { day: rowToItineraryDay(data[0]) }
+  return { day: rowToItineraryDay(data[0], start) }
 }
 
 export interface AddTodayEventInput {
@@ -1716,9 +1706,12 @@ export async function addTodayEvent(
     if (error) return { error: error.message }
   } else {
     if (!DATE_RE.test(input.dayDate)) return { error: "Invalid date." }
+    const start = await getTripStartDate(input.tripId)
+    if (!start) return { error: "This trip has no dates." }
+    const dayIndex = dayIndexOf(input.dayDate, start)
     const { error } = await supabase.from("itinerary_days").insert({
       trip_id: input.tripId,
-      day_date: input.dayDate,
+      day_index: dayIndex,
       title: input.dayTitle?.trim() || "Today",
       tag: "DAY",
       tone: slugToTone(input.tripSlug),
@@ -1734,7 +1727,7 @@ export async function addTodayEvent(
         .from("itinerary_days")
         .select("id, events")
         .eq("trip_id", input.tripId)
-        .eq("day_date", input.dayDate)
+        .eq("day_index", dayIndex)
         .maybeSingle()
       if (findError) return { error: findError.message }
       if (!existing) return { error: "Another day already uses that date." }
@@ -1779,7 +1772,7 @@ export async function rateEvent(
 
   const { data: row, error: loadError } = await supabase
     .from("itinerary_days")
-    .select("events, day_date, trip_id, trips(workspace_id)")
+    .select("events, day_index, trip_id, trips(workspace_id, start_date)")
     .eq("id", input.dayId)
     .maybeSingle()
   if (loadError) return { error: loadError.message }
@@ -1814,12 +1807,11 @@ export async function rateEvent(
   // Durable corpus: log a row for every real rating (AI-free). Survives editing
   // or deleting the event/day/trip because workspace_id is the anchor.
   if (rating) {
-    const workspaceId = (row.trips as unknown as { workspace_id: string })
-      .workspace_id
+    const trip = row.trips as unknown as { workspace_id: string; start_date: string }
     await supabase.from("event_ratings").insert({
-      workspace_id: workspaceId,
+      workspace_id: trip.workspace_id,
       trip_id: row.trip_id,
-      day_date: row.day_date,
+      day_date: dateOfIndex(row.day_index, trip.start_date),
       event_text: target.text,
       note: note || null,
       rating,
@@ -1868,14 +1860,17 @@ export async function insertItineraryDayWithShift(
   input: AddItineraryDayInput,
 ): Promise<AddItineraryDayResult> {
   const endDate = input.endDate?.trim() || input.dayDate
-  const count = enumerateDates(input.dayDate, endDate).length
+  const start = await getTripStartDate(input.tripId)
+  if (!start) return { error: "This trip has no dates." }
+  const first = dayIndexOf(input.dayDate, start)
+  const count = dayIndexOf(endDate, start) - first + 1
 
   const events = normalizeDayEvents(input.events)
 
   const supabase = await createClient()
   const { error } = await supabase.rpc("shift_and_insert_itinerary", {
     p_trip_id: input.tripId,
-    p_from_date: input.dayDate,
+    p_from_index: first,
     p_count: count,
     p_title: input.title.trim(),
     p_sub: input.sub.trim(),
@@ -1925,21 +1920,22 @@ export async function updateItineraryDay(
   const sub = input.sub.trim()
   const events = normalizeDayEvents(input.events)
 
-  // Lower bound (mirrors addItineraryDay): can't move a day before trip start.
   const { data: dayRow } = await supabase
     .from("itinerary_days")
     .select("trip_id")
     .eq("id", input.dayId)
     .maybeSingle()
-  if (dayRow) {
-    const start = await tripStartDate(dayRow.trip_id)
-    if (start && input.dayDate < start) {
-      return { error: `That date is before the trip starts (${start}).` }
-    }
+  if (!dayRow) return { error: "Day not found." }
+  const start = await getTripStartDate(dayRow.trip_id)
+  if (!start) return { error: "This trip has no dates." }
+  // Lower bound (mirrors addItineraryDay): can't move a day before Day 1.
+  const dayIndex = dayIndexOf(input.dayDate, start)
+  if (dayIndex < 1) {
+    return { error: `That date is before the trip starts (${start}).` }
   }
 
   const patch: {
-    day_date: string
+    day_index: number
     title: string
     sub: string
     events: ItineraryEvent[]
@@ -1947,7 +1943,7 @@ export async function updateItineraryDay(
     tone: ItineraryTone
     location_id?: string | null
   } = {
-    day_date: input.dayDate,
+    day_index: dayIndex,
     title,
     sub,
     events,
@@ -1968,7 +1964,7 @@ export async function updateItineraryDay(
     return { error: error.message }
   }
 
-  if (dayRow) await growTripEndDate(dayRow.trip_id, input.dayDate)
+  await growTripLength(dayRow.trip_id, dayIndex)
   revalidatePath(`/trips/${input.tripSlug}`)
   return {}
 }
@@ -2038,9 +2034,11 @@ export async function editItineraryBlock(
   const supabase = await createClient()
   const { data: rows, error: loadError } = await supabase
     .from("itinerary_days")
-    .select("id, day_date, title, events, group_id, group_name")
+    .select("id, day_index, title, events, group_id, group_name")
     .in("id", input.dayIds)
   if (loadError) return { error: loadError.message }
+  const start = input.floor ? await getTripStartDate(input.tripId) : null
+  const floorIndex = input.floor && start ? dayIndexOf(input.floor, start) : null
 
   const groupName = input.groupName.trim() || null
   if (input.groupId) {
@@ -2064,7 +2062,7 @@ export async function editItineraryBlock(
 
   const edit = { oldTitle: input.oldTitle, newTitle, events: input.events }
   const writes = rows
-    .filter((r) => !input.floor || r.day_date >= input.floor)
+    .filter((r) => floorIndex === null || r.day_index >= floorIndex)
     .map((r) => {
       const before = normalizeDayEvents(parseEvents(r.events))
       const next = applyBlockEdit({ title: r.title, events: before }, edit)
@@ -2111,7 +2109,7 @@ async function regroupDays(
     .from("itinerary_days")
     .select("id, group_id, group_name")
     .eq("trip_id", tripId)
-    .order("day_date")
+    .order("day_index")
   if (tripError) return tripError.message
   const removed = new Set(dayIds)
   const days = tripDays.map((d) => ({ id: d.id, groupId: d.group_id }))
@@ -2428,11 +2426,13 @@ export async function rescheduleItineraryDaysTo(
   tripSlug: string,
   assignments: { id: string; date: string }[],
 ): Promise<RescheduleItineraryResult> {
+  const start = await getTripStartDate(tripId)
+  if (!start) return { error: "This trip has no dates." }
   const supabase = await createClient()
   const { error } = await supabase.rpc("reschedule_itinerary_days_to", {
     p_trip_id: tripId,
     p_day_ids: assignments.map((a) => a.id),
-    p_dates: assignments.map((a) => a.date),
+    p_indexes: assignments.map((a) => dayIndexOf(a.date, start)),
   })
   if (error) return { error: error.message }
 
@@ -3167,7 +3167,7 @@ export async function createItineraryLocation(
   if (error) return { error: error.message }
 
   revalidatePath(`/trips/${tripSlug}`)
-  return { location: rowToLocation(data) }
+  return { location: rowToLocation(data, null) }
 }
 
 export interface RenameLocationResult {
@@ -3193,10 +3193,14 @@ export async function renameItineraryLocation(
   if (currency !== null && !currencyOptions().some((o) => o.code === currency)) {
     return { error: "Unknown currency." }
   }
-  const span = startDate && endDate ? { startDate, endDate } : null
-  if (span && span.endDate < span.startDate) {
+  if (startDate && endDate && endDate < startDate) {
     return { error: "End date must be on or after start date." }
   }
+  const tripStart = startDate && endDate ? await getTripStartDate(tripId) : null
+  if (startDate && endDate && !tripStart) return { error: "This trip has no dates." }
+  const span = tripStart && startDate && endDate
+    ? { start: dayIndexOf(startDate, tripStart), end: dayIndexOf(endDate, tripStart) }
+    : null
 
   const supabase = await createClient()
 
@@ -3208,8 +3212,8 @@ export async function renameItineraryLocation(
       .select("name")
       .eq("trip_id", tripId)
       .neq("id", locationId)
-      .lt("start_date", span.startDate)
-      .gte("end_date", span.startDate)
+      .lt("start_index", span.start)
+      .gte("end_index", span.start)
       .limit(1)
       .maybeSingle()
     if (straddle) {
@@ -3223,15 +3227,15 @@ export async function renameItineraryLocation(
       .select("id", { count: "exact", head: true })
       .eq("trip_id", tripId)
       .or(`location_id.is.null,location_id.neq.${locationId}`)
-      .gte("day_date", span.startDate)
-      .lte("day_date", span.endDate)
+      .gte("day_index", span.start)
+      .lte("day_index", span.end)
     const spanHit = await supabase
       .from("itinerary_locations")
       .select("id", { count: "exact", head: true })
       .eq("trip_id", tripId)
       .neq("id", locationId)
-      .gte("start_date", span.startDate)
-      .lte("start_date", span.endDate)
+      .gte("start_index", span.start)
+      .lte("start_index", span.end)
     if ((dayHit.count ?? 0) > 0 || (spanHit.count ?? 0) > 0) {
       return { needsPush: true }
     }
@@ -3241,8 +3245,8 @@ export async function renameItineraryLocation(
     .from("itinerary_locations")
     .update({
       name: trimmed,
-      start_date: span ? span.startDate : null,
-      end_date: span ? span.endDate : null,
+      start_index: span ? span.start : null,
+      end_index: span ? span.end : null,
       currency,
     })
     .eq("id", locationId)
@@ -3250,14 +3254,8 @@ export async function renameItineraryLocation(
   if (error) return { error: error.message }
 
   if (span) {
-    await fillLocationSpanDays(
-      supabase,
-      tripId,
-      locationId,
-      span.startDate,
-      span.endDate,
-    )
-    await growTripEndDate(tripId, span.endDate)
+    await fillLocationSpanDays(supabase, tripId, locationId, span.start, span.end)
+    await growTripLength(tripId, span.end)
   }
   revalidatePath(`/trips/${tripSlug}`)
   return {}
@@ -3284,13 +3282,18 @@ export async function setLocationSpanWithShift(
     return { error: "End date must be on or after start date." }
   }
 
+  const tripStart = await getTripStartDate(tripId)
+  if (!tripStart) return { error: "This trip has no dates." }
+  const startIndex = dayIndexOf(startDate, tripStart)
+  const endIndex = dayIndexOf(endDate, tripStart)
+
   const supabase = await createClient()
   const { error } = await supabase.rpc("set_location_span_with_shift", {
     p_location_id: locationId,
     p_trip_id: tripId,
     p_name: trimmed,
-    p_start: startDate,
-    p_end: endDate,
+    p_start_index: startIndex,
+    p_end_index: endIndex,
   })
   if (error) return { error: error.message }
 
@@ -3302,7 +3305,7 @@ export async function setLocationSpanWithShift(
     .eq("id", locationId)
   if (curErr) return { error: curErr.message }
 
-  await fillLocationSpanDays(supabase, tripId, locationId, startDate, endDate)
+  await fillLocationSpanDays(supabase, tripId, locationId, startIndex, endIndex)
   revalidatePath(`/trips/${tripSlug}`)
   return {}
 }
