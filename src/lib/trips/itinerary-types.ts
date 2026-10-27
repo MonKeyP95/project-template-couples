@@ -24,8 +24,8 @@ export interface ItineraryEvent {
 export interface ItineraryDay {
   /** Row id — needed by edit/delete UI. */
   id: string
-  /** Raw yyyy-mm-dd, derived from dayIndex and the trip start. */
-  dayDate: string
+  /** Raw yyyy-mm-dd, derived from dayIndex and the trip start; null on a dream. */
+  dayDate: string | null
   /** 1-based day number in the trip; the stored position. */
   dayIndex: number
   /** 1-based ordinal padded to 2 digits ("01", "02"). Derived from sort position. */
@@ -139,19 +139,58 @@ export function parseEvents(raw: unknown): ItineraryEvent[] {
     .filter((e) => e.text.length > 0)
 }
 
-/** Single row → ItineraryDay. `d` is a placeholder; pass through `withOrdinals` to set correctly. */
-export function rowToItineraryDay(row: ItineraryRow, startDate: string): ItineraryDay {
-  const dayDate = dateOfIndex(row.day_index, startDate)
+/** Label fields for day `dayIndex`: its calendar date on a dated trip, its
+ * position ("Day 3") on a dream. */
+function positionFields(
+  dayIndex: number,
+  startDate: string | null,
+): Pick<ItineraryDay, "dayDate" | "dow" | "date" | "dom" | "mon"> {
+  if (startDate === null) {
+    return { dayDate: null, dow: "", date: `Day ${dayIndex}`, dom: String(dayIndex), mon: "Day" }
+  }
+  const dayDate = dateOfIndex(dayIndex, startDate)
   const utc = toUtc(dayDate)
   return {
-    id: row.id,
     dayDate,
-    dayIndex: row.day_index,
-    d: "",
     dow: DOW_FMT.format(utc),
     date: SHORT_DATE_FMT.format(utc),
     dom: DOM_FMT.format(utc),
     mon: MON_FMT.format(utc),
+  }
+}
+
+/** "1 Mar" on a dated trip, "Day 3" on a dream. */
+export function positionLabel(dayIndex: number, startDate: string | null): string {
+  return positionFields(dayIndex, startDate).date
+}
+
+/** True for a day on a dated trip. */
+export function isDated(day: ItineraryDay): day is ItineraryDay & { dayDate: string } {
+  return day.dayDate !== null
+}
+
+/** A Realtime row → ItineraryDay. Rows carry both date and number until step 4:
+ * a partner's start-date change arrives as rows whose dates hold while their
+ * numbers shift, so a dated row's start is read off the row rather than the
+ * possibly stale prop. A dream, or a row with no date, uses the prop. */
+export function liveRowToItineraryDay(
+  row: ItineraryRow & { day_date: string | null },
+  tripStartDate: string | null,
+): ItineraryDay {
+  const start =
+    tripStartDate !== null && row.day_date
+      ? dateOfIndex(2 - row.day_index, row.day_date)
+      : tripStartDate
+  return rowToItineraryDay(row, start)
+}
+
+/** Single row → ItineraryDay. `d` is a placeholder; pass through `withOrdinals` to set correctly. */
+export function rowToItineraryDay(row: ItineraryRow, startDate: string | null): ItineraryDay {
+  return {
+    id: row.id,
+    ...positionFields(row.day_index, startDate),
+    dayIndex: row.day_index,
+    d: "",
     title: row.title,
     sub: row.sub ?? "",
     events: parseEvents(row.events),
@@ -268,19 +307,9 @@ export function daySummary(day: ItineraryDay): string {
 export function reassignDayIndex(
   day: ItineraryDay,
   dayIndex: number,
-  startDate: string,
+  startDate: string | null,
 ): ItineraryDay {
-  const dayDate = dateOfIndex(dayIndex, startDate)
-  const utc = toUtc(dayDate)
-  return {
-    ...day,
-    dayIndex,
-    dayDate,
-    dow: DOW_FMT.format(utc),
-    date: SHORT_DATE_FMT.format(utc),
-    dom: DOM_FMT.format(utc),
-    mon: MON_FMT.format(utc),
-  }
+  return { ...day, dayIndex, ...positionFields(dayIndex, startDate) }
 }
 
 function moveItem<T>(arr: T[], from: number, to: number): T[] {
