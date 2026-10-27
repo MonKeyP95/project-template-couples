@@ -135,6 +135,17 @@
   where t.start_date is null
     and exists (select 1 from public.dream_itinerary_days r where r.trip_id = t.id)
     and not exists (select 1 from public.itinerary_days d where d.trip_id = t.id);
+  -- location spans held only in the date columns (would be lost with them)
+  select count(*) from public.itinerary_locations
+  where start_date is not null and start_index is null;
+  -- dated trips whose numbers disagree with their dates
+  select count(*) from public.itinerary_days d join public.trips t on t.id = d.trip_id
+  where t.start_date is not null and d.day_date is not null
+    and d.day_index is distinct from d.day_date - t.start_date + 1;
+  select count(*) from public.itinerary_locations l join public.trips t on t.id = l.trip_id
+  where t.start_date is not null and l.start_date is not null
+    and (l.start_index is distinct from l.start_date - t.start_date + 1
+      or l.end_index is distinct from l.end_date - t.start_date + 1);
   ```
 - [ ] **Step 3: User pastes the migration once**, then runs the checks. Expected results in the comments:
   ```sql
