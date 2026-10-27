@@ -4,15 +4,31 @@ import * as React from "react"
 
 export interface DaySelection {
   selected: Set<string>
-  /** Mouse-down on a day number. orderedIds = that location's days in date order. */
-  begin: (scopeKey: string, orderedIds: string[], dayId: string, shift: boolean) => void
+  /** Mouse press in a day row at (x, y). orderedIds = that location's days in date order. */
+  begin: (
+    scopeKey: string,
+    orderedIds: string[],
+    dayId: string,
+    shift: boolean,
+    x: number,
+    y: number,
+  ) => void
   clear: () => void
+  /** The dashed sweep box; drawn by direct style updates so a sweep doesn't re-render. */
+  boxRef: React.RefObject<HTMLDivElement | null>
 }
 
 interface Anchor {
   scopeKey: string
   orderedIds: string[]
   id: string
+  x: number
+  y: number
+}
+
+/** A press that starts a selection: inside a day row but not on its card. */
+export function inSelectZone(target: Element): boolean {
+  return Boolean(target.closest("[data-day-id]")) && !target.closest("[data-day-card]")
 }
 
 /** Ids from `fromId` to `toId` inclusive in list order; null if either is missing. */
@@ -27,58 +43,75 @@ function sameIds(a: Set<string>, b: Set<string>): boolean {
   return a.size === b.size && [...a].every((id) => b.has(id))
 }
 
-/** Desktop day selection: sweep down the day numbers, or shift-click a range.
- * Stays within the location the sweep started in. Esc or a click elsewhere clears. */
+/** Desktop day selection: press beside a day and sweep (a dashed box follows
+ * the mouse), or shift-click a range. Stays within the location the sweep
+ * started in. Esc or a click elsewhere clears. */
 export function useDaySelection(): DaySelection {
   const [selected, setSelected] = React.useState<Set<string>>(new Set())
   const anchor = React.useRef<Anchor | null>(null)
   const sweeping = React.useRef(false)
+  const boxRef = React.useRef<HTMLDivElement | null>(null)
 
   React.useEffect(() => {
+    function endSweep() {
+      sweeping.current = false
+      if (boxRef.current) boxRef.current.style.display = "none"
+    }
+    function drawBox(a: Anchor, x: number, y: number) {
+      const box = boxRef.current
+      if (!box) return
+      box.style.display = "block"
+      box.style.left = `${Math.min(a.x, x)}px`
+      box.style.top = `${Math.min(a.y, y)}px`
+      box.style.width = `${Math.abs(x - a.x)}px`
+      box.style.height = `${Math.abs(y - a.y)}px`
+    }
     function onMove(e: MouseEvent) {
       const a = anchor.current
       if (!sweeping.current || !a) return
       // Released outside the window: no mouseup arrived, so end the sweep here.
-      if (e.buttons === 0) {
-        sweeping.current = false
-        return
-      }
+      if (e.buttons === 0) return endSweep()
+      drawBox(a, e.clientX, e.clientY)
       const el = document.elementFromPoint(e.clientX, e.clientY)?.closest("[data-day-id]")
       const id = el?.getAttribute("data-day-id")
       const range = id ? rangeIds(a.orderedIds, a.id, id) : null
       if (range) setSelected((prev) => (sameIds(prev, range) ? prev : range))
     }
-    function onUp() {
-      sweeping.current = false
-    }
     function onDown(e: MouseEvent) {
       const target = e.target as Element
-      if (target.closest("[data-day-number],[data-selection-tray]")) return
+      if (inSelectZone(target) || target.closest("[data-selection-tray]")) return
       setSelected((prev) => (prev.size === 0 ? prev : new Set()))
     }
     function onKey(e: KeyboardEvent) {
       if (e.key === "Escape") setSelected((prev) => (prev.size === 0 ? prev : new Set()))
     }
     window.addEventListener("mousemove", onMove)
-    window.addEventListener("mouseup", onUp)
+    window.addEventListener("mouseup", endSweep)
     window.addEventListener("mousedown", onDown)
     window.addEventListener("keydown", onKey)
     return () => {
       window.removeEventListener("mousemove", onMove)
-      window.removeEventListener("mouseup", onUp)
+      window.removeEventListener("mouseup", endSweep)
       window.removeEventListener("mousedown", onDown)
       window.removeEventListener("keydown", onKey)
     }
   }, [])
 
-  function begin(scopeKey: string, orderedIds: string[], dayId: string, shift: boolean) {
+  function begin(
+    scopeKey: string,
+    orderedIds: string[],
+    dayId: string,
+    shift: boolean,
+    x: number,
+    y: number,
+  ) {
     const a = anchor.current
     if (shift && a && a.scopeKey === scopeKey) {
       const range = rangeIds(orderedIds, a.id, dayId)
       if (range) setSelected(range)
       return
     }
-    anchor.current = { scopeKey, orderedIds, id: dayId }
+    anchor.current = { scopeKey, orderedIds, id: dayId, x, y }
     sweeping.current = true
     setSelected(new Set([dayId]))
   }
@@ -87,7 +120,22 @@ export function useDaySelection(): DaySelection {
     setSelected(new Set())
   }
 
-  return { selected, begin, clear }
+  return { selected, begin, clear, boxRef }
+}
+
+/** The dashed box drawn while sweeping; hidden until a sweep moves. */
+export function SelectionBox({
+  boxRef,
+}: {
+  boxRef: React.RefObject<HTMLDivElement | null>
+}) {
+  return (
+    <div
+      ref={boxRef}
+      aria-hidden
+      className="pointer-events-none fixed z-30 hidden rounded-md border border-dashed border-sea bg-sea/10"
+    />
+  )
 }
 
 /** Bottom bar shown while 2+ days are selected. */

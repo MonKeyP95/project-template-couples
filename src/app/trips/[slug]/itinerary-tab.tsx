@@ -26,7 +26,13 @@ import {
   type EventDraft,
 } from "./event-draft-rows"
 import { BlockEditor } from "./block-editor"
-import { SelectionTray, useDaySelection, type DaySelection } from "./day-selection"
+import {
+  SelectionBox,
+  SelectionTray,
+  inSelectZone,
+  useDaySelection,
+  type DaySelection,
+} from "./day-selection"
 import { Label } from "@/components/together"
 import { AssistantBlock } from "@/components/assistant-block"
 import { EventRating } from "@/components/event-rating"
@@ -1149,6 +1155,7 @@ export function ItineraryTab({
         </div>
         {active ? planningBlock : null}
       </div>
+      <SelectionBox boxRef={selection.boxRef} />
       {selection.selected.size >= 2 ? (
         <SelectionTray
           count={selection.selected.size}
@@ -1230,8 +1237,8 @@ function DaySegmentView({
       members,
       currentPersonId,
       selected: selection.selected.has(day.id),
-      onSelectStart: (shift: boolean) =>
-        selection.begin(scopeKey, orderedIds, day.id, shift),
+      onSelectStart: (shift: boolean, x: number, y: number) =>
+        selection.begin(scopeKey, orderedIds, day.id, shift, x, y),
     }
     return sortable ? (
       <SortableDayCard key={day.id} id={day.id} {...cardProps} />
@@ -1302,7 +1309,7 @@ interface DayCardProps {
   members: Record<string, MemberToneEntry>
   currentPersonId: string
   selected: boolean
-  onSelectStart: (shift: boolean) => void
+  onSelectStart: (shift: boolean, x: number, y: number) => void
 }
 
 function SortableDayCard({ id, ...rest }: DayCardProps & { id: string }) {
@@ -1406,27 +1413,31 @@ function DayView({
   members: Record<string, MemberToneEntry>
   currentPersonId: string
   selected: boolean
-  onSelectStart: (shift: boolean) => void
+  onSelectStart: (shift: boolean, x: number, y: number) => void
 }) {
   // Which event's panel is open (press the event), and whether that panel's
   // expense form has been asked for. Only one event is open at a time.
   const [openEvent, setOpenEvent] = React.useState<number | null>(null)
   const [openExpense, setOpenExpense] = React.useState<number | null>(null)
   return (
-    <div data-day-id={day.id} className="relative flex gap-3.5 py-3.5">
-      {/* A mouse press here selects days (desktop only; a touch tap is ignored).
-          stopPropagation keeps dnd-kit's mouse drag from starting. */}
-      <div
-        data-day-number
-        onPointerDown={(e) => {
-          if (e.pointerType === "mouse") onSelectStart(e.shiftKey)
-        }}
-        onMouseDown={(e) => {
-          e.stopPropagation()
-          e.preventDefault()
-        }}
-        className="relative w-9 flex-shrink-0 cursor-pointer select-none"
-      >
+    // A mouse press anywhere in the row but the card selects days (desktop
+    // only; a touch tap is ignored). -ml-10 pl-10 stretches the row over the
+    // left margin. stopPropagation keeps dnd-kit's mouse drag from starting.
+    <div
+      data-day-id={day.id}
+      onPointerDown={(e) => {
+        if (e.pointerType === "mouse" && inSelectZone(e.target as Element)) {
+          onSelectStart(e.shiftKey, e.clientX, e.clientY)
+        }
+      }}
+      onMouseDown={(e) => {
+        if (!inSelectZone(e.target as Element)) return
+        e.stopPropagation()
+        e.preventDefault()
+      }}
+      className="relative -ml-10 flex cursor-crosshair gap-3.5 py-3.5 pl-10"
+    >
+      <div className="relative w-9 flex-shrink-0 select-none">
         <div className="font-mono text-[22px] leading-none tracking-[-0.02em] text-foreground">
           {day.dom}
         </div>
@@ -1441,7 +1452,8 @@ function DayView({
         ) : null}
       </div>
       <div
-        className={`flex-1 rounded-lg border px-3.5 py-3 border-l-[3px] ${
+        data-day-card
+        className={`flex-1 cursor-auto rounded-lg border px-3.5 py-3 border-l-[3px] ${
           selected ? "border-sea bg-sea/10" : "border-border bg-card"
         } ${itineraryBorder[day.tone]} ${
           dimBefore && day.dayDate < dimBefore ? "opacity-60" : ""
