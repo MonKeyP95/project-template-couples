@@ -105,7 +105,7 @@ const toneText: Record<ItineraryTone, string> = {
 interface RealtimeRow {
   id: string
   trip_id: string
-  day_date: string
+  day_index: number
   title: string
   sub: string | null
   events: unknown
@@ -409,14 +409,14 @@ export function ItineraryTab({
         },
         (payload) => {
           if (payload.eventType === "INSERT") {
-            const incoming = rowToItineraryDay(payload.new as RealtimeRow)
+            const incoming = rowToItineraryDay(payload.new as RealtimeRow, tripStartDate)
             setDays((prev) =>
               prev.some((d) => d.id === incoming.id)
                 ? prev
                 : withOrdinals([...prev, incoming]),
             )
           } else if (payload.eventType === "UPDATE") {
-            const incoming = rowToItineraryDay(payload.new as RealtimeRow)
+            const incoming = rowToItineraryDay(payload.new as RealtimeRow, tripStartDate)
             setDays((prev) =>
               withOrdinals(
                 prev.map((d) => (d.id === incoming.id ? incoming : d)),
@@ -437,7 +437,7 @@ export function ItineraryTab({
     return () => {
       supabase.removeChannel(channel)
     }
-  }, [tripId])
+  }, [tripId, tripStartDate])
 
   React.useEffect(() => {
     const supabase = createClient()
@@ -453,14 +453,14 @@ export function ItineraryTab({
         },
         (payload) => {
           if (payload.eventType === "INSERT") {
-            const incoming = rowToLocation(payload.new as ItineraryLocationRow)
+            const incoming = rowToLocation(payload.new as ItineraryLocationRow, tripStartDate)
             setLocations((prev) =>
               prev.some((l) => l.id === incoming.id)
                 ? prev
                 : [...prev, incoming].sort((a, b) => a.sortOrder - b.sortOrder),
             )
           } else if (payload.eventType === "UPDATE") {
-            const incoming = rowToLocation(payload.new as ItineraryLocationRow)
+            const incoming = rowToLocation(payload.new as ItineraryLocationRow, tripStartDate)
             setLocations((prev) =>
               prev
                 .map((l) => (l.id === incoming.id ? incoming : l))
@@ -479,7 +479,7 @@ export function ItineraryTab({
     return () => {
       supabase.removeChannel(channel)
     }
-  }, [tripId])
+  }, [tripId, tripStartDate])
 
   const defaultDate =
     days.length > 0

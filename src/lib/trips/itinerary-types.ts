@@ -24,8 +24,10 @@ export interface ItineraryEvent {
 export interface ItineraryDay {
   /** Row id — needed by edit/delete UI. */
   id: string
-  /** Raw yyyy-mm-dd — needed by the date input. */
+  /** Raw yyyy-mm-dd, derived from dayIndex and the trip start. */
   dayDate: string
+  /** 1-based day number in the trip; the stored position. */
+  dayIndex: number
   /** 1-based ordinal padded to 2 digits ("01", "02"). Derived from sort position. */
   d: string
   /** 3-char weekday in UTC ("FRI"). */
@@ -51,7 +53,7 @@ export interface ItineraryDay {
 
 export interface ItineraryRow {
   id: string
-  day_date: string
+  day_index: number
   title: string
   sub?: string | null
   /** Raw jsonb from the DB; parsed by rowToItineraryDay. */
@@ -88,6 +90,20 @@ function toUtc(dayDate: string): Date {
   return new Date(`${dayDate}T00:00:00Z`)
 }
 
+const DAY_MS = 86_400_000
+
+/** 1-based day number of `dayDate` in a trip that starts on `startDate`. */
+export function dayIndexOf(dayDate: string, startDate: string): number {
+  return Math.round((toUtc(dayDate).getTime() - toUtc(startDate).getTime()) / DAY_MS) + 1
+}
+
+/** yyyy-mm-dd of day `dayIndex` in a trip that starts on `startDate`. */
+export function dateOfIndex(dayIndex: number, startDate: string): string {
+  const d = toUtc(startDate)
+  d.setUTCDate(d.getUTCDate() + dayIndex - 1)
+  return d.toISOString().slice(0, 10)
+}
+
 /** Parse the raw jsonb `events` array into clean ItineraryEvent[]. Tolerates
  * null/malformed values and drops events with empty text. */
 export function parseEvents(raw: unknown): ItineraryEvent[] {
@@ -116,11 +132,13 @@ export function parseEvents(raw: unknown): ItineraryEvent[] {
 }
 
 /** Single row → ItineraryDay. `d` is a placeholder; pass through `withOrdinals` to set correctly. */
-export function rowToItineraryDay(row: ItineraryRow): ItineraryDay {
-  const utc = toUtc(row.day_date)
+export function rowToItineraryDay(row: ItineraryRow, startDate: string): ItineraryDay {
+  const dayDate = dateOfIndex(row.day_index, startDate)
+  const utc = toUtc(dayDate)
   return {
     id: row.id,
-    dayDate: row.day_date,
+    dayDate,
+    dayIndex: row.day_index,
     d: "",
     dow: DOW_FMT.format(utc),
     date: SHORT_DATE_FMT.format(utc),

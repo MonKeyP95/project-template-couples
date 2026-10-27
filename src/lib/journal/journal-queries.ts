@@ -1,7 +1,7 @@
 import { createClient } from "@/lib/supabase/server"
 import { getItineraryLocations } from "@/lib/trips/location-queries"
 import { getTripExpenses } from "@/lib/trips/expense-queries"
-import { rowToItineraryDay, type ItineraryRow } from "@/lib/trips/itinerary-types"
+import { getItineraryDays } from "@/lib/trips/itinerary-queries"
 import {
   assembleJournal,
   type JournalPreTripItem,
@@ -15,15 +15,10 @@ export async function getTripJournal(
   memberIds: string[],
 ): Promise<JournalRecord> {
   const supabase = await createClient()
-  const [locations, expenses, dayRes, preRes] = await Promise.all([
+  const [locations, expenses, days, preRes] = await Promise.all([
     getItineraryLocations(tripId),
     getTripExpenses(tripId),
-    supabase
-      .from("itinerary_days")
-      .select(
-        "id, day_date, title, sub, events, tag, tone, group_id, group_name, location_id",
-      )
-      .eq("trip_id", tripId),
+    getItineraryDays(tripId),
     supabase
       .from("trip_budget_items")
       .select("subject, amount_cents, sort_order")
@@ -32,7 +27,6 @@ export async function getTripJournal(
       .order("sort_order", { ascending: true }),
   ])
 
-  const days = (dayRes.data ?? []).map((r) => rowToItineraryDay(r as ItineraryRow))
   const preTripItems: JournalPreTripItem[] = (preRes.data ?? []).map((r) => ({
     title: (r.subject as string) ?? "",
     amountCents: (r.amount_cents as number) ?? 0,
