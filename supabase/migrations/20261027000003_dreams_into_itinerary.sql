@@ -4,8 +4,9 @@
 -- no date (day_date becomes nullable until step 4 drops it). Giving a dream
 -- dates no longer moves rows: the start-date trigger derives each day's date
 -- from its number when the old start was null. promote_dream_to_dated is
--- rewritten so the deployed code, which still calls it, sets the dates without
--- inserting a second copy. dream_itinerary_days is left in place for step 4.
+-- rewritten so the deployed code, which still calls it, rebuilds the copy from
+-- the dream rows and sets the dates without inserting a second copy. The 3b
+-- code never calls it. dream_itinerary_days is left in place for step 4.
 -- Idempotent.
 
 alter table public.itinerary_days alter column day_date drop not null;
@@ -77,6 +78,23 @@ as $$
 declare
   v_len int;
 begin
+  -- Only the deployed (pre-3b) code calls this, and it still writes dream days
+  -- to dream_itinerary_days, so those rows are the truth: rebuild the copy.
+  delete from public.itinerary_days where trip_id = p_trip_id;
+  insert into public.itinerary_days
+    (trip_id, day_index, title, sub, events, tag, tone, created_by)
+  select
+    r.trip_id,
+    case
+      when t.day_count is null
+        then row_number() over (order by r.day_index)::int
+      else r.day_index
+    end,
+    r.title, coalesce(r.sub, ''), '[]'::jsonb, r.tag, r.tone, r.created_by
+  from public.dream_itinerary_days r
+  join public.trips t on t.id = r.trip_id
+  where r.trip_id = p_trip_id;
+
   select greatest(
     coalesce(t.day_count, 0),
     coalesce((select max(day_index) from public.itinerary_days where trip_id = p_trip_id), 0),

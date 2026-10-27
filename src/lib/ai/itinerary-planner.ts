@@ -415,3 +415,18 @@ export function placesFromTags(days: ItineraryDay[]): string[] {
   }
   return out
 }
+
+/** The walk's opening places: the trip's locations, else (on a dream moved
+ * over from the old dream table) the places its day tags name, else the trip
+ * itself, which is the place. A dated trip's tags ("DAY", "ARRIVAL") are not
+ * places, so they never seed. */
+export function walkPlaceSeed(
+  locationNames: string[],
+  days: ItineraryDay[],
+  tripName: string,
+  startDate: string | null,
+): string[] {
+  if (locationNames.length > 0) return locationNames
+  const tagged = startDate === null ? placesFromTags(days) : []
+  return tagged.length > 0 ? tagged : [tripName.trim()]
+}

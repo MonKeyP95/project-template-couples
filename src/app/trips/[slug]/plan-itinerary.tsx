@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation"
 
 import { Label } from "@/components/together"
 import {
-  placesFromTags,
+  walkPlaceSeed,
   planItinerarySteps,
   savedPlanFromItinerary,
   type ItineraryPlanStep,
@@ -101,16 +101,6 @@ function rowEmpty(row: ItemRow): boolean {
   return row.subject.trim() === "" && row.note.trim() === "" && !row.whenStart && !row.whenEnd
 }
 
-/** The Places step's opening rows: the trip's locations, else the places its
- * day tags name (a dream moved over from the old dream table), else the trip
- * itself, which is the place. The same fallback the write path uses
- * (applyPlanEdits files a location-less day under `trip.name`). */
-function seedPlaceNames(saved: SavedPlan, days: ItineraryDay[], tripName: string): string[] {
-  if (saved.places.length > 0) return saved.places.map((p) => p.name)
-  const tagged = placesFromTags(days)
-  return tagged.length > 0 ? tagged : [tripName.trim()]
-}
-
 /** The walk's opening rows, keyed by step. A seeded row is keyed by its own
  * serverId, which is already unique and never collides with a `r-N` new row. */
 function seedItems(saved: SavedPlan): Record<string, ItemRow[]> {
@@ -166,7 +156,7 @@ export function PlanItinerary({
   const [placeNames, setPlaceNames] = React.useState<string[]>(seedPlaces)
 
   function seedPlaces(): string[] {
-    return seedPlaceNames(saved, days, tripName)
+    return walkPlaceSeed(saved.places.map((p) => p.name), days, tripName, startDate)
   }
   const [freeText, setFreeText] = React.useState("")
   const [avoid, setAvoid] = React.useState(initialAvoid)

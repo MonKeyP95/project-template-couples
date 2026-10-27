@@ -65,7 +65,6 @@ import {
 } from "@/lib/trips/actions"
 import {
   ITINERARY_TONES,
-  dateOfIndex,
   dayIndexOf,
   formatEventTime,
   reassignDayIndex,
@@ -80,7 +79,7 @@ import {
   type ItineraryTone,
 } from "@/lib/trips/itinerary-types"
 import {
-  rowToLocation,
+  liveRowToLocation,
   type ItineraryLocation,
   type ItineraryLocationRow,
 } from "@/lib/trips/location-types"
@@ -124,15 +123,6 @@ interface RealtimeRow {
 
 type RealtimeLocationRow = ItineraryLocationRow & { start_date: string | null }
 
-// Realtime location rows read their trip start off the row, as days do (see
-// liveRowToItineraryDay); a dream's rows have no date and stay positional.
-function rowToLiveLocation(row: RealtimeLocationRow): ItineraryLocation {
-  const start =
-    row.start_date && row.start_index != null
-      ? dateOfIndex(2 - row.start_index, row.start_date)
-      : null
-  return rowToLocation(row, start)
-}
 
 interface DaySegment {
   groupId: string | null
@@ -467,14 +457,14 @@ export function ItineraryTab({
         },
         (payload) => {
           if (payload.eventType === "INSERT") {
-            const incoming = rowToLiveLocation(payload.new as RealtimeLocationRow)
+            const incoming = liveRowToLocation(payload.new as RealtimeLocationRow, tripStartDate)
             setLocations((prev) =>
               prev.some((l) => l.id === incoming.id)
                 ? prev
                 : [...prev, incoming].sort((a, b) => a.sortOrder - b.sortOrder),
             )
           } else if (payload.eventType === "UPDATE") {
-            const incoming = rowToLiveLocation(payload.new as RealtimeLocationRow)
+            const incoming = liveRowToLocation(payload.new as RealtimeLocationRow, tripStartDate)
             setLocations((prev) =>
               prev
                 .map((l) => (l.id === incoming.id ? incoming : l))
@@ -493,7 +483,7 @@ export function ItineraryTab({
     return () => {
       supabase.removeChannel(channel)
     }
-  }, [tripId])
+  }, [tripId, tripStartDate])
 
   const defaultIndex = days.length > 0 ? days[days.length - 1].dayIndex + 1 : 1
 
