@@ -23,6 +23,10 @@ function rangeIds(orderedIds: string[], fromId: string, toId: string): Set<strin
   return new Set(orderedIds.slice(Math.min(i, j), Math.max(i, j) + 1))
 }
 
+function sameIds(a: Set<string>, b: Set<string>): boolean {
+  return a.size === b.size && [...a].every((id) => b.has(id))
+}
+
 /** Desktop day selection: sweep down the day numbers, or shift-click a range.
  * Stays within the location the sweep started in. Esc or a click elsewhere clears. */
 export function useDaySelection(): DaySelection {
@@ -34,10 +38,15 @@ export function useDaySelection(): DaySelection {
     function onMove(e: MouseEvent) {
       const a = anchor.current
       if (!sweeping.current || !a) return
+      // Released outside the window: no mouseup arrived, so end the sweep here.
+      if (e.buttons === 0) {
+        sweeping.current = false
+        return
+      }
       const el = document.elementFromPoint(e.clientX, e.clientY)?.closest("[data-day-id]")
       const id = el?.getAttribute("data-day-id")
       const range = id ? rangeIds(a.orderedIds, a.id, id) : null
-      if (range) setSelected(range)
+      if (range) setSelected((prev) => (sameIds(prev, range) ? prev : range))
     }
     function onUp() {
       sweeping.current = false

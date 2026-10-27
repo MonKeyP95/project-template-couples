@@ -2038,17 +2038,19 @@ export async function editItineraryBlock(
   const supabase = await createClient()
   const { data: rows, error: loadError } = await supabase
     .from("itinerary_days")
-    .select("id, day_date, title, events, group_id")
+    .select("id, day_date, title, events, group_id, group_name")
     .in("id", input.dayIds)
   if (loadError) return { error: loadError.message }
 
   const groupName = input.groupName.trim() || null
   if (input.groupId) {
-    const { error } = await supabase
-      .from("itinerary_days")
-      .update({ group_name: groupName })
-      .in("id", input.dayIds)
-    if (error) return { error: error.message }
+    if (rows.some((r) => r.group_name !== groupName)) {
+      const { error } = await supabase
+        .from("itinerary_days")
+        .update({ group_name: groupName })
+        .in("id", input.dayIds)
+      if (error) return { error: error.message }
+    }
   } else {
     const regroupError = await regroupDays(
       supabase,
@@ -2064,10 +2066,15 @@ export async function editItineraryBlock(
   const writes = rows
     .filter((r) => !input.floor || r.day_date >= input.floor)
     .map((r) => {
-      const next = applyBlockEdit({ title: r.title, events: parseEvents(r.events) }, edit)
-      return { id: r.id, title: next.title, events: normalizeDayEvents(next.events), row: r }
+      const before = normalizeDayEvents(parseEvents(r.events))
+      const next = applyBlockEdit({ title: r.title, events: before }, edit)
+      const events = normalizeDayEvents(next.events)
+      // Compare normalized to normalized: jsonb reorders keys, so raw never matches.
+      const changed =
+        next.title !== r.title || JSON.stringify(events) !== JSON.stringify(before)
+      return { id: r.id, title: next.title, events, changed }
     })
-    .filter((w) => w.title !== w.row.title || JSON.stringify(w.events) !== JSON.stringify(w.row.events))
+    .filter((w) => w.changed)
   const results = await Promise.all(
     writes.map((w) =>
       supabase
