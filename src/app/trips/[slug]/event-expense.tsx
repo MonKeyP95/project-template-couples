@@ -18,7 +18,7 @@ export interface EventExpenseProps {
    * default expense category when the trip still has a category by this name. */
   eventCategory?: string
   /** Inherited from the event's day. */
-  dayDate: string
+  dayDate: string | null
   locationId: string | null
   /** Currency of the event's location; null = the trip's. */
   locationCurrency: string | null

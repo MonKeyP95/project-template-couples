@@ -32,7 +32,7 @@ export function BlockEditor({
   tripSlug: string
   days: ItineraryDay[]
   groupId: string | null
-  floor: string | null
+  floor: number | null
   onClose: () => void
 }) {
   const [template] = React.useState(() => blockTemplate(days))
@@ -44,7 +44,7 @@ export function BlockEditor({
   const [events, setEvents] = React.useState<EventDraft[]>(initial)
   const [error, setError] = React.useState<string | null>(null)
   const [isPending, startTransition] = React.useTransition()
-  const pastCount = floor ? days.filter((d) => d.dayDate < floor).length : 0
+  const pastCount = floor === null ? 0 : days.filter((d) => d.dayIndex < floor).length
 
   function eventEdits(): BlockEventEdit[] {
     const origin = new Map<string, ItineraryEvent>(

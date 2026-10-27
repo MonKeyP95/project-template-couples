@@ -158,7 +158,7 @@ export function assembleJournal(input: JournalInput): JournalRecord {
     .map((loc) => {
       const locDays = (daysByLoc.get(loc.id) ?? [])
         .slice()
-        .sort((a, b) => (a.dayDate < b.dayDate ? -1 : a.dayDate > b.dayDate ? 1 : 0))
+        .sort((a, b) => a.dayIndex - b.dayIndex)
       const events: JournalEvent[] = []
       for (const d of locDays) {
         for (const ev of d.events) {

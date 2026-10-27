@@ -5,20 +5,16 @@ import { useRouter, useSearchParams } from "next/navigation"
 
 import { Label } from "@/components/together"
 import {
+  walkPlaceSeed,
   planItinerarySteps,
   savedPlanFromItinerary,
   type ItineraryPlanStep,
   type PlanEntry,
   type SavedPlan,
 } from "@/lib/ai/itinerary-planner"
-import type { ItineraryDay } from "@/lib/trips/itinerary-types"
+import { positionLabel, type ItineraryDay } from "@/lib/trips/itinerary-types"
 import type { ItineraryLocation } from "@/lib/trips/location-types"
 import { applyPlanEntries, draftAndApplyItinerary } from "@/lib/ai/itinerary-actions"
-import {
-  applyDreamPlanEntries,
-  draftAndApplyDreamItinerary,
-} from "@/lib/ai/dream-itinerary-actions"
-import { placesFromCards } from "@/lib/ai/dream-plan"
 
 export interface PlanItineraryProps {
   tripId: string
@@ -31,19 +27,21 @@ export interface PlanItineraryProps {
   /** The trip's existing locations and days — the walk opens on them. */
   locations: ItineraryLocation[]
   days: ItineraryDay[]
-  /** Set on a dream: days are numbered, results become dream day cards. */
-  dream?: { dayCount: number | null; cards: { dayIndex: number; tag: string }[] }
+  /** Day 1's date; null on a dream, whose days read "Day N". */
+  startDate: string | null
+  /** The trip's length; null on an older dream, so the walk asks for it. */
+  dayCount: number | null
 }
 
 interface ItemRow {
   id: string
   subject: string
-  /** Free-text note, kept alongside the structured date/range. */
+  /** Free-text note, kept alongside the structured day/range. */
   note: string
-  /** yyyy-mm-dd; a start (+ optional end) folds into the `when` hint. */
+  /** Day number as a string; a start (+ optional end) folds into the `when` hint. */
   whenStart?: string
   whenEnd?: string
-  /** Range mode: the end-date picker is shown. */
+  /** Range mode: the end-day picker is shown. */
   range?: boolean
   /** Set when the row was read back off an existing event; makes a save patch it. */
   serverId?: string
@@ -51,17 +49,20 @@ interface ItemRow {
 
 type Phase = "places" | "walk" | "review"
 
-/** A dream row's day picker: "Day 1".."Day N", the stand-in for a date input. */
+/** A row's day picker over Day 1..N, each labelled by its date on a dated
+ * trip and as "Day N" on a dream. */
 function DaySelect({
   label,
   value,
   dayCount,
+  startDate,
   from = 1,
   onChange,
 }: {
   label: string
   value: string
   dayCount: number
+  startDate: string | null
   from?: number
   onChange: (value: string) => void
 }) {
@@ -75,45 +76,29 @@ function DaySelect({
       <option value="">{label === "Day" ? "day" : "to"}</option>
       {Array.from({ length: Math.max(0, dayCount - from + 1) }, (_, i) => from + i).map((d) => (
         <option key={d} value={String(d)}>
-          Day {d}
+          {positionLabel(d, startDate)}
         </option>
       ))}
     </select>
   )
 }
 
-function fmtDate(d: string): string {
-  const t = Date.parse(`${d}T00:00:00Z`)
-  return Number.isFinite(t)
-    ? new Date(t).toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: "UTC" })
-    : d
-}
-
-/** The picked date or range as a hint string: "12 Jan – 14 Jan", "12 Jan", or "".
- * On a dream the values are day numbers: "Day 3 – 5", "Day 3". */
-function rangeLabel(row: ItemRow, dream: boolean): string {
-  const fmt = dream ? (d: string) => d : fmtDate
-  const prefix = dream ? "Day " : ""
-  if (row.whenStart && row.whenEnd) return `${prefix}${fmt(row.whenStart)} – ${fmt(row.whenEnd)}`
-  if (row.whenStart) return `${prefix}${fmt(row.whenStart)}`
+/** The picked day or range as a hint string: "12 Jan – 14 Jan" on a dated
+ * trip, "Day 3 – Day 5" on a dream, or "". */
+function rangeLabel(row: ItemRow, startDate: string | null): string {
+  const fmt = (d: string) => positionLabel(Number(d), startDate)
+  if (row.whenStart && row.whenEnd) return `${fmt(row.whenStart)} – ${fmt(row.whenEnd)}`
+  if (row.whenStart) return fmt(row.whenStart)
   return ""
 }
 
-/** The `when` hint fed to the assistant: date/range joined with the free note. */
-function rowWhen(row: ItemRow, dream: boolean): string {
-  return [rangeLabel(row, dream), row.note.trim()].filter(Boolean).join(" · ")
+/** The `when` hint fed to the assistant: day/range joined with the free note. */
+function rowWhen(row: ItemRow, startDate: string | null): string {
+  return [rangeLabel(row, startDate), row.note.trim()].filter(Boolean).join(" · ")
 }
 
 function rowEmpty(row: ItemRow): boolean {
   return row.subject.trim() === "" && row.note.trim() === "" && !row.whenStart && !row.whenEnd
-}
-
-/** The Places step's opening rows: the trip's locations, or — when none were
- * ever added — the trip itself, which is the place. The same fallback the write
- * path uses (applyPlanEdits files a location-less day under `trip.name`). */
-function seedPlaceNames(saved: SavedPlan, tripName: string): string[] {
-  if (saved.places.length > 0) return saved.places.map((p) => p.name)
-  return [tripName.trim()]
 }
 
 /** The walk's opening rows, keyed by step. A seeded row is keyed by its own
@@ -125,7 +110,7 @@ function seedItems(saved: SavedPlan): Record<string, ItemRow[]> {
       id: r.serverId,
       subject: r.subject,
       note: "",
-      whenStart: r.whenStart,
+      whenStart: String(r.day),
       serverId: r.serverId,
     }))
   }
@@ -148,7 +133,8 @@ export function PlanItinerary({
   avoid: initialAvoid,
   locations,
   days,
-  dream,
+  startDate,
+  dayCount: tripDayCount,
 }: PlanItineraryProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -157,21 +143,20 @@ export function PlanItinerary({
     () => savedPlanFromItinerary(locations, days),
     [locations, days],
   )
-  const hasDays = dream ? dream.cards.length > 0 : days.length > 0
+  const hasDays = days.length > 0
   const title = hasDays ? "Edit your itinerary" : "Plan your itinerary"
-  /** A dream with no length yet asks for one on the Places step. */
-  const asksDays = dream !== undefined && dream.dayCount === null
+  /** A trip with no length yet (an older dream) asks for one on the Places step. */
+  const asksDays = tripDayCount === null
   const [daysAsked, setDaysAsked] = React.useState("")
-  const dayCount = dream ? (dream.dayCount ?? (parseInt(daysAsked, 10) || 0)) : 0
-  const daysValid = !asksDays || (dayCount >= Math.max(1, dream.cards.length) && dayCount <= 365)
+  const dayCount = tripDayCount ?? (parseInt(daysAsked, 10) || 0)
+  const lastDay = Math.max(1, ...days.map((d) => d.dayIndex))
+  const daysValid = !asksDays || (dayCount >= lastDay && dayCount <= 365)
   const [open, setOpen] = React.useState(searchParams.get("plan") === "1")
   const [phase, setPhase] = React.useState<Phase>("places")
   const [placeNames, setPlaceNames] = React.useState<string[]>(seedPlaces)
 
   function seedPlaces(): string[] {
-    if (!dream) return seedPlaceNames(saved, tripName)
-    const fromCards = placesFromCards(dream.cards)
-    return fromCards.length > 0 ? fromCards : [destination]
+    return walkPlaceSeed(saved.places.map((p) => p.name), days, tripName, startDate)
   }
   const [freeText, setFreeText] = React.useState("")
   const [avoid, setAvoid] = React.useState(initialAvoid)
@@ -277,9 +262,9 @@ export function PlanItinerary({
           category: step.category,
           place: step.place ?? "",
           subject: row.subject.trim(),
-          when: rowWhen(row, dream !== undefined),
-          date: row.whenStart || undefined,
-          endDate: row.whenEnd || undefined,
+          when: rowWhen(row, startDate),
+          day: row.whenStart ? Number(row.whenStart) : undefined,
+          endDay: row.whenEnd ? Number(row.whenEnd) : undefined,
           serverId: row.serverId,
         })
       }
@@ -293,10 +278,14 @@ export function PlanItinerary({
     setError(null)
     const entries = collectEntries()
     startTransition(async () => {
-      const input = { tripId, tripSlug, places: trimmedPlaces, entries, avoid: avoid.trim() }
-      const r = dream
-        ? await applyDreamPlanEntries({ ...input, dayCount: asksDays ? dayCount : null })
-        : await applyPlanEntries(input)
+      const r = await applyPlanEntries({
+        tripId,
+        tripSlug,
+        places: trimmedPlaces,
+        entries,
+        avoid: avoid.trim(),
+        dayCount: asksDays ? dayCount : undefined,
+      })
       if (r.error) {
         setError(r.error)
         return
@@ -311,17 +300,15 @@ export function PlanItinerary({
     setError(null)
     const entries = collectEntries()
     startTransition(async () => {
-      const input = {
+      const r = await draftAndApplyItinerary({
         tripId,
         tripSlug,
         places: trimmedPlaces,
         entries,
         freeText: freeText.trim(),
         avoid: avoid.trim(),
-      }
-      const r = dream
-        ? await draftAndApplyDreamItinerary({ ...input, dayCount: asksDays ? dayCount : null })
-        : await draftAndApplyItinerary(input)
+        dayCount: asksDays ? dayCount : undefined,
+      })
       if (r.error) {
         setError(r.error)
         return
@@ -555,22 +542,14 @@ export function PlanItinerary({
                   onChange={(e) => patchItem(step.key, row.id, { note: e.target.value })}
                   className="min-w-0 flex-1 border-0 border-b border-border bg-transparent font-mono text-[11px] tracking-[0.04em] text-muted-foreground outline-none focus:border-foreground"
                 />
-                {dream ? (
-                  <DaySelect
-                    label="Day"
-                    value={row.whenStart ?? ""}
-                    dayCount={dayCount}
-                    onChange={(v) => patchItem(step.key, row.id, { whenStart: v })}
-                  />
-                ) : (
-                  <input
-                    type="date"
-                    aria-label="Date"
-                    value={row.whenStart ?? ""}
-                    onChange={(e) => patchItem(step.key, row.id, { whenStart: e.target.value })}
-                    className="rounded border border-border bg-transparent px-1.5 py-1 font-mono text-[10px] text-foreground outline-none focus:border-foreground"
-                  />
-                )}
+                <DaySelect
+                  label="Day"
+                  value={row.whenStart ?? ""}
+                  dayCount={dayCount}
+                  startDate={startDate}
+                  onChange={(v) => patchItem(step.key, row.id, { whenStart: v })}
+                />
+
                 <button
                   type="button"
                   onClick={() =>
@@ -587,22 +566,14 @@ export function PlanItinerary({
                 >
                   range
                 </button>
-                {row.range && dream ? (
+                {row.range ? (
                   <DaySelect
                     label="End day"
                     value={row.whenEnd ?? ""}
                     dayCount={dayCount}
+                    startDate={startDate}
                     from={parseInt(row.whenStart ?? "", 10) || 1}
                     onChange={(v) => patchItem(step.key, row.id, { whenEnd: v })}
-                  />
-                ) : row.range ? (
-                  <input
-                    type="date"
-                    aria-label="End date"
-                    value={row.whenEnd ?? ""}
-                    min={row.whenStart || undefined}
-                    onChange={(e) => patchItem(step.key, row.id, { whenEnd: e.target.value })}
-                    className="rounded border border-border bg-transparent px-1.5 py-1 font-mono text-[10px] text-foreground outline-none focus:border-foreground"
                   />
                 ) : null}
               </div>
@@ -659,7 +630,7 @@ export function PlanItinerary({
             ? `${step.place} · ${subject}`
             : `${step.place} · ${step.title}`
           : subject || step.title
-        lines.push({ id: row.id, primary, when: rowWhen(row, dream !== undefined) })
+        lines.push({ id: row.id, primary, when: rowWhen(row, startDate) })
       }
     }
 

@@ -10,6 +10,7 @@ import { getPackingItems } from "@/lib/trips/packing-queries"
 import { getItineraryLocations } from "@/lib/trips/location-queries"
 import { getTripNotes } from "@/lib/trips/note-queries"
 import { getItineraryDays } from "@/lib/trips/itinerary-queries"
+import { isDated } from "@/lib/trips/itinerary-types"
 import { listTripsForWorkspace } from "@/lib/trips/list-queries"
 import { listChecklists } from "@/lib/checklists/queries"
 import { localToday } from "@/lib/time/local-today"
@@ -117,7 +118,7 @@ async function buildPrompt(
 
   // road: today + next 3 days of the live itinerary.
   const today = await localToday()
-  const days = await getItineraryDays(trip.id)
+  const days = (await getItineraryDays(trip.id)).filter(isDated)
   const horizon = days.filter((d) => d.dayDate >= today).slice(0, 4)
   const horizonLines = horizon
     .map((d) => {
@@ -294,7 +295,7 @@ export async function getSuggestDays(
   if (!trip) return { days: [], defaultDate: null }
 
   const today = await localToday()
-  const days: SuggestDay[] = (await getItineraryDays(trip.id)).map((d) => ({
+  const days: SuggestDay[] = (await getItineraryDays(trip.id)).filter(isDated).map((d) => ({
     date: d.dayDate,
     label: `${d.dow} ${d.dom} ${d.mon}`,
     isToday: d.dayDate === today,

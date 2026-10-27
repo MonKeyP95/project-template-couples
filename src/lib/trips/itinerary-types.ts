@@ -24,8 +24,8 @@ export interface ItineraryEvent {
 export interface ItineraryDay {
   /** Row id — needed by edit/delete UI. */
   id: string
-  /** Raw yyyy-mm-dd, derived from dayIndex and the trip start. */
-  dayDate: string
+  /** Raw yyyy-mm-dd, derived from dayIndex and the trip start; null on a dream. */
+  dayDate: string | null
   /** 1-based day number in the trip; the stored position. */
   dayIndex: number
   /** 1-based ordinal padded to 2 digits ("01", "02"). Derived from sort position. */
@@ -97,6 +97,14 @@ export function dayIndexOf(dayDate: string, startDate: string): number {
   return Math.round((toUtc(dayDate).getTime() - toUtc(startDate).getTime()) / DAY_MS) + 1
 }
 
+/** Day number for a date input's value; null when empty or unparseable (a
+ * browser accepts years like 20266, which no Date can hold). */
+export function toDayIndex(value: string, startDate: string): number | null {
+  if (!value) return null
+  const i = dayIndexOf(value, startDate)
+  return Number.isFinite(i) ? i : null
+}
+
 /** yyyy-mm-dd of day `dayIndex` in a trip that starts on `startDate`. */
 export function dateOfIndex(dayIndex: number, startDate: string): string {
   const d = toUtc(startDate)
@@ -131,19 +139,61 @@ export function parseEvents(raw: unknown): ItineraryEvent[] {
     .filter((e) => e.text.length > 0)
 }
 
-/** Single row → ItineraryDay. `d` is a placeholder; pass through `withOrdinals` to set correctly. */
-export function rowToItineraryDay(row: ItineraryRow, startDate: string): ItineraryDay {
-  const dayDate = dateOfIndex(row.day_index, startDate)
+/** Label fields for day `dayIndex`: its calendar date on a dated trip, its
+ * position ("Day 3") on a dream. */
+function positionFields(
+  dayIndex: number,
+  startDate: string | null,
+): Pick<ItineraryDay, "dayDate" | "dow" | "date" | "dom" | "mon"> {
+  if (startDate === null) {
+    return { dayDate: null, dow: "", date: `Day ${dayIndex}`, dom: String(dayIndex), mon: "Day" }
+  }
+  const dayDate = dateOfIndex(dayIndex, startDate)
   const utc = toUtc(dayDate)
   return {
-    id: row.id,
     dayDate,
-    dayIndex: row.day_index,
-    d: "",
     dow: DOW_FMT.format(utc),
     date: SHORT_DATE_FMT.format(utc),
     dom: DOM_FMT.format(utc),
     mon: MON_FMT.format(utc),
+  }
+}
+
+/** "1 Mar" on a dated trip, "Day 3" on a dream. */
+export function positionLabel(dayIndex: number, startDate: string | null): string {
+  return positionFields(dayIndex, startDate).date
+}
+
+/** A day on a dated trip. */
+export type DatedItineraryDay = ItineraryDay & { dayDate: string }
+
+/** True for a day on a dated trip. */
+export function isDated(day: ItineraryDay): day is DatedItineraryDay {
+  return day.dayDate !== null
+}
+
+/** A Realtime row → ItineraryDay. Rows carry both date and number until step 4:
+ * a partner's start-date change arrives as rows whose dates hold while their
+ * numbers shift, so a dated row's start is read off the row rather than the
+ * possibly stale prop. A dream, or a row with no date, uses the prop. */
+export function liveRowToItineraryDay(
+  row: ItineraryRow & { day_date: string | null },
+  tripStartDate: string | null,
+): ItineraryDay {
+  const start =
+    tripStartDate !== null && row.day_date
+      ? dateOfIndex(2 - row.day_index, row.day_date)
+      : tripStartDate
+  return rowToItineraryDay(row, start)
+}
+
+/** Single row → ItineraryDay. `d` is a placeholder; pass through `withOrdinals` to set correctly. */
+export function rowToItineraryDay(row: ItineraryRow, startDate: string | null): ItineraryDay {
+  return {
+    id: row.id,
+    ...positionFields(row.day_index, startDate),
+    dayIndex: row.day_index,
+    d: "",
     title: row.title,
     sub: row.sub ?? "",
     events: parseEvents(row.events),
@@ -155,11 +205,9 @@ export function rowToItineraryDay(row: ItineraryRow, startDate: string): Itinera
   }
 }
 
-/** Sort by dayDate ascending and re-pad `d` ordinals. Pure; safe for client-side use after Realtime deltas. */
+/** Sort by dayIndex ascending and re-pad `d` ordinals. Pure; safe for client-side use after Realtime deltas. */
 export function withOrdinals(days: ItineraryDay[]): ItineraryDay[] {
-  const sorted = [...days].sort((a, b) =>
-    a.dayDate < b.dayDate ? -1 : a.dayDate > b.dayDate ? 1 : 0,
-  )
+  const sorted = [...days].sort((a, b) => a.dayIndex - b.dayIndex)
   return sorted.map((day, i) => ({
     ...day,
     d: String(i + 1).padStart(2, "0"),
@@ -226,23 +274,23 @@ export function planFloor(
 }
 
 /** Minimal day shape the floor helpers read; a full `ItineraryDay` is assignable. */
-export interface DayDateAndLocation {
-  dayDate: string
+export interface DayIndexAndLocation {
+  dayIndex: number
   locationId: string | null
 }
 
-/** The earliest day at or after `floor`, optionally restricted to one location.
- * A null floor means no lower bound. Undefined when no day qualifies. */
+/** The earliest day number at or after `floor`, optionally restricted to one
+ * location. A null floor means no lower bound. Undefined when no day qualifies. */
 export function firstDayAtOrAfter(
-  days: DayDateAndLocation[],
-  floor: string | null,
+  days: DayIndexAndLocation[],
+  floor: number | null,
   locationId?: string,
-): string | undefined {
-  let best: string | undefined
+): number | undefined {
+  let best: number | undefined
   for (const day of days) {
-    if (floor && day.dayDate < floor) continue
+    if (floor !== null && day.dayIndex < floor) continue
     if (locationId && day.locationId !== locationId) continue
-    if (best === undefined || day.dayDate < best) best = day.dayDate
+    if (best === undefined || day.dayIndex < best) best = day.dayIndex
   }
   return best
 }
@@ -256,19 +304,15 @@ export function daySummary(day: ItineraryDay): string {
   return `${day.events.length} events`
 }
 
-/** Copy of `day` moved to `newDate` (yyyy-mm-dd) with the derived date labels
- * recomputed. `d` is untouched; re-pad with `withOrdinals` after reordering.
- * Used for the optimistic reorder update before the server round-trip. */
-export function reassignDayDate(day: ItineraryDay, newDate: string): ItineraryDay {
-  const utc = toUtc(newDate)
-  return {
-    ...day,
-    dayDate: newDate,
-    dow: DOW_FMT.format(utc),
-    date: SHORT_DATE_FMT.format(utc),
-    dom: DOM_FMT.format(utc),
-    mon: MON_FMT.format(utc),
-  }
+/** Copy of `day` moved to day `dayIndex` with its date and labels recomputed.
+ * `d` is untouched; re-pad with `withOrdinals` after reordering. Used for the
+ * optimistic reorder update before the server round-trip. */
+export function reassignDayIndex(
+  day: ItineraryDay,
+  dayIndex: number,
+  startDate: string | null,
+): ItineraryDay {
+  return { ...day, dayIndex, ...positionFields(dayIndex, startDate) }
 }
 
 function moveItem<T>(arr: T[], from: number, to: number): T[] {
@@ -277,29 +321,29 @@ function moveItem<T>(arr: T[], from: number, to: number): T[] {
   return next
 }
 
-/** Reorder a location's days over the given ascending `slotDates` (its occupied
- * dates, past-filtered on a live trip), then re-lay onto those dates. Returns
- * only the days whose date changed. Pure; safe client-side for the optimistic
- * update. */
+/** Reorder a location's days over the given ascending `slotIndexes` (its
+ * occupied day numbers, past-filtered on a live trip), then re-lay onto those
+ * numbers. Returns only the days whose number changed. Pure; safe client-side
+ * for the optimistic update. */
 export function reorderRangeSlots(
   days: ItineraryDay[],
-  slotDates: string[],
+  slotIndexes: number[],
   activeId: string,
   overId: string,
-): { id: string; date: string }[] {
+): { id: string; dayIndex: number }[] {
   if (activeId === overId) return []
-  const idByDate = new Map(days.map((d) => [d.dayDate, d.id]))
-  const dateById = new Map(days.map((d) => [d.id, d.dayDate]))
-  const ids = slotDates
-    .map((date) => idByDate.get(date))
+  const idByIndex = new Map(days.map((d) => [d.dayIndex, d.id]))
+  const indexById = new Map(days.map((d) => [d.id, d.dayIndex]))
+  const ids = slotIndexes
+    .map((i) => idByIndex.get(i))
     .filter((id): id is string => Boolean(id))
   const oldIndex = ids.indexOf(activeId)
   const newIndex = ids.indexOf(overId)
   if (oldIndex === -1 || newIndex === -1) return []
   const moved = moveItem(ids, oldIndex, newIndex)
-  const changes: { id: string; date: string }[] = []
+  const changes: { id: string; dayIndex: number }[] = []
   moved.forEach((id, i) => {
-    if (dateById.get(id) !== slotDates[i]) changes.push({ id, date: slotDates[i] })
+    if (indexById.get(id) !== slotIndexes[i]) changes.push({ id, dayIndex: slotIndexes[i] })
   })
   return changes
 }

@@ -150,7 +150,7 @@ day numbers, with real dates passed as context when the trip has them. The
    writes and the five functions work on numbers. Riskiest step:
    confirm-and-push and spans live here. Dated trips must look and behave
    exactly as before.
-3. **Move dreams in.** Copy `dream_itinerary_days` into `itinerary_days`
+3. *(Split 2026-10-27 into 3a: the itinerary screen and actions place days by number, no visible change; and 3b: the walk and AI planner in numbers, plus the rest of this step.)* **Move dreams in.** Copy `dream_itinerary_days` into `itinerary_days`
    (`day_index` carries over; `sub` and tone carry over; no events). The dream
    page renders the trip itinerary with "Day N" labels. Run the date-leak
    audit.

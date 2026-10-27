@@ -15,19 +15,23 @@ export interface DraftedItineraryEvent {
   place: string
   /** Short label, e.g. "Surf lesson at the point" or "Dinner - seafood". */
   text: string
-  /** YYYY-MM-DD within the trip; may be empty if undated. */
-  date: string
+  /** Day number 1..N within the trip; 0 when the model could not place it. */
+  day: number
   /** HH:MM, may be empty. */
   time: string
 }
 
 export interface ItineraryDraftContext {
   destination: string
-  startDate: string
+  /** Day 1's date on a dated trip; null on a dream. Context only. */
+  startDate: string | null
   dayCount: number
-  locations: { name: string; nights: number; dateLabel: string | null }[]
+  /** Each place's days; `label` reads them as dates on a dated trip. */
+  locations: { name: string; first: number; last: number; label: string }[]
   vibe: string[]
   brief: string
+  /** The trip's own answers: where they sleep, getting around, doing, eating. */
+  prefs: string
   activityTypes: string[]
   freeText: string
   /** What they do not want. A constraint, not a preference. */
@@ -42,8 +46,12 @@ export interface ItineraryDraftContext {
 function itineraryPrompt(c: ItineraryDraftContext): string {
   const list = (label: string, items: string[]) =>
     items.length ? `${label}: ${items.join(", ")}.` : ""
+  const days = (l: { first: number; last: number }) =>
+    l.first === l.last ? `Day ${l.first}` : `Days ${l.first}-${l.last}`
   const places = c.locations.length
-    ? c.locations.map((l) => `${l.name} (${l.dateLabel ?? `${l.nights} nights`})`).join("; ")
+    ? c.locations
+        .map((l) => `${l.name} (${days(l)}${c.startDate ? `, ${l.label}` : ""})`)
+        .join("; ")
     : c.destination
   const known = c.knownPlans.length
     ? c.knownPlans
@@ -54,13 +62,15 @@ function itineraryPrompt(c: ItineraryDraftContext): string {
         .join("; ")
     : ""
   return [
-    `Draft a ${c.dayCount}-day itinerary for ${c.destination}, starting ${c.startDate}.`,
+    `Draft a ${c.dayCount}-day itinerary for ${c.destination}; days are numbered 1..${c.dayCount}.`,
+    c.startDate ? `Day 1 is ${c.startDate}.` : "There are no dates yet.",
     `Places in order: ${places}.`,
     known
-      ? `Plans they already chose (include each of these in the itinerary, on the dates or nights they gave, then fill the gaps sparsely): ${known}.`
+      ? `Plans they already chose (include each of these in the itinerary, on the days or nights they gave, then fill the gaps sparsely): ${known}.`
       : "",
     list("Trip vibe", c.vibe),
     c.brief ? `Trip brief: ${c.brief}.` : "",
+    c.prefs ? `Their answers: ${c.prefs}.` : "",
     list("Activity types they want", c.activityTypes),
     c.freeText ? `They also said: ${c.freeText}.` : "",
     c.avoid ? `Must avoid - do not include any of these: ${c.avoid}.` : "",
@@ -85,8 +95,8 @@ const itineraryPlanner: AgentDescriptor<
     "generic filler like 'explore the old town'. Leave room for the user to fill the rest. " +
     "GROUNDING: stay strictly on the specific place names given; never leap from a country " +
     "to a city the user did not name; never invent a place or date from the trip's name. " +
-    "Set place to one of the exact place names given (or empty). Set date to a real " +
-    "YYYY-MM-DD within range, or empty if you cannot place it. Keep each event a short " +
+    "Set place to one of the exact place names given (or empty). Set day to a whole day " +
+    "number within 1..N inside that place's days, or 0 if you cannot place it. Keep each event a short " +
     "label, not a paragraph. Weight the couple's taste and vibe as a lens, never a checklist. " +
     "Do not invent prices or booking details. " +
     "If what you were given is too thin or ambiguous to ground on — no usable place, or a " +

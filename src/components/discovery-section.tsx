@@ -17,7 +17,7 @@ export type AddTarget =
   | { kind: "fixed"; dayDate: string; dayId: string | null }
   | {
       kind: "select"
-      days: { id: string; dayDate: string; label: string }[]
+      days: { id: string; dayDate: string | null; label: string }[]
       /** Location the picked/created day belongs to (for creating a new day). */
       locationId?: string | null
       /** Title given to a day created when none exist yet. */
@@ -104,7 +104,7 @@ export function DiscoverySection({
   }
 
   function commit(s: DiscoverySuggestion) {
-    let dayDate: string
+    let dayDate: string | null
     let dayId: string | null
     let locationId: string | null = null
     let dayTitle: string | undefined

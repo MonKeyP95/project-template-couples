@@ -8,18 +8,21 @@ import {
   updateItineraryDay,
 } from "@/lib/trips/actions"
 import type { TripProfile } from "@/lib/trips/trip-profile-types"
+import { createClient } from "@/lib/supabase/server"
 import { getItineraryLocations } from "@/lib/trips/location-queries"
 import { getItineraryDays } from "@/lib/trips/itinerary-queries"
 import {
   ITINERARY_TONES,
+  dayIndexOf,
   firstDayAtOrAfter,
   planFloor,
+  positionLabel,
 } from "@/lib/trips/itinerary-types"
 import { localToday } from "@/lib/time/local-today"
 import type { ItineraryDay, ItineraryEvent } from "@/lib/trips/itinerary-types"
 import type { ItineraryLocation } from "@/lib/trips/location-types"
 import { getCurrentWorkspace } from "@/lib/workspace/queries"
-import { getTripBySlug } from "@/lib/trips/queries"
+import { getTripBySlug, type TripHeader } from "@/lib/trips/queries"
 import { buildAssistantContext } from "@/lib/ai/assistant-context"
 import { draftItinerary } from "@/lib/ai/claude"
 import {
@@ -31,12 +34,7 @@ import {
   type PlanEntry,
 } from "@/lib/ai/itinerary-planner"
 
-/** Inclusive day count between two YYYY-MM-DD dates (UTC, no tz drift). */
-function inclusiveDays(start: string, end: string): number {
-  const s = new Date(`${start}T00:00:00Z`).getTime()
-  const e = new Date(`${end}T00:00:00Z`).getTime()
-  return Math.max(1, Math.round((e - s) / 86_400_000) + 1)
-}
+const MAX_DAYS = 365
 
 /** Persist an avoid answer edited mid-walk. The planner box is the trip
  * profile's field, not a copy, so both terminal actions write it back. */
@@ -55,15 +53,45 @@ async function persistAvoid(
   })
 }
 
-/** The location a day on `date` belongs to: the span that covers it, else the
+/** The trip's length in days. An older dream that never set one takes the
+ * walk's "How many days?" answer, written back to the trip. */
+async function ensureDayCount(
+  trip: TripHeader,
+  asked: number | undefined,
+): Promise<{ dayCount: number } | { error: string }> {
+  if (trip.dayCount !== null) return { dayCount: trip.dayCount }
+  if (asked === undefined) return { error: "How many days is this trip?" }
+  if (!Number.isInteger(asked) || asked < 1 || asked > MAX_DAYS) {
+    return { error: `How many days: 1 to ${MAX_DAYS}.` }
+  }
+  const supabase = await createClient()
+  const { error } = await supabase.from("trips").update({ day_count: asked }).eq("id", trip.id)
+  if (error) return { error: error.message }
+  return { dayCount: asked }
+}
+
+/** The earliest day the walk may write: today's number while a dated trip is
+ * running, else none. Derived on the server, never taken from the caller: a
+ * wrong floor silently empties days that already happened. */
+async function writeFloor(trip: TripHeader): Promise<number | null> {
+  if (!trip.startDate) return null
+  const floor = planFloor(await localToday(), trip.startDate, trip.endDate ?? trip.startDate)
+  return floor === null ? null : dayIndexOf(floor, trip.startDate)
+}
+
+/** The location day `dayIndex` belongs to: the span that covers it, else the
  * one the walk step named, else none — a travel day. */
-function locationForDate(
+function locationForIndex(
   locations: ItineraryLocation[],
-  date: string,
+  dayIndex: number,
   place: string,
 ): string | null {
   const covering = locations.find(
-    (l) => l.startDate && l.endDate && l.startDate <= date && date <= l.endDate,
+    (l) =>
+      l.startIndex !== null &&
+      l.endIndex !== null &&
+      l.startIndex <= dayIndex &&
+      dayIndex <= l.endIndex,
   )
   if (covering) return covering.id
   const key = place.trim().toLowerCase()
@@ -73,7 +101,20 @@ function locationForDate(
   return named?.id ?? null
 }
 
-export interface ApplyItineraryInput {
+/** The trip's own answers, as one line for the planner. */
+function prefsLine(profile: TripProfile): string {
+  return [
+    ["sleeping", profile.stay],
+    ["getting around", profile.move],
+    ["doing", profile.acts],
+    ["eating", profile.food],
+  ]
+    .filter(([, v]) => v.trim())
+    .map(([k, v]) => `${k}: ${v.trim()}`)
+    .join("; ")
+}
+
+interface ApplyItineraryInput {
   tripId: string
   tripSlug: string
   skeleton: ItinerarySkeleton
@@ -81,17 +122,12 @@ export interface ApplyItineraryInput {
 
 /**
  * Write an edited skeleton onto the trip's itinerary, additively: reuse a
- * same-named location or create it, then add each day under it. A date that
- * already has a day is skipped (never overwritten).
+ * same-named location or create it, then add each day under it. A day number
+ * that already has a day is skipped (never overwritten).
  */
-export async function applyItinerarySkeleton(
+async function applyItinerarySkeleton(
   input: ApplyItineraryInput,
 ): Promise<{ error?: string; created?: { locations: number; days: number } }> {
-  const workspace = await getCurrentWorkspace()
-  if (!workspace) return { error: "Not signed in." }
-  const trip = await getTripBySlug(workspace.id, input.tripSlug)
-  if (!trip) return { error: "Trip not found." }
-
   const existing = await getItineraryLocations(input.tripId)
   const byName = new Map(existing.map((l) => [l.name.trim().toLowerCase(), l.id]))
 
@@ -112,7 +148,7 @@ export async function applyItinerarySkeleton(
       const res = await addItineraryDay({
         tripId: input.tripId,
         tripSlug: input.tripSlug,
-        dayDate: day.date,
+        dayIndex: day.dayIndex,
         title: day.title,
         sub: "",
         events: day.events.map((e) => ({ text: e.text, time: e.time, category: e.category })),
@@ -120,7 +156,7 @@ export async function applyItinerarySkeleton(
         tone: day.tone,
         locationId,
       })
-      // Additive: skip an already-taken date; surface any other error.
+      // Additive: skip an already-taken day; surface any other error.
       if (res.error) {
         if (res.dateTaken) continue
         return { error: res.error }
@@ -135,17 +171,17 @@ export async function applyItinerarySkeleton(
  * The edit path, taken once a trip has an itinerary: the walk owns every event,
  * so applying writes its state back. A row read off an existing event patches it
  * in place — time, url, rating and note are carried over — a row that is gone
- * deletes that event, and a row on a date with no day yet creates one. Days are
- * never deleted, only emptied. No scaffold is built: every row already carries a
- * real date.
+ * deletes that event, and a row on a day number with no day yet creates one.
+ * Days are never deleted, only emptied. No scaffold is built: every row already
+ * carries a real day.
  */
 async function applyPlanEdits(
   input: { tripId: string; tripSlug: string; places: string[]; entries: PlanEntry[] },
   days: ItineraryDay[],
   locations: ItineraryLocation[],
   tripName: string,
-  /** Earliest writable date; days before it already happened and are never touched. */
-  floor: string | null,
+  /** Earliest writable day; days before it already happened and are never touched. */
+  floor: number | null,
 ): Promise<{ error?: string; created?: { locations: number; days: number } }> {
   const originals = new Map<string, ItineraryEvent>()
   const dayById = new Map(days.map((d) => [d.id, d] as const))
@@ -153,10 +189,10 @@ async function applyPlanEdits(
     day.events.forEach((e, i) => originals.set(`${day.id}#${i}`, e))
   }
 
-  /** Where an undated new row lands: its place's first day at or after the
+  /** Where an unplaced new row lands: its place's first day at or after the
    * floor, else the trip's. Never a day the rewrite loop will skip, which
    * would drop the row silently. */
-  function fallbackDate(place: string): string | undefined {
+  function fallbackDay(place: string): number | undefined {
     const key = place.trim().toLowerCase()
     const loc = key
       ? locations.find((l) => l.name.trim().toLowerCase() === key)
@@ -178,8 +214,8 @@ async function applyPlanEdits(
         input.tripId,
         input.tripSlug,
         name,
-        loc.startDate,
-        loc.endDate,
+        loc.startIndex,
+        loc.endIndex,
         // Name-only rename: keep whatever currency the location already had.
         loc.currency,
       )
@@ -187,41 +223,41 @@ async function applyPlanEdits(
     }
   }
 
-  // Every row as a dated event, keeping its original's extras when it has one.
-  const byDate = new Map<string, ItineraryEvent[]>()
-  const placeByDate = new Map<string, string>()
+  // Every row as an event on its day, keeping its original's extras when it has one.
+  const byIndex = new Map<number, ItineraryEvent[]>()
+  const placeByIndex = new Map<number, string>()
   for (const entry of input.entries) {
     const original = entry.serverId ? originals.get(entry.serverId) : undefined
     const fromDay = entry.serverId
       ? dayById.get(entry.serverId.split("#")[0])
       : undefined
-    const date = entry.date ?? fromDay?.dayDate ?? fallbackDate(entry.place)
-    if (!date) continue
+    const dayIndex = entry.day ?? fromDay?.dayIndex ?? fallbackDay(entry.place)
+    if (!dayIndex) continue
     const text = entry.subject.trim() || entry.category
     const event: ItineraryEvent = original
       ? { ...original, text, category: entry.category }
       : { text, time: "", category: entry.category }
-    const list = byDate.get(date) ?? []
+    const list = byIndex.get(dayIndex) ?? []
     list.push(event)
-    byDate.set(date, list)
-    if (!placeByDate.has(date)) placeByDate.set(date, entry.place)
+    byIndex.set(dayIndex, list)
+    if (!placeByIndex.has(dayIndex)) placeByIndex.set(dayIndex, entry.place)
   }
 
-  // Existing days: rewrite the event list to what the walk holds for that date.
+  // Existing days: rewrite the event list to what the walk holds for that day.
   for (const day of days) {
     // A day before the floor is part of the trip that already happened: never
-    // written, and dropped from `byDate` so the leftover loop cannot recreate it.
-    if (floor && day.dayDate < floor) {
-      byDate.delete(day.dayDate)
+    // written, and dropped from `byIndex` so the leftover loop cannot recreate it.
+    if (floor !== null && day.dayIndex < floor) {
+      byIndex.delete(day.dayIndex)
       continue
     }
-    const next = byDate.get(day.dayDate) ?? []
-    byDate.delete(day.dayDate)
+    const next = byIndex.get(day.dayIndex) ?? []
+    byIndex.delete(day.dayIndex)
     if (JSON.stringify(next) === JSON.stringify(day.events)) continue
     const res = await updateItineraryDay({
       dayId: day.id,
       tripSlug: input.tripSlug,
-      dayDate: day.dayDate,
+      dayIndex: day.dayIndex,
       title: day.title,
       sub: day.sub,
       events: next,
@@ -232,18 +268,18 @@ async function applyPlanEdits(
     if (res.error) return { error: res.error }
   }
 
-  // Whatever is left sits on a date the trip has no day for yet.
+  // Whatever is left sits on a day number the trip has no day for yet.
   let added = 0
-  for (const [date, events] of byDate) {
-    // A row can carry a user-picked past date with no day behind it; creating
+  for (const [dayIndex, events] of byIndex) {
+    // A row can carry a user-picked past day with no day behind it; creating
     // one would put a brand-new day behind the floor.
-    if (floor && date < floor) continue
-    const locationId = locationForDate(locations, date, placeByDate.get(date) ?? "")
+    if (floor !== null && dayIndex < floor) continue
+    const locationId = locationForIndex(locations, dayIndex, placeByIndex.get(dayIndex) ?? "")
     const name = locations.find((l) => l.id === locationId)?.name ?? tripName
     const res = await addItineraryDay({
       tripId: input.tripId,
       tripSlug: input.tripSlug,
-      dayDate: date,
+      dayIndex,
       title: name,
       sub: "",
       events,
@@ -260,9 +296,9 @@ async function applyPlanEdits(
 
 /**
  * The guided walk's no-AI terminal action: write exactly what the couple
- * entered, on the dates they picked. On a trip with no itinerary this scaffolds
+ * entered, on the days they picked. On a trip with no itinerary this scaffolds
  * one from the places; on a trip that already has one it patches the days that
- * are there (see applyPlanEdits).
+ * are there (see applyPlanEdits). Works the same with or without dates.
  */
 export async function applyPlanEntries(input: {
   tripId: string
@@ -271,33 +307,29 @@ export async function applyPlanEntries(input: {
   entries: PlanEntry[]
   /** Edited in the walk's avoid step; written back to the trip profile. */
   avoid?: string
+  /** The walk's "How many days?" answer, for a trip with no length yet. */
+  dayCount?: number
 }): Promise<{ error?: string; created?: { locations: number; days: number } }> {
   const workspace = await getCurrentWorkspace()
   if (!workspace) return { error: "Not signed in." }
   const trip = await getTripBySlug(workspace.id, input.tripSlug)
-  if (!trip || !trip.startDate) return { error: "Trip not found." }
+  if (!trip) return { error: "Trip not found." }
 
   await persistAvoid(trip, input.tripSlug, input.avoid)
+  const length = await ensureDayCount(trip, input.dayCount)
+  if ("error" in length) return length
 
   const existingDays = await getItineraryDays(input.tripId)
   if (existingDays.length > 0) {
     const locations = await getItineraryLocations(input.tripId)
-    // Derived here, never taken from the caller: a wrong floor silently empties
-    // days that already happened.
-    const floor = planFloor(
-      await localToday(),
-      trip.startDate,
-      trip.endDate ?? trip.startDate,
-    )
-    return await applyPlanEdits(input, existingDays, locations, trip.name, floor)
+    return await applyPlanEdits(input, existingDays, locations, trip.name, await writeFloor(trip))
   }
 
   const skeleton = entriesToSkeleton(
     input.entries,
     input.places.map((n) => n.trim()).filter((n) => n.length > 0),
     trip.name,
-    trip.startDate,
-    inclusiveDays(trip.startDate, trip.endDate ?? trip.startDate),
+    length.dayCount,
   )
   return await applyItinerarySkeleton({
     tripId: input.tripId,
@@ -309,7 +341,8 @@ export async function applyPlanEntries(input: {
 /**
  * The guided walk's terminal action: draft a day-by-day itinerary from the
  * places + the couple's entered plans + their trip/couple profile, then write
- * it (reusing applyItinerarySkeleton). Pressing Generate is the human's
+ * it (reusing applyItinerarySkeleton). The model works in day numbers; a dated
+ * trip's start goes along as context. Pressing Generate is the human's
  * explicit approval, so it always calls the model regardless of the global
  * assistant toggle. Never throws.
  */
@@ -322,46 +355,51 @@ export async function draftAndApplyItinerary(input: {
   freeText?: string
   /** Edited in the walk's avoid step; written back to the trip profile. */
   avoid?: string
+  /** The walk's "How many days?" answer, for a trip with no length yet. */
+  dayCount?: number
 }): Promise<{ error?: string; created?: { locations: number; days: number } }> {
   const workspace = await getCurrentWorkspace()
   if (!workspace) return { error: "Not signed in." }
   const trip = await getTripBySlug(workspace.id, input.tripSlug)
-  if (!trip || !trip.startDate) return { error: "Trip not found." }
+  if (!trip) return { error: "Trip not found." }
 
   await persistAvoid(trip, input.tripSlug, input.avoid)
-
-  const startDate = trip.startDate
-  const dayCount = inclusiveDays(startDate, trip.endDate ?? startDate)
+  const length = await ensureDayCount(trip, input.dayCount)
+  if ("error" in length) return length
+  const dayCount = length.dayCount
   const names = input.places.map((n) => n.trim()).filter((n) => n.length > 0)
+  const label = (i: number) => positionLabel(i, trip.startDate)
 
   try {
-    // Scaffold only to learn each place's real date range for grounding.
+    // Scaffold only to learn each place's days for grounding.
     const scaffold = planItinerarySkeleton({
       destination: trip.name,
-      startDate,
       dayCount,
       placeNames: names,
     })
-    const locations = scaffold.places.map((p) => {
-      const dates = p.days.map((d) => d.date)
-      const first = dates[0]
-      const last = dates[dates.length - 1]
-      return {
-        name: p.name,
-        nights: p.days.length,
-        dateLabel: first ? (first === last ? first : `${first} to ${last}`) : null,
-      }
-    })
+    const locations = scaffold.places
+      .filter((p) => p.days.length > 0)
+      .map((p) => {
+        const first = p.days[0].dayIndex
+        const last = p.days[p.days.length - 1].dayIndex
+        return {
+          name: p.name,
+          first,
+          last,
+          label: first === last ? label(first) : `${label(first)} to ${label(last)}`,
+        }
+      })
 
     const { profileBlock, tasteDirective } = await buildAssistantContext(workspace.id, trip.id)
 
-    const { events } = await draftItinerary({
+    const { events, question } = await draftItinerary({
       destination: trip.country ?? trip.name,
-      startDate,
+      startDate: trip.startDate,
       dayCount,
       locations,
       vibe: trip.tripProfile.vibe,
       brief: trip.tripProfile.idea,
+      prefs: prefsLine(trip.tripProfile),
       activityTypes: [],
       freeText: input.freeText?.trim() ?? "",
       avoid: input.avoid?.trim() ?? trip.tripProfile.avoid,
@@ -374,15 +412,16 @@ export async function draftAndApplyItinerary(input: {
       profileBlock,
       tasteDirective,
     })
+    if (events.length === 0 && question) return { error: question }
 
     const items: DraftItem[] = events.map((e) => ({
       category: e.category,
       place: e.place,
       text: e.text,
-      date: e.date,
+      day: e.day,
       time: e.time,
     }))
-    const skeleton = itemsToSkeleton(items, names, trip.name, startDate, dayCount)
+    const skeleton = itemsToSkeleton(items, names, trip.name, dayCount)
     return await applyItinerarySkeleton({
       tripId: input.tripId,
       tripSlug: input.tripSlug,

@@ -76,16 +76,16 @@ export const TOOL_REGISTRY: Record<string, Anthropic.Messages.ToolUnion> = {
                 type: "string",
                 description: "Short label for the event, e.g. 'Surf lesson' or 'Dinner - seafood'.",
               },
-              date: {
-                type: "string",
-                description: "YYYY-MM-DD within the trip dates. Empty if you can't place it.",
+              day: {
+                type: "integer",
+                description: "Day number 1..N within the trip. 0 if you can't place it.",
               },
               time: {
                 type: "string",
                 description: "HH:MM 24h, or empty.",
               },
             },
-            required: ["category", "place", "text", "date", "time"],
+            required: ["category", "place", "text", "day", "time"],
           },
         },
         question: {

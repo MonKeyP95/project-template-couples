@@ -21,8 +21,7 @@ export async function getTripStartDate(tripId: string): Promise<string | null> {
   return data?.start_date ?? null
 }
 
-/** A dated trip's days in order. Empty for a dream: its days still live in
- * dream_itinerary_days until step 3 of the one trip model. */
+/** A trip's days in order. A dream's days have no date and read as "Day N". */
 export async function getItineraryDays(
   tripId: string,
 ): Promise<ItineraryDay[]> {
@@ -35,7 +34,6 @@ export async function getItineraryDays(
       .eq("trip_id", tripId)
       .order("day_index", { ascending: true }),
   ])
-  if (!start) return []
 
   return withOrdinals((data ?? []).map((row) => rowToItineraryDay(row, start)))
 }
