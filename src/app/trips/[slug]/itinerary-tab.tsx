@@ -25,6 +25,7 @@ import {
   toEventDrafts,
   type EventDraft,
 } from "./event-draft-rows"
+import { BlockEditor } from "./block-editor"
 import { Label } from "@/components/together"
 import { AssistantBlock } from "@/components/assistant-block"
 import { EventRating } from "@/components/event-rating"
@@ -62,6 +63,7 @@ import {
   reassignDayDate,
   reorderRangeSlots,
   rowToItineraryDay,
+  planFloor,
   tripActive,
   withOrdinals,
   type DayZone,
@@ -317,6 +319,14 @@ export function ItineraryTab({
   const [days, setDays] = React.useState<ItineraryDay[]>(initialItems)
   const [lastInitial, setLastInitial] = React.useState(initialItems)
   const [editingId, setEditingId] = React.useState<string | null>(null)
+  const [blockEdit, setBlockEdit] = React.useState<{
+    dayIds: string[]
+    groupId: string | null
+  } | null>(null)
+
+  function openBlock(dayIds: string[], groupId: string | null) {
+    setBlockEdit({ dayIds, groupId })
+  }
 
   if (initialItems !== lastInitial) {
     setLastInitial(initialItems)
@@ -746,6 +756,7 @@ export function ItineraryTab({
                     members={members}
                     currentPersonId={currentPersonId}
                     sortable={locations.length === 0}
+                    onEditBlock={openBlock}
                   />
                 </div>
               )
@@ -932,6 +943,7 @@ export function ItineraryTab({
                           members={members}
                           currentPersonId={currentPersonId}
                           sortable={sortable}
+                          onEditBlock={openBlock}
                         />
                       )
 
@@ -1111,6 +1123,16 @@ export function ItineraryTab({
         </div>
         {active ? planningBlock : null}
       </div>
+      {blockEdit ? (
+        <BlockEditor
+          tripId={tripId}
+          tripSlug={tripSlug}
+          days={days.filter((d) => blockEdit.dayIds.includes(d.id))}
+          groupId={blockEdit.groupId}
+          floor={planFloor(today, tripStartDate, tripEndDate)}
+          onClose={() => setBlockEdit(null)}
+        />
+      ) : null}
     </section>
   )
 }
@@ -1131,6 +1153,7 @@ function DaySegmentView({
   members,
   currentPersonId,
   sortable,
+  onEditBlock,
 }: {
   seg: DaySegment
   tripId: string
@@ -1147,6 +1170,7 @@ function DaySegmentView({
   members: Record<string, MemberToneEntry>
   currentPersonId: string
   sortable: boolean
+  onEditBlock: (dayIds: string[], groupId: string) => void
 }) {
   const cards = seg.days.map((day) => {
     const cardProps = {
@@ -1182,6 +1206,13 @@ function DaySegmentView({
         >
           {seg.days[0].groupName ?? "added together"}
         </span>
+        <button
+          type="button"
+          onClick={() => onEditBlock(seg.days.map((d) => d.id), seg.groupId!)}
+          className="absolute right-8 top-0.5 border-0 bg-transparent px-2 py-1 font-mono text-[11px] text-sea hover:text-foreground"
+        >
+          edit all
+        </button>
         <form
           action={deleteItineraryGroup.bind(null, tripId, tripSlug, seg.groupId)}
           onSubmit={(e) => {
