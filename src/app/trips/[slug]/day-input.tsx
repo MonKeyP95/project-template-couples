@@ -1,6 +1,6 @@
 "use client"
 
-import { dateOfIndex, dayIndexOf } from "@/lib/trips/itinerary-types"
+import { dateOfIndex, toDayIndex } from "@/lib/trips/itinerary-types"
 
 /** A date input that reads and writes a 1-based day number of the trip. */
 export function DayInput({
@@ -28,9 +28,7 @@ export function DayInput({
       aria-label={ariaLabel}
       value={value === null ? "" : dateOfIndex(value, startDate)}
       min={min == null ? undefined : dateOfIndex(min, startDate)}
-      onChange={(e) =>
-        onChange(e.target.value ? dayIndexOf(e.target.value, startDate) : null)
-      }
+      onChange={(e) => onChange(toDayIndex(e.target.value, startDate))}
       className={className}
       disabled={disabled}
       required={required}

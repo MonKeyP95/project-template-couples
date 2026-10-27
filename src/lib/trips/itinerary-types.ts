@@ -97,6 +97,14 @@ export function dayIndexOf(dayDate: string, startDate: string): number {
   return Math.round((toUtc(dayDate).getTime() - toUtc(startDate).getTime()) / DAY_MS) + 1
 }
 
+/** Day number for a date input's value; null when empty or unparseable (a
+ * browser accepts years like 20266, which no Date can hold). */
+export function toDayIndex(value: string, startDate: string): number | null {
+  if (!value) return null
+  const i = dayIndexOf(value, startDate)
+  return Number.isFinite(i) ? i : null
+}
+
 /** yyyy-mm-dd of day `dayIndex` in a trip that starts on `startDate`. */
 export function dateOfIndex(dayIndex: number, startDate: string): string {
   const d = toUtc(startDate)
