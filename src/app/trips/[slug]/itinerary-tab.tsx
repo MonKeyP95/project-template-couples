@@ -26,6 +26,7 @@ import {
   type EventDraft,
 } from "./event-draft-rows"
 import { BlockEditor } from "./block-editor"
+import { SelectionTray, useDaySelection, type DaySelection } from "./day-selection"
 import { Label } from "@/components/together"
 import { AssistantBlock } from "@/components/assistant-block"
 import { EventRating } from "@/components/event-rating"
@@ -326,6 +327,25 @@ export function ItineraryTab({
 
   function openBlock(dayIds: string[], groupId: string | null) {
     setBlockEdit({ dayIds, groupId })
+  }
+
+  const selection = useDaySelection()
+  // days is kept date-sorted (withOrdinals), so these ids are in date order.
+  const looseIds = days.filter((d) => !d.locationId).map((d) => d.id)
+
+  /** Edit the selected days; reuse their block only if they are all of it. */
+  function editSelection() {
+    const picked = days.filter((d) => selection.selected.has(d.id))
+    const gid = picked[0]?.groupId ?? null
+    const wholeBlock =
+      gid !== null &&
+      picked.every((d) => d.groupId === gid) &&
+      days.filter((d) => d.groupId === gid).length === picked.length
+    openBlock(
+      picked.map((d) => d.id),
+      wholeBlock ? gid : null,
+    )
+    selection.clear()
   }
 
   if (initialItems !== lastInitial) {
@@ -757,6 +777,9 @@ export function ItineraryTab({
                     currentPersonId={currentPersonId}
                     sortable={locations.length === 0}
                     onEditBlock={openBlock}
+                    selection={selection}
+                    scopeKey="loose"
+                    orderedIds={looseIds}
                   />
                 </div>
               )
@@ -944,6 +967,9 @@ export function ItineraryTab({
                           currentPersonId={currentPersonId}
                           sortable={sortable}
                           onEditBlock={openBlock}
+                          selection={selection}
+                          scopeKey={group.key}
+                          orderedIds={[...group.days].sort(byDate).map((d) => d.id)}
                         />
                       )
 
@@ -1123,6 +1149,13 @@ export function ItineraryTab({
         </div>
         {active ? planningBlock : null}
       </div>
+      {selection.selected.size >= 2 ? (
+        <SelectionTray
+          count={selection.selected.size}
+          onEdit={editSelection}
+          onClear={selection.clear}
+        />
+      ) : null}
       {blockEdit ? (
         <BlockEditor
           tripId={tripId}
@@ -1154,6 +1187,9 @@ function DaySegmentView({
   currentPersonId,
   sortable,
   onEditBlock,
+  selection,
+  scopeKey,
+  orderedIds,
 }: {
   seg: DaySegment
   tripId: string
@@ -1171,6 +1207,10 @@ function DaySegmentView({
   currentPersonId: string
   sortable: boolean
   onEditBlock: (dayIds: string[], groupId: string) => void
+  selection: DaySelection
+  /** Selection scope (location key) and its days in date order. */
+  scopeKey: string
+  orderedIds: string[]
 }) {
   const cards = seg.days.map((day) => {
     const cardProps = {
@@ -1189,6 +1229,9 @@ function DaySegmentView({
       categories,
       members,
       currentPersonId,
+      selected: selection.selected.has(day.id),
+      onSelectStart: (shift: boolean) =>
+        selection.begin(scopeKey, orderedIds, day.id, shift),
     }
     return sortable ? (
       <SortableDayCard key={day.id} id={day.id} {...cardProps} />
@@ -1258,6 +1301,8 @@ interface DayCardProps {
   categories: ExpenseCategoryRow[]
   members: Record<string, MemberToneEntry>
   currentPersonId: string
+  selected: boolean
+  onSelectStart: (shift: boolean) => void
 }
 
 function SortableDayCard({ id, ...rest }: DayCardProps & { id: string }) {
@@ -1293,6 +1338,8 @@ function DayCard({
   categories,
   members,
   currentPersonId,
+  selected,
+  onSelectStart,
 }: DayCardProps) {
   if (isEditing) {
     return (
@@ -1320,6 +1367,8 @@ function DayCard({
       categories={categories}
       members={members}
       currentPersonId={currentPersonId}
+      selected={selected}
+      onSelectStart={onSelectStart}
     />
   )
 }
@@ -1339,6 +1388,8 @@ function DayView({
   categories,
   members,
   currentPersonId,
+  selected,
+  onSelectStart,
 }: {
   day: ItineraryDay
   tripId: string
@@ -1354,14 +1405,28 @@ function DayView({
   categories: ExpenseCategoryRow[]
   members: Record<string, MemberToneEntry>
   currentPersonId: string
+  selected: boolean
+  onSelectStart: (shift: boolean) => void
 }) {
   // Which event's panel is open (press the event), and whether that panel's
   // expense form has been asked for. Only one event is open at a time.
   const [openEvent, setOpenEvent] = React.useState<number | null>(null)
   const [openExpense, setOpenExpense] = React.useState<number | null>(null)
   return (
-    <div className="relative flex gap-3.5 py-3.5">
-      <div className="relative w-9 flex-shrink-0">
+    <div data-day-id={day.id} className="relative flex gap-3.5 py-3.5">
+      {/* A mouse press here selects days (desktop only; a touch tap is ignored).
+          stopPropagation keeps dnd-kit's mouse drag from starting. */}
+      <div
+        data-day-number
+        onPointerDown={(e) => {
+          if (e.pointerType === "mouse") onSelectStart(e.shiftKey)
+        }}
+        onMouseDown={(e) => {
+          e.stopPropagation()
+          e.preventDefault()
+        }}
+        className="relative w-9 flex-shrink-0 cursor-pointer select-none"
+      >
         <div className="font-mono text-[22px] leading-none tracking-[-0.02em] text-foreground">
           {day.dom}
         </div>
@@ -1376,7 +1441,9 @@ function DayView({
         ) : null}
       </div>
       <div
-        className={`flex-1 rounded-lg border border-border bg-card px-3.5 py-3 border-l-[3px] ${itineraryBorder[day.tone]} ${
+        className={`flex-1 rounded-lg border px-3.5 py-3 border-l-[3px] ${
+          selected ? "border-sea bg-sea/10" : "border-border bg-card"
+        } ${itineraryBorder[day.tone]} ${
           dimBefore && day.dayDate < dimBefore ? "opacity-60" : ""
         }`}
       >
