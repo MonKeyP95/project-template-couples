@@ -17,7 +17,7 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable"
 import { CSS } from "@dnd-kit/utilities"
-import { Label, MonoBadge } from "@/components/together"
+import { Label } from "@/components/together"
 import { createClient } from "@/lib/supabase/client"
 import {
   addDreamItineraryDay,
@@ -342,7 +342,6 @@ function DreamDayView({
       >
         <div className="mb-1.5 flex items-center gap-1.5">
           {dragHandle}
-          <MonoBadge tone={day.tone}>{day.tag}</MonoBadge>
         </div>
         <div className="t-display mb-1 text-[22px] leading-tight text-foreground">
           {day.title}
@@ -393,7 +392,6 @@ function DreamDayEditor({
   tripSlug: string
   onDone: () => void
 }) {
-  const [tag, setTag] = React.useState(day.tag)
   const [title, setTitle] = React.useState(day.title)
   const [sub, setSub] = React.useState(day.sub)
   const [tone, setTone] = React.useState<ItineraryTone>(day.tone)
@@ -402,7 +400,7 @@ function DreamDayEditor({
 
   function save(e: React.FormEvent) {
     e.preventDefault()
-    if (isPending || !title.trim() || !tag.trim()) return
+    if (isPending || !title.trim()) return
     setError(null)
     startTransition(async () => {
       const result = await updateDreamItineraryDay({
@@ -410,7 +408,6 @@ function DreamDayEditor({
         tripSlug,
         title,
         sub,
-        tag,
         tone,
       })
       if (result.error) {
@@ -424,8 +421,6 @@ function DreamDayEditor({
   return (
     <DreamDayForm
       heading="Edit day"
-      tag={tag}
-      setTag={setTag}
       title={title}
       setTitle={setTitle}
       sub={sub}
@@ -452,7 +447,6 @@ function AddDreamDayRow({
   dayIndex?: number
 }) {
   const [expanded, setExpanded] = React.useState(false)
-  const [tag, setTag] = React.useState("")
   const [title, setTitle] = React.useState("")
   const [sub, setSub] = React.useState("")
   const [tone, setTone] = React.useState<ItineraryTone>("sea")
@@ -462,7 +456,6 @@ function AddDreamDayRow({
 
   function reset() {
     setExpanded(false)
-    setTag("")
     setTitle("")
     setSub("")
     setTone("sea")
@@ -472,7 +465,7 @@ function AddDreamDayRow({
 
   function submit(e: React.FormEvent) {
     e.preventDefault()
-    if (isPending || !title.trim() || !tag.trim()) return
+    if (isPending || !title.trim()) return
     setError(null)
     startTransition(async () => {
       const result = await addDreamItineraryDay({
@@ -480,7 +473,6 @@ function AddDreamDayRow({
         tripSlug,
         title,
         sub,
-        tag,
         tone,
         count: Number(count),
         dayIndex,
@@ -521,8 +513,6 @@ function AddDreamDayRow({
   return (
     <DreamDayForm
       heading={dayIndex ? `Day ${dayIndex}` : "Add day"}
-      tag={tag}
-      setTag={setTag}
       title={title}
       setTitle={setTitle}
       sub={sub}
@@ -542,8 +532,6 @@ function AddDreamDayRow({
 
 function DreamDayForm({
   heading,
-  tag,
-  setTag,
   title,
   setTitle,
   sub,
@@ -559,8 +547,6 @@ function DreamDayForm({
   onCancel,
 }: {
   heading: string
-  tag: string
-  setTag: (s: string) => void
   title: string
   setTitle: (s: string) => void
   sub: string
@@ -586,19 +572,6 @@ function DreamDayForm({
       </div>
 
       <label className="block">
-        <span className="block font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
-          Tag
-        </span>
-        <input
-          type="text"
-          value={tag}
-          onChange={(e) => setTag(e.target.value)}
-          disabled={isPending}
-          className="mt-1 w-full border-0 border-b border-rule bg-transparent py-1.5 text-[14px] uppercase text-foreground placeholder:normal-case placeholder:text-muted-foreground focus:border-clay focus:outline-none disabled:opacity-50"
-        />
-      </label>
-
-      <label className="mt-3 block">
         <span className="block font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
           Title
         </span>
@@ -682,7 +655,7 @@ function DreamDayForm({
         </button>
         <button
           type="submit"
-          disabled={isPending || !title.trim() || !tag.trim()}
+          disabled={isPending || !title.trim()}
           className="rounded-full border-0 bg-foreground px-3.5 py-1.5 font-mono text-[10px] uppercase tracking-[0.2em] text-background disabled:opacity-40"
         >
           {isPending ? "…" : submitLabel}

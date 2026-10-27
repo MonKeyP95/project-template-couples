@@ -1413,7 +1413,8 @@ export interface AddItineraryDayInput {
   title: string
   sub: string
   events: ItineraryEvent[]
-  tag: string
+  /** Hidden label; the AI planner sets it, the add-day form doesn't. */
+  tag?: string
   tone: ItineraryTone
   /** Location to file the day(s) under; null/undefined = travel day. */
   locationId?: string | null
@@ -1523,8 +1524,7 @@ export async function addItineraryDay(
 ): Promise<AddItineraryDayResult> {
   const title = input.title.trim()
   if (!title) return { error: "Title required." }
-  const tag = input.tag.trim()
-  if (!tag) return { error: "Tag required." }
+  const tag = input.tag?.trim() || null
   if (!DATE_RE.test(input.dayDate)) return { error: "Invalid date." }
   if (!ITINERARY_TONES.includes(input.tone)) return { error: "Invalid tone." }
 
@@ -1874,7 +1874,7 @@ export async function insertItineraryDayWithShift(
     p_title: input.title.trim(),
     p_sub: input.sub.trim(),
     p_events: events,
-    p_tag: input.tag.trim(),
+    p_tag: input.tag?.trim() || null,
     p_tone: input.tone,
     p_location_id: input.locationId ?? null,
     p_group_name: input.groupName ?? null,
@@ -1892,7 +1892,8 @@ export interface UpdateItineraryDayInput {
   title: string
   sub: string
   events: ItineraryEvent[]
-  tag: string
+  /** Hidden label; only the AI planner sends it. Omitted = left unchanged. */
+  tag?: string
   tone: ItineraryTone
   /** When provided, moves the day to this location (null = travel day). */
   locationId?: string | null
@@ -1911,8 +1912,6 @@ export async function updateItineraryDay(
 ): Promise<UpdateItineraryDayResult> {
   const title = input.title.trim()
   if (!title) return { error: "Title required." }
-  const tag = input.tag.trim()
-  if (!tag) return { error: "Tag required." }
   if (!DATE_RE.test(input.dayDate)) return { error: "Invalid date." }
   if (!ITINERARY_TONES.includes(input.tone)) return { error: "Invalid tone." }
 
@@ -1938,7 +1937,7 @@ export async function updateItineraryDay(
     title: string
     sub: string
     events: ItineraryEvent[]
-    tag: string
+    tag?: string
     tone: ItineraryTone
     location_id?: string | null
   } = {
@@ -1946,9 +1945,9 @@ export async function updateItineraryDay(
     title,
     sub,
     events,
-    tag,
     tone: input.tone,
   }
+  if (input.tag?.trim()) patch.tag = input.tag.trim()
   if (input.locationId !== undefined) patch.location_id = input.locationId
 
   const { error } = await supabase
@@ -2315,7 +2314,6 @@ export interface AddDreamDayInput {
   tripSlug: string
   title: string
   sub: string
-  tag: string
   tone: ItineraryTone
   /** Number of identical days to create (default 1). Dreams have no dates. */
   count?: number
@@ -2333,15 +2331,14 @@ export interface AddDreamDayResult {
  * Inserts one or more dream itinerary days at the end (day_index = max + 1,
  * max + 2, ...). `count` (default 1) creates that many identical, independent
  * entries. RLS gates membership. Returns the first inserted row so the client
- * can apply it via withDreamOrdinals optimistically.
+ * can apply it via withDreamOrdinals optimistically. The hidden tag is the
+ * trip's name: a dream's tags are read back as its places on promotion.
  */
 export async function addDreamItineraryDay(
   input: AddDreamDayInput,
 ): Promise<AddDreamDayResult> {
   const title = input.title.trim()
   if (!title) return { error: "Title required." }
-  const tag = input.tag.trim()
-  if (!tag) return { error: "Tag required." }
   if (!ITINERARY_TONES.includes(input.tone)) return { error: "Invalid tone." }
 
   const count = input.count ?? 1
@@ -2353,6 +2350,14 @@ export async function addDreamItineraryDay(
   const { data: userData, error: userError } = await supabase.auth.getUser()
   if (userError || !userData.user) return { error: "Not signed in." }
   const userId = userData.user.id
+
+  const { data: trip } = await supabase
+    .from("trips")
+    .select("name")
+    .eq("id", input.tripId)
+    .single()
+  if (!trip) return { error: "Trip not found." }
+  const tag = trip.name
 
   let nextIndex = input.dayIndex ?? 0
   if (!nextIndex) {
@@ -2394,7 +2399,6 @@ export interface UpdateDreamDayInput {
   tripSlug: string
   title: string
   sub: string
-  tag: string
   tone: ItineraryTone
 }
 
@@ -2411,8 +2415,6 @@ export async function updateDreamItineraryDay(
 ): Promise<UpdateDreamDayResult> {
   const title = input.title.trim()
   if (!title) return { error: "Title required." }
-  const tag = input.tag.trim()
-  if (!tag) return { error: "Tag required." }
   if (!ITINERARY_TONES.includes(input.tone)) return { error: "Invalid tone." }
 
   const supabase = await createClient()
@@ -2423,7 +2425,6 @@ export async function updateDreamItineraryDay(
     .update({
       title,
       sub,
-      tag,
       tone: input.tone,
     })
     .eq("id", input.dayId)

@@ -18,7 +18,7 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable"
 import { CSS } from "@dnd-kit/utilities"
-import { Label, MonoBadge } from "@/components/together"
+import { Label } from "@/components/together"
 import { AssistantBlock } from "@/components/assistant-block"
 import { EventRating } from "@/components/event-rating"
 import { PlanningPlaceDoor } from "./find-a-place-planning"
@@ -1395,7 +1395,6 @@ function DayView({
         <div className="mb-1.5 flex items-center justify-between">
           <div className="flex items-center gap-1.5">
             {dragHandle}
-            <MonoBadge tone={day.tone}>{day.tag}</MonoBadge>
           </div>
           <span className="font-mono text-[10px] tracking-[0.06em] text-muted-foreground">
             day {Number(day.d)}
@@ -1545,7 +1544,6 @@ function DayEditor({
   onDone: () => void
 }) {
   const [dayDate, setDayDate] = React.useState(day.dayDate)
-  const [tag, setTag] = React.useState(day.tag)
   const [title, setTitle] = React.useState(day.title)
   const [sub, setSub] = React.useState(day.sub)
   const [events, setEvents] = React.useState<EventDraft[]>(() =>
@@ -1560,7 +1558,7 @@ function DayEditor({
 
   function save(e: React.FormEvent) {
     e.preventDefault()
-    if (isPending || !title.trim() || !tag.trim()) return
+    if (isPending || !title.trim()) return
     setError(null)
     startTransition(async () => {
       const result = await updateItineraryDay({
@@ -1579,7 +1577,6 @@ function DayEditor({
           ...(e.note && e.note.trim() ? { note: e.note.trim() } : {}),
           ...(e.category && e.category.trim() ? { category: e.category.trim() } : {}),
         })),
-        tag,
         tone,
         locationId,
       })
@@ -1596,8 +1593,6 @@ function DayEditor({
       heading="Edit day"
       dayDate={dayDate}
       setDayDate={setDayDate}
-      tag={tag}
-      setTag={setTag}
       title={title}
       setTitle={setTitle}
       sub={sub}
@@ -1636,7 +1631,6 @@ function AddDayRow({
   const [dayDate, setDayDate] = React.useState(defaultDate)
   const [endDate, setEndDate] = React.useState("")
   const [groupName, setGroupName] = React.useState("")
-  const [tag, setTag] = React.useState("")
   const [title, setTitle] = React.useState("")
   const [sub, setSub] = React.useState("")
   const [events, setEvents] = React.useState<EventDraft[]>([])
@@ -1649,7 +1643,6 @@ function AddDayRow({
     setDayDate(defaultDate)
     setEndDate("")
     setGroupName("")
-    setTag("")
     setTitle("")
     setSub("")
     setEvents([])
@@ -1659,7 +1652,7 @@ function AddDayRow({
 
   function submit(e: React.FormEvent) {
     e.preventDefault()
-    if (isPending || !title.trim() || !tag.trim()) return
+    if (isPending || !title.trim()) return
     setError(null)
     startTransition(async () => {
       const payload = {
@@ -1680,7 +1673,6 @@ function AddDayRow({
           ...(e.note && e.note.trim() ? { note: e.note.trim() } : {}),
           ...(e.category && e.category.trim() ? { category: e.category.trim() } : {}),
         })),
-        tag,
         tone,
         locationId,
       }
@@ -1719,8 +1711,6 @@ function AddDayRow({
       setEndDate={setEndDate}
       groupName={groupName}
       setGroupName={setGroupName}
-      tag={tag}
-      setTag={setTag}
       title={title}
       setTitle={setTitle}
       sub={sub}
@@ -1852,8 +1842,6 @@ function DayForm({
   setEndDate,
   groupName,
   setGroupName,
-  tag,
-  setTag,
   title,
   setTitle,
   sub,
@@ -1880,8 +1868,6 @@ function DayForm({
   /** When provided (Add mode), the block-name field for multi-day spans. */
   groupName?: string
   setGroupName?: (s: string) => void
-  tag: string
-  setTag: (s: string) => void
   title: string
   setTitle: (s: string) => void
   sub: string
@@ -1959,36 +1945,8 @@ function DayForm({
               className="t-num mt-1 w-full border-0 border-b border-rule bg-transparent py-1.5 text-[14px] text-foreground placeholder:text-muted-foreground focus:border-clay focus:outline-none disabled:opacity-50"
             />
           </label>
-        ) : (
-          <label className="block">
-            <span className="block font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
-              Tag
-            </span>
-            <input
-              type="text"
-              value={tag}
-              onChange={(e) => setTag(e.target.value)}
-              disabled={isPending}
-              className="mt-1 w-full border-0 border-b border-rule bg-transparent py-1.5 text-[14px] uppercase text-foreground placeholder:normal-case placeholder:text-muted-foreground focus:border-clay focus:outline-none disabled:opacity-50"
-            />
-          </label>
-        )}
+        ) : null}
       </div>
-
-      {setEndDate ? (
-        <label className="mt-3 block">
-          <span className="block font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
-            Tag
-          </span>
-          <input
-            type="text"
-            value={tag}
-            onChange={(e) => setTag(e.target.value)}
-            disabled={isPending}
-            className="mt-1 w-full border-0 border-b border-rule bg-transparent py-1.5 text-[14px] uppercase text-foreground placeholder:normal-case placeholder:text-muted-foreground focus:border-clay focus:outline-none disabled:opacity-50"
-          />
-        </label>
-      ) : null}
 
       {setEndDate && setGroupName && endDate ? (
         <label className="mt-3 block">
@@ -2169,7 +2127,7 @@ function DayForm({
           </button>
           <button
             type="submit"
-            disabled={isPending || !title.trim() || !tag.trim()}
+            disabled={isPending || !title.trim()}
             className="rounded-full border-0 bg-foreground px-3.5 py-1.5 font-mono text-[10px] uppercase tracking-[0.2em] text-background disabled:opacity-40"
           >
             {isPending ? "…" : submitLabel}
