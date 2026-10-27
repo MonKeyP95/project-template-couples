@@ -274,23 +274,23 @@ export function planFloor(
 }
 
 /** Minimal day shape the floor helpers read; a full `ItineraryDay` is assignable. */
-export interface DayDateAndLocation {
-  dayDate: string
+export interface DayIndexAndLocation {
+  dayIndex: number
   locationId: string | null
 }
 
-/** The earliest day at or after `floor`, optionally restricted to one location.
- * A null floor means no lower bound. Undefined when no day qualifies. */
+/** The earliest day number at or after `floor`, optionally restricted to one
+ * location. A null floor means no lower bound. Undefined when no day qualifies. */
 export function firstDayAtOrAfter(
-  days: DayDateAndLocation[],
-  floor: string | null,
+  days: DayIndexAndLocation[],
+  floor: number | null,
   locationId?: string,
-): string | undefined {
-  let best: string | undefined
+): number | undefined {
+  let best: number | undefined
   for (const day of days) {
-    if (floor && day.dayDate < floor) continue
+    if (floor !== null && day.dayIndex < floor) continue
     if (locationId && day.locationId !== locationId) continue
-    if (best === undefined || day.dayDate < best) best = day.dayDate
+    if (best === undefined || day.dayIndex < best) best = day.dayIndex
   }
   return best
 }

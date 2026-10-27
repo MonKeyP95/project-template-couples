@@ -20,8 +20,8 @@ export interface SkeletonEvent {
   category?: string
 }
 export interface SkeletonDay {
-  /** YYYY-MM-DD */
-  date: string
+  /** 1-based day number in the trip. */
+  dayIndex: number
   title: string
   tag: string
   tone: ItineraryTone
@@ -37,25 +37,16 @@ export interface ItinerarySkeleton {
 
 export interface ItineraryPlanInput {
   destination: string
-  /** The trip's first day, YYYY-MM-DD. */
-  startDate: string
   /** Inclusive day count across the whole trip. */
   dayCount: number
   /** Ordered place names; empty => one place named after the destination. */
   placeNames: string[]
 }
 
-/** Advance a YYYY-MM-DD date by n days (UTC, no tz drift). */
-function addDays(date: string, n: number): string {
-  const d = new Date(`${date}T00:00:00Z`)
-  d.setUTCDate(d.getUTCDate() + n)
-  return d.toISOString().slice(0, 10)
-}
-
 /**
  * Deterministic first draft: split the trip's days evenly across the places
- * (earlier places take the remainder), assign consecutive dates from startDate,
- * cycle tones, and leave events empty for the user (or slice 2's AI) to fill.
+ * (earlier places take the remainder), number them from Day 1, cycle tones,
+ * and leave events empty for the user (or the AI) to fill.
  */
 export function planItinerarySkeleton(input: ItineraryPlanInput): ItinerarySkeleton {
   const dayCount = Math.max(1, input.dayCount)
@@ -73,9 +64,8 @@ export function planItinerarySkeleton(input: ItineraryPlanInput): ItinerarySkele
     const count = base + (pi < extra ? 1 : 0)
     const days: SkeletonDay[] = []
     for (let i = 0; i < count; i++) {
-      const date = addDays(input.startDate, offset)
       days.push({
-        date,
+        dayIndex: offset + 1,
         title: name,
         tag: name,
         tone: ITINERARY_TONES[offset % ITINERARY_TONES.length],
@@ -97,10 +87,10 @@ export interface PlanEntry {
   place: string
   subject: string
   when: string
-  /** YYYY-MM-DD start, when the couple picked one. Drives the no-AI apply. */
-  date?: string
-  /** YYYY-MM-DD end, when they picked a range. */
-  endDate?: string
+  /** Day number the couple picked, 1-based. Drives the no-AI apply. */
+  day?: number
+  /** Last day of a range they picked. */
+  endDay?: number
   /** `${dayId}#${eventIndex}` when this row was read back from an existing
    * event. The handle that makes a save patch that event instead of adding a
    * second copy of it. */
@@ -199,40 +189,40 @@ export function planItinerarySteps(placeNames: string[]): ItineraryPlanStep[] {
   return steps
 }
 
-/** A flat, per-item draft: category + optional place/date, the wizard's staging
+/** A flat, per-item draft: category + optional place/day, the wizard's staging
  * unit. Structurally the same as claude.ts's DraftedItineraryEvent; kept here
  * (client-safe) so the stepper and the converter never import the server seam. */
 export interface DraftItem {
   category: string
   place: string
   text: string
-  date: string
+  /** 1-based day; 0 = not placed. */
+  day: number
   time: string
 }
 
 /**
  * Turn the wizard's flat draft items into an ItinerarySkeleton for the existing
- * write path. Builds the deterministic scaffold to learn each place's dates and
+ * write path. Builds the deterministic scaffold to learn each place's days and
  * day metadata, then files each item under its place (place-less -> first place)
- * on its date (blank or out-of-range -> that place's first day). Days with no
- * items are dropped so Apply never creates empty itinerary days.
+ * on its day (unplaced or out of the place's range -> that place's first day).
+ * Days with no items are dropped so Apply never creates empty itinerary days.
  */
 export function itemsToSkeleton(
   items: DraftItem[],
   placeNames: string[],
   destination: string,
-  startDate: string,
   dayCount: number,
 ): ItinerarySkeleton {
   const names = placeNames.map((n) => n.trim()).filter((n) => n.length > 0)
-  const scaffold = planItinerarySkeleton({ destination, startDate, dayCount, placeNames: names })
+  const scaffold = planItinerarySkeleton({ destination, dayCount, placeNames: names })
 
-  // Per scaffold place: a map date -> collected events, plus its date set.
+  // Per scaffold place: a map day -> collected events, plus its day set.
   const buckets = scaffold.places.map((place) => ({
     place,
-    dates: new Set(place.days.map((d) => d.date)),
-    firstDate: place.days[0]?.date ?? null,
-    byDate: new Map<string, SkeletonEvent[]>(),
+    days: new Set(place.days.map((d) => d.dayIndex)),
+    firstDay: place.days[0]?.dayIndex ?? null,
+    byDay: new Map<number, SkeletonEvent[]>(),
   }))
   // Place 0 always has at least one day (dayCount >= 1, remainder to earlier places).
   const fallbackPlaceIdx = 0
@@ -242,58 +232,51 @@ export function itemsToSkeleton(
     let idx = key ? scaffold.places.findIndex((p) => p.name.trim().toLowerCase() === key) : -1
     if (idx < 0) idx = fallbackPlaceIdx
     let bucket = buckets[idx]
-    if (!bucket.firstDate) bucket = buckets[fallbackPlaceIdx]
-    const date = bucket.dates.has(item.date) ? item.date : (bucket.firstDate as string)
-    const list = bucket.byDate.get(date) ?? []
+    if (bucket.firstDay === null) bucket = buckets[fallbackPlaceIdx]
+    const day = bucket.days.has(item.day) ? item.day : (bucket.firstDay as number)
+    const list = bucket.byDay.get(day) ?? []
     list.push({ text: item.text, time: item.time, category: item.category })
-    bucket.byDate.set(date, list)
+    bucket.byDay.set(day, list)
   }
 
   return {
-    places: buckets.map(({ place, byDate }) => ({
+    places: buckets.map(({ place, byDay }) => ({
       name: place.name,
       days: place.days
-        .filter((d) => byDate.has(d.date))
-        .map((d) => ({ ...d, events: byDate.get(d.date) as SkeletonEvent[] })),
+        .filter((d) => byDay.has(d.dayIndex))
+        .map((d) => ({ ...d, events: byDay.get(d.dayIndex) as SkeletonEvent[] })),
     })),
   }
 }
 
-/** Every date from start to end, inclusive. */
-function enumerateDates(start: string, end: string): string[] {
-  const out: string[] = []
-  for (let d = start; d <= end; d = addDays(d, 1)) out.push(d)
-  return out
-}
-
-/** Categories whose date range brackets a span rather than filling it: you
+/** Categories whose day range brackets a span rather than filling it: you
  * check into a hotel and out of it, the nights between are yours. */
 const BRACKET_LABELS: Record<string, [string, string]> = {
   Accommodation: ["check in", "check out"],
   Transportation: ["pick up", "drop off"],
 }
 
-/** The dates one entry lands on, each with its label suffix. A bracketed
+/** The days one entry lands on, each with its label suffix. A bracketed
  * category yields its two ends; anything else repeats across the range. */
-function entryDates(entry: PlanEntry): { date: string; label: string }[] {
-  const start = entry.date ?? ""
+function entryDays(entry: PlanEntry): { day: number; label: string }[] {
+  const start = entry.day ?? 0
   if (!start) return []
-  const end = entry.endDate ?? ""
-  if (!end || end <= start) return [{ date: start, label: "" }]
+  const end = entry.endDay ?? 0
+  if (!end || end <= start) return [{ day: start, label: "" }]
   const labels = BRACKET_LABELS[entry.category]
   if (labels) {
     return [
-      { date: start, label: labels[0] },
-      { date: end, label: labels[1] },
+      { day: start, label: labels[0] },
+      { day: end, label: labels[1] },
     ]
   }
-  return enumerateDates(start, end).map((date) => ({ date, label: "" }))
+  return Array.from({ length: end - start + 1 }, (_, i) => ({ day: start + i, label: "" }))
 }
 
 /**
  * Turn the guided walk's entries straight into a skeleton, with no model in the
- * loop: what the couple typed, on the dates they picked. Unlike itemsToSkeleton
- * the date wins over the place name — a Lisbon check-out on the day you reach
+ * loop: what the couple typed, on the days they picked. Unlike itemsToSkeleton
+ * the day wins over the place name — a Lisbon check-out on the day you reach
  * Porto belongs on that Porto day — and every scaffold day is kept, so the
  * places you listed all appear even where you entered nothing.
  */
@@ -301,50 +284,44 @@ export function entriesToSkeleton(
   entries: PlanEntry[],
   placeNames: string[],
   destination: string,
-  startDate: string,
   dayCount: number,
 ): ItinerarySkeleton {
   const names = placeNames.map((n) => n.trim()).filter((n) => n.length > 0)
-  const scaffold = planItinerarySkeleton({ destination, startDate, dayCount, placeNames: names })
+  const scaffold = planItinerarySkeleton({ destination, dayCount, placeNames: names })
 
-  const tripDates = scaffold.places.flatMap((p) => p.days.map((d) => d.date))
-  const firstDate = tripDates[0]
-  const lastDate = tripDates[tripDates.length - 1]
-  const known = new Set(tripDates)
+  const lastDay = scaffold.places.reduce((n, p) => n + p.days.length, 0)
   const idxByName = new Map(
     scaffold.places.map((p, i) => [p.name.trim().toLowerCase(), i] as const),
   )
 
-  const byDate = new Map<string, SkeletonEvent[]>()
-  function push(date: string, event: SkeletonEvent) {
-    const list = byDate.get(date) ?? []
+  const byDay = new Map<number, SkeletonEvent[]>()
+  function push(day: number, event: SkeletonEvent) {
+    const list = byDay.get(day) ?? []
     list.push(event)
-    byDate.set(date, list)
+    byDay.set(day, list)
   }
 
-  /** A date outside the trip clamps to its nearest end, so nothing is dropped. */
-  function clamp(date: string): string {
-    if (known.has(date)) return date
-    return date < firstDate ? firstDate : lastDate
-  }
+  const inTrip = (day: number) => day >= 1 && day <= lastDay
+  /** A day outside the trip clamps to its nearest end, so nothing is dropped. */
+  const clamp = (day: number) => Math.min(Math.max(day, 1), lastDay)
 
   for (const entry of entries) {
     const text = entry.subject.trim() || entry.category
-    const spots = entryDates(entry)
+    const spots = entryDays(entry)
     if (spots.length === 0) {
-      // Undated: fall back to the named place's first day.
+      // Unplaced: fall back to the named place's first day.
       const idx = idxByName.get(entry.place.trim().toLowerCase()) ?? 0
-      const date = scaffold.places[idx]?.days[0]?.date ?? firstDate
-      push(date, { text, time: "", category: entry.category })
+      const day = scaffold.places[idx]?.days[0]?.dayIndex ?? 1
+      push(day, { text, time: "", category: entry.category })
       continue
     }
     // A bracket keeps both ends (a check-out often falls past the last day);
     // a repeated range keeps only the days the trip actually has.
-    const inTrip = spots.filter((s) => known.has(s.date))
+    const kept = spots.filter((s) => inTrip(s.day))
     const landing =
-      entry.category in BRACKET_LABELS ? spots : inTrip.length > 0 ? inTrip : [spots[0]]
+      entry.category in BRACKET_LABELS ? spots : kept.length > 0 ? kept : [spots[0]]
     for (const spot of landing) {
-      push(clamp(spot.date), {
+      push(clamp(spot.day), {
         text: spot.label ? `${text} (${spot.label})` : text,
         time: "",
         category: entry.category,
@@ -355,7 +332,7 @@ export function entriesToSkeleton(
   return {
     places: scaffold.places.map((place) => ({
       name: place.name,
-      days: place.days.map((d) => ({ ...d, events: byDate.get(d.date) ?? [] })),
+      days: place.days.map((d) => ({ ...d, events: byDay.get(d.dayIndex) ?? [] })),
     })),
   }
 }
@@ -376,8 +353,8 @@ const TRIP_STEP: Record<string, string> = {
 /** One walk row read back off an existing itinerary event. */
 export interface SavedPlanRow {
   subject: string
-  /** The day this event sits on, YYYY-MM-DD. */
-  whenStart: string
+  /** The day this event sits on, 1-based. */
+  day: number
   /** `${dayId}#${eventIndex}`. */
   serverId: string
 }
@@ -392,7 +369,7 @@ export interface SavedPlan {
 
 /**
  * Read an existing itinerary back into the walk: locations become the Places
- * step, and every day event becomes a row on its own date under the step its
+ * step, and every day event becomes a row on its own day under the step its
  * category belongs to. Each row keeps a serverId so applying the walk patches
  * that event rather than adding a duplicate. The itinerary twin of the budget
  * drafter's savedRows(). An empty itinerary yields an empty SavedPlan, which
@@ -416,11 +393,25 @@ export function savedPlanFromItinerary(
       const key = perPlace ? `${perPlace}:${placeIdx}` : (TRIP_STEP[category] ?? "other:trip")
       ;(rows[key] ??= []).push({
         subject: event.text,
-        whenStart: day.dayDate ?? "",
+        day: day.dayIndex,
         serverId: `${day.id}#${i}`,
       })
     })
   }
 
   return { places, rows }
+}
+
+/** The places a trip was planned with when it has days but no locations (a
+ * dream moved over from the old dream table): its day tags, in day order. */
+export function placesFromTags(days: ItineraryDay[]): string[] {
+  const seen = new Set<string>()
+  const out: string[] = []
+  for (const d of [...days].sort((a, b) => a.dayIndex - b.dayIndex)) {
+    const key = d.tag.trim().toLowerCase()
+    if (!key || seen.has(key)) continue
+    seen.add(key)
+    out.push(d.tag.trim())
+  }
+  return out
 }

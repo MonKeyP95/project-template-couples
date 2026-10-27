@@ -734,6 +734,8 @@ export function ItineraryTab({
         avoid={avoid}
         locations={locations}
         days={plannerDays}
+        startDate={tripStartDate}
+        dayCount={tripDayCount}
       />
     </div>
   )
