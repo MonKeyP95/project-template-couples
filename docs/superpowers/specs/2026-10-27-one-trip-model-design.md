@@ -43,7 +43,8 @@ One table, one screen, one set of actions, for both.
   receipts/documents `entries` dates, `trip_dispatch`, `trip_suggestions`,
   weather, on-the-road "today".
 - No visible change to a dated trip's itinerary. Same screen, same dates shown.
-- No new features beyond drag-to-any-day (last step).
+- No new features beyond drag-to-any-day and the date-change questions with
+  unplaced days (steps 5-6).
 
 ## Anti-goals (failure even if it "works")
 
@@ -53,11 +54,37 @@ One table, one screen, one set of actions, for both.
   moves the fork inside the table; it is what DECISIONS row 110 warned about.
 - A big-bang switch. Each step ships and is checked in-app before the next.
 
-## Behaviour change the user must confirm
+## Changing a trip's dates (decided with the user 2026-10-27)
 
-Today, editing a trip's start date leaves planned days on their old dates.
-Under this model the plan moves with the start: start two days later and the
-whole plan moves two days later. **Open — ask the user before building.**
+There is no single right answer, so the app asks. When a trip with planned
+days gets a new start date, it asks:
+
+- **Move the plan with the new dates** ("the whole trip moved"): `day_index`
+  unchanged; Day 1 is simply the new start date.
+- **Keep days on their dates** ("we leave 2 days earlier, everything is
+  booked"): every `day_index` shifts by the difference; new empty days appear
+  at the start. The user stretches a location over them themselves (my guess;
+  not automatic).
+
+Today only "keep the dates" exists, so this is an improvement.
+
+**Days that fall outside the trip.** Three ways a planned day can end up
+outside the trip, all handled the same:
+
+1. the start moves later with "keep days on their dates",
+2. the end moves earlier,
+3. a dream's day count is reduced.
+
+The app asks: **delete them** or **keep them as unplaced**. Empty days (no
+content) are not asked about; they just go.
+
+**Unplaced days.** An unplaced day keeps its content (title, sub, events,
+location) and has `day_index = null`. It shows in a small "Unplaced" list near
+the itinerary and goes back by dragging it onto any empty day (step 5's drag).
+This is the one exception to "every day has a number"; keep it strict: every
+sort, push, span and reorder path filters to `day_index is not null`, so an
+unplaced day is never moved or ordered by accident. The `(trip_id, day_index)`
+unique constraint allows many nulls, as Postgres does by default.
 
 ## The model
 
@@ -133,6 +160,10 @@ day numbers, with real dates passed as context when the trip has them. The
    dream is now just setting `start_date`.
 5. **Drag to any day.** All `day_count` positions render as drop targets,
    empty ones included, for dreams and trips alike.
+6. **Date changes ask; unplaced days.** The start-date question (move plan /
+   keep dates) and the delete-or-unplace question for days that fall outside
+   the trip, with the Unplaced list and drag back in. Makes `day_index`
+   nullable. Comes last because it needs step 5's drag.
 
 Migrations follow the repo rules: hand-pasted, re-runnable, one shared
 database for dev and prod, so each step's code must work against the schema
@@ -163,6 +194,9 @@ Verified by Claude (each step):
   `dream_itinerary_days` before deletion.
 - Step 4: no source file references `dream_itinerary_days`, `day_date` on
   itinerary days, or the deleted modules.
+- Step 6: a push, span change or reorder on a trip with unplaced days leaves
+  every unplaced day's `day_index` null (checked by query on a throwaway
+  trip).
 
 Verified by the user in-app:
 1. A dated trip's itinerary looks and behaves as before: add, push, spans,
@@ -171,8 +205,12 @@ Verified by the user in-app:
    date anywhere.
 3. Adding dates to a dream shows the same plan on real dates; removing them
    shows Day 1..N again with nothing lost.
-4. Changing a trip's start date moves the plan (if the user confirms that
-   behaviour).
+4. Changing a trip's start date asks "move the plan or keep dates"; each
+   choice does what it says.
 5. Dragging a day onto an empty day works on both a dream and a trip.
+6. Moving the start later (keep dates), moving the end earlier, or reducing a
+   dream's days asks "delete or keep as unplaced" for planned days that fall
+   outside; unplaced days appear in the Unplaced list and drag back onto an
+   empty day with their content intact.
 6. Home still files dateless trips under Dreams; on-the-road, weather and
    dispatch ignore dreams.
