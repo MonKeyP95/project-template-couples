@@ -65,6 +65,7 @@ import {
 } from "@/lib/trips/actions"
 import {
   ITINERARY_TONES,
+  dateOfIndex,
   formatEventTime,
   formatShortDate,
   reassignDayDate,
@@ -105,6 +106,7 @@ const toneText: Record<ItineraryTone, string> = {
 interface RealtimeRow {
   id: string
   trip_id: string
+  day_date: string
   day_index: number
   title: string
   sub: string | null
@@ -116,6 +118,24 @@ interface RealtimeRow {
   location_id: string | null
   created_by: string
   created_at: string
+}
+
+type RealtimeLocationRow = ItineraryLocationRow & { start_date: string | null }
+
+// Realtime rows carry both date and number until step 4. A partner's start-date
+// change arrives as rows whose dates hold while their numbers shift, so the
+// trip start is read off each row rather than the possibly stale prop.
+
+function rowToDay(row: RealtimeRow): ItineraryDay {
+  return rowToItineraryDay(row, dateOfIndex(2 - row.day_index, row.day_date))
+}
+
+function rowToLiveLocation(row: RealtimeLocationRow): ItineraryLocation {
+  const start =
+    row.start_date && row.start_index != null
+      ? dateOfIndex(2 - row.start_index, row.start_date)
+      : null
+  return rowToLocation(row, start)
 }
 
 interface DaySegment {
@@ -409,14 +429,14 @@ export function ItineraryTab({
         },
         (payload) => {
           if (payload.eventType === "INSERT") {
-            const incoming = rowToItineraryDay(payload.new as RealtimeRow, tripStartDate)
+            const incoming = rowToDay(payload.new as RealtimeRow)
             setDays((prev) =>
               prev.some((d) => d.id === incoming.id)
                 ? prev
                 : withOrdinals([...prev, incoming]),
             )
           } else if (payload.eventType === "UPDATE") {
-            const incoming = rowToItineraryDay(payload.new as RealtimeRow, tripStartDate)
+            const incoming = rowToDay(payload.new as RealtimeRow)
             setDays((prev) =>
               withOrdinals(
                 prev.map((d) => (d.id === incoming.id ? incoming : d)),
@@ -437,7 +457,7 @@ export function ItineraryTab({
     return () => {
       supabase.removeChannel(channel)
     }
-  }, [tripId, tripStartDate])
+  }, [tripId])
 
   React.useEffect(() => {
     const supabase = createClient()
@@ -453,14 +473,14 @@ export function ItineraryTab({
         },
         (payload) => {
           if (payload.eventType === "INSERT") {
-            const incoming = rowToLocation(payload.new as ItineraryLocationRow, tripStartDate)
+            const incoming = rowToLiveLocation(payload.new as RealtimeLocationRow)
             setLocations((prev) =>
               prev.some((l) => l.id === incoming.id)
                 ? prev
                 : [...prev, incoming].sort((a, b) => a.sortOrder - b.sortOrder),
             )
           } else if (payload.eventType === "UPDATE") {
-            const incoming = rowToLocation(payload.new as ItineraryLocationRow, tripStartDate)
+            const incoming = rowToLiveLocation(payload.new as RealtimeLocationRow)
             setLocations((prev) =>
               prev
                 .map((l) => (l.id === incoming.id ? incoming : l))
@@ -479,7 +499,7 @@ export function ItineraryTab({
     return () => {
       supabase.removeChannel(channel)
     }
-  }, [tripId, tripStartDate])
+  }, [tripId])
 
   const defaultDate =
     days.length > 0
