@@ -155,11 +155,9 @@ export function rowToItineraryDay(row: ItineraryRow, startDate: string): Itinera
   }
 }
 
-/** Sort by dayDate ascending and re-pad `d` ordinals. Pure; safe for client-side use after Realtime deltas. */
+/** Sort by dayIndex ascending and re-pad `d` ordinals. Pure; safe for client-side use after Realtime deltas. */
 export function withOrdinals(days: ItineraryDay[]): ItineraryDay[] {
-  const sorted = [...days].sort((a, b) =>
-    a.dayDate < b.dayDate ? -1 : a.dayDate > b.dayDate ? 1 : 0,
-  )
+  const sorted = [...days].sort((a, b) => a.dayIndex - b.dayIndex)
   return sorted.map((day, i) => ({
     ...day,
     d: String(i + 1).padStart(2, "0"),
@@ -256,14 +254,20 @@ export function daySummary(day: ItineraryDay): string {
   return `${day.events.length} events`
 }
 
-/** Copy of `day` moved to `newDate` (yyyy-mm-dd) with the derived date labels
- * recomputed. `d` is untouched; re-pad with `withOrdinals` after reordering.
- * Used for the optimistic reorder update before the server round-trip. */
-export function reassignDayDate(day: ItineraryDay, newDate: string): ItineraryDay {
-  const utc = toUtc(newDate)
+/** Copy of `day` moved to day `dayIndex` with its date and labels recomputed.
+ * `d` is untouched; re-pad with `withOrdinals` after reordering. Used for the
+ * optimistic reorder update before the server round-trip. */
+export function reassignDayIndex(
+  day: ItineraryDay,
+  dayIndex: number,
+  startDate: string,
+): ItineraryDay {
+  const dayDate = dateOfIndex(dayIndex, startDate)
+  const utc = toUtc(dayDate)
   return {
     ...day,
-    dayDate: newDate,
+    dayIndex,
+    dayDate,
     dow: DOW_FMT.format(utc),
     date: SHORT_DATE_FMT.format(utc),
     dom: DOM_FMT.format(utc),
@@ -277,29 +281,29 @@ function moveItem<T>(arr: T[], from: number, to: number): T[] {
   return next
 }
 
-/** Reorder a location's days over the given ascending `slotDates` (its occupied
- * dates, past-filtered on a live trip), then re-lay onto those dates. Returns
- * only the days whose date changed. Pure; safe client-side for the optimistic
- * update. */
+/** Reorder a location's days over the given ascending `slotIndexes` (its
+ * occupied day numbers, past-filtered on a live trip), then re-lay onto those
+ * numbers. Returns only the days whose number changed. Pure; safe client-side
+ * for the optimistic update. */
 export function reorderRangeSlots(
   days: ItineraryDay[],
-  slotDates: string[],
+  slotIndexes: number[],
   activeId: string,
   overId: string,
-): { id: string; date: string }[] {
+): { id: string; dayIndex: number }[] {
   if (activeId === overId) return []
-  const idByDate = new Map(days.map((d) => [d.dayDate, d.id]))
-  const dateById = new Map(days.map((d) => [d.id, d.dayDate]))
-  const ids = slotDates
-    .map((date) => idByDate.get(date))
+  const idByIndex = new Map(days.map((d) => [d.dayIndex, d.id]))
+  const indexById = new Map(days.map((d) => [d.id, d.dayIndex]))
+  const ids = slotIndexes
+    .map((i) => idByIndex.get(i))
     .filter((id): id is string => Boolean(id))
   const oldIndex = ids.indexOf(activeId)
   const newIndex = ids.indexOf(overId)
   if (oldIndex === -1 || newIndex === -1) return []
   const moved = moveItem(ids, oldIndex, newIndex)
-  const changes: { id: string; date: string }[] = []
+  const changes: { id: string; dayIndex: number }[] = []
   moved.forEach((id, i) => {
-    if (dateById.get(id) !== slotDates[i]) changes.push({ id, date: slotDates[i] })
+    if (indexById.get(id) !== slotIndexes[i]) changes.push({ id, dayIndex: slotIndexes[i] })
   })
   return changes
 }
