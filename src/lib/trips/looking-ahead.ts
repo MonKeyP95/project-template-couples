@@ -1,4 +1,4 @@
-import type { ItineraryDay, ItineraryEvent } from "./itinerary-types"
+import type { DatedItineraryDay, ItineraryDay, ItineraryEvent } from "./itinerary-types"
 import type { ItineraryLocation } from "./location-types"
 
 /** yyyy-mm-dd for `today` + n days, UTC. */
@@ -44,7 +44,7 @@ export interface LookingAhead {
 export function computeLookingAhead(
   today: string,
   currentLocationId: string | null,
-  days: ItineraryDay[],
+  days: DatedItineraryDay[],
   locations: ItineraryLocation[],
 ): LookingAhead {
   const tomorrowDate = addDays(today, 1)

@@ -13,11 +13,12 @@ import { getItineraryDays } from "@/lib/trips/itinerary-queries"
 import {
   ITINERARY_TONES,
   dayIndexOf,
+  isDated,
   firstDayAtOrAfter,
   planFloor,
 } from "@/lib/trips/itinerary-types"
 import { localToday } from "@/lib/time/local-today"
-import type { ItineraryDay, ItineraryEvent } from "@/lib/trips/itinerary-types"
+import type { DatedItineraryDay, ItineraryEvent } from "@/lib/trips/itinerary-types"
 import type { ItineraryLocation } from "@/lib/trips/location-types"
 import { getCurrentWorkspace } from "@/lib/workspace/queries"
 import { getTripBySlug } from "@/lib/trips/queries"
@@ -143,7 +144,7 @@ export async function applyItinerarySkeleton(
  */
 async function applyPlanEdits(
   input: { tripId: string; tripSlug: string; places: string[]; entries: PlanEntry[] },
-  days: ItineraryDay[],
+  days: DatedItineraryDay[],
   locations: ItineraryLocation[],
   tripName: string,
   /** Earliest writable date; days before it already happened and are never touched. */
@@ -293,7 +294,7 @@ export async function applyPlanEntries(input: {
       trip.startDate,
       trip.endDate ?? trip.startDate,
     )
-    return await applyPlanEdits(input, existingDays, locations, trip.name, floor, trip.startDate)
+    return await applyPlanEdits(input, existingDays.filter(isDated), locations, trip.name, floor, trip.startDate)
   }
 
   const skeleton = entriesToSkeleton(

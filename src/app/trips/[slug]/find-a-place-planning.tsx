@@ -43,8 +43,9 @@ export function PlanningPlaceDoor({
   const dayOptions = location
     ? days
         .filter((d) => d.locationId === location.id)
-        .sort((a, b) => a.dayDate.localeCompare(b.dayDate))
-        .map((d) => ({ id: d.id, dayDate: d.dayDate, label: `Day ${d.d} · ${d.date}` }))
+        .sort((a, b) => a.dayIndex - b.dayIndex)
+        // A dream day's `date` already reads "Day N".
+        .map((d) => ({ id: d.id, dayDate: d.dayDate, label: d.dayDate ? `Day ${d.d} · ${d.date}` : d.date }))
     : []
 
   // Location picker when there is a choice; otherwise the "where?" prompt field.

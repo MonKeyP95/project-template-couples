@@ -68,10 +68,10 @@ import {
   dateOfIndex,
   dayIndexOf,
   formatEventTime,
-  formatShortDate,
   reassignDayIndex,
   reorderRangeSlots,
-  rowToItineraryDay,
+  liveRowToItineraryDay,
+  positionLabel,
   planFloor,
   tripActive,
   withOrdinals,
@@ -108,7 +108,7 @@ const toneText: Record<ItineraryTone, string> = {
 interface RealtimeRow {
   id: string
   trip_id: string
-  day_date: string
+  day_date: string | null
   day_index: number
   title: string
   sub: string | null
@@ -124,14 +124,8 @@ interface RealtimeRow {
 
 type RealtimeLocationRow = ItineraryLocationRow & { start_date: string | null }
 
-// Realtime rows carry both date and number until step 4. A partner's start-date
-// change arrives as rows whose dates hold while their numbers shift, so the
-// trip start is read off each row rather than the possibly stale prop.
-
-function rowToDay(row: RealtimeRow): ItineraryDay {
-  return rowToItineraryDay(row, dateOfIndex(2 - row.day_index, row.day_date))
-}
-
+// Realtime location rows read their trip start off the row, as days do (see
+// liveRowToItineraryDay); a dream's rows have no date and stay positional.
 function rowToLiveLocation(row: RealtimeLocationRow): ItineraryLocation {
   const start =
     row.start_date && row.start_index != null
@@ -294,11 +288,11 @@ function defaultCollapsed(
   locations: ItineraryLocation[],
   days: ItineraryDay[],
   today: string,
-  start: string,
-  end: string,
+  start: string | null,
+  end: string | null,
 ): Set<string> {
   const s = new Set<string>()
-  if (!tripActive(today, start, end)) return s
+  if (start === null || !tripActive(today, start, end ?? start)) return s
   const todayIndex = dayIndexOf(today, start)
   for (const item of buildTimeline(locations, days)) {
     if (item.kind !== "location") continue
@@ -315,6 +309,7 @@ export function ItineraryTab({
   avoid,
   tripStartDate,
   tripEndDate,
+  tripDayCount,
   today,
   initialItems,
   initialLocations,
@@ -328,8 +323,11 @@ export function ItineraryTab({
   tripName: string
   destination: string
   avoid: string
-  tripStartDate: string
-  tripEndDate: string
+  /** Null on a dream: days show as "Day N" and nothing is past or today. */
+  tripStartDate: string | null
+  tripEndDate: string | null
+  /** The trip's length; null on an older dream that never set one. */
+  tripDayCount: number | null
   today: string
   initialItems: ItineraryDay[]
   initialLocations: ItineraryLocation[]
@@ -425,14 +423,14 @@ export function ItineraryTab({
         },
         (payload) => {
           if (payload.eventType === "INSERT") {
-            const incoming = rowToDay(payload.new as RealtimeRow)
+            const incoming = liveRowToItineraryDay(payload.new as RealtimeRow, tripStartDate)
             setDays((prev) =>
               prev.some((d) => d.id === incoming.id)
                 ? prev
                 : withOrdinals([...prev, incoming]),
             )
           } else if (payload.eventType === "UPDATE") {
-            const incoming = rowToDay(payload.new as RealtimeRow)
+            const incoming = liveRowToItineraryDay(payload.new as RealtimeRow, tripStartDate)
             setDays((prev) =>
               withOrdinals(
                 prev.map((d) => (d.id === incoming.id ? incoming : d)),
@@ -453,7 +451,7 @@ export function ItineraryTab({
     return () => {
       supabase.removeChannel(channel)
     }
-  }, [tripId])
+  }, [tripId, tripStartDate])
 
   React.useEffect(() => {
     const supabase = createClient()
@@ -554,10 +552,13 @@ export function ItineraryTab({
   )
   const plannedTotalCents = budgetItems.reduce((s, it) => s + it.amountCents, 0)
 
-  const active = tripActive(today, tripStartDate, tripEndDate)
-  const todayIndex = dayIndexOf(today, tripStartDate)
-  const plan = planFloor(today, tripStartDate, tripEndDate)
-  const floorIndex = plan === null ? null : dayIndexOf(plan, tripStartDate)
+  const active =
+    tripStartDate !== null && tripActive(today, tripStartDate, tripEndDate ?? tripStartDate)
+  // A dream has no today: 0 sits before every day, so nothing reads as past.
+  const todayIndex = tripStartDate === null ? 0 : dayIndexOf(today, tripStartDate)
+  const plan =
+    tripStartDate === null ? null : planFloor(today, tripStartDate, tripEndDate ?? tripStartDate)
+  const floorIndex = plan === null || tripStartDate === null ? null : dayIndexOf(plan, tripStartDate)
   // Mid-trip the walk opens on the days that remain; the server floor is what
   // actually protects the earlier ones.
   const plannerDays = active ? days.filter((d) => d.dayIndex >= todayIndex) : days
@@ -819,7 +820,7 @@ export function ItineraryTab({
                   : `${group.days[0].date} – ${last.date}`
             const spanRange =
               group.start !== null && group.end !== null
-                ? `${formatShortDate(dateOfIndex(group.start, tripStartDate))} – ${formatShortDate(dateOfIndex(group.end, tripStartDate))}`
+                ? `${positionLabel(group.start, tripStartDate)} – ${positionLabel(group.end, tripStartDate)}`
                 : ""
             return (
               <div
@@ -1217,7 +1218,7 @@ function DaySegmentView({
   toggleDay: (id: string) => void
   dimBefore: number | null
   todayIndex: number
-  tripStartDate: string
+  tripStartDate: string | null
   categories: ExpenseCategoryRow[]
   members: Record<string, MemberToneEntry>
   currentPersonId: string
@@ -1311,7 +1312,7 @@ interface DayCardProps {
   onToggle: () => void
   dimBefore: number | null
   todayIndex: number
-  tripStartDate: string
+  tripStartDate: string | null
   onStartEdit: () => void
   onStopEdit: () => void
   dragHandle?: React.ReactNode
@@ -1621,7 +1622,7 @@ function DayEditor({
 }: {
   day: ItineraryDay
   tripSlug: string
-  tripStartDate: string
+  tripStartDate: string | null
   locations: ItineraryLocation[]
   onDone: () => void
 }) {
@@ -1698,7 +1699,7 @@ function AddDayRow({
 }: {
   tripId: string
   tripSlug: string
-  tripStartDate: string
+  tripStartDate: string | null
   defaultIndex: number
   locationId: string | null
   open: boolean
@@ -1824,7 +1825,7 @@ function DayForm({
   onCancel,
 }: {
   heading: string
-  tripStartDate: string
+  tripStartDate: string | null
   dayIndex: number | null
   setDayIndex: (i: number | null) => void
   /** When provided (Add mode), a second "To" day enables multi-day creation. */

@@ -36,8 +36,8 @@ import { recommendBufferPct } from "@/lib/trips/budget-history-types"
 import { summarizeBudget } from "@/lib/trips/expense-types"
 import { getTripDetailBySlug, type TripDetail } from "@/lib/trips/fixtures"
 import { getItineraryDays } from "@/lib/trips/itinerary-queries"
+import { isDated } from "@/lib/trips/itinerary-types"
 import { getItineraryLocations } from "@/lib/trips/location-queries"
-import { getDreamItineraryDays } from "@/lib/trips/dream-itinerary-queries"
 import { getTripNotes } from "@/lib/trips/note-queries"
 import { getPackingCategories, getPackingItems } from "@/lib/trips/packing-queries"
 import { CHECKLIST_CATEGORY } from "@/lib/trips/packing-types"
@@ -70,7 +70,6 @@ import {
 
 import { BudgetTab } from "./budget-tab"
 import { ItineraryTab } from "./itinerary-tab"
-import { DreamItineraryTab } from "./dream-itinerary-tab"
 import { NotesTab } from "./notes-tab"
 import { TripFolder } from "./trip-folder"
 import type { ReactNode } from "react"
@@ -221,18 +220,17 @@ export default async function TripPage({
   // level and share the result with the active tab below.
   const showItinerary = wants("itinerary")
   const isDream = header.startDate === null
-  const [datedItinerary, dreamItinerary, locations, notes, packingItems, packingCategories, expenses, expenseCategories, savings, budgetMoves, budgetItems, receipts, documents] =
+  const [itineraryDays, locations, notes, packingItems, packingCategories, expenses, expenseCategories, savings, budgetMoves, budgetItems, receipts, documents] =
     await Promise.all([
-      (showItinerary && !isDream) || wants("budget")
+      showItinerary || wants("budget")
         ? getItineraryDays(header.id)
         : Promise.resolve(null),
-      showItinerary && isDream ? getDreamItineraryDays(header.id) : Promise.resolve(null),
       getItineraryLocations(header.id),
       wants("notes") ? getTripNotes(header.id) : Promise.resolve(null),
       getPackingItems(header.id),
       getPackingCategories(header.id),
       getTripExpenses(header.id),
-      wants("budget") || (showItinerary && !isDream)
+      wants("budget") || showItinerary
         ? getTripExpenseCategories(header.id)
         : Promise.resolve(null),
       getTripSavings(header.id, memberIds),
@@ -280,7 +278,7 @@ export default async function TripPage({
   let bufferRec = { pct: 10, reason: "a typical starting buffer" }
   if (wants("budget")) {
     const seen = new Set<string>()
-    for (const day of datedItinerary ?? []) {
+    for (const day of itineraryDays ?? []) {
       for (const ev of day.events) {
         if (!ev.category) continue
         const bucket = budgetBucketFor(ev.category, day.locationId)
@@ -301,17 +299,7 @@ export default async function TripPage({
     bufferRec = recommendBufferPct(summaries)
   }
 
-  const itinerary = header.startDate === null ? (
-    <DreamItineraryTab
-      tripId={header.id}
-      tripSlug={header.slug}
-      initialItems={dreamItinerary ?? []}
-      dayCount={header.dayCount}
-      tripName={header.name}
-      destination={header.country ?? header.name}
-      avoid={header.tripProfile.avoid}
-    />
-  ) : (
+  const itinerary = (
     <ItineraryTab
       tripId={header.id}
       tripSlug={header.slug}
@@ -320,8 +308,9 @@ export default async function TripPage({
       avoid={header.tripProfile.avoid}
       tripStartDate={header.startDate}
       tripEndDate={header.endDate ?? header.startDate}
+      tripDayCount={header.dayCount}
       today={today}
-      initialItems={datedItinerary ?? []}
+      initialItems={itineraryDays ?? []}
       initialLocations={locations ?? []}
       budgetItems={budgetItems ?? []}
       categories={expenseCategories ?? []}
@@ -364,7 +353,7 @@ export default async function TripPage({
       savingsContributions={savings.contributions}
       savedPerUser={savings.perUser}
       locations={locations ?? []}
-      itineraryDays={datedItinerary ?? []}
+      itineraryDays={(itineraryDays ?? []).filter(isDated)}
       moves={budgetMoves ?? []}
       budgetItems={budgetItems ?? []}
       itinerarySeeds={itinerarySeeds}
@@ -408,7 +397,7 @@ export default async function TripPage({
             dateRange={formatDateRange(header.startDate, header.endDate)}
             dayCount={
               isDream
-                ? (header.dayCount ?? (dreamItinerary ?? []).length)
+                ? (header.dayCount ?? (itineraryDays ?? []).length)
                 : computeTripDays(header.startDate, header.endDate)
             }
             spentCents={budgetSummary.expenseTotalCents}

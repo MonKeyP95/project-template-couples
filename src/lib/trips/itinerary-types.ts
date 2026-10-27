@@ -164,8 +164,11 @@ export function positionLabel(dayIndex: number, startDate: string | null): strin
   return positionFields(dayIndex, startDate).date
 }
 
+/** A day on a dated trip. */
+export type DatedItineraryDay = ItineraryDay & { dayDate: string }
+
 /** True for a day on a dated trip. */
-export function isDated(day: ItineraryDay): day is ItineraryDay & { dayDate: string } {
+export function isDated(day: ItineraryDay): day is DatedItineraryDay {
   return day.dayDate !== null
 }
 

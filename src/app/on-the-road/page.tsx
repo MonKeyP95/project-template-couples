@@ -9,7 +9,7 @@ import { listTripsForWorkspace } from "@/lib/trips/list-queries"
 import { getTodayForTrip, getItineraryDays } from "@/lib/trips/itinerary-queries"
 import { getItineraryLocations } from "@/lib/trips/location-queries"
 import { slugToTone } from "@/lib/trips/slug-tone"
-import { formatShortDate, daySummary } from "@/lib/trips/itinerary-types"
+import { formatShortDate, daySummary, isDated } from "@/lib/trips/itinerary-types"
 import { getTripWeather } from "@/lib/weather/get-trip-weather"
 import { DispatchBox } from "@/components/dispatch-box"
 import { getDispatchForDay } from "@/lib/trips/dispatch-queries"
@@ -93,7 +93,7 @@ export default async function OnTheRoadPage() {
     currency: trip.homeCurrency,
   })
   const notes = await getNotesForDay(trip.id, today)
-  const days = await getItineraryDays(trip.id)
+  const days = (await getItineraryDays(trip.id)).filter(isDated)
   const ahead = computeLookingAhead(
     today,
     todayDay?.locationId ?? null,

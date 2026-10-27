@@ -416,7 +416,7 @@ export function savedPlanFromItinerary(
       const key = perPlace ? `${perPlace}:${placeIdx}` : (TRIP_STEP[category] ?? "other:trip")
       ;(rows[key] ??= []).push({
         subject: event.text,
-        whenStart: day.dayDate,
+        whenStart: day.dayDate ?? "",
         serverId: `${day.id}#${i}`,
       })
     })

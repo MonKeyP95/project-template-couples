@@ -1152,23 +1152,34 @@ export async function updateTrip(
     return { error: "Trips don't have a 'when?' label." }
   }
 
-  // Promotion of a dream that already has planned days: derive the end date
-  // from the day count and move the dream days onto consecutive dates.
+  // Promotion of a dream that already has planned days: Day 1 becomes the start
+  // date and the end follows the day count. No row moves; a trigger derives
+  // each day's date from its number.
   if (input.wasDream) {
-    const { count } = await supabase
-      .from("dream_itinerary_days")
-      .select("id", { count: "exact", head: true })
+    const { data: lastDay } = await supabase
+      .from("itinerary_days")
+      .select("day_index")
       .eq("trip_id", input.tripId)
+      .order("day_index", { ascending: false })
+      .limit(1)
+      .maybeSingle()
 
-    if ((count ?? 0) > 0) {
-      // Update non-date fields first so a slug collision fails before we
-      // convert anything.
+    if (lastDay) {
+      const { data: current } = await supabase
+        .from("trips")
+        .select("day_count")
+        .eq("id", input.tripId)
+        .maybeSingle()
+      const length = Math.max(current?.day_count ?? 0, lastDay.day_index)
       const { error: updateError } = await supabase
         .from("trips")
         .update({
           name,
           slug,
           country,
+          start_date: input.startDate,
+          end_date: dateOfIndex(length, input.startDate),
+          fuzzy_when: null,
           lat: input.lat,
           lng: input.lng,
           currency: input.currency,
@@ -1183,13 +1194,6 @@ export async function updateTrip(
         return { error: updateError.message }
       }
       await relabelHomeExpenses()
-
-      // Atomic: set dates (start + count - 1), move dream days, delete originals.
-      const { error: rpcError } = await supabase.rpc("promote_dream_to_dated", {
-        p_trip_id: input.tripId,
-        p_start_date: input.startDate,
-      })
-      if (rpcError) return { error: rpcError.message }
 
       revalidatePath("/home")
       revalidatePath(`/trips/${input.currentSlug}`)
@@ -1527,7 +1531,6 @@ export async function addItineraryDay(
     return { error: "End date must be on or after start date." }
   }
   const start = await getTripStartDate(input.tripId)
-  if (!start) return { error: "This trip has no dates." }
   const count = last - first + 1
   if (count > MAX_RANGE_DAYS) {
     return { error: `Range can span at most ${MAX_RANGE_DAYS} days.` }
@@ -1613,7 +1616,8 @@ export async function addItineraryDay(
 export interface AddTodayEventInput {
   tripId: string
   tripSlug: string
-  dayDate: string
+  /** The day's date; null for an existing dream day (only `dayId` is used then). */
+  dayDate: string | null
   /** Existing day to append to; null = create a minimal day for `dayDate`. */
   dayId: string | null
   time: string
@@ -1703,7 +1707,7 @@ export async function addTodayEvent(
       .eq("id", input.dayId)
     if (error) return { error: error.message }
   } else {
-    if (!DATE_RE.test(input.dayDate)) return { error: "Invalid date." }
+    if (!input.dayDate || !DATE_RE.test(input.dayDate)) return { error: "Invalid date." }
     const start = await getTripStartDate(input.tripId)
     if (!start) return { error: "This trip has no dates." }
     const dayIndex = dayIndexOf(input.dayDate, start)
