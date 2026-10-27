@@ -19,11 +19,17 @@ import type { PackingCategory, PackingItem } from "@/lib/trips/packing-types"
 import { rowToNote, type TripNote } from "@/lib/trips/note-queries"
 import {
   ITINERARY_TONES,
+  parseEvents,
   rowToItineraryDay,
   type ItineraryDay,
   type ItineraryEvent,
   type ItineraryTone,
 } from "@/lib/trips/itinerary-types"
+import {
+  applyBlockEdit,
+  leftoverRuns,
+  type BlockEventEdit,
+} from "@/lib/trips/itinerary-blocks"
 import {
   rowToDreamDay,
   type DreamDay,
@@ -2000,6 +2006,124 @@ export async function deleteItineraryGroup(
   if (error) throw new Error(error.message)
 
   revalidatePath(`/trips/${tripSlug}`)
+}
+
+export interface EditItineraryBlockInput {
+  tripId: string
+  tripSlug: string
+  dayIds: string[]
+  /** The existing block being edited; null = make dayIds a new block first. */
+  groupId: string | null
+  groupName: string
+  oldTitle: string
+  newTitle: string
+  events: BlockEventEdit[]
+  /** Days before this date are not rewritten; null = no floor. */
+  floor: string | null
+}
+
+/**
+ * Edits several days as one block. A day's own changes survive: only events
+ * still matching the old shared version are touched (see applyBlockEdit).
+ * With no groupId the days first become a new block, and any older block they
+ * left is re-split so each leftover run keeps its own group_id.
+ */
+export async function editItineraryBlock(
+  input: EditItineraryBlockInput,
+): Promise<{ error?: string }> {
+  const newTitle = input.newTitle.trim()
+  if (!newTitle) return { error: "Title required." }
+  if (input.dayIds.length < 2) return { error: "Pick at least two days." }
+
+  const supabase = await createClient()
+  const { data: rows, error: loadError } = await supabase
+    .from("itinerary_days")
+    .select("id, day_date, title, events, group_id")
+    .in("id", input.dayIds)
+  if (loadError) return { error: loadError.message }
+
+  const groupName = input.groupName.trim() || null
+  if (input.groupId) {
+    const { error } = await supabase
+      .from("itinerary_days")
+      .update({ group_name: groupName })
+      .in("id", input.dayIds)
+    if (error) return { error: error.message }
+  } else {
+    const regroupError = await regroupDays(
+      supabase,
+      input.tripId,
+      input.dayIds,
+      groupName,
+      rows.map((r) => r.group_id).filter((g): g is string => Boolean(g)),
+    )
+    if (regroupError) return { error: regroupError }
+  }
+
+  const edit = { oldTitle: input.oldTitle, newTitle, events: input.events }
+  const writes = rows
+    .filter((r) => !input.floor || r.day_date >= input.floor)
+    .map((r) => {
+      const next = applyBlockEdit({ title: r.title, events: parseEvents(r.events) }, edit)
+      return { id: r.id, title: next.title, events: normalizeDayEvents(next.events), row: r }
+    })
+    .filter((w) => w.title !== w.row.title || JSON.stringify(w.events) !== JSON.stringify(w.row.events))
+  const results = await Promise.all(
+    writes.map((w) =>
+      supabase
+        .from("itinerary_days")
+        .update({ title: w.title, events: w.events })
+        .eq("id", w.id),
+    ),
+  )
+  const failed = results.find((r) => r.error)
+  if (failed?.error) return { error: failed.error.message }
+
+  revalidatePath(`/trips/${input.tripSlug}`)
+  return {}
+}
+
+/** Puts dayIds under one new group, then re-splits each older group they
+ * left: the first leftover run keeps the old id, later runs get new ids, and
+ * a one-day run is ungrouped. Returns an error message or null. */
+async function regroupDays(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  tripId: string,
+  dayIds: string[],
+  groupName: string | null,
+  oldGroupIds: string[],
+): Promise<string | null> {
+  const { error } = await supabase
+    .from("itinerary_days")
+    .update({ group_id: crypto.randomUUID(), group_name: groupName })
+    .in("id", dayIds)
+  if (error) return error.message
+  if (oldGroupIds.length === 0) return null
+
+  const { data: tripDays, error: tripError } = await supabase
+    .from("itinerary_days")
+    .select("id, group_id, group_name")
+    .eq("trip_id", tripId)
+    .order("day_date")
+  if (tripError) return tripError.message
+  const removed = new Set(dayIds)
+  const days = tripDays.map((d) => ({ id: d.id, groupId: d.group_id }))
+  for (const oldId of new Set(oldGroupIds)) {
+    const oldName = tripDays.find((d) => d.group_id === oldId)?.group_name ?? null
+    const runs = leftoverRuns(days, oldId, removed)
+    for (const [i, run] of runs.entries()) {
+      const patch =
+        run.length === 1
+          ? { group_id: null, group_name: null }
+          : { group_id: i === 0 ? oldId : crypto.randomUUID(), group_name: oldName }
+      const { error: splitError } = await supabase
+        .from("itinerary_days")
+        .update(patch)
+        .in("id", run)
+      if (splitError) return splitError.message
+    }
+  }
+  return null
 }
 
 export interface AddPackingCategoryResult {
