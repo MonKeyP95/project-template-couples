@@ -4,12 +4,14 @@ import * as React from "react"
 
 import {
   DndContext,
+  DragOverlay,
   MouseSensor,
   TouchSensor,
   closestCenter,
   useSensor,
   useSensors,
   type DragEndEvent,
+  type DragStartEvent,
 } from "@dnd-kit/core"
 import {
   SortableContext,
@@ -91,6 +93,9 @@ import {
   planDrop,
   positionOwner,
   tripLength,
+  restoreDays,
+  toSegments,
+  type DaySegment,
 } from "@/lib/trips/itinerary-slots"
 import { EmptyDaySlot } from "./empty-day-slot"
 import { moneyRounded } from "@/lib/money"
@@ -128,14 +133,6 @@ interface RealtimeRow {
   created_at: string
 }
 
-
-
-interface DaySegment {
-  groupId: string | null
-  days: ItineraryDay[]
-}
-
-
 /** One-line summary for a collapsed day: the typed sub, else a cheap derived
  * hint from the events (first event text, or "N events"), else "". */
 function daySummary(day: ItineraryDay): string {
@@ -150,19 +147,6 @@ function daySummary(day: ItineraryDay): string {
   return `${evs.length} events`
 }
 
-/** Collapse sorted days into maximal runs of consecutive same-group_id days. */
-function toSegments(days: ItineraryDay[]): DaySegment[] {
-  const segments: DaySegment[] = []
-  for (const day of days) {
-    const last = segments[segments.length - 1]
-    if (day.groupId && last && last.groupId === day.groupId) {
-      last.days.push(day)
-    } else {
-      segments.push({ groupId: day.groupId, days: [day] })
-    }
-  }
-  return segments
-}
 
 /** Order locations by earliest day, empties last by sortOrder. */
 function orderTabs(
@@ -504,7 +488,15 @@ export function ItineraryTab({
   // One handler for the whole itinerary (see planDrop): onto an empty day it
   // moves the day and refiles its location; onto a planned day of the same
   // location it reorders. Optimistic; rolls back on error.
+  const [dragId, setDragId] = React.useState<string | null>(null)
+  const dragDay = dragId ? days.find((d) => d.id === dragId) : undefined
+
+  function onDragStart(e: DragStartEvent) {
+    setDragId(String(e.active.id))
+  }
+
   function onDragEnd(e: DragEndEvent) {
+    setDragId(null)
     if (!e.over) return
     const plan = planDrop({
       days,
@@ -529,7 +521,10 @@ export function ItineraryTab({
       )
       startReschedule(async () => {
         const result = await rescheduleItineraryDaysTo(tripId, tripSlug, plan.changes)
-        if (result.error) setDays(snapshot)
+        if (result.error) {
+          const moved = plan.changes.map((c) => c.id)
+          setDays((prev) => withOrdinals(restoreDays(prev, snapshot, moved)))
+        }
       })
       return
     }
@@ -549,7 +544,9 @@ export function ItineraryTab({
     )
     startReschedule(async () => {
       const result = await moveItineraryDay({ tripId, tripSlug, ...plan })
-      if (result.error) setDays(snapshot)
+      if (result.error) {
+        setDays((prev) => withOrdinals(restoreDays(prev, snapshot, [plan.dayId])))
+      }
     })
   }
 
@@ -1168,11 +1165,25 @@ export function ItineraryTab({
                 id="dnd-itinerary"
                 sensors={dragSensors}
                 collisionDetection={closestCenter}
+                onDragStart={onDragStart}
                 onDragEnd={onDragEnd}
+                onDragCancel={() => setDragId(null)}
               >
                 <SortableContext items={liveLooseIds} strategy={verticalListSortingStrategy}>
                   {rendered}
                 </SortableContext>
+                {/* Follows the pointer across locations and onto empty days,
+                    where the card's own list can't move it. */}
+                <DragOverlay>
+                  {dragDay ? (
+                    <div className="rounded-lg border border-sea bg-card px-3.5 py-2 shadow-md">
+                      <div className="font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
+                        {dragDay.date}
+                      </div>
+                      <div className="text-[14px] text-foreground">{dragDay.title}</div>
+                    </div>
+                  ) : null}
+                </DragOverlay>
               </DndContext>
             )
             })()}
