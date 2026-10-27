@@ -172,21 +172,6 @@ export function isDated(day: ItineraryDay): day is DatedItineraryDay {
   return day.dayDate !== null
 }
 
-/** A Realtime row → ItineraryDay. Rows carry both date and number until step 4:
- * a partner's start-date change arrives as rows whose dates hold while their
- * numbers shift, so a dated row's start is read off the row rather than the
- * possibly stale prop. A dream, or a row with no date, uses the prop. */
-export function liveRowToItineraryDay(
-  row: ItineraryRow & { day_date: string | null },
-  tripStartDate: string | null,
-): ItineraryDay {
-  const start =
-    tripStartDate !== null && row.day_date
-      ? dateOfIndex(2 - row.day_index, row.day_date)
-      : tripStartDate
-  return rowToItineraryDay(row, start)
-}
-
 /** Single row → ItineraryDay. `d` is a placeholder; pass through `withOrdinals` to set correctly. */
 export function rowToItineraryDay(row: ItineraryRow, startDate: string | null): ItineraryDay {
   return {

@@ -48,17 +48,3 @@ export function rowToLocation(
     currency: row.currency ?? null,
   }
 }
-
-/** A Realtime location row → ItineraryLocation. A dated trip reads its start
- * off the row (rows carry both date and number until step 4); a dream's rows
- * stay positional even when they hold stale dates from before the dates went. */
-export function liveRowToLocation(
-  row: ItineraryLocationRow & { start_date: string | null },
-  tripStartDate: string | null,
-): ItineraryLocation {
-  const start =
-    tripStartDate !== null && row.start_date && row.start_index != null
-      ? dateOfIndex(2 - row.start_index, row.start_date)
-      : tripStartDate
-  return rowToLocation(row, start)
-}

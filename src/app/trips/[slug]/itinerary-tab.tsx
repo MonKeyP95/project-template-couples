@@ -69,7 +69,7 @@ import {
   formatEventTime,
   reassignDayIndex,
   reorderRangeSlots,
-  liveRowToItineraryDay,
+  rowToItineraryDay,
   positionLabel,
   planFloor,
   tripActive,
@@ -79,7 +79,7 @@ import {
   type ItineraryTone,
 } from "@/lib/trips/itinerary-types"
 import {
-  liveRowToLocation,
+  rowToLocation,
   type ItineraryLocation,
   type ItineraryLocationRow,
 } from "@/lib/trips/location-types"
@@ -108,7 +108,6 @@ const toneText: Record<ItineraryTone, string> = {
 interface RealtimeRow {
   id: string
   trip_id: string
-  day_date: string | null
   day_index: number
   title: string
   sub: string | null
@@ -122,7 +121,6 @@ interface RealtimeRow {
   created_at: string
 }
 
-type RealtimeLocationRow = ItineraryLocationRow & { start_date: string | null }
 
 
 interface DaySegment {
@@ -410,14 +408,14 @@ export function ItineraryTab({
         },
         (payload) => {
           if (payload.eventType === "INSERT") {
-            const incoming = liveRowToItineraryDay(payload.new as RealtimeRow, tripStartDate)
+            const incoming = rowToItineraryDay(payload.new as RealtimeRow, tripStartDate)
             setDays((prev) =>
               prev.some((d) => d.id === incoming.id)
                 ? prev
                 : withOrdinals([...prev, incoming]),
             )
           } else if (payload.eventType === "UPDATE") {
-            const incoming = liveRowToItineraryDay(payload.new as RealtimeRow, tripStartDate)
+            const incoming = rowToItineraryDay(payload.new as RealtimeRow, tripStartDate)
             setDays((prev) =>
               withOrdinals(
                 prev.map((d) => (d.id === incoming.id ? incoming : d)),
@@ -454,14 +452,14 @@ export function ItineraryTab({
         },
         (payload) => {
           if (payload.eventType === "INSERT") {
-            const incoming = liveRowToLocation(payload.new as RealtimeLocationRow, tripStartDate)
+            const incoming = rowToLocation(payload.new as ItineraryLocationRow, tripStartDate)
             setLocations((prev) =>
               prev.some((l) => l.id === incoming.id)
                 ? prev
                 : [...prev, incoming].sort((a, b) => a.sortOrder - b.sortOrder),
             )
           } else if (payload.eventType === "UPDATE") {
-            const incoming = liveRowToLocation(payload.new as RealtimeLocationRow, tripStartDate)
+            const incoming = rowToLocation(payload.new as ItineraryLocationRow, tripStartDate)
             setLocations((prev) =>
               prev
                 .map((l) => (l.id === incoming.id ? incoming : l))
