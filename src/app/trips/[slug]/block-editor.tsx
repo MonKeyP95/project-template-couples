@@ -37,7 +37,9 @@ export function BlockEditor({
 }) {
   const [template] = React.useState(() => blockTemplate(days))
   const [initial] = React.useState(() => toEventDrafts(template.events))
-  const [name, setName] = React.useState(days[0]?.groupName ?? "")
+  // A new block from a selection starts unnamed, even if cut from a named block.
+  const existingName = groupId ? (days[0]?.groupName ?? "") : ""
+  const [name, setName] = React.useState(existingName)
   const [title, setTitle] = React.useState(template.title)
   const [events, setEvents] = React.useState<EventDraft[]>(initial)
   const [error, setError] = React.useState<string | null>(null)
@@ -86,7 +88,7 @@ export function BlockEditor({
       <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-md">
         <DialogHeader>
           <DialogTitle>
-            Editing {days.length} days{days[0]?.groupName ? ` - ${days[0].groupName}` : ""}
+            Editing {days.length} days{existingName ? ` - ${existingName}` : ""}
           </DialogTitle>
         </DialogHeader>
         <form onSubmit={save}>
