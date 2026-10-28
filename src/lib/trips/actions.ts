@@ -984,14 +984,16 @@ async function settleOutside(
   return { ids: ids ?? [] }
 }
 
-/** Deletes the unplaced days when the user chose "delete them". */
+/** Deletes the unplaced days when the user chose "delete them". Returns an
+ * error message when that fails; the days then stay unplaced. */
 async function dropUnplaced(
   supabase: Awaited<ReturnType<typeof createClient>>,
   ids: string[],
   choice: UpdateTripInput["outside"],
-): Promise<void> {
-  if (choice !== "delete" || ids.length === 0) return
-  await supabase.from("itinerary_days").delete().in("id", ids)
+): Promise<string | null> {
+  if (choice !== "delete" || ids.length === 0) return null
+  const { error } = await supabase.from("itinerary_days").delete().in("id", ids)
+  return error ? `Dates saved, but the days could not be deleted (they are in Unplaced): ${error.message}` : null
 }
 
 /**
@@ -1043,11 +1045,24 @@ export async function updateTrip(
   // real conversion refuses the change rather than misstating it.
   const { data: homeRow } = await supabase
     .from("trips")
-    .select("home_currency, start_date")
+    .select("home_currency, start_date, workspace_id")
     .eq("id", input.tripId)
     .maybeSingle()
   const oldHome: string | null = homeRow?.home_currency ?? null
   const oldStart: string | null = homeRow?.start_date ?? null
+
+  // Checked up front because settling days outside the trip writes before the
+  // trip update; a slug collision there would change the itinerary of a save
+  // that never happened.
+  if (homeRow && slug !== input.currentSlug) {
+    const { count } = await supabase
+      .from("trips")
+      .select("id", { count: "exact", head: true })
+      .eq("workspace_id", homeRow.workspace_id)
+      .eq("slug", slug)
+      .neq("id", input.tripId)
+    if ((count ?? 0) > 0) return { error: "A trip with that slug already exists." }
+  }
   const homeChanged = oldHome !== null && oldHome !== input.homeCurrency
   if (homeChanged) {
     const { count } = await supabase
@@ -1196,11 +1211,11 @@ export async function updateTrip(
       }
       return { error: error.message }
     }
-    await dropUnplaced(supabase, settled.ids, input.outside)
+    const dropError = await dropUnplaced(supabase, settled.ids, input.outside)
     await relabelHomeExpenses()
     revalidatePath("/home")
     revalidatePath(`/trips/${input.currentSlug}`)
-    return { slug }
+    return dropError ? { error: dropError } : { slug }
   }
 
   // --- Dated branch (includes promotion of a dream). ---
@@ -1302,12 +1317,12 @@ export async function updateTrip(
     }
     return { error: updateError.message }
   }
-  await dropUnplaced(supabase, settled.ids, input.outside)
+  const dropError = await dropUnplaced(supabase, settled.ids, input.outside)
   await relabelHomeExpenses()
 
   revalidatePath("/home")
   revalidatePath(`/trips/${input.currentSlug}`)
-  return { slug }
+  return dropError ? { error: dropError } : { slug }
 }
 
 /**
