@@ -2429,6 +2429,47 @@ export async function rescheduleItineraryDaysTo(
   return {}
 }
 
+export interface MoveItineraryDayInput {
+  tripId: string
+  tripSlug: string
+  dayId: string
+  /** The empty day it lands on. */
+  dayIndex: number
+  /** The location that day belongs to; null = a travel day. */
+  locationId: string | null
+  /** False when the day leaves its multi-day block. */
+  keepGroup: boolean
+}
+
+/**
+ * Moves one day onto an empty day, refiling it under that day's location in
+ * the same write. A partner who filled the day first wins: the unique
+ * (trip_id, day_index) rejects this write.
+ */
+export async function moveItineraryDay(
+  input: MoveItineraryDayInput,
+): Promise<{ error?: string }> {
+  if (!Number.isInteger(input.dayIndex) || input.dayIndex < 1) {
+    return { error: "Invalid day." }
+  }
+  const supabase = await createClient()
+  const { error } = await supabase
+    .from("itinerary_days")
+    .update({
+      day_index: input.dayIndex,
+      location_id: input.locationId,
+      ...(input.keepGroup ? {} : { group_id: null, group_name: null }),
+    })
+    .eq("id", input.dayId)
+    .eq("trip_id", input.tripId)
+  if (error) {
+    return { error: error.code === "23505" ? "That day is taken." : error.message }
+  }
+
+  revalidatePath(`/trips/${input.tripSlug}`)
+  return {}
+}
+
 export interface UpdateTripBudgetInput {
   tripId: string
   tripSlug: string

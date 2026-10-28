@@ -4,12 +4,14 @@ import * as React from "react"
 
 import {
   DndContext,
+  DragOverlay,
   MouseSensor,
   TouchSensor,
   closestCenter,
   useSensor,
   useSensors,
   type DragEndEvent,
+  type DragStartEvent,
 } from "@dnd-kit/core"
 import {
   SortableContext,
@@ -59,6 +61,7 @@ import {
   deleteItineraryLocation,
   insertItineraryDayWithShift,
   renameItineraryLocation,
+  moveItineraryDay,
   rescheduleItineraryDaysTo,
   setLocationSpanWithShift,
   updateItineraryDay,
@@ -68,7 +71,6 @@ import {
   dayIndexOf,
   formatEventTime,
   reassignDayIndex,
-  reorderRangeSlots,
   rowToItineraryDay,
   positionLabel,
   planFloor,
@@ -86,6 +88,16 @@ import {
 import { slugToTone } from "@/lib/trips/slug-tone"
 import { DayInput } from "./day-input"
 import { selectionBlock } from "@/lib/trips/itinerary-blocks"
+import {
+  emptyPositions,
+  planDrop,
+  positionOwner,
+  tripLength,
+  restoreDays,
+  toSegments,
+  type DaySegment,
+} from "@/lib/trips/itinerary-slots"
+import { EmptyDaySlot } from "./empty-day-slot"
 import { moneyRounded } from "@/lib/money"
 import { useCurrency } from "@/components/currency-context"
 import { currencyOptions } from "@/lib/fx/currency-list"
@@ -121,14 +133,6 @@ interface RealtimeRow {
   created_at: string
 }
 
-
-
-interface DaySegment {
-  groupId: string | null
-  days: ItineraryDay[]
-}
-
-
 /** One-line summary for a collapsed day: the typed sub, else a cheap derived
  * hint from the events (first event text, or "N events"), else "". */
 function daySummary(day: ItineraryDay): string {
@@ -143,19 +147,6 @@ function daySummary(day: ItineraryDay): string {
   return `${evs.length} events`
 }
 
-/** Collapse sorted days into maximal runs of consecutive same-group_id days. */
-function toSegments(days: ItineraryDay[]): DaySegment[] {
-  const segments: DaySegment[] = []
-  for (const day of days) {
-    const last = segments[segments.length - 1]
-    if (day.groupId && last && last.groupId === day.groupId) {
-      last.days.push(day)
-    } else {
-      segments.push({ groupId: day.groupId, days: [day] })
-    }
-  }
-  return segments
-}
 
 /** Order locations by earliest day, empties last by sortOrder. */
 function orderTabs(
@@ -203,15 +194,18 @@ function byIndex(a: ItineraryDay, b: ItineraryDay): number {
 type TimelineItem =
   | { kind: "location"; group: DayGroup }
   | { kind: "loose"; seg: DaySegment }
+  | { kind: "empty"; dayIndex: number }
 
 /**
  * One day-sorted sequence of timeline items: each location is a collapsible
  * block; each run of location-less days is a bare "loose" segment (single day
- * or a group_id trek). No "In transit" bucket -- loose days float at their date.
+ * or a group_id trek); each empty day no location owns sits at its number.
+ * No "In transit" bucket -- loose days float at their date.
  */
 function buildTimeline(
   locations: ItineraryLocation[],
   days: ItineraryDay[],
+  looseEmpties: number[] = [],
 ): TimelineItem[] {
   const byLoc = new Map<string, ItineraryDay[]>()
   const loose: ItineraryDay[] = []
@@ -247,6 +241,9 @@ function buildTimeline(
 
   for (const seg of toSegments(loose.slice().sort(byIndex))) {
     items.push({ item: { kind: "loose", seg }, sort: seg.days[0].dayIndex })
+  }
+  for (const dayIndex of looseEmpties) {
+    items.push({ item: { kind: "empty", dayIndex }, sort: dayIndex })
   }
 
   return items
@@ -488,38 +485,70 @@ export function ItineraryTab({
   )
   const [, startReschedule] = React.useTransition()
 
-  // Reorder a group's days and empty-day gaps as one sequence over `slotIndexes`
-  // (see reorderRangeSlots). Optimistic; rolls back on error. The caller builds
-  // slotIndexes and pre-filters out past days so a live trip stays out of the past.
-  function onGroupDragEnd(
-    groupDays: ItineraryDay[],
-    slotIndexes: number[],
-    e: DragEndEvent,
-  ) {
-    const over = e.over
-    const activeId = String(e.active.id)
-    if (!over || activeId === String(over.id)) return
-    const changes = reorderRangeSlots(groupDays, slotIndexes, activeId, String(over.id))
-    if (changes.length === 0) return
+  // One handler for the whole itinerary (see planDrop): onto an empty day it
+  // moves the day and refiles its location; onto a planned day of the same
+  // location it reorders. Optimistic; rolls back on error.
+  const [dragId, setDragId] = React.useState<string | null>(null)
+  const dragDay = dragId ? days.find((d) => d.id === dragId) : undefined
+
+  function onDragStart(e: DragStartEvent) {
+    setDragId(String(e.active.id))
+  }
+
+  function onDragEnd(e: DragEndEvent) {
+    setDragId(null)
+    if (!e.over) return
+    const plan = planDrop({
+      days,
+      locations,
+      activeId: String(e.active.id),
+      overId: String(e.over.id),
+      floor: active ? todayIndex : null,
+    })
+    if (plan.kind === "none") return
 
     const snapshot = days
-    const newIndexById = new Map(changes.map((c) => [c.id, c.dayIndex]))
+    if (plan.kind === "reorder") {
+      const newIndexById = new Map(plan.changes.map((c) => [c.id, c.dayIndex]))
+      setDays((prev) =>
+        withOrdinals(
+          prev.map((d) =>
+            newIndexById.has(d.id)
+              ? reassignDayIndex(d, newIndexById.get(d.id)!, tripStartDate)
+              : d,
+          ),
+        ),
+      )
+      startReschedule(async () => {
+        const result = await rescheduleItineraryDaysTo(tripId, tripSlug, plan.changes)
+        if (result.error) {
+          const moved = plan.changes.map((c) => c.id)
+          setDays((prev) => withOrdinals(restoreDays(prev, snapshot, moved)))
+        }
+      })
+      return
+    }
+
     setDays((prev) =>
       withOrdinals(
         prev.map((d) =>
-          newIndexById.has(d.id)
-            ? reassignDayIndex(d, newIndexById.get(d.id)!, tripStartDate)
+          d.id === plan.dayId
+            ? {
+                ...reassignDayIndex(d, plan.dayIndex, tripStartDate),
+                locationId: plan.locationId,
+                ...(plan.keepGroup ? {} : { groupId: null, groupName: null }),
+              }
             : d,
         ),
       ),
     )
     startReschedule(async () => {
-      const result = await rescheduleItineraryDaysTo(tripId, tripSlug, changes)
-      if (result.error) setDays(snapshot)
+      const result = await moveItineraryDay({ tripId, tripSlug, ...plan })
+      if (result.error) {
+        setDays((prev) => withOrdinals(restoreDays(prev, snapshot, [plan.dayId])))
+      }
     })
   }
-
-  const timeline = buildTimeline(locations, days)
 
   const budgetByLoc = React.useMemo(() => {
     const m = new Map<string, BudgetItem[]>()
@@ -547,10 +576,22 @@ export function ItineraryTab({
   // Mid-trip the walk opens on the days that remain; the server floor is what
   // actually protects the earlier ones.
   const plannerDays = active ? days.filter((d) => d.dayIndex >= todayIndex) : days
+  // Every empty day of the trip, as a drop target; on a live trip, only from today on.
+  const empties = emptyPositions(days, tripLength(days, tripDayCount)).filter(
+    (i) => !active || i >= todayIndex,
+  )
+  const emptyOwner = new Map(empties.map((i) => [i, positionOwner(i, locations, days)]))
+  const timeline = buildTimeline(
+    locations,
+    days,
+    empties.filter((i) => emptyOwner.get(i) === null),
+  )
   const itemIsPast = (it: TimelineItem) =>
     it.kind === "location"
       ? groupZone(it.group, todayIndex) === "past"
-      : it.seg.days[it.seg.days.length - 1].dayIndex < todayIndex
+      : it.kind === "empty"
+        ? false
+        : it.seg.days[it.seg.days.length - 1].dayIndex < todayIndex
   const pastDayTotal = active
     ? timeline.reduce(
         (n, it) =>
@@ -558,7 +599,9 @@ export function ItineraryTab({
             ? n +
               (it.kind === "location"
                 ? it.group.days.length
-                : it.seg.days.length)
+                : it.kind === "loose"
+                  ? it.seg.days.length
+                  : 0)
             : n,
         0,
       )
@@ -760,6 +803,19 @@ export function ItineraryTab({
             ) : null}
             {(() => {
             const rendered = timeline.map((item) => {
+            if (item.kind === "empty") {
+              return (
+                <div
+                  key={`empty-${item.dayIndex}`}
+                  className="border-t border-rule first:border-t-0 py-1 pl-10"
+                >
+                  <EmptyDaySlot
+                    dayIndex={item.dayIndex}
+                    label={positionLabel(item.dayIndex, tripStartDate)}
+                  />
+                </div>
+              )
+            }
             if (item.kind === "loose") {
               if (itemIsPast(item) && !pastBarOpen) return null
               return (
@@ -783,7 +839,7 @@ export function ItineraryTab({
                     categories={categories}
                     members={members}
                     currentPersonId={currentPersonId}
-                    sortable={locations.length === 0}
+                    sortable={!(active && itemIsPast(item))}
                     onEditBlock={openBlock}
                     selection={selection}
                     scopeKey="loose"
@@ -949,14 +1005,31 @@ export function ItineraryTab({
                     {(() => {
                       const dayRows = (() => {
                       const segs = toSegments(group.days)
-                      type Row = { kind: "seg"; seg: (typeof segs)[number] }
-                      const rows: Row[] = segs.map((seg) => ({ kind: "seg", seg }))
+                      type Row =
+                        | { kind: "seg"; seg: DaySegment }
+                        | { kind: "empty"; dayIndex: number }
+                      const rowStart = (row: Row) =>
+                        row.kind === "seg" ? row.seg.days[0].dayIndex : row.dayIndex
+                      // This location's empty days sit among its days, at their number.
+                      const rows: Row[] = [
+                        ...segs.map((seg): Row => ({ kind: "seg", seg })),
+                        ...empties
+                          .filter((i) => emptyOwner.get(i) === group.key)
+                          .map((dayIndex): Row => ({ kind: "empty", dayIndex })),
+                      ].sort((a, b) => rowStart(a) - rowStart(b))
 
-                      // Real days present -> the group is wrapped in a
-                      // DndContext below and its slots are draggable.
+                      // Real days present -> they are draggable within the
+                      // itinerary's one DndContext.
                       const canSort = group.days.length > 0
 
-                      const renderRow = (row: Row, sortable: boolean) => (
+                      const renderRow = (row: Row, sortable: boolean) =>
+                        row.kind === "empty" ? (
+                          <EmptyDaySlot
+                            key={`empty-${row.dayIndex}`}
+                            dayIndex={row.dayIndex}
+                            label={positionLabel(row.dayIndex, tripStartDate)}
+                          />
+                        ) : (
                         <DaySegmentView
                           key={row.seg.groupId ?? row.seg.days[0].id}
                           seg={row.seg}
@@ -980,10 +1053,10 @@ export function ItineraryTab({
                           scopeKey={group.key}
                           orderedIds={[...group.days].sort(byIndex).map((d) => d.id)}
                         />
-                      )
+                        )
 
                       const rowSortableIds = (row: Row): string[] =>
-                        canSort ? row.seg.days.map((d) => d.id) : []
+                        canSort && row.kind === "seg" ? row.seg.days.map((d) => d.id) : []
 
                       const isCurrentLoc =
                         active && groupZone(group, todayIndex) === "today"
@@ -994,11 +1067,13 @@ export function ItineraryTab({
                         }
 
                       const rowEnd = (row: Row) =>
-                        row.seg.days[row.seg.days.length - 1].dayIndex
+                        row.kind === "seg"
+                          ? row.seg.days[row.seg.days.length - 1].dayIndex
+                          : row.dayIndex
                       const pastRows = rows.filter((r) => rowEnd(r) < todayIndex)
                       const liveRows = rows.filter((r) => rowEnd(r) >= todayIndex)
                       const pastDayCount = pastRows.reduce(
-                        (n, r) => n + r.seg.days.length,
+                        (n, r) => n + (r.kind === "seg" ? r.seg.days.length : 0),
                         0,
                       )
                       const earlierExpanded = earlierOpen.has(group.key)
@@ -1034,26 +1109,13 @@ export function ItineraryTab({
                       }
                       })()
                       if (group.days.length === 0) return dayRows.rendered
-                      // Occupied days only (all span days are real rows now);
-                      // past-filtered on a live trip so the past can't be a drop.
-                      const slotIndexes = group.days
-                        .map((d) => d.dayIndex)
-                        .sort((a, b) => a - b)
-                        .filter((i) => !active || i >= todayIndex)
                       return (
-                        <DndContext
-                          id={`dnd-${group.key}`}
-                          sensors={dragSensors}
-                          collisionDetection={closestCenter}
-                          onDragEnd={(e) => onGroupDragEnd(group.days, slotIndexes, e)}
+                        <SortableContext
+                          items={dayRows.ids}
+                          strategy={verticalListSortingStrategy}
                         >
-                          <SortableContext
-                            items={dayRows.ids}
-                            strategy={verticalListSortingStrategy}
-                          >
-                            {dayRows.rendered}
-                          </SortableContext>
-                        </DndContext>
+                          {dayRows.rendered}
+                        </SortableContext>
                       )
                     })()}
 
@@ -1092,26 +1154,36 @@ export function ItineraryTab({
               </div>
             )
             })
-            if (locations.length !== 0) return rendered
-            // Locationless: one loose run, no empty slots rendered, so the slots
-            // are the occupied days only (past-filtered on a live trip).
-            const looseSlotIndexes = days
-              .map((d) => d.dayIndex)
-              .sort((a, b) => a - b)
-              .filter((i) => !active || i >= todayIndex)
+            // One drag area for the whole itinerary, so a day can cross
+            // locations onto an empty day. Each location sorts its own days;
+            // this outer list sorts the loose ones (past ones excluded live).
+            const liveLooseIds = days
+              .filter((d) => !d.locationId && !(active && d.dayIndex < todayIndex))
+              .map((d) => d.id)
             return (
               <DndContext
-                id="dnd-loose"
+                id="dnd-itinerary"
                 sensors={dragSensors}
                 collisionDetection={closestCenter}
-                onDragEnd={(e) => onGroupDragEnd(days, looseSlotIndexes, e)}
+                onDragStart={onDragStart}
+                onDragEnd={onDragEnd}
+                onDragCancel={() => setDragId(null)}
               >
-                <SortableContext
-                  items={days.map((d) => d.id)}
-                  strategy={verticalListSortingStrategy}
-                >
+                <SortableContext items={liveLooseIds} strategy={verticalListSortingStrategy}>
                   {rendered}
                 </SortableContext>
+                {/* Follows the pointer across locations and onto empty days,
+                    where the card's own list can't move it. */}
+                <DragOverlay>
+                  {dragDay ? (
+                    <div className="rounded-lg border border-sea bg-card px-3.5 py-2 shadow-md">
+                      <div className="font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
+                        {dragDay.date}
+                      </div>
+                      <div className="text-[14px] text-foreground">{dragDay.title}</div>
+                    </div>
+                  ) : null}
+                </DragOverlay>
               </DndContext>
             )
             })()}
