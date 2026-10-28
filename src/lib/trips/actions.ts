@@ -37,6 +37,12 @@ import {
   rowToLocation,
   type ItineraryLocation,
 } from "@/lib/trips/location-types"
+import {
+  isOutside,
+  isPlannedRow,
+  keptRange,
+  type KeptRange,
+} from "@/lib/trips/outside-days"
 import { slugToTone } from "@/lib/trips/slug-tone"
 import { slugify } from "@/lib/trips/slugify"
 import { tripHeadline, type PrefKey } from "@/lib/trips/trip-note-parse"
@@ -935,12 +941,59 @@ export interface UpdateTripInput {
   dayCount: number | null
   profile?: TripProfile
   categories?: { name: string; details: string[] }[]
+  /** What to do with planned days the change leaves outside the trip. */
+  outside?: "delete" | "unplace"
 }
 
 export interface UpdateTripResult {
   error?: string
   /** New slug on success; client routes to /trips/<slug>. */
   slug?: string
+  /** Planned days that would fall outside the trip; resend with `outside`. */
+  outsidePlanned?: number
+}
+
+/**
+ * Takes the days a dates/length change leaves outside `range` out of the trip
+ * before the trip row changes, so no day number ever drops below 1. Asks
+ * (`ask`) when planned days are among them and no choice was made; otherwise
+ * returns the ids it unplaced, which the caller deletes once the trip update
+ * has succeeded if the choice was "delete".
+ */
+async function settleOutside(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  tripId: string,
+  range: KeptRange,
+  choice: UpdateTripInput["outside"],
+): Promise<{ ask: number } | { ids: string[] } | { error: string }> {
+  const { data, error } = await supabase
+    .from("itinerary_days")
+    .select("day_index, title, sub, events")
+    .eq("trip_id", tripId)
+    .not("day_index", "is", null)
+  if (error) return { error: error.message }
+  const planned = data.filter((d) => isOutside(d.day_index, range) && isPlannedRow(d)).length
+  if (planned > 0 && !choice) return { ask: planned }
+
+  const { data: ids, error: rpcError } = await supabase.rpc("unplace_days_outside", {
+    p_trip_id: tripId,
+    p_first: range.first,
+    p_last: range.last,
+  })
+  if (rpcError) return { error: rpcError.message }
+  return { ids: ids ?? [] }
+}
+
+/** Deletes the unplaced days when the user chose "delete them". Returns an
+ * error message when that fails; the days then stay unplaced. */
+async function dropUnplaced(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  ids: string[],
+  choice: UpdateTripInput["outside"],
+): Promise<string | null> {
+  if (choice !== "delete" || ids.length === 0) return null
+  const { error } = await supabase.from("itinerary_days").delete().in("id", ids)
+  return error ? `Dates saved, but the days could not be deleted (they are in Unplaced): ${error.message}` : null
 }
 
 /**
@@ -992,10 +1045,24 @@ export async function updateTrip(
   // real conversion refuses the change rather than misstating it.
   const { data: homeRow } = await supabase
     .from("trips")
-    .select("home_currency")
+    .select("home_currency, start_date, workspace_id")
     .eq("id", input.tripId)
     .maybeSingle()
   const oldHome: string | null = homeRow?.home_currency ?? null
+  const oldStart: string | null = homeRow?.start_date ?? null
+
+  // Checked up front because settling days outside the trip writes before the
+  // trip update; a slug collision there would change the itinerary of a save
+  // that never happened.
+  if (homeRow && slug !== input.currentSlug) {
+    const { count } = await supabase
+      .from("trips")
+      .select("id", { count: "exact", head: true })
+      .eq("workspace_id", homeRow.workspace_id)
+      .eq("slug", slug)
+      .neq("id", input.tripId)
+    if ((count ?? 0) > 0) return { error: "A trip with that slug already exists." }
+  }
   const homeChanged = oldHome !== null && oldHome !== input.homeCurrency
   if (homeChanged) {
     const { count } = await supabase
@@ -1113,6 +1180,14 @@ export async function updateTrip(
     ) {
       return { error: `How long must be 1 to ${MAX_TRIP_DAYS} days.` }
     }
+    const settled = await settleOutside(
+      supabase,
+      input.tripId,
+      keptRange({ oldStart, newStart: null, newLength: dayCount }),
+      input.outside,
+    )
+    if ("error" in settled) return { error: settled.error }
+    if ("ask" in settled) return { outsidePlanned: settled.ask }
     const { error } = await supabase
       .from("trips")
       .update({
@@ -1136,10 +1211,11 @@ export async function updateTrip(
       }
       return { error: error.message }
     }
+    const dropError = await dropUnplaced(supabase, settled.ids, input.outside)
     await relabelHomeExpenses()
     revalidatePath("/home")
     revalidatePath(`/trips/${input.currentSlug}`)
-    return { slug }
+    return dropError ? { error: dropError } : { slug }
   }
 
   // --- Dated branch (includes promotion of a dream). ---
@@ -1156,6 +1232,7 @@ export async function updateTrip(
       .from("itinerary_days")
       .select("day_index")
       .eq("trip_id", input.tripId)
+      .not("day_index", "is", null)
       .order("day_index", { ascending: false })
       .limit(1)
       .maybeSingle()
@@ -1203,6 +1280,19 @@ export async function updateTrip(
     return { error: "End date must be on or after start date." }
   }
 
+  const settled = await settleOutside(
+    supabase,
+    input.tripId,
+    keptRange({
+      oldStart,
+      newStart: input.startDate,
+      newLength: dayIndexOf(input.endDate, input.startDate),
+    }),
+    input.outside,
+  )
+  if ("error" in settled) return { error: settled.error }
+  if ("ask" in settled) return { outsidePlanned: settled.ask }
+
   const { error: updateError } = await supabase
     .from("trips")
     .update({
@@ -1227,11 +1317,12 @@ export async function updateTrip(
     }
     return { error: updateError.message }
   }
+  const dropError = await dropUnplaced(supabase, settled.ids, input.outside)
   await relabelHomeExpenses()
 
   revalidatePath("/home")
   revalidatePath(`/trips/${input.currentSlug}`)
-  return { slug }
+  return dropError ? { error: dropError } : { slug }
 }
 
 /**

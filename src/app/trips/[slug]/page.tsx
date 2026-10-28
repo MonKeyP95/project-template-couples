@@ -35,7 +35,7 @@ import { getProfileBudgetData } from "@/lib/trips/budget-history-queries"
 import { recommendBufferPct } from "@/lib/trips/budget-history-types"
 import { summarizeBudget } from "@/lib/trips/expense-types"
 import { getTripDetailBySlug, type TripDetail } from "@/lib/trips/fixtures"
-import { getItineraryDays } from "@/lib/trips/itinerary-queries"
+import { getItineraryDays, getUnplacedDays } from "@/lib/trips/itinerary-queries"
 import { isDated } from "@/lib/trips/itinerary-types"
 import { getItineraryLocations } from "@/lib/trips/location-queries"
 import { getTripNotes } from "@/lib/trips/note-queries"
@@ -220,7 +220,7 @@ export default async function TripPage({
   // level and share the result with the active tab below.
   const showItinerary = wants("itinerary")
   const isDream = header.startDate === null
-  const [itineraryDays, locations, notes, packingItems, packingCategories, expenses, expenseCategories, savings, budgetMoves, budgetItems, receipts, documents] =
+  const [itineraryDays, locations, notes, packingItems, packingCategories, expenses, expenseCategories, savings, budgetMoves, budgetItems, receipts, documents, unplacedDays] =
     await Promise.all([
       showItinerary || wants("budget")
         ? getItineraryDays(header.id)
@@ -240,6 +240,7 @@ export default async function TripPage({
         : Promise.resolve(null),
       wants("budget") ? getTripReceipts(header.id) : Promise.resolve([]),
       wants("notes") ? getTripDocuments(header.id) : Promise.resolve([]),
+      showItinerary ? getUnplacedDays(header.id) : Promise.resolve([]),
     ])
 
   const budgetSummary = summarizeBudget(expenses, memberIds)
@@ -311,6 +312,7 @@ export default async function TripPage({
       tripDayCount={header.dayCount}
       today={today}
       initialItems={itineraryDays ?? []}
+      initialUnplaced={unplacedDays}
       initialLocations={locations ?? []}
       budgetItems={budgetItems ?? []}
       categories={expenseCategories ?? []}

@@ -114,10 +114,21 @@ export function EditTripForm({
   const promotingDreamWithDays =
     initial.isDream && !isDream && dreamDayCount > 0
 
+  // The "days fall outside" question, tied to the dates it was asked about so
+  // it disappears as soon as they change.
+  const datesKey = `${isDream}|${startDate}|${endDate}|${days}`
+  const [outsideAsk, setOutsideAsk] = React.useState<{ count: number; key: string } | null>(null)
+  const askOutside = outsideAsk?.key === datesKey ? outsideAsk.count : null
+
   function submit(e: React.FormEvent) {
     e.preventDefault()
+    save()
+  }
+
+  function save(outside?: "delete" | "unplace") {
     if (!canSubmit) return
     setError(null)
+    setOutsideAsk(null)
     startTransition(async () => {
       const result = await updateTrip({
         tripId,
@@ -145,9 +156,14 @@ export function EditTripForm({
           avoid,
         },
         categories,
+        outside,
       })
       if (result.error) {
         setError(result.error)
+        return
+      }
+      if (result.outsidePlanned) {
+        setOutsideAsk({ count: result.outsidePlanned, key: datesKey })
         return
       }
       router.push(`/trips/${result.slug}`)
@@ -442,6 +458,42 @@ export function EditTripForm({
 
         {error ? (
           <div className="mt-5 font-mono text-[10px] text-clay">{error}</div>
+        ) : null}
+
+        {askOutside !== null ? (
+          <div className="mt-5 rounded-lg border border-clay/40 px-3.5 py-3">
+            <p className="text-[13px] text-foreground">
+              {askOutside === 1
+                ? "1 planned day falls outside the new dates."
+                : `${askOutside} planned days fall outside the new dates.`}
+            </p>
+            <div className="mt-2.5 flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => save("unplace")}
+                disabled={isPending}
+                className="rounded-full border-0 bg-foreground px-3.5 py-1.5 font-mono text-[10px] uppercase tracking-[0.18em] text-background disabled:opacity-40"
+              >
+                keep as unplaced
+              </button>
+              <button
+                type="button"
+                onClick={() => save("delete")}
+                disabled={isPending}
+                className="rounded-full border border-rule px-3.5 py-1.5 font-mono text-[10px] uppercase tracking-[0.18em] text-clay disabled:opacity-40"
+              >
+                delete them
+              </button>
+              <button
+                type="button"
+                onClick={() => setOutsideAsk(null)}
+                disabled={isPending}
+                className="border-0 bg-transparent px-3 py-1.5 font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground hover:text-foreground"
+              >
+                cancel
+              </button>
+            </div>
+          </div>
         ) : null}
 
         <div className="mt-7 flex justify-end gap-2">

@@ -190,6 +190,25 @@ export function rowToItineraryDay(row: ItineraryRow, startDate: string | null): 
   }
 }
 
+/** A day taken out of the trip's days (day_index null): content and location
+ * kept, no position, no block. */
+export type UnplacedDay = Pick<
+  ItineraryDay,
+  "id" | "title" | "sub" | "events" | "tag" | "tone" | "locationId"
+>
+
+export function rowToUnplacedDay(row: Omit<ItineraryRow, "day_index">): UnplacedDay {
+  return {
+    id: row.id,
+    title: row.title ?? "",
+    sub: row.sub ?? "",
+    events: parseEvents(row.events),
+    tag: row.tag,
+    tone: row.tone as ItineraryTone,
+    locationId: row.location_id ?? null,
+  }
+}
+
 /** Sort by dayIndex ascending and re-pad `d` ordinals. Pure; safe for client-side use after Realtime deltas. */
 export function withOrdinals(days: ItineraryDay[]): ItineraryDay[] {
   const sorted = [...days].sort((a, b) => a.dayIndex - b.dayIndex)
