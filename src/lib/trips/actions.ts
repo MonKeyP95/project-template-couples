@@ -41,6 +41,7 @@ import {
   isOutside,
   isPlannedRow,
   keptRange,
+  startShift,
   type KeptRange,
 } from "@/lib/trips/outside-days"
 import { slugToTone } from "@/lib/trips/slug-tone"
@@ -943,6 +944,8 @@ export interface UpdateTripInput {
   categories?: { name: string; details: string[] }[]
   /** What to do with planned days the change leaves outside the trip. */
   outside?: "delete" | "unplace"
+  /** A new start date moves the plan with it, or keeps days on their dates. */
+  start?: "move" | "keep"
 }
 
 export interface UpdateTripResult {
@@ -951,6 +954,30 @@ export interface UpdateTripResult {
   slug?: string
   /** Planned days that would fall outside the trip; resend with `outside`. */
   outsidePlanned?: number
+  /** The start moved on a trip with a plan; resend with `start`. */
+  askStart?: true
+}
+
+/** True when the trip has a placed day or a location span, i.e. something a
+ * new start date could move. */
+async function hasPlacement(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  tripId: string,
+): Promise<boolean | { error: string }> {
+  const days = await supabase
+    .from("itinerary_days")
+    .select("id", { count: "exact", head: true })
+    .eq("trip_id", tripId)
+    .not("day_index", "is", null)
+  if (days.error) return { error: days.error.message }
+  if ((days.count ?? 0) > 0) return true
+  const spans = await supabase
+    .from("itinerary_locations")
+    .select("id", { count: "exact", head: true })
+    .eq("trip_id", tripId)
+    .not("start_index", "is", null)
+  if (spans.error) return { error: spans.error.message }
+  return (spans.count ?? 0) > 0
 }
 
 /**
@@ -994,6 +1021,21 @@ async function dropUnplaced(
   if (choice !== "delete" || ids.length === 0) return null
   const { error } = await supabase.from("itinerary_days").delete().in("id", ids)
   return error ? `Dates saved, but the days could not be deleted (they are in Unplaced): ${error.message}` : null
+}
+
+/** Shifts the trip's day numbers and spans by `shift` so days keep their
+ * dates after the start moved. Runs after the trip update; on failure the
+ * plan has moved with the start instead, and the message says so. */
+async function keepDaysOnDates(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  tripId: string,
+  shift: number,
+): Promise<string | null> {
+  if (shift === 0) return null
+  const { error } = await supabase.rpc("shift_trip_days", { p_trip_id: tripId, p_shift: shift })
+  return error
+    ? `Dates saved, but the days could not be kept on their dates (the plan moved with the start): ${error.message}`
+    : null
 }
 
 /**
@@ -1183,7 +1225,7 @@ export async function updateTrip(
     const settled = await settleOutside(
       supabase,
       input.tripId,
-      keptRange({ oldStart, newStart: null, newLength: dayCount }),
+      keptRange({ oldStart, newStart: null, newLength: dayCount, keepDates: false }),
       input.outside,
     )
     if ("error" in settled) return { error: settled.error }
@@ -1225,8 +1267,8 @@ export async function updateTrip(
   }
 
   // Promotion of a dream that already has planned days: Day 1 becomes the start
-  // date and the end follows the day count. No row moves; a trigger derives
-  // each day's date from its number.
+  // date and the end follows the day count. No row moves; each day's date
+  // comes from its number.
   if (input.wasDream) {
     const { data: lastDay } = await supabase
       .from("itinerary_days")
@@ -1280,6 +1322,15 @@ export async function updateTrip(
     return { error: "End date must be on or after start date." }
   }
 
+  const startMoved = oldStart !== null && oldStart !== input.startDate
+  if (startMoved && !input.start) {
+    const placed = await hasPlacement(supabase, input.tripId)
+    if (typeof placed === "object") return { error: placed.error }
+    if (placed) return { askStart: true }
+  }
+  const keepDates = startMoved && input.start === "keep"
+  const shift = keepDates && oldStart ? startShift(oldStart, input.startDate) : 0
+
   const settled = await settleOutside(
     supabase,
     input.tripId,
@@ -1287,6 +1338,7 @@ export async function updateTrip(
       oldStart,
       newStart: input.startDate,
       newLength: dayIndexOf(input.endDate, input.startDate),
+      keepDates,
     }),
     input.outside,
   )
@@ -1317,12 +1369,14 @@ export async function updateTrip(
     }
     return { error: updateError.message }
   }
+  const shiftError = await keepDaysOnDates(supabase, input.tripId, shift)
   const dropError = await dropUnplaced(supabase, settled.ids, input.outside)
   await relabelHomeExpenses()
 
   revalidatePath("/home")
   revalidatePath(`/trips/${input.currentSlug}`)
-  return dropError ? { error: dropError } : { slug }
+  const failure = shiftError ?? dropError
+  return failure ? { error: failure } : { slug }
 }
 
 /**

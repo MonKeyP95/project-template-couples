@@ -3,7 +3,7 @@
 import * as React from "react"
 import { useRouter } from "next/navigation"
 
-import { deleteTrip, updateTrip } from "@/lib/trips/actions"
+import { deleteTrip, updateTrip, type UpdateTripInput } from "@/lib/trips/actions"
 import { currencyOptions } from "@/lib/fx/currency-list"
 import { type LocalCategory } from "../../profile-fields"
 import { ProfileWalkthrough } from "../../profile-walkthrough"
@@ -21,6 +21,8 @@ const PREVIEW_FMT = new Intl.DateTimeFormat("en-GB", {
 function fmtPreview(yyyyMmDd: string): string {
   return PREVIEW_FMT.format(new Date(`${yyyyMmDd}T00:00:00Z`))
 }
+
+type StartChoice = NonNullable<UpdateTripInput["start"]>
 
 function derivedEnd(start: string, days: number): string {
   const d = new Date(`${start}T00:00:00Z`)
@@ -114,20 +116,28 @@ export function EditTripForm({
   const promotingDreamWithDays =
     initial.isDream && !isDream && dreamDayCount > 0
 
-  // The "days fall outside" question, tied to the dates it was asked about so
-  // it disappears as soon as they change.
+  // The "move the plan / keep the dates" and "days fall outside" questions,
+  // tied to the dates they were asked about so they disappear as soon as
+  // those change. The outside question remembers the start choice before it.
   const datesKey = `${isDream}|${startDate}|${endDate}|${days}`
-  const [outsideAsk, setOutsideAsk] = React.useState<{ count: number; key: string } | null>(null)
-  const askOutside = outsideAsk?.key === datesKey ? outsideAsk.count : null
+  const [startAsk, setStartAsk] = React.useState<string | null>(null)
+  const askStart = startAsk === datesKey
+  const [outsideAsk, setOutsideAsk] = React.useState<{
+    count: number
+    key: string
+    start?: StartChoice
+  } | null>(null)
+  const askOutside = outsideAsk?.key === datesKey ? outsideAsk : null
 
   function submit(e: React.FormEvent) {
     e.preventDefault()
-    save()
+    save({})
   }
 
-  function save(outside?: "delete" | "unplace") {
+  function save({ start, outside }: { start?: StartChoice; outside?: "delete" | "unplace" }) {
     if (!canSubmit) return
     setError(null)
+    setStartAsk(null)
     setOutsideAsk(null)
     startTransition(async () => {
       const result = await updateTrip({
@@ -157,13 +167,18 @@ export function EditTripForm({
         },
         categories,
         outside,
+        start,
       })
       if (result.error) {
         setError(result.error)
         return
       }
+      if (result.askStart) {
+        setStartAsk(datesKey)
+        return
+      }
       if (result.outsidePlanned) {
-        setOutsideAsk({ count: result.outsidePlanned, key: datesKey })
+        setOutsideAsk({ count: result.outsidePlanned, key: datesKey, start })
         return
       }
       router.push(`/trips/${result.slug}`)
@@ -460,17 +475,52 @@ export function EditTripForm({
           <div className="mt-5 font-mono text-[10px] text-clay">{error}</div>
         ) : null}
 
-        {askOutside !== null ? (
+        {askStart ? (
           <div className="mt-5 rounded-lg border border-clay/40 px-3.5 py-3">
             <p className="text-[13px] text-foreground">
-              {askOutside === 1
-                ? "1 planned day falls outside the new dates."
-                : `${askOutside} planned days fall outside the new dates.`}
+              The start moved to {fmtPreview(startDate)}. Move the whole plan with it, or keep
+              every day on its date?
             </p>
             <div className="mt-2.5 flex flex-wrap gap-2">
               <button
                 type="button"
-                onClick={() => save("unplace")}
+                onClick={() => save({ start: "move" })}
+                disabled={isPending}
+                className="rounded-full border-0 bg-foreground px-3.5 py-1.5 font-mono text-[10px] uppercase tracking-[0.18em] text-background disabled:opacity-40"
+              >
+                move the plan
+              </button>
+              <button
+                type="button"
+                onClick={() => save({ start: "keep" })}
+                disabled={isPending}
+                className="rounded-full border border-rule px-3.5 py-1.5 font-mono text-[10px] uppercase tracking-[0.18em] text-foreground disabled:opacity-40"
+              >
+                keep the dates
+              </button>
+              <button
+                type="button"
+                onClick={() => setStartAsk(null)}
+                disabled={isPending}
+                className="border-0 bg-transparent px-3 py-1.5 font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground hover:text-foreground"
+              >
+                cancel
+              </button>
+            </div>
+          </div>
+        ) : null}
+
+        {askOutside !== null ? (
+          <div className="mt-5 rounded-lg border border-clay/40 px-3.5 py-3">
+            <p className="text-[13px] text-foreground">
+              {askOutside.count === 1
+                ? "1 planned day falls outside the new dates."
+                : `${askOutside.count} planned days fall outside the new dates.`}
+            </p>
+            <div className="mt-2.5 flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => save({ start: askOutside.start, outside: "unplace" })}
                 disabled={isPending}
                 className="rounded-full border-0 bg-foreground px-3.5 py-1.5 font-mono text-[10px] uppercase tracking-[0.18em] text-background disabled:opacity-40"
               >
@@ -478,7 +528,7 @@ export function EditTripForm({
               </button>
               <button
                 type="button"
-                onClick={() => save("delete")}
+                onClick={() => save({ start: askOutside.start, outside: "delete" })}
                 disabled={isPending}
                 className="rounded-full border border-rule px-3.5 py-1.5 font-mono text-[10px] uppercase tracking-[0.18em] text-clay disabled:opacity-40"
               >
