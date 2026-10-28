@@ -3,8 +3,10 @@ import { createClient } from "@/lib/supabase/server"
 import {
   dayIndexOf,
   rowToItineraryDay,
+  rowToUnplacedDay,
   withOrdinals,
   type ItineraryDay,
+  type UnplacedDay,
 } from "@/lib/trips/itinerary-types"
 
 const DAY_COLS =
@@ -32,10 +34,23 @@ export async function getItineraryDays(
       .from("itinerary_days")
       .select(DAY_COLS)
       .eq("trip_id", tripId)
+      .not("day_index", "is", null)
       .order("day_index", { ascending: true }),
   ])
 
   return withOrdinals((data ?? []).map((row) => rowToItineraryDay(row, start)))
+}
+
+/** A trip's unplaced days (no day number), oldest first. */
+export async function getUnplacedDays(tripId: string): Promise<UnplacedDay[]> {
+  const supabase = await createClient()
+  const { data } = await supabase
+    .from("itinerary_days")
+    .select(DAY_COLS)
+    .eq("trip_id", tripId)
+    .is("day_index", null)
+    .order("created_at", { ascending: true })
+  return (data ?? []).map(rowToUnplacedDay)
 }
 
 export async function getTodayForTrip(

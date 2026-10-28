@@ -30,6 +30,7 @@ export default async function EditTripPage({
     .from("itinerary_days")
     .select("day_index")
     .eq("trip_id", trip.id)
+    .not("day_index", "is", null)
   const indices = (dayRows ?? []).map((r) => r.day_index)
   const dreamDayCount = trip.startDate === null ? indices.length : 0
   // Mirrors updateTrip's promotion: the plan keeps its day numbers.

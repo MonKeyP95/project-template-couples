@@ -72,6 +72,7 @@ import {
   formatEventTime,
   reassignDayIndex,
   rowToItineraryDay,
+  rowToUnplacedDay,
   positionLabel,
   planFloor,
   tripActive,
@@ -79,6 +80,7 @@ import {
   type DayZone,
   type ItineraryDay,
   type ItineraryTone,
+  type UnplacedDay,
 } from "@/lib/trips/itinerary-types"
 import {
   rowToLocation,
@@ -89,6 +91,7 @@ import { slugToTone } from "@/lib/trips/slug-tone"
 import { DayInput } from "./day-input"
 import { selectionBlock } from "@/lib/trips/itinerary-blocks"
 import {
+  EMPTY_PREFIX,
   emptyPositions,
   planDrop,
   positionOwner,
@@ -98,6 +101,7 @@ import {
   type DaySegment,
 } from "@/lib/trips/itinerary-slots"
 import { EmptyDaySlot } from "./empty-day-slot"
+import { UnplacedDays } from "./unplaced-days"
 import { moneyRounded } from "@/lib/money"
 import { useCurrency } from "@/components/currency-context"
 import { currencyOptions } from "@/lib/fx/currency-list"
@@ -120,7 +124,8 @@ const toneText: Record<ItineraryTone, string> = {
 interface RealtimeRow {
   id: string
   trip_id: string
-  day_index: number
+  /** Null for an unplaced day. */
+  day_index: number | null
   title: string
   sub: string | null
   events: unknown
@@ -298,6 +303,7 @@ export function ItineraryTab({
   tripDayCount,
   today,
   initialItems,
+  initialUnplaced,
   initialLocations,
   budgetItems,
   categories,
@@ -316,6 +322,8 @@ export function ItineraryTab({
   tripDayCount: number | null
   today: string
   initialItems: ItineraryDay[]
+  /** Days a date change took out of the trip (no day number). */
+  initialUnplaced: UnplacedDay[]
   initialLocations: ItineraryLocation[]
   budgetItems: BudgetItem[]
   categories: ExpenseCategoryRow[]
@@ -353,6 +361,13 @@ export function ItineraryTab({
   if (initialItems !== lastInitial) {
     setLastInitial(initialItems)
     setDays(initialItems)
+  }
+
+  const [unplaced, setUnplaced] = React.useState<UnplacedDay[]>(initialUnplaced)
+  const [lastInitialUnplaced, setLastInitialUnplaced] = React.useState(initialUnplaced)
+  if (initialUnplaced !== lastInitialUnplaced) {
+    setLastInitialUnplaced(initialUnplaced)
+    setUnplaced(initialUnplaced)
   }
 
   const [locations, setLocations] = React.useState<ItineraryLocation[]>(
@@ -404,28 +419,38 @@ export function ItineraryTab({
           filter: `trip_id=eq.${tripId}`,
         },
         (payload) => {
-          if (payload.eventType === "INSERT") {
-            const incoming = rowToItineraryDay(payload.new as RealtimeRow, tripStartDate)
-            setDays((prev) =>
-              prev.some((d) => d.id === incoming.id)
-                ? prev
-                : withOrdinals([...prev, incoming]),
-            )
-          } else if (payload.eventType === "UPDATE") {
-            const incoming = rowToItineraryDay(payload.new as RealtimeRow, tripStartDate)
-            setDays((prev) =>
-              withOrdinals(
-                prev.map((d) => (d.id === incoming.id ? incoming : d)),
-              ),
-            )
-          } else if (payload.eventType === "DELETE") {
+          if (payload.eventType === "DELETE") {
             const old = payload.old as { id?: string }
             if (old.id) {
               setDays((prev) =>
                 withOrdinals(prev.filter((d) => d.id !== old.id)),
               )
+              setUnplaced((prev) => prev.filter((d) => d.id !== old.id))
             }
+            return
           }
+          // A row with no day number is unplaced; one with a number is a day
+          // of the trip. An UPDATE can move a row between the two lists.
+          const row = payload.new as RealtimeRow
+          if (row.day_index === null) {
+            const incoming = rowToUnplacedDay(row)
+            setDays((prev) =>
+              prev.some((d) => d.id === row.id)
+                ? withOrdinals(prev.filter((d) => d.id !== row.id))
+                : prev,
+            )
+            setUnplaced((prev) =>
+              prev.some((d) => d.id === row.id)
+                ? prev.map((d) => (d.id === row.id ? incoming : d))
+                : [...prev, incoming],
+            )
+            return
+          }
+          const incoming = rowToItineraryDay({ ...row, day_index: row.day_index }, tripStartDate)
+          setUnplaced((prev) => prev.filter((d) => d.id !== row.id))
+          setDays((prev) =>
+            withOrdinals([...prev.filter((d) => d.id !== row.id), incoming]),
+          )
         },
       )
       .subscribe()
@@ -490,14 +515,62 @@ export function ItineraryTab({
   // location it reorders. Optimistic; rolls back on error.
   const [dragId, setDragId] = React.useState<string | null>(null)
   const dragDay = dragId ? days.find((d) => d.id === dragId) : undefined
+  const dragUnplaced = dragId ? unplaced.find((d) => d.id === dragId) : undefined
 
   function onDragStart(e: DragStartEvent) {
     setDragId(String(e.active.id))
   }
 
+  /** An unplaced day dropped on a free day goes back into the trip there,
+   * under that day's location. Any other target does nothing. */
+  function placeBack(day: UnplacedDay, overId: string) {
+    if (!overId.startsWith(EMPTY_PREFIX)) return
+    const dayIndex = Number(overId.slice(EMPTY_PREFIX.length))
+    if (active && dayIndex < todayIndex) return
+    const locationId = positionOwner(dayIndex, locations, days)
+    const placed = rowToItineraryDay(
+      { ...day, day_index: dayIndex, location_id: locationId },
+      tripStartDate,
+    )
+    setUnplaced((prev) => prev.filter((d) => d.id !== day.id))
+    setDays((prev) => withOrdinals([...prev, placed]))
+    startReschedule(async () => {
+      const result = await moveItineraryDay({
+        tripId,
+        tripSlug,
+        dayId: day.id,
+        dayIndex,
+        locationId,
+        keepGroup: false,
+      })
+      if (result.error) {
+        setDays((prev) => withOrdinals(prev.filter((d) => d.id !== day.id)))
+        setUnplaced((prev) => (prev.some((d) => d.id === day.id) ? prev : [...prev, day]))
+      }
+    })
+  }
+
+  function deleteUnplaced(id: string) {
+    const day = unplaced.find((d) => d.id === id)
+    if (!day || !window.confirm("Delete this day and everything on it?")) return
+    setUnplaced((prev) => prev.filter((d) => d.id !== id))
+    startReschedule(async () => {
+      try {
+        await deleteItineraryDay(id, tripSlug)
+      } catch {
+        setUnplaced((prev) => (prev.some((d) => d.id === id) ? prev : [...prev, day]))
+      }
+    })
+  }
+
   function onDragEnd(e: DragEndEvent) {
     setDragId(null)
     if (!e.over) return
+    const placing = unplaced.find((d) => d.id === e.active.id)
+    if (placing) {
+      placeBack(placing, String(e.over.id))
+      return
+    }
     const plan = planDrop({
       days,
       locations,
@@ -1172,6 +1245,7 @@ export function ItineraryTab({
                 <SortableContext items={liveLooseIds} strategy={verticalListSortingStrategy}>
                   {rendered}
                 </SortableContext>
+                <UnplacedDays days={unplaced} onDelete={deleteUnplaced} />
                 {/* Follows the pointer across locations and onto empty days,
                     where the card's own list can't move it. */}
                 <DragOverlay>
@@ -1181,6 +1255,15 @@ export function ItineraryTab({
                         {dragDay.date}
                       </div>
                       <div className="text-[14px] text-foreground">{dragDay.title}</div>
+                    </div>
+                  ) : dragUnplaced ? (
+                    <div className="rounded-lg border border-sea bg-card px-3.5 py-2 shadow-md">
+                      <div className="font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
+                        Unplaced
+                      </div>
+                      <div className="text-[14px] text-foreground">
+                        {dragUnplaced.title || "Untitled day"}
+                      </div>
                     </div>
                   ) : null}
                 </DragOverlay>
