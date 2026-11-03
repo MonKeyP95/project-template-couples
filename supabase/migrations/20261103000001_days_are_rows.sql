@@ -98,15 +98,10 @@ begin
     );
 
   update public.itinerary_days b
-  set location_id = public.itinerary_position_owner(p_trip_id, b.day_index),
-      group_id = null,
-      group_name = null
+  set location_id = public.itinerary_position_owner(p_trip_id, b.day_index)
   where b.trip_id = p_trip_id
     and not public.itinerary_day_is_planned(b.title, b.sub, b.events)
-    and (
-      b.location_id is distinct from public.itinerary_position_owner(p_trip_id, b.day_index)
-      or b.group_id is not null
-    );
+    and b.location_id is distinct from public.itinerary_position_owner(p_trip_id, b.day_index);
 end;
 $$;
 

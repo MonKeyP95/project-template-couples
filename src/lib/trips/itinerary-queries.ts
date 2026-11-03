@@ -8,6 +8,7 @@ import {
   type ItineraryDay,
   type UnplacedDay,
 } from "@/lib/trips/itinerary-types"
+import { isPlannedRow } from "@/lib/trips/outside-days"
 
 const DAY_COLS =
   "id, day_index, title, sub, events, tag, tone, group_id, group_name, location_id"
@@ -53,6 +54,7 @@ export async function getUnplacedDays(tripId: string): Promise<UnplacedDay[]> {
   return (data ?? []).map(rowToUnplacedDay)
 }
 
+/** Today's planned day, or null when today is an empty day (or outside the trip). */
 export async function getTodayForTrip(
   tripId: string,
   today: string,
@@ -67,5 +69,5 @@ export async function getTodayForTrip(
     .eq("day_index", dayIndexOf(today, start))
     .maybeSingle()
 
-  return data ? rowToItineraryDay(data, start) : null
+  return data && isPlannedRow(data) ? rowToItineraryDay(data, start) : null
 }

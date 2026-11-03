@@ -34,7 +34,7 @@
 
 - [ ] Constraint: drop and re-add `itinerary_days_trip_id_day_index_key` as `unique (trip_id, day_index) deferrable initially deferred` (name checked in the step-1 migration).
 - [ ] `itinerary_position_owner(p_trip_id uuid, p_index int) returns uuid` (sql, stable): the owner rule above, ties broken by `sort_order`.
-- [ ] `sync_trip_days(p_trip_id uuid) returns void` (plpgsql): length as above; delete blanks where `day_index is null or day_index > length or` another row has the same number and is planned or has a smaller id; insert blanks for missing 1..length (`tone 'sand'`, `created_by coalesce(auth.uid(), trips.created_by)`); set each blank's `location_id` to its owner and clear its `group_id`/`group_name`.
+- [ ] `sync_trip_days(p_trip_id uuid) returns void` (plpgsql): length as above; delete blanks where `day_index is null or day_index > length or` another row has the same number and is planned or has a smaller id; insert blanks for missing 1..length (`tone 'sand'`, `created_by coalesce(auth.uid(), trips.created_by)`); set each blank's `location_id` to its owner (groups untouched: "Edit together" groups blanks before writing their titles).
 - [ ] Triggers: `after insert/update/delete ... for each statement` on `itinerary_days` (three triggers, transition tables), `itinerary_locations` (same), and `after insert or update of start_date, end_date, day_count on trips for each row`. Each calls `sync_trip_days` per affected trip and returns early when `pg_trigger_depth() > 1`.
 - [ ] Re-create `shift_and_insert_itinerary`, `set_location_span_with_shift` and `shift_trip_days` so their `v_first`/shift/`max(day_index)` only see planned days. Everything else is unchanged.
 - [ ] Backfill: `select sync_trip_days(id) from trips;`

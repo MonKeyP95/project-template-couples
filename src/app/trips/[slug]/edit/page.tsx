@@ -4,6 +4,7 @@ import { notFound, redirect } from "next/navigation"
 import { Label } from "@/components/together"
 import { createClient } from "@/lib/supabase/server"
 import { getTripBySlug } from "@/lib/trips/queries"
+import { isPlannedRow } from "@/lib/trips/outside-days"
 import { getTripExpenseCategories } from "@/lib/trips/expense-queries"
 import { getCurrentWorkspace } from "@/lib/workspace/queries"
 
@@ -28,11 +29,12 @@ export default async function EditTripPage({
 
   const { data: dayRows } = await supabase
     .from("itinerary_days")
-    .select("day_index")
+    .select("day_index, title, sub, events")
     .eq("trip_id", trip.id)
     .not("day_index", "is", null)
   const indices = (dayRows ?? []).map((r) => r.day_index)
-  const dreamDayCount = trip.startDate === null ? indices.length : 0
+  const dreamDayCount =
+    trip.startDate === null ? (dayRows ?? []).filter(isPlannedRow).length : 0
   // Mirrors updateTrip's promotion: the plan keeps its day numbers.
   const promoteDays = Math.max(trip.dayCount ?? 0, ...indices)
 

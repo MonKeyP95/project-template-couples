@@ -11,6 +11,7 @@ import type { TripProfile } from "@/lib/trips/trip-profile-types"
 import { createClient } from "@/lib/supabase/server"
 import { getItineraryLocations } from "@/lib/trips/location-queries"
 import { getItineraryDays } from "@/lib/trips/itinerary-queries"
+import { isPlannedRow } from "@/lib/trips/outside-days"
 import {
   ITINERARY_TONES,
   dayIndexOf,
@@ -319,7 +320,7 @@ export async function applyPlanEntries(input: {
   const length = await ensureDayCount(trip, input.dayCount)
   if ("error" in length) return length
 
-  const existingDays = await getItineraryDays(input.tripId)
+  const existingDays = (await getItineraryDays(input.tripId)).filter(isPlannedRow)
   if (existingDays.length > 0) {
     const locations = await getItineraryLocations(input.tripId)
     return await applyPlanEdits(input, existingDays, locations, trip.name, await writeFloor(trip))
