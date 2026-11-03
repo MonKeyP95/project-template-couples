@@ -1205,7 +1205,7 @@ export function ItineraryTab({
                       <div className="font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
                         {dragDay.date}
                       </div>
-                      <div className="text-[14px] text-foreground">{dragDay.title}</div>
+                      <div className="text-[14px] text-foreground">{dragDay.title || daySummary(dragDay)}</div>
                     </div>
                   ) : dragUnplaced ? (
                     <div className="rounded-lg border border-sea bg-card px-3.5 py-2 shadow-md">
@@ -1592,14 +1592,16 @@ function DayView({
             day {Number(day.d)}
           </span>
         </div>
-        <button
-          type="button"
-          onClick={onToggle}
-          aria-expanded={expanded}
-          className="t-display mb-1 block w-full text-left text-[22px] leading-tight text-foreground"
-        >
-          {day.title}
-        </button>
+        {day.title ? (
+          <button
+            type="button"
+            onClick={onToggle}
+            aria-expanded={expanded}
+            className="t-display mb-1 block w-full text-left text-[22px] leading-tight text-foreground"
+          >
+            {day.title}
+          </button>
+        ) : null}
         {expanded ? (
           day.events.length > 0 ? (
             <div className="space-y-0.5">
@@ -1754,7 +1756,7 @@ function DayEditor({
 
   function save(e: React.FormEvent) {
     e.preventDefault()
-    if (isPending || !title.trim() || dayIndex === null) return
+    if (isPending || !draftHasContent(title, sub, events) || dayIndex === null) return
     setError(null)
     startTransition(async () => {
       const result = await updateItineraryDay({
@@ -1842,7 +1844,7 @@ function AddDayRow({
 
   function submit(e: React.FormEvent) {
     e.preventDefault()
-    if (isPending || !title.trim() || dayIndex === null) return
+    if (isPending || !draftHasContent(title, sub, events) || dayIndex === null) return
     setError(null)
     startTransition(async () => {
       const payload = {
@@ -1910,6 +1912,10 @@ function AddDayRow({
   )
 }
 
+/** A day form can save once it has a title, a summary or an event with text. */
+function draftHasContent(title: string, sub: string, events: EventDraft[]): boolean {
+  return isPlannedRow({ title, sub, events: events.filter((e) => e.text.trim()) })
+}
 
 function DayForm({
   heading,
@@ -2143,7 +2149,7 @@ function DayForm({
           </button>
           <button
             type="submit"
-            disabled={isPending || !title.trim()}
+            disabled={isPending || !draftHasContent(title, sub, events)}
             className="rounded-full border-0 bg-foreground px-3.5 py-1.5 font-mono text-[10px] uppercase tracking-[0.2em] text-background disabled:opacity-40"
           >
             {isPending ? "…" : submitLabel}

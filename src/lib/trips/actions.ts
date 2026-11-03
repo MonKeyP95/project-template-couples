@@ -1621,7 +1621,9 @@ export async function addItineraryDay(
   input: AddItineraryDayInput,
 ): Promise<AddItineraryDayResult> {
   const title = input.title.trim()
-  if (!title) return { error: "Title required." }
+  const sub = input.sub.trim()
+  const events = normalizeDayEvents(input.events)
+  if (!isPlannedRow({ title, sub, events })) return { error: DAY_NEEDS_CONTENT }
   const tag = input.tag?.trim() || null
   if (!ITINERARY_TONES.includes(input.tone)) return { error: "Invalid tone." }
   const first = input.dayIndex
@@ -1667,9 +1669,6 @@ export async function addItineraryDay(
           : `That date is inside ${spanHit.name} — add the day there, or pick another date.`,
     }
   }
-
-  const sub = input.sub.trim()
-  const events = normalizeDayEvents(input.events)
 
   // A multi-day span shares one group_id so the UI can mark "added together".
   const groupId = count > 1 ? crypto.randomUUID() : null
@@ -1743,6 +1742,8 @@ function sortDayEvents(a: ItineraryEvent, b: ItineraryEvent): number {
 /** Normalize client-supplied events to the stored jsonb shape, dropping empties.
  * Preserves every optional field (endTime, url, details, rating, note) so a save
  * never discards them. Shared by all itinerary write paths. */
+const DAY_NEEDS_CONTENT = "Add a title, summary or event."
+
 function normalizeDayEvents(events: ItineraryEvent[]): ItineraryEvent[] {
   return events
     .map((e) => ({
@@ -2011,7 +2012,9 @@ export async function updateItineraryDay(
   input: UpdateItineraryDayInput,
 ): Promise<UpdateItineraryDayResult> {
   const title = input.title.trim()
-  if (!title) return { error: "Title required." }
+  const sub = input.sub.trim()
+  const events = normalizeDayEvents(input.events)
+  if (!isPlannedRow({ title, sub, events })) return { error: DAY_NEEDS_CONTENT }
   if (!Number.isInteger(input.dayIndex)) return { error: "Invalid day." }
   if (!ITINERARY_TONES.includes(input.tone)) return { error: "Invalid tone." }
   // Lower bound (mirrors addItineraryDay): can't move a day before Day 1.
@@ -2019,8 +2022,6 @@ export async function updateItineraryDay(
   const dayIndex = input.dayIndex
 
   const supabase = await createClient()
-  const sub = input.sub.trim()
-  const events = normalizeDayEvents(input.events)
 
   const { data: dayRow } = await supabase
     .from("itinerary_days")

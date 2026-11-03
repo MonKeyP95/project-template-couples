@@ -88,7 +88,9 @@ function SharedDayRow({ day }: { day: SharedDay }) {
           {day.tag}
         </span>
       </div>
-      <h2 className="mt-1 font-serif text-2xl italic text-foreground">{day.title}</h2>
+      {day.title ? (
+        <h2 className="mt-1 font-serif text-2xl italic text-foreground">{day.title}</h2>
+      ) : null}
       {day.events.length > 0 ? (
         <ul className="mt-2 flex flex-col gap-1">
           {day.events.map((e, i) => (

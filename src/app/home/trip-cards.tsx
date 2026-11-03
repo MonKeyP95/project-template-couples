@@ -198,9 +198,11 @@ export async function HeroCard({
       <div className={`px-4 md:px-5 ${today ? "py-4 md:py-5" : "py-3 md:py-3.5"}`}>
         {today ? (
           <div className="mb-3">
-            <div className="t-display text-[24px] leading-tight text-foreground md:text-[28px]">
-              {today.title}
-            </div>
+            {today.title ? (
+              <div className="t-display text-[24px] leading-tight text-foreground md:text-[28px]">
+                {today.title}
+              </div>
+            ) : null}
             {daySummary(today) ? (
               <div className="mt-1 text-[13px] leading-snug text-muted-foreground">
                 {daySummary(today)}

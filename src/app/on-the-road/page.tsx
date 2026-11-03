@@ -225,9 +225,11 @@ export default async function OnTheRoadPage() {
         <Label>Today</Label>
         {todayDay ? (
           <>
-            <div className="t-display mt-2 text-[24px] leading-tight text-foreground">
-              {todayDay.title}
-            </div>
+            {todayDay.title ? (
+              <div className="t-display mt-2 text-[24px] leading-tight text-foreground">
+                {todayDay.title}
+              </div>
+            ) : null}
             {daySummary(todayDay) ? (
               <div className="mt-1 text-[13px] leading-snug text-muted-foreground">
                 {daySummary(todayDay)}
