@@ -10,7 +10,12 @@ import {
   Label,
   PairAvatar,
 } from "@/components/together"
-import { LeftRail, MobileHeaderNav, buildNavDestinations } from "@/components/app-nav"
+import {
+  LeftRail,
+  MobileNavPill,
+  SignOutButton,
+  buildNavDestinations,
+} from "@/components/app-nav"
 import { AssistantBlock } from "@/components/assistant-block"
 import { WorkspaceSwitcher } from "@/components/workspace-switcher"
 import { createClient } from "@/lib/supabase/server"
@@ -59,9 +64,6 @@ export default async function HomePage() {
   const youOnly = workspace?.members.length === 1
   const dateLabel = formatDateLabel(new Date())
   const members = workspace ? orderMembers(workspace, userData.user.id) : []
-  const estYear = workspace ? new Date(workspace.createdAt).getFullYear() : null
-  const memberCount = workspace?.members.length ?? 0
-  const memberCountLabel = `${memberCount} member${memberCount === 1 ? "" : "s"}`
 
   const buckets = workspace
     ? await listTripsForWorkspace(workspace.id)
@@ -111,30 +113,12 @@ export default async function HomePage() {
           current="home"
         />
       ) : null}
-      <main className="w-full px-5 pt-14 pb-28 lg:min-w-0 lg:flex-1 lg:px-12 lg:pt-12 lg:pb-16">
+      <main className="w-full px-5 pt-5 pb-28 lg:min-w-0 lg:flex-1 lg:px-12 lg:pt-12 lg:pb-16">
       {workspace ? (
-        <MobileHeaderNav
-          destinations={navDestinations}
-          current="home"
-          className="mb-6"
-        />
+        <MobileNavPill destinations={navDestinations} current="home" />
       ) : null}
-      <header className="mb-9 flex items-center justify-between md:hidden">
-        <WorkspaceSwitcher />
-        {members.length >= 2 ? (
-          <PairAvatar
-            a={members[0].display_name}
-            b={members[1].display_name}
-            size={20}
-          />
-        ) : members.length === 1 ? (
-          <Avatar name={members[0].display_name} size={20} tone="sea" />
-        ) : null}
-      </header>
-
-      <section className="md:flex md:items-start md:justify-between">
+      <section className="flex items-start justify-between">
         <div>
-          <Label className="mb-2.5 block md:hidden">{dateLabel}</Label>
           <Label className="hidden md:block">Together · Workspace</Label>
           <h1 className="t-display text-[44px] text-foreground md:mt-2 md:text-[62px] md:leading-[0.95]">
             Hello,{" "}
@@ -142,23 +126,41 @@ export default async function HomePage() {
             <em>{profile?.display_name?.split(" ")[0] ?? "friend"}</em>.
           </h1>
         </div>
-        <div className="hidden text-right md:block">
-          <Coord>{dateLabel}</Coord>
-          <div className="mt-2.5 flex justify-end">
-            {members.length >= 2 ? (
-              <PairAvatar
-                a={members[0].display_name}
-                b={members[1].display_name}
-                size={26}
-              />
-            ) : members.length === 1 ? (
-              <Avatar name={members[0].display_name} size={26} tone="sea" />
-            ) : null}
+        <div className="flex items-start gap-4">
+          <div className="hidden text-right md:block">
+            <Coord>{dateLabel}</Coord>
+            <div className="mt-2.5 flex justify-end">
+              {members.length >= 2 ? (
+                <PairAvatar
+                  a={members[0].display_name}
+                  b={members[1].display_name}
+                  size={26}
+                />
+              ) : members.length === 1 ? (
+                <Avatar name={members[0].display_name} size={26} tone="sea" />
+              ) : null}
+            </div>
           </div>
+          <SignOutButton className="flex items-center pt-1 text-muted-foreground hover:text-foreground lg:hidden" />
         </div>
       </section>
 
-      <div className="my-5 h-px bg-border md:my-7" />
+      <div className="mt-2 flex items-center justify-between lg:hidden">
+        <WorkspaceSwitcher />
+        <div className="flex md:hidden">
+          {members.length >= 2 ? (
+            <PairAvatar
+              a={members[0].display_name}
+              b={members[1].display_name}
+              size={20}
+            />
+          ) : members.length === 1 ? (
+            <Avatar name={members[0].display_name} size={20} tone="sea" />
+          ) : null}
+        </div>
+      </div>
+
+      <div className="my-3 h-px bg-border md:my-7" />
 
       <section className="flex items-baseline justify-between md:hidden">
         <div className="text-[13px] text-muted-foreground">
@@ -171,20 +173,17 @@ export default async function HomePage() {
             </span>
           ))}
         </div>
-        <Coord>
-          {estYear ? `est. ${estYear} · ` : ""}
-          {memberCountLabel}
-        </Coord>
+        <Coord>{dateLabel}</Coord>
       </section>
 
       {youOnly && noTripsYet ? (
-        <section className="mt-10 md:mt-12 md:max-w-[540px]">
+        <section className="mt-5 md:mt-12 md:max-w-[540px]">
           <InviteCard />
         </section>
       ) : (
         <>
           {hero ? (
-            <section className="mt-10 md:mt-12 md:max-w-[540px]">
+            <section className="mt-5 md:mt-12 md:max-w-[540px]">
               <div className="mb-2.5 flex items-center justify-between md:mb-4">
                 <Label>
                   {hero.state === "now"

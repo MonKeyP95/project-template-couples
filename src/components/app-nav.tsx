@@ -176,7 +176,7 @@ export function MobileHeaderNav({
 /** Shorter labels so four items fit the pill at phone width. */
 const PILL_LABEL: Partial<Record<NavKey, string>> = { "on-the-road": "Road" }
 
-function MobileNavPill({
+export function MobileNavPill({
   destinations,
   current,
 }: {
