@@ -4,6 +4,7 @@ import * as React from "react"
 import { useRouter } from "next/navigation"
 
 import { deleteTrip, updateTrip, type UpdateTripInput } from "@/lib/trips/actions"
+import { dateOfIndex, toDayIndex } from "@/lib/trips/itinerary-types"
 import { currencyOptions } from "@/lib/fx/currency-list"
 import { type LocalCategory } from "../../profile-fields"
 import { ProfileWalkthrough } from "../../profile-walkthrough"
@@ -128,6 +129,15 @@ export function EditTripForm({
     start?: StartChoice
   } | null>(null)
   const askOutside = outsideAsk?.key === datesKey ? outsideAsk : null
+
+  /** Moves the end with the start so the trip keeps its length. */
+  function changeStart(value: string) {
+    const length = startDate && endDate ? toDayIndex(endDate, startDate) : null
+    if (length !== null && toDayIndex(value, value) !== null) {
+      setEndDate(dateOfIndex(length, value))
+    }
+    setStartDate(value)
+  }
 
   function submit(e: React.FormEvent) {
     e.preventDefault()
@@ -295,7 +305,7 @@ export function EditTripForm({
               <input
                 type="date"
                 value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
+                onChange={(e) => changeStart(e.target.value)}
                 disabled={isPending}
                 className="t-num mt-1 w-full border-0 border-b border-rule bg-transparent py-1.5 text-[14px] text-foreground focus:border-clay focus:outline-none disabled:opacity-50"
               />
