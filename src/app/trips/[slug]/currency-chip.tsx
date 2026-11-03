@@ -6,6 +6,7 @@ import { useCurrency } from "@/components/currency-context"
 import { currencyOptions } from "@/lib/fx/currency-list"
 import { inverseRate, toHomeCents } from "@/lib/fx/convert"
 import { money } from "@/lib/money"
+import { cn } from "@/lib/utils"
 
 export interface CurrencyChipProps {
   /** The currency the amount is being entered in. */
@@ -16,6 +17,8 @@ export interface CurrencyChipProps {
   /** Currencies any location on this trip uses, for the shortlist. */
   tripCurrencies: string[]
   disabled?: boolean
+  /** Lays out the select and its preview; defaults to stacked. */
+  className?: string
 }
 
 /**
@@ -35,6 +38,7 @@ export function CurrencyChip({
   amount,
   tripCurrencies,
   disabled,
+  className = "flex-col gap-0.5",
 }: CurrencyChipProps) {
   const { currency, spendCurrency, rates } = useCurrency()
 
@@ -65,7 +69,7 @@ export function CurrencyChip({
       : null
 
   return (
-    <span className="flex shrink-0 flex-col gap-0.5">
+    <span className={cn("flex shrink-0", className)}>
       <select
         value={value}
         onChange={(e) => onChange(e.target.value)}

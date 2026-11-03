@@ -22,7 +22,6 @@ import {
 import { homeCents } from "@/lib/trips/expense-types"
 import { getTripDocuments, getTripReceipts, receiptClockMs } from "@/lib/trips/receipt-queries"
 import { DocumentsToday } from "./documents-today"
-import { AddReceiptsButton } from "@/components/receipts/add-receipts-button"
 import { ReceiptPile } from "@/components/receipts/receipt-pile"
 import { getNotesForDay } from "@/lib/trips/note-queries"
 import { computeLookingAhead } from "@/lib/trips/looking-ahead"
@@ -251,7 +250,6 @@ export default async function OnTheRoadPage() {
           tripId={trip.id}
           tripSlug={trip.slug}
           today={today}
-          tripStartDate={trip.startDate ?? today}
           currentPersonId={workspace.myPersonId ?? ""}
           categories={categories}
           spentTodayCents={spentTodayCents}
@@ -261,15 +259,14 @@ export default async function OnTheRoadPage() {
         />
       </div>
 
-      <section className="mt-4 flex flex-col gap-3">
-        <AddReceiptsButton tripId={trip.id} tripSlug={trip.slug} />
+      <div className="mt-4 empty:hidden">
         <ReceiptPile
           tripSlug={trip.slug}
           receipts={receipts}
           expenses={expenses}
           nowMs={receiptClockMs()}
         />
-      </section>
+      </div>
 
       <DocumentsToday documents={documents} today={today} tripId={trip.id} tripSlug={trip.slug} />
 

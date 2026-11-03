@@ -10,16 +10,14 @@ import { ReceiptCameraButton } from "@/components/receipts/receipt-camera-button
 import { Label } from "@/components/together"
 import type { ExpenseCategoryRow } from "@/lib/trips/expense-types"
 import { money } from "@/lib/money"
-import { dayLabel } from "@/lib/trips/budget-pace"
 import { useCurrency } from "@/components/currency-context"
 import { CurrencyChip } from "@/app/trips/[slug]/currency-chip"
 
 export interface QuickExpenseProps {
   tripId: string
   tripSlug: string
+  /** Every expense logged here is for today; other days are fixed on the trip page. */
   today: string
-  /** First day of the trip; the picker never offers a day before it. */
-  tripStartDate: string
   currentPersonId: string
   categories: ExpenseCategoryRow[]
   spentTodayCents: number
@@ -31,7 +29,6 @@ export function QuickExpense({
   tripId,
   tripSlug,
   today,
-  tripStartDate,
   currentPersonId,
   categories,
   spentTodayCents,
@@ -45,21 +42,6 @@ export function QuickExpense({
     locationCurrency ?? spendCurrency,
   )
   const [category, setCategory] = React.useState(categories[0]?.name ?? "")
-  const [dayDate, setDayDate] = React.useState(today)
-
-  const dayOptions = React.useMemo(() => {
-    const startMs = new Date(`${tripStartDate}T00:00:00Z`).getTime()
-    const todayMs = new Date(`${today}T00:00:00Z`).getTime()
-    const out: { value: string; label: string }[] = []
-    for (let i = 0; todayMs - i * 86_400_000 >= startMs; i++) {
-      const value = new Date(todayMs - i * 86_400_000).toISOString().slice(0, 10)
-      out.push({
-        value,
-        label: i === 0 ? "Today" : i === 1 ? "Yesterday" : dayLabel(value),
-      })
-    }
-    return out
-  }, [today, tripStartDate])
   const [error, setError] = React.useState<string | null>(null)
   const [isPending, startTransition] = React.useTransition()
   const [receiptId, setReceiptId] = React.useState<string | null>(null)
@@ -67,14 +49,12 @@ export function QuickExpense({
 
   function fillFromReceipt(reading: ReceiptReading) {
     const next = prefillFromReading(
-      { title: name, amount, currency: expenseCurrency, dayDate },
+      { title: name, amount, currency: expenseCurrency, dayDate: today },
       reading,
     )
     setName(next.title)
     setAmount(next.amount)
     setExpenseCurrency(next.currency)
-    // The picker only offers trip days up to today.
-    if (dayOptions.some((o) => o.value === next.dayDate)) setDayDate(next.dayDate!)
   }
 
   const canSubmit =
@@ -94,7 +74,7 @@ export function QuickExpense({
         currency: expenseCurrency,
         category,
         paidBy: currentPersonId,
-        dayDate,
+        dayDate: today,
         locationId: null,
       })
       if (result.error) {
@@ -115,21 +95,22 @@ export function QuickExpense({
 
   return (
     <section className="mt-4 rounded-[14px] border border-border bg-card p-5">
-      <div className="flex items-baseline justify-between">
+      <div className="flex items-center gap-3">
         <Label>Expense</Label>
-        <span className="t-num text-[13px] text-muted-foreground">
+        <CurrencyChip
+          value={expenseCurrency}
+          onChange={setExpenseCurrency}
+          amount={amount}
+          tripCurrencies={locationCurrency ? [locationCurrency] : []}
+          disabled={isPending}
+          className="items-center gap-2"
+        />
+        <span className="t-num ml-auto text-[13px] text-muted-foreground">
           {money(spentTodayCents, currency)} today
         </span>
       </div>
       <form onSubmit={submit} className="mt-3 flex flex-col gap-2.5">
         <div className="flex items-start gap-2">
-          <CurrencyChip
-            value={expenseCurrency}
-            onChange={setExpenseCurrency}
-            amount={amount}
-            tripCurrencies={locationCurrency ? [locationCurrency] : []}
-            disabled={isPending}
-          />
           <input
             value={amount}
             onChange={(e) => setAmount(e.target.value)}
@@ -156,29 +137,17 @@ export function QuickExpense({
             disabled={isPending}
           />
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center justify-between gap-2">
           <select
             value={category}
             onChange={(e) => setCategory(e.target.value)}
             disabled={isPending}
-            className="min-w-0 flex-1 truncate rounded-lg border border-border bg-background px-3 py-2 text-[13px] text-foreground"
+            aria-label="Category"
+            className="max-w-[60%] truncate rounded-full border border-border bg-background px-2.5 py-1 text-[12px] text-muted-foreground"
           >
             {categories.map((c) => (
               <option key={c.id} value={c.name}>
                 {c.name}
-              </option>
-            ))}
-          </select>
-          <select
-            value={dayDate}
-            onChange={(e) => setDayDate(e.target.value)}
-            disabled={isPending}
-            aria-label="Day this expense was paid"
-            className="w-28 shrink-0 rounded-lg border border-border bg-background px-2 py-2 text-[13px] text-foreground"
-          >
-            {dayOptions.map((o) => (
-              <option key={o.value} value={o.value}>
-                {o.label}
               </option>
             ))}
           </select>
