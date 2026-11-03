@@ -332,6 +332,63 @@ begin
 end;
 $$;
 
+-- Share view: only planned days, as before empty days were rows.
+create or replace function public.shared_trip(p_token text)
+returns json
+language sql
+security definer
+set search_path = public
+stable
+as $
+  select json_build_object(
+    'name', t.name,
+    'country', t.country,
+    'day_count', (
+      select count(*) from public.itinerary_days d
+      where d.trip_id = t.id and d.day_index is not null
+        and public.itinerary_day_is_planned(d.title, d.sub, d.events)
+    ),
+    'locations', coalesce((
+      select json_agg(
+        json_build_object('name', l.name, 'sort_order', l.sort_order)
+        order by l.sort_order
+      )
+      from public.itinerary_locations l
+      where l.trip_id = t.id
+    ), '[]'::json),
+    'days', coalesce((
+      select json_agg(
+        json_build_object(
+          'ordinal', x.ordinal,
+          'title', x.title,
+          'tag', x.tag,
+          'tone', x.tone,
+          'location_name', x.location_name,
+          'events', x.events
+        )
+        order by x.ordinal
+      )
+      from (
+        select
+          row_number() over (order by d.day_index) as ordinal,
+          d.title,
+          d.tag,
+          d.tone,
+          d.events,
+          (select l.name from public.itinerary_locations l where l.id = d.location_id) as location_name
+        from public.itinerary_days d
+        where d.trip_id = t.id and d.day_index is not null
+        and public.itinerary_day_is_planned(d.title, d.sub, d.events)
+      ) x
+    ), '[]'::json)
+  )
+  from public.trips t
+  where t.share_token = p_token
+    and t.is_public = true;
+$;
+
+grant execute on function public.shared_trip(text) to anon, authenticated;
+
 -- Backfill every trip.
 select public.sync_trip_days(id) from public.trips;
 

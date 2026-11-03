@@ -2160,7 +2160,7 @@ export async function editItineraryBlock(
     .filter((r) => input.floor === null || r.day_index >= input.floor)
     .map((r) => {
       const before = normalizeDayEvents(parseEvents(r.events))
-      const next = applyBlockEdit({ title: r.title, events: before }, edit)
+      const next = applyBlockEdit({ title: r.title ?? "", events: before }, edit)
       const events = normalizeDayEvents(next.events)
       // Compare normalized to normalized: jsonb reorders keys, so raw never matches.
       const changed =
