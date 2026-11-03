@@ -519,6 +519,7 @@ Four items carried as "known gaps" on shipped features. Two were real and are fi
 ## On-the-road expense card declutter — 2026-11-03
 
 - [x] **Leaner quick-expense card on `/on-the-road`** — Implemented 2026-11-03. The currency chip moved into the header (`Expense [EUR] ~ €x ... today`); `CurrencyChip` gained an optional `className` so this caller can lay the preview inline while the trip-page forms stay stacked. The day picker was removed: every expense logged here is for today, and other days are fixed on the trip page. A receipt's date no longer moves the day. "Add receipts" (bulk upload) was removed from the page; it stays on the Budget tab, and the "Receipts to match" pile still shows here. Category is now a small pill next to **add**. `tsc --noEmit` + eslint clean; `pnpm build` not run (dev server); in-app verify pending.
+- [x] **`/on-the-road` header: names + sign-out on one line** — Implemented 2026-11-03 (afec8f9). The "On the road · trip" label now shows the members' names; sign-out moved from its own centred row to the right end of that line (hidden at `lg`, where the rail has it). The page renders `MobileNavPill` directly. Lint + `tsc --noEmit` clean; in-app verify pending: (1) phone: names left, sign-out icon right, no row above; (2) icon signs out; (3) desktop: no icon in the header.
 
 ## Working rules
 - One task per session. Finish, validate, then move on.
