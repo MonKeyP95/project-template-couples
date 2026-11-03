@@ -2,7 +2,12 @@ import { redirect } from "next/navigation"
 
 import { Coord, Label, TopoBg } from "@/components/together"
 import { isDarkTheme } from "@/lib/theme"
-import { LeftRail, MobileHeaderNav, buildNavDestinations } from "@/components/app-nav"
+import {
+  LeftRail,
+  MobileNavPill,
+  SignOutButton,
+  buildNavDestinations,
+} from "@/components/app-nav"
 import { createClient } from "@/lib/supabase/server"
 import { getCurrentWorkspace } from "@/lib/workspace/queries"
 import { listTripsForWorkspace } from "@/lib/trips/list-queries"
@@ -158,12 +163,11 @@ export default async function OnTheRoadPage() {
         current="on-the-road"
       />
       <div className="px-5 pt-6 pb-16 lg:min-w-0 lg:flex-1 lg:px-8 lg:py-8">
-        <MobileHeaderNav
-          destinations={navDestinations}
-          current="on-the-road"
-          className="mb-4"
-        />
-        <Label className="mb-4 block">{`On the road · ${trip.name}`}</Label>
+        <MobileNavPill destinations={navDestinations} current="on-the-road" />
+        <div className="mb-4 flex items-center justify-between">
+          <Label>{workspace.members.map((m) => m.display_name).join(" & ")}</Label>
+          <SignOutButton className="flex items-center text-muted-foreground hover:text-foreground lg:hidden" />
+        </div>
         <div id="road-assistant">
           <AssistantBlock
             surface="road"
