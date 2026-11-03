@@ -869,7 +869,7 @@ export function ItineraryTab({
               if (itemIsPast(item) && !pastBarOpen) return null
               return (
                 <div
-                  key={item.seg.groupId ?? item.seg.days[0].id}
+                  key={item.seg.days[0].id}
                   className="border-t border-rule first:border-t-0 py-1 pl-10"
                 >
                   <DaySegmentView
@@ -1061,7 +1061,7 @@ export function ItineraryTab({
 
                       const renderRow = (row: DaySegment, sortable: boolean) => (
                         <DaySegmentView
-                          key={row.groupId ?? row.days[0].id}
+                          key={row.days[0].id}
                           seg={row}
                           tripId={tripId}
                           tripSlug={tripSlug}
