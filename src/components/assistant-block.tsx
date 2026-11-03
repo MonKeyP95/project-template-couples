@@ -58,34 +58,52 @@ export function AssistantBlock({
       </button>
 
       {enabled ? (
-        <div className="flex flex-col">
-          <div className="px-4 py-3">
-            <TasteDial />
-          </div>
-          {nudge ? (
-            <>
-              <Divider />
-              <div className="px-4 py-3">
-                <NudgeLine nudge={nudge} />
-              </div>
-            </>
-          ) : null}
-          <Divider />
-          <div className="px-4 py-3">
-            <SuggestLine surface={surface} tripSlug={tripSlug} />
-          </div>
-          {door ? (
-            <>
-              <Divider />
-              <div className="px-4 py-3">{door}</div>
-            </>
-          ) : null}
-          <Divider />
-          <div className="px-4 py-3">
-            <AskLine tripSlug={tripSlug} />
-          </div>
-        </div>
+        <AssistantPanel surface={surface} tripSlug={tripSlug} door={door} nudge={nudge} />
       ) : null}
+    </div>
+  )
+}
+
+/** The assistant's open body (taste, nudge, suggest, door, chat), for a surface
+ * that renders its own on/off toggle and frames the panel itself. */
+export function AssistantPanel({
+  surface,
+  tripSlug,
+  door,
+  nudge,
+}: {
+  surface: SurfaceKey
+  tripSlug?: string
+  door?: React.ReactNode
+  nudge?: Nudge | null
+}) {
+  return (
+    <div className="flex flex-col">
+      <div className="px-4 py-3">
+        <TasteDial />
+      </div>
+      {nudge ? (
+        <>
+          <Divider />
+          <div className="px-4 py-3">
+            <NudgeLine nudge={nudge} />
+          </div>
+        </>
+      ) : null}
+      <Divider />
+      <div className="px-4 py-3">
+        <SuggestLine surface={surface} tripSlug={tripSlug} />
+      </div>
+      {door ? (
+        <>
+          <Divider />
+          <div className="px-4 py-3">{door}</div>
+        </>
+      ) : null}
+      <Divider />
+      <div className="px-4 py-3">
+        <AskLine tripSlug={tripSlug} />
+      </div>
     </div>
   )
 }

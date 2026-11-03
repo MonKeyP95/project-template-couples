@@ -36,12 +36,13 @@ import {
   type DaySelection,
 } from "./day-selection"
 import { Label } from "@/components/together"
-import { AssistantBlock } from "@/components/assistant-block"
+import { AssistantPanel } from "@/components/assistant-block"
+import { useAiMode } from "@/components/ai-mode"
 import { EventRating } from "@/components/event-rating"
 import { PlanningPlaceDoor } from "./find-a-place-planning"
 import { BudgetScopeEditor } from "./budget-scope-editor"
 import { EventExpense } from "./event-expense"
-import { PlanItinerary } from "./plan-itinerary"
+import { PlanItinerary, toolbarPill } from "./plan-itinerary"
 import type { BudgetItem } from "@/lib/trips/budget-item-types"
 import type { ExpenseCategoryRow } from "@/lib/trips/expense-types"
 import type { MemberToneEntry } from "./packing-tab"
@@ -669,6 +670,7 @@ export function ItineraryTab({
       )
     : 0
 
+  const { enabled: aiEnabled, setEnabled: setAiEnabled } = useAiMode()
   const [addDayFor, setAddDayFor] = React.useState<string | null>(null)
   const [addingLocation, setAddingLocation] = React.useState(false)
   const [newLocName, setNewLocName] = React.useState("")
@@ -759,29 +761,67 @@ export function ItineraryTab({
     })
   }
 
+  const addDayOpen = addDayFor === LOOSE_KEY
+
+  /** One wrapping row of pills; each open panel is an `order-last w-full`
+   * flex item, so it drops onto its own line below the pills. */
   const planningBlock = (
-    <div className={`space-y-2 ${active ? "pt-4 opacity-70" : "pb-4"}`}>
-      <AddDayRow
-        key="add-loose"
-        tripId={tripId}
-        tripSlug={tripSlug}
-        tripStartDate={tripStartDate}
-        defaultIndex={defaultIndex}
-        locationId={null}
-        open={addDayFor === LOOSE_KEY}
-        onClose={() => setAddDayFor(null)}
-      />
-      {addDayFor === LOOSE_KEY ? null : (
-        <button
-          type="button"
-          onClick={() => setAddDayFor(LOOSE_KEY)}
-          className="block w-full rounded-lg border border-dashed border-rule py-3 font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground hover:border-foreground hover:text-foreground"
-        >
-          + day
-        </button>
-      )}
+    <div className="flex flex-wrap items-center gap-2 pb-4">
+      <button
+        type="button"
+        onClick={() => setAiEnabled(!aiEnabled)}
+        aria-expanded={aiEnabled}
+        className={`rounded-full border bg-transparent px-3 py-1.5 font-mono text-[10px] uppercase tracking-[0.18em] text-moss ${
+          aiEnabled ? "border-moss" : "border-border hover:border-moss"
+        }`}
+      >
+        assistant
+      </button>
+      <button
+        type="button"
+        onClick={() => setAddDayFor(addDayOpen ? null : LOOSE_KEY)}
+        className={toolbarPill(addDayOpen)}
+      >
+        + day
+      </button>
+      <button
+        type="button"
+        onClick={() => setAddingLocation(true)}
+        className={toolbarPill(addingLocation)}
+      >
+        + location
+      </button>
+      {aiEnabled ? (
+        <div className="order-last w-full rounded-[14px] border border-l-2 border-border border-l-moss bg-card">
+          <AssistantPanel
+            surface="itinerary"
+            tripSlug={tripSlug}
+            door={
+              <PlanningPlaceDoor
+                tripId={tripId}
+                tripSlug={tripSlug}
+                destination={destination}
+                locations={locations}
+                days={days}
+              />
+            }
+          />
+        </div>
+      ) : null}
+      <div className={addDayOpen ? "order-last w-full" : "hidden"}>
+        <AddDayRow
+          key="add-loose"
+          tripId={tripId}
+          tripSlug={tripSlug}
+          tripStartDate={tripStartDate}
+          defaultIndex={defaultIndex}
+          locationId={null}
+          open={addDayOpen}
+          onClose={() => setAddDayFor(null)}
+        />
+      </div>
       {addingLocation ? (
-        <form onSubmit={submitNewLocation}>
+        <form onSubmit={submitNewLocation} className="order-last w-full">
           <input
             type="text"
             autoFocus
@@ -794,28 +834,7 @@ export function ItineraryTab({
             className="block w-full rounded-lg border border-clay bg-transparent px-3 py-2.5 font-mono text-[12px] text-foreground placeholder:text-muted-foreground focus:outline-none"
           />
         </form>
-      ) : (
-        <button
-          type="button"
-          onClick={() => setAddingLocation(true)}
-          className="block w-full rounded-lg border border-dashed border-rule py-3 font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground hover:border-foreground hover:text-foreground"
-        >
-          + location
-        </button>
-      )}
-      <AssistantBlock
-        surface="itinerary"
-        tripSlug={tripSlug}
-        door={
-          <PlanningPlaceDoor
-            tripId={tripId}
-            tripSlug={tripSlug}
-            destination={destination}
-            locations={locations}
-            days={days}
-          />
-        }
-      />
+      ) : null}
       <PlanItinerary
         tripId={tripId}
         tripSlug={tripSlug}
@@ -840,7 +859,7 @@ export function ItineraryTab({
       </div>
 
       <div className="px-5 pt-4 pb-6 lg:px-10">
-        {active ? null : planningBlock}
+        {planningBlock}
 
         {timeline.length === 0 ? (
           <p className="font-serif text-[15px] italic text-muted-foreground">
@@ -1254,7 +1273,6 @@ export function ItineraryTab({
             </span>
           </div>
         </div>
-        {active ? planningBlock : null}
       </div>
       <SelectionBox boxRef={selection.boxRef} />
       {selection.selected.size >= 2 ? (

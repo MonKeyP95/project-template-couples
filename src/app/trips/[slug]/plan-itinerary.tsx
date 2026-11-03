@@ -83,6 +83,15 @@ function DaySelect({
   )
 }
 
+/** A pill in the itinerary's top toolbar row; `active` marks its panel open. */
+export function toolbarPill(active: boolean): string {
+  return `rounded-full border bg-transparent px-3 py-1.5 font-mono text-[10px] uppercase tracking-[0.18em] ${
+    active
+      ? "border-foreground text-foreground"
+      : "border-border text-muted-foreground hover:text-foreground"
+  }`
+}
+
 /** The picked day or range as a hint string: "12 Jan – 14 Jan" on a dated
  * trip, "Day 3 – Day 5" on a dream, or "". */
 function rangeLabel(row: ItemRow, startDate: string | null): string {
@@ -318,30 +327,23 @@ export function PlanItinerary({
     })
   }
 
-  if (!open) {
-    return (
-      <div className="flex items-center justify-between border-t border-border px-5 pt-4 pb-2">
-        <button
-          type="button"
-          onClick={openWalk}
-          className="rounded-full border border-border bg-transparent px-3 py-1.5 font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground hover:text-foreground"
-        >
-          {title}
-        </button>
-      </div>
-    )
-  }
-
+  /** The pill sits in the parent's wrapping toolbar row; the open panel is a
+   * sibling flex item that takes a full line below the pills. */
   return (
-    <div className="border-t border-border px-5 pt-4 pb-2">
-      <div className="rounded-lg border border-border bg-card px-3.5 py-3">
-        {phase === "places"
-          ? renderPlaces()
-          : phase === "walk"
-            ? renderStep(steps[stepIndex])
-            : renderReview()}
-      </div>
-    </div>
+    <>
+      <button type="button" onClick={open ? reset : openWalk} className={toolbarPill(open)}>
+        {title}
+      </button>
+      {open ? (
+        <div className="order-last w-full rounded-lg border border-border bg-card px-3.5 py-3">
+          {phase === "places"
+            ? renderPlaces()
+            : phase === "walk"
+              ? renderStep(steps[stepIndex])
+              : renderReview()}
+        </div>
+      ) : null}
+    </>
   )
 
   function renderPlaces() {
