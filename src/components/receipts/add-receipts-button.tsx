@@ -13,15 +13,18 @@ export interface AddReceiptsButtonProps {
   label?: string
   /** Defaults to "receipt". */
   kind?: "receipt" | "document"
+  /** Open the rear camera for one photo instead of the file picker. */
+  camera?: boolean
 }
 
-/** Pick one or more photos/PDFs and upload them one by one. */
+/** Pick one or more photos/PDFs (or take one photo) and upload them one by one. */
 export function AddReceiptsButton({
   tripId,
   tripSlug,
   expenseId = null,
   label = "add receipts",
   kind = "receipt",
+  camera = false,
 }: AddReceiptsButtonProps) {
   const router = useRouter()
   const inputRef = React.useRef<HTMLInputElement>(null)
@@ -49,8 +52,9 @@ export function AddReceiptsButton({
       <input
         ref={inputRef}
         type="file"
-        multiple
-        accept="image/*,application/pdf"
+        multiple={!camera}
+        accept={camera ? "image/*" : "image/*,application/pdf"}
+        capture={camera ? "environment" : undefined}
         className="hidden"
         onChange={(e) => {
           const files = Array.from(e.target.files ?? [])

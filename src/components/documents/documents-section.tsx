@@ -3,11 +3,13 @@
 import * as React from "react"
 import { useRouter } from "next/navigation"
 
-import { AddReceiptsButton } from "@/components/receipts/add-receipts-button"
 import { readReceipt } from "@/lib/trips/receipt-actions"
 import { receiptState } from "@/lib/trips/receipt-types"
-import { documentTitle, type TripDocument } from "@/lib/trips/document-types"
+import { documentTitle, searchDocuments, type TripDocument } from "@/lib/trips/document-types"
 import { DocumentView, entryDatesLabel } from "./document-view"
+import { AddDocumentButtons, DocumentSearch } from "./document-search"
+
+const SEARCH_FROM = 4
 
 export interface DocumentsSectionProps {
   tripId: string
@@ -18,16 +20,24 @@ export interface DocumentsSectionProps {
   nowMs: number
 }
 
-/** The trip's documents with an add button: bookings, confirmations, tickets. */
+/** The trip's documents with search and add buttons: bookings, confirmations, tickets. */
 export function DocumentsSection({ tripId, tripSlug, documents, nowMs }: DocumentsSectionProps) {
+  const [query, setQuery] = React.useState("")
+  const shown = searchDocuments(documents, query)
   return (
     <div className="flex flex-col gap-2 px-5 pt-3 pb-4">
-      {documents.map((doc) => (
+      {documents.length >= SEARCH_FROM ? <DocumentSearch query={query} onQueryChange={setQuery} /> : null}
+      {shown.map((doc) => (
         <DocumentCard key={doc.id} doc={doc} tripSlug={tripSlug} nowMs={nowMs} />
       ))}
-      <AddReceiptsButton tripId={tripId} tripSlug={tripSlug} kind="document" label="add documents" />
+      {query && shown.length === 0 ? <NoMatch /> : null}
+      <AddDocumentButtons tripId={tripId} tripSlug={tripSlug} />
     </div>
   )
+}
+
+function NoMatch() {
+  return <p className="text-[13px] text-muted-foreground">no documents match</p>
 }
 
 function DocumentCard({

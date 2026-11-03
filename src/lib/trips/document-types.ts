@@ -110,3 +110,21 @@ export function firstEntryDate(doc: Pick<TripDocument, "entries">): string | nul
   const dates = (doc.entries ?? []).map((e) => e.startDate).sort()
   return dates[0] ?? null
 }
+
+/** Documents whose title, summary, reference, file name or entries contain `query`, any case. */
+export function searchDocuments<T extends Pick<TripDocument, "reading" | "entries" | "originalName">>(
+  docs: T[],
+  query: string,
+): T[] {
+  const q = query.trim().toLowerCase()
+  if (!q) return docs
+  return docs.filter((doc) =>
+    [
+      doc.reading?.title,
+      doc.reading?.summary,
+      doc.reading?.reference,
+      doc.originalName,
+      ...(doc.entries ?? []).flatMap((e) => [e.label, e.address]),
+    ].some((text) => text?.toLowerCase().includes(q)),
+  )
+}
