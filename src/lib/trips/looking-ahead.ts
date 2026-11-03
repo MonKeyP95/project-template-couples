@@ -1,13 +1,6 @@
 import type { DatedItineraryDay, ItineraryDay, ItineraryEvent } from "./itinerary-types"
 import type { ItineraryLocation } from "./location-types"
 
-/** yyyy-mm-dd for `today` + n days, UTC. */
-function addDays(today: string, n: number): string {
-  const d = new Date(`${today}T00:00:00Z`)
-  d.setUTCDate(d.getUTCDate() + n)
-  return d.toISOString().slice(0, 10)
-}
-
 /** Whole days from `a` to `b` (both yyyy-mm-dd), UTC. */
 function daysBetween(a: string, b: string): number {
   const ms =
@@ -15,31 +8,38 @@ function daysBetween(a: string, b: string): number {
   return Math.round(ms / 86_400_000)
 }
 
-/** Tomorrow's first timed event (sorted by time), or null when none. */
-function firstTimedEvent(day: ItineraryDay | undefined): ItineraryEvent | null {
-  if (!day) return null
+/** The day's first timed event, else its first untimed one, else null. */
+function firstEvent(day: ItineraryDay): ItineraryEvent | null {
   const timed = day.events
     .filter((e) => e.time)
     .sort((a, b) => (a.time < b.time ? -1 : a.time > b.time ? 1 : 0))
-  return timed[0] ?? null
+  return timed[0] ?? day.events[0] ?? null
+}
+
+function hasPlan(day: ItineraryDay): boolean {
+  return day.events.length > 0 || (day.title ?? "").trim() !== ""
 }
 
 export interface LookingAhead {
-  /** Tomorrow's first event, or null. */
-  tomorrowEvent: ItineraryEvent | null
-  /** Tomorrow's day title when there's no timed event; null when no day. */
-  tomorrowTitle: string | null
+  /** The first later day with a plan: its first event, or its title when it has none. */
+  nextPlanned: {
+    date: string
+    label: string
+    daysAway: number
+    event: ItineraryEvent | null
+    title: string
+  } | null
   /** Next location change after today, or null when the trip doesn't move again. */
   nextMove: { locationName: string; date: string; daysAway: number } | null
-  /** True when tomorrow IS the next move day (collapse to one line). */
+  /** True when the next planned day IS the next move day (collapse to one line). */
   collapse: boolean
 }
 
 /**
- * Tomorrow + next-move look-ahead for the On the Road page.
- * `today` is yyyy-mm-dd. `days` is the full ascending day list; `locations`
- * supplies move destination names. A "move" is the first future day whose
- * locationId differs from today's.
+ * Next-planned + next-move look-ahead for the On the Road page.
+ * `today` is yyyy-mm-dd. `days` is the full ascending day list (blank days
+ * included); `locations` supplies move destination names. A "move" is the
+ * first future day whose locationId differs from today's.
  */
 export function computeLookingAhead(
   today: string,
@@ -47,19 +47,24 @@ export function computeLookingAhead(
   days: DatedItineraryDay[],
   locations: ItineraryLocation[],
 ): LookingAhead {
-  const tomorrowDate = addDays(today, 1)
-  const tomorrowDay = days.find((d) => d.dayDate === tomorrowDate)
-  const tomorrowEvent = firstTimedEvent(tomorrowDay)
+  const future = days
+    .filter((d) => d.dayDate > today)
+    .sort((a, b) => (a.dayDate < b.dayDate ? -1 : 1))
 
-  const moveDay = days
-    .filter(
-      (d) =>
-        d.dayDate > today &&
-        d.locationId != null &&
-        d.locationId !== currentLocationId,
-    )
-    .sort((a, b) => (a.dayDate < b.dayDate ? -1 : 1))[0]
+  const plannedDay = future.find(hasPlan)
+  const nextPlanned = plannedDay
+    ? {
+        date: plannedDay.dayDate,
+        label: `${plannedDay.dow} ${plannedDay.dom} ${plannedDay.mon}`,
+        daysAway: daysBetween(today, plannedDay.dayDate),
+        event: firstEvent(plannedDay),
+        title: plannedDay.title ?? "",
+      }
+    : null
 
+  const moveDay = future.find(
+    (d) => d.locationId != null && d.locationId !== currentLocationId,
+  )
   const nextMove = moveDay
     ? {
         locationName:
@@ -70,9 +75,8 @@ export function computeLookingAhead(
     : null
 
   return {
-    tomorrowEvent,
-    tomorrowTitle: tomorrowEvent ? null : tomorrowDay?.title ?? null,
+    nextPlanned,
     nextMove,
-    collapse: !!moveDay && moveDay.dayDate === tomorrowDate,
+    collapse: !!moveDay && moveDay.dayDate === plannedDay?.dayDate,
   }
 }
