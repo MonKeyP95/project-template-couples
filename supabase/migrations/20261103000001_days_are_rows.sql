@@ -339,7 +339,7 @@ language sql
 security definer
 set search_path = public
 stable
-as $
+as $$
   select json_build_object(
     'name', t.name,
     'country', t.country,
@@ -385,7 +385,7 @@ as $
   from public.trips t
   where t.share_token = p_token
     and t.is_public = true;
-$;
+$$;
 
 grant execute on function public.shared_trip(text) to anon, authenticated;
 
