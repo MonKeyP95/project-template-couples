@@ -54,7 +54,8 @@ export interface ItineraryDay {
 export interface ItineraryRow {
   id: string
   day_index: number
-  title: string
+  /** Null on an empty day. */
+  title: string | null
   sub?: string | null
   /** Raw jsonb from the DB; parsed by rowToItineraryDay. */
   events?: unknown
@@ -179,7 +180,7 @@ export function rowToItineraryDay(row: ItineraryRow, startDate: string | null): 
     ...positionFields(row.day_index, startDate),
     dayIndex: row.day_index,
     d: "",
-    title: row.title,
+    title: row.title ?? "",
     sub: row.sub ?? "",
     events: parseEvents(row.events),
     tag: row.tag,

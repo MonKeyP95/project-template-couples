@@ -958,19 +958,19 @@ export interface UpdateTripResult {
   askStart?: true
 }
 
-/** True when the trip has a placed day or a location span, i.e. something a
- * new start date could move. */
+/** True when the trip has a placed planned day or a location span, i.e.
+ * something a new start date could move. */
 async function hasPlacement(
   supabase: Awaited<ReturnType<typeof createClient>>,
   tripId: string,
 ): Promise<boolean | { error: string }> {
   const days = await supabase
     .from("itinerary_days")
-    .select("id", { count: "exact", head: true })
+    .select("title, sub, events")
     .eq("trip_id", tripId)
     .not("day_index", "is", null)
   if (days.error) return { error: days.error.message }
-  if ((days.count ?? 0) > 0) return true
+  if (days.data.some(isPlannedRow)) return true
   const spans = await supabase
     .from("itinerary_locations")
     .select("id", { count: "exact", head: true })
@@ -1589,47 +1589,6 @@ const DATE_RE = /^\d{4}-\d{2}-\d{2}$/
 const MAX_RANGE_DAYS = 31
 
 /**
- * Materializes an empty itinerary_days row for every day number in
- * [startIndex, endIndex] under `locationId`. Insert-only: numbers already taken
- * (this location's real days, or a prior fill) are skipped, so it is safe to
- * call after any span write and safe to re-run. Empty rows carry no title/tag
- * and default tone 'sand'; their look is refined separately. Skips via an
- * existing-numbers fetch (not on-conflict) because the (trip_id, day_index)
- * unique constraint is deferrable and cannot arbiter an ON CONFLICT.
- */
-async function fillLocationSpanDays(
-  supabase: Awaited<ReturnType<typeof createClient>>,
-  tripId: string,
-  locationId: string,
-  startIndex: number,
-  endIndex: number,
-): Promise<void> {
-  const { data: userData } = await supabase.auth.getUser()
-  const userId = userData.user?.id
-  if (!userId) return
-  const { data: existing } = await supabase
-    .from("itinerary_days")
-    .select("day_index")
-    .eq("trip_id", tripId)
-    .gte("day_index", startIndex)
-    .lte("day_index", endIndex)
-  const taken = new Set((existing ?? []).map((r) => r.day_index))
-  const rows = []
-  for (let day_index = startIndex; day_index <= endIndex; day_index++) {
-    if (taken.has(day_index)) continue
-    rows.push({
-      trip_id: tripId,
-      day_index,
-      tone: "sand",
-      location_id: locationId,
-      created_by: userId,
-    })
-  }
-  if (rows.length === 0) return
-  await supabase.from("itinerary_days").insert(rows)
-}
-
-/**
  * Grows the trip's length to `lastIndex` days when it currently falls short
  * (forward-only, mirroring the push/span RPCs) so the header always covers
  * planned content. end_date follows day_count; it stays null for a dream.
@@ -2201,7 +2160,7 @@ export async function editItineraryBlock(
     .filter((r) => input.floor === null || r.day_index >= input.floor)
     .map((r) => {
       const before = normalizeDayEvents(parseEvents(r.events))
-      const next = applyBlockEdit({ title: r.title, events: before }, edit)
+      const next = applyBlockEdit({ title: r.title ?? "", events: before }, edit)
       const events = normalizeDayEvents(next.events)
       // Compare normalized to normalized: jsonb reorders keys, so raw never matches.
       const changed =
@@ -3225,7 +3184,7 @@ export async function renameItineraryLocation(
 
     const dayHit = await supabase
       .from("itinerary_days")
-      .select("id", { count: "exact", head: true })
+      .select("title, sub, events")
       .eq("trip_id", tripId)
       .or(`location_id.is.null,location_id.neq.${locationId}`)
       .gte("day_index", span.start)
@@ -3237,7 +3196,7 @@ export async function renameItineraryLocation(
       .neq("id", locationId)
       .gte("start_index", span.start)
       .lte("start_index", span.end)
-    if ((dayHit.count ?? 0) > 0 || (spanHit.count ?? 0) > 0) {
+    if ((dayHit.data ?? []).some(isPlannedRow) || (spanHit.count ?? 0) > 0) {
       return { needsPush: true }
     }
   }
@@ -3254,10 +3213,7 @@ export async function renameItineraryLocation(
 
   if (error) return { error: error.message }
 
-  if (span) {
-    await fillLocationSpanDays(supabase, tripId, locationId, span.start, span.end)
-    await growTripLength(tripId, span.end)
-  }
+  if (span) await growTripLength(tripId, span.end)
   revalidatePath(`/trips/${tripSlug}`)
   return {}
 }
@@ -3301,7 +3257,6 @@ export async function setLocationSpanWithShift(
     .eq("id", locationId)
   if (curErr) return { error: curErr.message }
 
-  await fillLocationSpanDays(supabase, tripId, locationId, startIndex, endIndex)
   revalidatePath(`/trips/${tripSlug}`)
   return {}
 }

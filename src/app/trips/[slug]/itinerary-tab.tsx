@@ -90,17 +90,8 @@ import {
 import { slugToTone } from "@/lib/trips/slug-tone"
 import { DayInput } from "./day-input"
 import { selectionBlock } from "@/lib/trips/itinerary-blocks"
-import {
-  EMPTY_PREFIX,
-  emptyPositions,
-  planDrop,
-  positionOwner,
-  tripLength,
-  restoreDays,
-  toSegments,
-  type DaySegment,
-} from "@/lib/trips/itinerary-slots"
-import { EmptyDaySlot } from "./empty-day-slot"
+import { planDrop, restoreDays, toSegments, type DaySegment } from "@/lib/trips/itinerary-slots"
+import { isPlannedRow } from "@/lib/trips/outside-days"
 import { UnplacedDays } from "./unplaced-days"
 import { moneyRounded } from "@/lib/money"
 import { useCurrency } from "@/components/currency-context"
@@ -199,18 +190,15 @@ function byIndex(a: ItineraryDay, b: ItineraryDay): number {
 type TimelineItem =
   | { kind: "location"; group: DayGroup }
   | { kind: "loose"; seg: DaySegment }
-  | { kind: "empty"; dayIndex: number }
 
 /**
  * One day-sorted sequence of timeline items: each location is a collapsible
  * block; each run of location-less days is a bare "loose" segment (single day
- * or a group_id trek); each empty day no location owns sits at its number.
- * No "In transit" bucket -- loose days float at their date.
+ * or a group_id trek). No "In transit" bucket -- loose days float at their date.
  */
 function buildTimeline(
   locations: ItineraryLocation[],
   days: ItineraryDay[],
-  looseEmpties: number[] = [],
 ): TimelineItem[] {
   const byLoc = new Map<string, ItineraryDay[]>()
   const loose: ItineraryDay[] = []
@@ -246,9 +234,6 @@ function buildTimeline(
 
   for (const seg of toSegments(loose.slice().sort(byIndex))) {
     items.push({ item: { kind: "loose", seg }, sort: seg.days[0].dayIndex })
-  }
-  for (const dayIndex of looseEmpties) {
-    items.push({ item: { kind: "empty", dayIndex }, sort: dayIndex })
   }
 
   return items
@@ -502,7 +487,10 @@ export function ItineraryTab({
     }
   }, [tripId, tripStartDate])
 
-  const defaultIndex = days.length > 0 ? days[days.length - 1].dayIndex + 1 : 1
+  // "+ day" fills the first empty day, else extends the trip by one.
+  const defaultIndex =
+    days.find((d) => !isPlannedRow(d))?.dayIndex ??
+    (days.length > 0 ? days[days.length - 1].dayIndex + 1 : 1)
 
   const dragSensors = useSensors(
     useSensor(MouseSensor, { activationConstraint: { distance: 8 } }),
@@ -521,19 +509,19 @@ export function ItineraryTab({
     setDragId(String(e.active.id))
   }
 
-  /** An unplaced day dropped on a free day goes back into the trip there,
-   * under that day's location. Any other target does nothing. */
+  /** An unplaced day dropped on an empty day takes its place, under that
+   * day's location. Any other target does nothing. */
   function placeBack(day: UnplacedDay, overId: string) {
-    if (!overId.startsWith(EMPTY_PREFIX)) return
-    const dayIndex = Number(overId.slice(EMPTY_PREFIX.length))
+    const target = days.find((d) => d.id === overId)
+    if (!target || isPlannedRow(target)) return
+    const { dayIndex, locationId } = target
     if (active && dayIndex < todayIndex) return
-    const locationId = positionOwner(dayIndex, locations, days)
     const placed = rowToItineraryDay(
       { ...day, day_index: dayIndex, location_id: locationId },
       tripStartDate,
     )
     setUnplaced((prev) => prev.filter((d) => d.id !== day.id))
-    setDays((prev) => withOrdinals([...prev, placed]))
+    setDays((prev) => withOrdinals([...prev.filter((d) => d.id !== target.id), placed]))
     startReschedule(async () => {
       const result = await moveItineraryDay({
         tripId,
@@ -544,7 +532,7 @@ export function ItineraryTab({
         keepGroup: false,
       })
       if (result.error) {
-        setDays((prev) => withOrdinals(prev.filter((d) => d.id !== day.id)))
+        setDays((prev) => withOrdinals([...prev.filter((d) => d.id !== day.id), target]))
         setUnplaced((prev) => (prev.some((d) => d.id === day.id) ? prev : [...prev, day]))
       }
     })
@@ -573,7 +561,6 @@ export function ItineraryTab({
     }
     const plan = planDrop({
       days,
-      locations,
       activeId: String(e.active.id),
       overId: String(e.over.id),
       floor: active ? todayIndex : null,
@@ -602,6 +589,9 @@ export function ItineraryTab({
       return
     }
 
+    // The empty day it lands on swaps to the spot it left; the server's sync
+    // settles that empty day's location.
+    const moving = days.find((d) => d.id === plan.dayId)!
     setDays((prev) =>
       withOrdinals(
         prev.map((d) =>
@@ -611,14 +601,21 @@ export function ItineraryTab({
                 locationId: plan.locationId,
                 ...(plan.keepGroup ? {} : { groupId: null, groupName: null }),
               }
-            : d,
+            : d.id === plan.emptyId
+              ? {
+                  ...reassignDayIndex(d, moving.dayIndex, tripStartDate),
+                  locationId: moving.locationId,
+                }
+              : d,
         ),
       ),
     )
     startReschedule(async () => {
       const result = await moveItineraryDay({ tripId, tripSlug, ...plan })
       if (result.error) {
-        setDays((prev) => withOrdinals(restoreDays(prev, snapshot, [plan.dayId])))
+        setDays((prev) =>
+          withOrdinals(restoreDays(prev, snapshot, [plan.dayId, plan.emptyId])),
+        )
       }
     })
   }
@@ -648,23 +645,15 @@ export function ItineraryTab({
   const floorIndex = plan === null || tripStartDate === null ? null : dayIndexOf(plan, tripStartDate)
   // Mid-trip the walk opens on the days that remain; the server floor is what
   // actually protects the earlier ones.
-  const plannerDays = active ? days.filter((d) => d.dayIndex >= todayIndex) : days
-  // Every empty day of the trip, as a drop target; on a live trip, only from today on.
-  const empties = emptyPositions(days, tripLength(days, tripDayCount)).filter(
-    (i) => !active || i >= todayIndex,
-  )
-  const emptyOwner = new Map(empties.map((i) => [i, positionOwner(i, locations, days)]))
-  const timeline = buildTimeline(
-    locations,
-    days,
-    empties.filter((i) => emptyOwner.get(i) === null),
-  )
+  const plannedDays = days.filter(isPlannedRow)
+  const plannerDays = active
+    ? plannedDays.filter((d) => d.dayIndex >= todayIndex)
+    : plannedDays
+  const timeline = buildTimeline(locations, days)
   const itemIsPast = (it: TimelineItem) =>
     it.kind === "location"
       ? groupZone(it.group, todayIndex) === "past"
-      : it.kind === "empty"
-        ? false
-        : it.seg.days[it.seg.days.length - 1].dayIndex < todayIndex
+      : it.seg.days[it.seg.days.length - 1].dayIndex < todayIndex
   const pastDayTotal = active
     ? timeline.reduce(
         (n, it) =>
@@ -876,19 +865,6 @@ export function ItineraryTab({
             ) : null}
             {(() => {
             const rendered = timeline.map((item) => {
-            if (item.kind === "empty") {
-              return (
-                <div
-                  key={`empty-${item.dayIndex}`}
-                  className="border-t border-rule first:border-t-0 py-1 pl-10"
-                >
-                  <EmptyDaySlot
-                    dayIndex={item.dayIndex}
-                    label={positionLabel(item.dayIndex, tripStartDate)}
-                  />
-                </div>
-              )
-            }
             if (item.kind === "loose") {
               if (itemIsPast(item) && !pastBarOpen) return null
               return (
@@ -1077,35 +1053,16 @@ export function ItineraryTab({
                   <div className="pb-3 pl-10">
                     {(() => {
                       const dayRows = (() => {
-                      const segs = toSegments(group.days)
-                      type Row =
-                        | { kind: "seg"; seg: DaySegment }
-                        | { kind: "empty"; dayIndex: number }
-                      const rowStart = (row: Row) =>
-                        row.kind === "seg" ? row.seg.days[0].dayIndex : row.dayIndex
-                      // This location's empty days sit among its days, at their number.
-                      const rows: Row[] = [
-                        ...segs.map((seg): Row => ({ kind: "seg", seg })),
-                        ...empties
-                          .filter((i) => emptyOwner.get(i) === group.key)
-                          .map((dayIndex): Row => ({ kind: "empty", dayIndex })),
-                      ].sort((a, b) => rowStart(a) - rowStart(b))
+                      const rows = toSegments(group.days)
 
-                      // Real days present -> they are draggable within the
+                      // Days present -> they are draggable within the
                       // itinerary's one DndContext.
                       const canSort = group.days.length > 0
 
-                      const renderRow = (row: Row, sortable: boolean) =>
-                        row.kind === "empty" ? (
-                          <EmptyDaySlot
-                            key={`empty-${row.dayIndex}`}
-                            dayIndex={row.dayIndex}
-                            label={positionLabel(row.dayIndex, tripStartDate)}
-                          />
-                        ) : (
+                      const renderRow = (row: DaySegment, sortable: boolean) => (
                         <DaySegmentView
-                          key={row.seg.groupId ?? row.seg.days[0].id}
-                          seg={row.seg}
+                          key={row.groupId ?? row.days[0].id}
+                          seg={row}
                           tripId={tripId}
                           tripSlug={tripSlug}
                           lastDayId={last.id}
@@ -1128,8 +1085,8 @@ export function ItineraryTab({
                         />
                         )
 
-                      const rowSortableIds = (row: Row): string[] =>
-                        canSort && row.kind === "seg" ? row.seg.days.map((d) => d.id) : []
+                      const rowSortableIds = (row: DaySegment): string[] =>
+                        canSort ? row.days.map((d) => d.id) : []
 
                       const isCurrentLoc =
                         active && groupZone(group, todayIndex) === "today"
@@ -1139,16 +1096,10 @@ export function ItineraryTab({
                           ids: rows.flatMap(rowSortableIds),
                         }
 
-                      const rowEnd = (row: Row) =>
-                        row.kind === "seg"
-                          ? row.seg.days[row.seg.days.length - 1].dayIndex
-                          : row.dayIndex
+                      const rowEnd = (row: DaySegment) => row.days[row.days.length - 1].dayIndex
                       const pastRows = rows.filter((r) => rowEnd(r) < todayIndex)
                       const liveRows = rows.filter((r) => rowEnd(r) >= todayIndex)
-                      const pastDayCount = pastRows.reduce(
-                        (n, r) => n + (r.kind === "seg" ? r.seg.days.length : 0),
-                        0,
-                      )
+                      const pastDayCount = pastRows.reduce((n, r) => n + r.days.length, 0)
                       const earlierExpanded = earlierOpen.has(group.key)
 
                       return {
@@ -1468,7 +1419,11 @@ interface DayCardProps {
 
 function SortableDayCard({ id, ...rest }: DayCardProps & { id: string }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
-    useSortable({ id, disabled: rest.isEditing })
+    // An empty day only takes drops: there is nothing on it to move.
+    useSortable({
+      id,
+      disabled: { draggable: rest.isEditing || !isPlannedRow(rest.day), droppable: rest.isEditing },
+    })
   const style: React.CSSProperties = {
     transform: CSS.Transform.toString(transform),
     transition,
@@ -1575,6 +1530,7 @@ function DayView({
   // expense form has been asked for. Only one event is open at a time.
   const [openEvent, setOpenEvent] = React.useState<number | null>(null)
   const [openExpense, setOpenExpense] = React.useState<number | null>(null)
+  const empty = !isPlannedRow(day)
   return (
     // A mouse press anywhere in the row but the card selects days (desktop
     // only; a touch tap is ignored). -ml-10 pl-10 stretches the row over the
@@ -1591,7 +1547,7 @@ function DayView({
         e.stopPropagation()
         e.preventDefault()
       }}
-      className="relative -ml-10 flex cursor-crosshair gap-3.5 py-3.5 pl-10"
+      className={`relative -ml-10 flex cursor-crosshair gap-3.5 pl-10 ${empty ? "py-2" : "py-3.5"}`}
     >
       <div className="relative w-9 flex-shrink-0 select-none">
         <div className="font-mono text-[22px] leading-none tracking-[-0.02em] text-foreground">
@@ -1609,12 +1565,25 @@ function DayView({
       </div>
       <div
         data-day-card
-        className={`flex-1 cursor-auto rounded-lg border px-3.5 py-3 border-l-[3px] ${
-          selected ? "border-sea bg-sea/10" : "border-border bg-card"
-        } ${itineraryBorder[day.tone]} ${
-          dimBefore !== null && day.dayIndex < dimBefore ? "opacity-60" : ""
-        }`}
+        className={`flex-1 cursor-auto rounded-lg border ${
+          empty
+            ? `border-dashed px-3.5 py-2 ${selected ? "border-sea bg-sea/10" : "border-rule"}`
+            : `px-3.5 py-3 border-l-[3px] ${
+                selected ? "border-sea bg-sea/10" : "border-border bg-card"
+              } ${itineraryBorder[day.tone]}`
+        } ${dimBefore !== null && day.dayIndex < dimBefore ? "opacity-60" : ""}`}
       >
+        {empty ? (
+          <button
+            type="button"
+            onClick={onStartEdit}
+            className="flex w-full items-center justify-between border-0 bg-transparent p-0 text-left font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground hover:text-foreground"
+          >
+            <span>free · plan this day</span>
+            <span className="tracking-[0.06em] normal-case">day {Number(day.d)}</span>
+          </button>
+        ) : (
+        <>
         <div className="mb-1.5 flex items-center justify-between">
           <div className="flex items-center gap-1.5">
             {dragHandle}
@@ -1750,6 +1719,8 @@ function DayView({
             </button>
           </form>
         </div>
+        </>
+        )}
       </div>
     </div>
   )
