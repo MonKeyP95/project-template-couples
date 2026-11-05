@@ -2,7 +2,6 @@
 
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { useCurrency } from "@/components/currency-context"
 import { moneyRounded } from "@/lib/money"
 import type { SuggestionOption, TripSuggestion } from "@/lib/trips/suggestion-types"
 
@@ -19,7 +18,6 @@ export function OptionsDialog({
   onPick: (o: SuggestionOption) => void
   onCancel: () => void
 }) {
-  const { currency } = useCurrency()
   return (
     <Dialog open onOpenChange={(open) => !open && onCancel()}>
       <DialogContent className="sm:max-w-2xl">
@@ -36,7 +34,7 @@ export function OptionsDialog({
               <div className="t-num text-[13px] text-foreground">
                 {o.priceCents === null
                   ? "No price"
-                  : `${moneyRounded(o.priceCents, currency)}${o.priceUnit === "per_person" ? " / person" : ""}`}
+                  : `${moneyRounded(o.priceCents, o.currency)}${o.priceUnit === "per_person" ? " / person" : ""}`}
               </div>
               {o.reviews ? <div className="text-[12px] text-muted-foreground">{o.reviews}</div> : null}
               {o.url ? (

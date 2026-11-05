@@ -4,6 +4,8 @@ import { revalidatePath } from "next/cache"
 
 import { createClient } from "@/lib/supabase/server"
 import { getCurrentWorkspace } from "@/lib/workspace/queries"
+import { getRates } from "@/lib/fx/get-rates"
+import { inverseRate, toHomeCents } from "@/lib/fx/convert"
 import { payBudgetItem } from "./actions"
 import {
   costCents,
@@ -23,15 +25,27 @@ export async function loadSuggestionOptions(
   const supabase = await createClient()
   const { data: row, error } = await supabase
     .from("trip_suggestions")
-    .select("id, kind, category, title, location_id, day_index, why, options, itinerary_locations(name)")
+    .select(
+      "id, kind, category, title, location_id, day_index, why, options, itinerary_locations(name), trips(currency)",
+    )
     .eq("id", id)
-    .maybeSingle<TripSuggestionRow & { itinerary_locations: { name: string } | null }>()
+    .maybeSingle<
+      TripSuggestionRow & {
+        itinerary_locations: { name: string } | null
+        trips: { currency: string }
+      }
+    >()
   if (error) return { error: error.message }
   if (!row) return { error: "That suggestion is gone." }
   const suggestion = rowToSuggestion(row)
   if (suggestion.options) return { options: suggestion.options }
 
-  const options = mockOptions(suggestion.kind, suggestion.title, row.itinerary_locations?.name ?? "")
+  const options = mockOptions(
+    suggestion.kind,
+    suggestion.title,
+    row.itinerary_locations?.name ?? "",
+    row.trips.currency,
+  )
   const { error: updErr } = await supabase
     .from("trip_suggestions")
     .update({ options: optionsToJson(options) })
@@ -52,7 +66,8 @@ export async function deleteSuggestion(id: string, tripSlug: string): Promise<{ 
 
 /**
  * The picked option's price as one planned cost (an estimate, linked to its
- * source). `paid` also logs the expense through the normal mark-paid path.
+ * source), converted to the trip's home currency at today's rate like any
+ * expense. `paid` also logs the expense through the normal mark-paid path.
  * No price, nothing written.
  */
 export async function addSuggestionCost(input: {
@@ -74,8 +89,10 @@ export async function addSuggestionCost(input: {
     .select("user_id", { count: "exact", head: true })
     .eq("workspace_id", workspace.id)
   if (countErr) return { error: countErr.message }
-  const amount = costCents(input.option, count ?? 1)
-  if (amount === null) return {}
+  const local = costCents(input.option, count ?? 1)
+  if (local === null) return {}
+  const amount = await toTripHome(input.tripId, input.option.currency, local)
+  if (typeof amount !== "number") return amount
 
   const { data: last } = await supabase
     .from("trip_budget_items")
@@ -106,4 +123,23 @@ export async function addSuggestionCost(input: {
   if (input.paid) return await payBudgetItem(item.id, input.tripSlug, input.dayDate)
   revalidatePath(`/trips/${input.tripSlug}`)
   return {}
+}
+
+/** Cents in `currency` -> the trip's home currency, at today's rate. */
+async function toTripHome(
+  tripId: string,
+  currency: string,
+  cents: number,
+): Promise<number | { error: string }> {
+  const supabase = await createClient()
+  const { data: trip } = await supabase
+    .from("trips")
+    .select("home_currency")
+    .eq("id", tripId)
+    .maybeSingle()
+  if (!trip) return { error: "Trip not found." }
+  if (currency === trip.home_currency) return cents
+  const foreignPerHome = (await getRates(trip.home_currency))?.[currency]
+  if (!foreignPerHome) return { error: "No rate available for that currency right now." }
+  return toHomeCents(cents, inverseRate(foreignPerHome))
 }

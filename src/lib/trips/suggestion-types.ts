@@ -6,7 +6,9 @@ export type SuggestionKind = "big" | "small"
 export interface SuggestionOption {
   name: string
   location: string
+  /** In `currency`, the place's own money; converted only when it reaches the budget. */
   priceCents: number | null
+  currency: string
   priceUnit: "total" | "per_person"
   url: string
   reviews: string
@@ -29,6 +31,7 @@ interface SuggestionOptionJson {
   name: string
   location: string
   price_cents: number | null
+  currency: string
   price_unit: "total" | "per_person"
   url: string
   reviews: string
@@ -59,6 +62,7 @@ export function rowToSuggestion(row: TripSuggestionRow): TripSuggestion {
         name: o.name,
         location: o.location,
         priceCents: o.price_cents,
+        currency: o.currency,
         priceUnit: o.price_unit,
         url: o.url,
         reviews: o.reviews,
@@ -71,6 +75,7 @@ export function optionsToJson(options: SuggestionOption[]): SuggestionOptionJson
     name: o.name,
     location: o.location,
     price_cents: o.priceCents,
+    currency: o.currency,
     price_unit: o.priceUnit,
     url: o.url,
     reviews: o.reviews,
@@ -94,13 +99,20 @@ const BIG_VARIANTS: [provider: string, style: string, factor: number, rating: nu
   ["Bluewater", "private", 1.6, 4.9],
 ]
 
-/** Sample options until real search exists (piece C). Deterministic per title. */
-export function mockOptions(kind: SuggestionKind, title: string, place: string): SuggestionOption[] {
+/** Sample options until real search exists (piece C). Deterministic per title;
+ * priced in `currency`, the trip's spend currency. */
+export function mockOptions(
+  kind: SuggestionKind,
+  title: string,
+  place: string,
+  currency: string,
+): SuggestionOption[] {
   const h = hash(title)
   const option = (name: string, priceCents: number, rating: number): SuggestionOption => ({
     name,
     location: place,
     priceCents,
+    currency,
     priceUnit: "per_person",
     url: `https://example.com/${slug(name)}`,
     reviews: `${rating.toFixed(1)} (sample)`,
