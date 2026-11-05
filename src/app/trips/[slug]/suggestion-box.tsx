@@ -83,6 +83,40 @@ function DismissButton({ id, tripSlug }: { id: string; tripSlug: string }) {
   )
 }
 
+/** While a card's options are searched (10-20s), and the way back when it fails. */
+export function SuggestionLookup({
+  title,
+  error,
+  onRetry,
+  onCancel,
+}: {
+  title: string
+  error?: string
+  onRetry: () => void
+  onCancel: () => void
+}) {
+  const action = "border-0 bg-transparent p-0 font-mono text-[11px] hover:text-foreground"
+  return (
+    <div role="status" className="mb-4 flex items-baseline gap-3 rounded-md border border-rule px-3 py-2 text-[12.5px]">
+      {error ? (
+        <>
+          <span className="min-w-0 flex-1 text-clay">
+            {title}: {error}
+          </span>
+          <button type="button" onClick={onRetry} className={`${action} text-sea`}>
+            Try again
+          </button>
+          <button type="button" onClick={onCancel} className={`${action} text-muted-foreground`}>
+            Cancel
+          </button>
+        </>
+      ) : (
+        <span className="text-muted-foreground">Finding options for {title}...</span>
+      )}
+    </div>
+  )
+}
+
 /** A suggestion sitting on a blank day: one line, never mistaken for an event. */
 export function SuggestionLine({
   suggestion,

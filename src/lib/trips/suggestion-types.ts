@@ -82,50 +82,6 @@ export function optionsToJson(options: SuggestionOption[]): SuggestionOptionJson
   }))
 }
 
-function hash(s: string): number {
-  let h = 0
-  for (const c of s) h = (h * 31 + c.charCodeAt(0)) >>> 0
-  return h
-}
-
-function slug(s: string): string {
-  return s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")
-}
-
-/** Three made-up providers, so the options read as different businesses. */
-const BIG_VARIANTS: [provider: string, style: string, factor: number, rating: number][] = [
-  ["Harbour", "classic", 1, 4.6],
-  ["Old Town", "small group", 0.75, 4.2],
-  ["Bluewater", "private", 1.6, 4.9],
-]
-
-/** Sample options until real search exists (piece C). Deterministic per title;
- * priced in `currency`, the trip's spend currency. */
-export function mockOptions(
-  kind: SuggestionKind,
-  title: string,
-  place: string,
-  currency: string,
-): SuggestionOption[] {
-  const h = hash(title)
-  const option = (name: string, priceCents: number, rating: number): SuggestionOption => ({
-    name,
-    location: place,
-    priceCents,
-    currency,
-    priceUnit: "per_person",
-    url: `https://example.com/${slug(name)}`,
-    reviews: `${rating.toFixed(1)} (sample)`,
-  })
-  if (kind === "small") {
-    return [option(`${place.trim() || "Local"} ${title}`, 1500 + (h % 4) * 500, 4 + (h % 9) / 10)]
-  }
-  const price = 4000 + (h % 6) * 1000
-  return BIG_VARIANTS.map(([provider, style, factor, rating]) =>
-    option(`${provider} ${title} (${style})`, Math.round((price * factor) / 100) * 100, rating),
-  )
-}
-
 /** The day an idea sits on: its day when that day is blank, in range and not
  * already past; otherwise null (the box). */
 export function ideaDay(

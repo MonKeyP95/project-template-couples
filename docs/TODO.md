@@ -6,7 +6,7 @@
 
 **Planner suggestions (spec `docs/superpowers/specs/2026-11-05-planner-suggestions-design.md`), pieces A -> B -> C.**
 - **A. Planner input cleanup: implemented 2026-11-05; lint + build clean; unverified in app.** `vibe` and `activityTypes` removed from the itinerary planner (new-trip flow no longer collects them). Plan `docs/superpowers/plans/2026-11-05-planner-input-cleanup.md`. Check: Generate on a new-flow trip still produces an itinerary with no error.
-- **B. Suggestions with mock options: implemented 2026-11-05; lint + typecheck clean; unverified in app.** Plan `docs/superpowers/plans/2026-11-05-planner-suggestions-b.md`. **Paste `supabase/migrations/20261105000001_planner_suggestions.sql` first** (reshapes the orphaned `trip_suggestions`). In-app checks:
+- **B. Suggestions with mock options: implemented 2026-11-05; verified in-app 2026-11-05.** Plan `docs/superpowers/plans/2026-11-05-planner-suggestions-b.md`. **Paste `supabase/migrations/20261105000001_planner_suggestions.sql` first** (reshapes the orphaned `trip_suggestions`). In-app checks:
   1. After Generate, empty days show suggestions labelled as such; planned days show none; the rest are in the box.
   2. Dragging a small card onto a day opens the event form pre-filled (name, link, category, location); saving with a time adds a real event on that day.
   3. Dragging a big card onto a day shows its 3 options first; choosing one opens the pre-filled event form.
@@ -14,7 +14,12 @@
   5. After saving a priced suggestion, "Not yet" adds a planned cost under the right budget category; "Yes" also adds an expense.
   6. Dismiss removes a card; Generate again does not pile up old cards.
   7. Works on a phone viewport.
-- **C. Real options via search on first open:** not started.
+- **C. Real options via search on first open: implemented 2026-11-05; verified in-app 2026-11-05; no migration.** New agent `suggestion-options` (`web_search_short` + strict `propose_options`); `loadSuggestionOptions` calls it instead of the mock (deleted), stores the result once, and stores nothing when the search finds nothing or fails. A bar above the days shows "Finding options for X..." and, on failure, "Try again" / "Cancel". In-app checks:
+  1. Drag a big card onto a day: "Finding options..." shows, then 2-3 real places with working links; prices and reviews only where published.
+  2. A small card opens the pre-filled form with one real place and a working link.
+  3. Open the same card again (cancel, then drag it again): the options appear at once, with no second wait.
+  4. On a failed search the bar says so; "Try again" searches again, "Cancel" clears it.
+  5. Works on a phone viewport.
 
 **Budget estimate stays the couple's total: implemented 2026-11-05; lint + `tsc --noEmit` clean; unverified in app; no migration.** `saveBudgetItems`, `saveBudgetItemsForScope` and `savePreTripItems` no longer overwrite `planned_budget_cents` with the sum of lines; they seed it only when the trip has no estimate yet (`seedEstimateIfUnset`, guarded by `= 0`). `deleteBudgetItem` never touches it. New `AllocatedFigure` at the top of the "Plan a budget" card: "X of Y allocated · N%", clay with "Z over your estimate" when lines exceed it. In-app checks:
   1. On a trip with an estimate, saving the drafter with a different total leaves the estimate unchanged.

@@ -143,6 +143,46 @@ export const TOOL_REGISTRY: Record<string, Anthropic.Messages.ToolUnion> = {
     },
   },
 
+  propose_options: {
+    name: "propose_options",
+    description: "Return real, bookable options for one suggestion, each backed by a search result.",
+    strict: true,
+    input_schema: {
+      type: "object",
+      additionalProperties: false,
+      properties: {
+        options: {
+          type: "array",
+          items: {
+            type: "object",
+            additionalProperties: false,
+            properties: {
+              name: { type: "string", description: "The business or place name." },
+              location: { type: "string", description: "Area or address, short." },
+              priceCents: {
+                type: ["integer", "null"],
+                description:
+                  "Published price in hundredths of `currency` (45.00 -> 4500), or null if the search does not show one.",
+              },
+              currency: { type: "string", description: "ISO 4217 code of the price." },
+              priceUnit: { type: "string", enum: ["total", "per_person"] },
+              url: {
+                type: "string",
+                description: "A real URL from a search result for this option. Never invented.",
+              },
+              reviews: {
+                type: "string",
+                description: "Rating as shown, e.g. '4.7 (1,200 Google)', or empty if not shown.",
+              },
+            },
+            required: ["name", "location", "priceCents", "currency", "priceUnit", "url", "reviews"],
+          },
+        },
+      },
+      required: ["options"],
+    },
+  },
+
   propose_suggestion: {
     name: "propose_suggestion",
     description: "Return one short, actionable suggestion for the couple.",
