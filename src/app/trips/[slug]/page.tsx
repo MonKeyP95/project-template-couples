@@ -308,6 +308,7 @@ export default async function TripPage({
       destination={header.country ?? header.name}
       idea={header.tripProfile.idea}
       avoid={header.tripProfile.avoid}
+      answers={header.tripProfile}
       tripStartDate={header.startDate}
       tripEndDate={header.endDate ?? header.startDate}
       tripDayCount={header.dayCount}

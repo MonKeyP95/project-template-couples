@@ -93,11 +93,14 @@ export function EventRow({
   onNormalizeTime,
   onNormalizeEndTime,
   onRemove,
+  autoFocus,
 }: {
   ev: EventDraft
   isPending: boolean
   /** Drag grip, supplied by SortableEventRow. */
   handle?: React.ReactNode
+  /** Put the cursor in "What happens" when the row mounts. */
+  autoFocus?: boolean
   onPatch: (patch: Partial<EventDraft>) => void
   onNormalizeTime: () => void
   onNormalizeEndTime: () => void
@@ -130,6 +133,7 @@ export function EventRow({
           value={ev.text}
           onChange={(e) => onPatch({ text: e.target.value })}
           placeholder="What happens"
+          autoFocus={autoFocus}
           disabled={isPending}
           className="min-w-0 flex-1 border-0 border-b border-rule bg-transparent py-1.5 text-[14px] text-foreground placeholder:text-muted-foreground focus:border-clay focus:outline-none disabled:opacity-50"
         />
@@ -196,10 +200,13 @@ export function EventDraftList({
   events,
   setEvents,
   isPending,
+  focusFirst,
 }: {
   events: EventDraft[]
   setEvents: (e: EventDraft[]) => void
   isPending: boolean
+  /** Focus the first row's text on mount: a day form opening on a blank event. */
+  focusFirst?: boolean
 }) {
   const eventDndId = React.useId()
   const eventSensors = useSensors(
@@ -234,10 +241,11 @@ export function EventDraftList({
             items={events.map((x) => x.key)}
             strategy={verticalListSortingStrategy}
           >
-            {events.map((ev) => (
+            {events.map((ev, i) => (
               <SortableEventRow
                 key={ev.key}
                 ev={ev}
+                autoFocus={focusFirst && i === 0}
                 isPending={isPending}
                 onPatch={(patch) =>
                   setEvents(

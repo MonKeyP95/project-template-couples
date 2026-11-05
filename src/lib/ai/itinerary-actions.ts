@@ -121,10 +121,46 @@ interface ApplyItineraryInput {
   skeleton: ItinerarySkeleton
 }
 
+/** Move each planned day with no location under the location whose run covers
+ * it. A run spans the days a location holds plus the day numbers the skeleton
+ * gave it, so a draft day skipped for the couple's own day still counts. A day
+ * outside every run stays a travel day. Its content is never touched. */
+async function fileLooseDays(
+  tripId: string,
+  tripSlug: string,
+  claimed: Map<string, number[]>,
+): Promise<{ error?: string }> {
+  const planned = (await getItineraryDays(tripId)).filter(isPlannedRow)
+  const runs = new Map<string, number[]>(claimed)
+  for (const d of planned) {
+    if (d.locationId) runs.set(d.locationId, [...(runs.get(d.locationId) ?? []), d.dayIndex])
+  }
+  for (const day of planned) {
+    if (day.locationId) continue
+    const owner = [...runs].find(
+      ([, idx]) => Math.min(...idx) <= day.dayIndex && day.dayIndex <= Math.max(...idx),
+    )
+    if (!owner) continue
+    const res = await updateItineraryDay({
+      dayId: day.id,
+      tripSlug,
+      dayIndex: day.dayIndex,
+      title: day.title,
+      sub: day.sub,
+      events: day.events,
+      tone: day.tone,
+      locationId: owner[0],
+    })
+    if (res.error) return res
+  }
+  return {}
+}
+
 /**
  * Write an edited skeleton onto the trip's itinerary, additively: reuse a
  * same-named location or create it, then add each day under it. A day number
- * that already has a day is skipped (never overwritten).
+ * that already has a day keeps it (the couple's entry wins over the draft);
+ * afterwards their location-less days join the place around them.
  */
 async function applyItinerarySkeleton(
   input: ApplyItineraryInput,
@@ -132,6 +168,7 @@ async function applyItinerarySkeleton(
   const existing = await getItineraryLocations(input.tripId)
   const byName = new Map(existing.map((l) => [l.name.trim().toLowerCase(), l.id]))
 
+  const claimed = new Map<string, number[]>()
   let locations = 0
   let days = 0
   for (const place of input.skeleton.places) {
@@ -145,7 +182,13 @@ async function applyItinerarySkeleton(
       byName.set(key, locationId)
       locations++
     }
+    claimed.set(locationId, [
+      ...(claimed.get(locationId) ?? []),
+      ...place.days.map((d) => d.dayIndex),
+    ])
     for (const day of place.days) {
+      // An empty day is already a blank row; there is nothing to write.
+      if (day.events.length === 0) continue
       const res = await addItineraryDay({
         tripId: input.tripId,
         tripSlug: input.tripSlug,
@@ -165,6 +208,8 @@ async function applyItinerarySkeleton(
       days++
     }
   }
+  const filed = await fileLooseDays(input.tripId, input.tripSlug, claimed)
+  if (filed.error) return { error: filed.error }
   return { created: { locations, days } }
 }
 
@@ -281,7 +326,7 @@ async function applyPlanEdits(
       tripId: input.tripId,
       tripSlug: input.tripSlug,
       dayIndex,
-      title: name,
+      title: "",
       sub: "",
       events,
       tag: name,

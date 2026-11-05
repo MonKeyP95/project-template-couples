@@ -2124,7 +2124,6 @@ export async function editItineraryBlock(
   input: EditItineraryBlockInput,
 ): Promise<{ error?: string }> {
   const newTitle = input.newTitle.trim()
-  if (!newTitle) return { error: "Title required." }
   if (input.dayIds.length < 2) return { error: "Pick at least two days." }
 
   const supabase = await createClient()

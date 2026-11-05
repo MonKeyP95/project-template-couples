@@ -7,7 +7,9 @@ import { Label } from "@/components/together"
 import {
   walkPlaceSeed,
   planItinerarySteps,
+  profileAnswerFor,
   savedPlanFromItinerary,
+  type ProfileAnswers,
   type ItineraryPlanStep,
   type PlanEntry,
   type SavedPlan,
@@ -26,6 +28,9 @@ export interface PlanItineraryProps {
   idea: string
   /** The trip's saved avoid text; the walk prefills from it and writes it back. */
   avoid: string
+  /** New-trip answers (stay, getting around, doing, food); a step with no
+   * saved rows opens on its answer. */
+  answers: ProfileAnswers
   /** The trip's existing locations and days — the walk opens on them. */
   locations: ItineraryLocation[]
   days: ItineraryDay[]
@@ -143,6 +148,7 @@ export function PlanItinerary({
   destination,
   idea,
   avoid: initialAvoid,
+  answers,
   locations,
   days,
   startDate,
@@ -227,7 +233,9 @@ export function PlanItinerary({
       const next: Record<string, ItemRow[]> = {}
       for (const s of nextSteps) {
         if (s.kind !== "entries") continue
-        next[s.key] = prev[s.key] ?? [newRow()]
+        next[s.key] = prev[s.key] ?? [
+          { ...newRow(), subject: profileAnswerFor(s.category, answers) },
+        ]
       }
       return next
     })

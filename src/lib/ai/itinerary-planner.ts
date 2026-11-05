@@ -4,6 +4,7 @@ import {
   type ItineraryTone,
 } from "@/lib/trips/itinerary-types"
 import type { ItineraryLocation } from "@/lib/trips/location-types"
+import type { TripProfile } from "@/lib/trips/trip-profile-types"
 
 export const ITINERARY_CATEGORIES = [
   "Accommodation",
@@ -66,7 +67,8 @@ export function planItinerarySkeleton(input: ItineraryPlanInput): ItinerarySkele
     for (let i = 0; i < count; i++) {
       days.push({
         dayIndex: offset + 1,
-        title: name,
+        // The place already heads its block; the day itself needs no title.
+        title: "",
         tag: name,
         tone: ITINERARY_TONES[offset % ITINERARY_TONES.length],
         events: [],
@@ -113,6 +115,22 @@ export interface ItineraryPlanStep {
   addNoun: string
   /** Place name for a per-place step; null for a trip-wide step. */
   place: string | null
+}
+
+/** The new-trip answers the walk opens its steps on. */
+export type ProfileAnswers = Pick<TripProfile, "stay" | "move" | "acts" | "food">
+
+const ANSWER_BY_CATEGORY: Record<string, keyof ProfileAnswers> = {
+  Accommodation: "stay",
+  Transportation: "move",
+  Activities: "acts",
+  Food: "food",
+}
+
+/** The couple's new-trip answer for a step's category, or "". */
+export function profileAnswerFor(category: string, answers: ProfileAnswers): string {
+  const field = ANSWER_BY_CATEGORY[category]
+  return field ? answers[field].trim() : ""
 }
 
 /**

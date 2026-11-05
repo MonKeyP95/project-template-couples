@@ -43,6 +43,7 @@ import { PlanningPlaceDoor } from "./find-a-place-planning"
 import { BudgetScopeEditor } from "./budget-scope-editor"
 import { EventExpense } from "./event-expense"
 import { PlanItinerary, toolbarPill } from "./plan-itinerary"
+import type { ProfileAnswers } from "@/lib/ai/itinerary-planner"
 import type { BudgetItem } from "@/lib/trips/budget-item-types"
 import type { ExpenseCategoryRow } from "@/lib/trips/expense-types"
 import type { MemberToneEntry } from "./packing-tab"
@@ -285,6 +286,7 @@ export function ItineraryTab({
   destination,
   idea,
   avoid,
+  answers,
   tripStartDate,
   tripEndDate,
   tripDayCount,
@@ -303,6 +305,7 @@ export function ItineraryTab({
   destination: string
   idea: string
   avoid: string
+  answers: ProfileAnswers
   /** Null on a dream: days show as "Day N" and nothing is past or today. */
   tripStartDate: string | null
   tripEndDate: string | null
@@ -844,6 +847,7 @@ export function ItineraryTab({
         destination={destination}
         idea={idea}
         avoid={avoid}
+        answers={answers}
         locations={locations}
         days={plannerDays}
         startDate={tripStartDate}
@@ -1765,9 +1769,11 @@ function DayEditor({
   const [dayIndex, setDayIndex] = React.useState<number | null>(day.dayIndex)
   const [title, setTitle] = React.useState(day.title)
   const [sub, setSub] = React.useState(day.sub)
+  // A free day opens on a blank event: adding one is what editing it is for.
   const [events, setEvents] = React.useState<EventDraft[]>(() =>
-    toEventDrafts(day.events),
+    day.events.length > 0 ? toEventDrafts(day.events) : [newEventDraft()],
   )
+  const [focusFirst] = React.useState(day.events.length === 0)
   const [tone, setTone] = React.useState<ItineraryTone>(day.tone)
   const [locationId, setLocationId] = React.useState<string | null>(
     day.locationId,
@@ -1801,6 +1807,7 @@ function DayEditor({
   return (
     <DayForm
       heading="Edit day"
+      focusFirstEvent={focusFirst}
       tripStartDate={tripStartDate}
       dayIndex={dayIndex}
       setDayIndex={setDayIndex}
@@ -1846,7 +1853,7 @@ function AddDayRow({
   const [groupName, setGroupName] = React.useState("")
   const [title, setTitle] = React.useState("")
   const [sub, setSub] = React.useState("")
-  const [events, setEvents] = React.useState<EventDraft[]>([])
+  const [events, setEvents] = React.useState<EventDraft[]>(() => [newEventDraft()])
   const [tone, setTone] = React.useState<ItineraryTone>("sea")
   const [error, setError] = React.useState<string | null>(null)
   const [isPending, startTransition] = React.useTransition()
@@ -1858,7 +1865,7 @@ function AddDayRow({
     setGroupName("")
     setTitle("")
     setSub("")
-    setEvents([])
+    setEvents([newEventDraft()])
     setTone("sea")
     setError(null)
   }
@@ -1909,6 +1916,7 @@ function AddDayRow({
   return (
     <DayForm
       heading="Add day"
+      focusFirstEvent
       tripStartDate={tripStartDate}
       dayIndex={dayIndex}
       setDayIndex={setDayIndex}
@@ -1940,6 +1948,7 @@ function draftHasContent(title: string, sub: string, events: EventDraft[]): bool
 
 function DayForm({
   heading,
+  focusFirstEvent,
   tripStartDate,
   dayIndex,
   setDayIndex,
@@ -1965,6 +1974,8 @@ function DayForm({
   onCancel,
 }: {
   heading: string
+  /** Put the cursor in the first event's text when the form opens. */
+  focusFirstEvent?: boolean
   tripStartDate: string | null
   dayIndex: number | null
   setDayIndex: (i: number | null) => void
@@ -2085,6 +2096,7 @@ function DayForm({
             events={events}
             setEvents={setEvents}
             isPending={isPending}
+            focusFirst={focusFirstEvent}
           />
         </div>
       </div>

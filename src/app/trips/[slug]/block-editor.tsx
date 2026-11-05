@@ -41,7 +41,11 @@ export function BlockEditor({
   const existingName = groupId ? (days[0]?.groupName ?? "") : ""
   const [name, setName] = React.useState(existingName)
   const [title, setTitle] = React.useState(template.title)
-  const [events, setEvents] = React.useState<EventDraft[]>(initial)
+  // No shared events yet: open on a blank one, as a free day does.
+  const [focusFirst] = React.useState(initial.length === 0)
+  const [events, setEvents] = React.useState<EventDraft[]>(() =>
+    initial.length > 0 ? initial : [newEventDraft()],
+  )
   const [error, setError] = React.useState<string | null>(null)
   const [isPending, startTransition] = React.useTransition()
   const pastCount = floor === null ? 0 : days.filter((d) => d.dayIndex < floor).length
@@ -61,7 +65,7 @@ export function BlockEditor({
 
   function save(e: React.FormEvent) {
     e.preventDefault()
-    if (isPending || !title.trim()) return
+    if (isPending) return
     setError(null)
     startTransition(async () => {
       const result = await editItineraryBlock({
@@ -116,7 +120,12 @@ export function BlockEditor({
           <div className="mt-3">
             <span className={labelClass}>Plan for every day</span>
             <div className="mt-1.5 space-y-2">
-              <EventDraftList events={events} setEvents={setEvents} isPending={isPending} />
+              <EventDraftList
+                events={events}
+                setEvents={setEvents}
+                isPending={isPending}
+                focusFirst={focusFirst}
+              />
             </div>
           </div>
           <p className="mt-3 text-[12px] leading-snug text-muted-foreground">
@@ -146,7 +155,7 @@ export function BlockEditor({
               </button>
               <button
                 type="submit"
-                disabled={isPending || !title.trim()}
+                disabled={isPending}
                 className="rounded-full border-0 bg-foreground px-3.5 py-1.5 font-mono text-[10px] uppercase tracking-[0.2em] text-background disabled:opacity-40"
               >
                 {isPending ? "…" : "save"}
