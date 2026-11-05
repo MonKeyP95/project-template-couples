@@ -34,7 +34,7 @@ import { BudgetDrafter } from "./budget-drafter"
 import { BudgetScopeEditor } from "./budget-scope-editor"
 import { PlanningPlaceDoor } from "./find-a-place-planning"
 import type { BudgetItem } from "@/lib/trips/budget-item-types"
-import { SavedFigure, SpentFigure } from "./budget-figures"
+import { AllocatedFigure, SavedFigure, SpentFigure } from "./budget-figures"
 import { Ledger } from "./budget-ledger"
 import { LogExpenseRow } from "./log-expense-row"
 import type { MemberToneEntry } from "./packing-tab"
@@ -196,6 +196,10 @@ export function BudgetTab({
         <div className="px-5 pt-4 pb-1">
           <Label>Plan a budget</Label>
         </div>
+        <AllocatedFigure
+          allocatedCents={budgetItems.reduce((s, it) => s + it.amountCents, 0)}
+          plannedBudgetCents={plannedBudgetCents}
+        />
         <BudgetDrafter
           tripId={tripId}
           tripSlug={tripSlug}

@@ -16,6 +16,15 @@
   7. Works on a phone viewport.
 - **C. Real options via search on first open:** not started.
 
+**Budget estimate stays the couple's total: implemented 2026-11-05; lint + `tsc --noEmit` clean; unverified in app; no migration.** `saveBudgetItems`, `saveBudgetItemsForScope` and `savePreTripItems` no longer overwrite `planned_budget_cents` with the sum of lines; they seed it only when the trip has no estimate yet (`seedEstimateIfUnset`, guarded by `= 0`). `deleteBudgetItem` never touches it. New `AllocatedFigure` at the top of the "Plan a budget" card: "X of Y allocated · N%", clay with "Z over your estimate" when lines exceed it. In-app checks:
+  1. On a trip with an estimate, saving the drafter with a different total leaves the estimate unchanged.
+  2. Deleting a line leaves the estimate unchanged; the allocated bar drops.
+  3. Picking a suggestion raises the allocated amount; the estimate is unchanged.
+  4. On a fresh trip with no estimate, the first drafter save sets the estimate to the sum.
+  5. When lines exceed the estimate, the bar is clay and shows how much over.
+  6. Looks right on a phone viewport.
+- **Next: budget status in the on-the-road dispatch box**, replacing `PaceLine` there (decided 2026-11-05, so the over/under number lives in one place). Supersedes the 2026-08-03 cut of a budget card.
+
 **Phases 1–5 are complete.** The itinerary work (locations, spans, events, during-trip mode, home today signal) shipped through 2026-06-10, and **Phase 5 — AI assistant** is live: six agents (`chat`, `discover`, `suggestion`, `budget-planner`, `itinerary-planner`, `summarize-taste`) each a descriptor file under `src/lib/ai/agents/`, run by the shared `runAgent`, imported through `src/lib/ai/claude.ts`. No mocks left; the MCP seam is built but no server is wired. Phase 6 (integrations) is optional and unstarted — **work is now feature slices and backlog items, not phases.** The completed-task log below stays as history.
 
 **One trip model, step 1 (day numbers alongside dates): verified in-app 2026-10-27; migration `20261027000001_itinerary_day_index.sql` applied; backfill check 0/0/0.** Spec `docs/superpowers/specs/2026-10-27-one-trip-model-design.md`, plan `docs/superpowers/plans/2026-10-27-one-trip-model-step-1.md`. `itinerary_days.day_index`, `itinerary_locations.start_index`/`end_index` and dated trips' `day_count` are kept in sync with the dates by triggers; no app code changed. Pre-flight found 33 empty orphan Lombok days plus a "moon" span on Jan-Feb 2020 (left behind by an old start-date change); deleted by hand. Verified: on a throwaway dated trip, add / push / span-push / drag / move start one day later left the mismatch query at 0/0/0. Next: step 2 (switch dated trips to numbers).
