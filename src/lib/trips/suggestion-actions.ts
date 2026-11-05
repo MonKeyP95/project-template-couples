@@ -6,18 +6,19 @@ import { createClient } from "@/lib/supabase/server"
 import { getCurrentWorkspace } from "@/lib/workspace/queries"
 import { getRates } from "@/lib/fx/get-rates"
 import { inverseRate, toHomeCents } from "@/lib/fx/convert"
+import { findSuggestionOptions } from "@/lib/ai/claude"
 import { payBudgetItem } from "./actions"
 import {
   costCents,
-  mockOptions,
   optionsToJson,
   rowToSuggestion,
   type SuggestionOption,
   type TripSuggestionRow,
 } from "./suggestion-types"
 
-/** A suggestion's options, filled the first time the card is opened and
- * stored, so a second open reuses them. Piece B fills them from the mock. */
+/** A suggestion's options, searched the first time the card is opened and
+ * stored, so a second open reuses them. A search that finds nothing stores
+ * nothing, so the next open searches again. */
 export async function loadSuggestionOptions(
   id: string,
   tripSlug: string,
@@ -26,13 +27,13 @@ export async function loadSuggestionOptions(
   const { data: row, error } = await supabase
     .from("trip_suggestions")
     .select(
-      "id, kind, category, title, location_id, day_index, why, options, itinerary_locations(name), trips(currency)",
+      "id, kind, category, title, location_id, day_index, why, options, itinerary_locations(name), trips(name, country, currency)",
     )
     .eq("id", id)
     .maybeSingle<
       TripSuggestionRow & {
         itinerary_locations: { name: string } | null
-        trips: { currency: string }
+        trips: { name: string; country: string | null; currency: string }
       }
     >()
   if (error) return { error: error.message }
@@ -40,12 +41,22 @@ export async function loadSuggestionOptions(
   const suggestion = rowToSuggestion(row)
   if (suggestion.options) return { options: suggestion.options }
 
-  const options = mockOptions(
-    suggestion.kind,
-    suggestion.title,
-    row.itinerary_locations?.name ?? "",
-    row.trips.currency,
-  )
+  let options: SuggestionOption[]
+  try {
+    options = await findSuggestionOptions({
+      kind: suggestion.kind,
+      category: suggestion.category,
+      title: suggestion.title,
+      why: suggestion.why,
+      place: row.itinerary_locations?.name ?? "",
+      destination: [row.trips.name, row.trips.country].filter(Boolean).join(", "),
+      currency: row.trips.currency,
+    })
+  } catch (e) {
+    console.error("findSuggestionOptions failed", id, e)
+    return { error: "Couldn't reach the assistant." }
+  }
+  if (options.length === 0) return { error: "Couldn't find options." }
   const { error: updErr } = await supabase
     .from("trip_suggestions")
     .update({ options: optionsToJson(options) })

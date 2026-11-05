@@ -96,7 +96,12 @@ import { selectionBlock } from "@/lib/trips/itinerary-blocks"
 import { planDrop, restoreDays, toSegments, type DaySegment } from "@/lib/trips/itinerary-slots"
 import { isPlannedRow } from "@/lib/trips/outside-days"
 import { UnplacedDays } from "./unplaced-days"
-import { SUGGESTION_DRAG_PREFIX, SuggestionBox, SuggestionLine } from "./suggestion-box"
+import {
+  SUGGESTION_DRAG_PREFIX,
+  SuggestionBox,
+  SuggestionLine,
+  SuggestionLookup,
+} from "./suggestion-box"
 import type { SuggestionOption, TripSuggestion } from "@/lib/trips/suggestion-types"
 import {
   addSuggestionCost,
@@ -687,14 +692,25 @@ export function ItineraryTab({
   }
   const [addFlow, setAddFlow] = React.useState<AddFlow>(null)
   const [isPaying, startPaying] = React.useTransition()
+  /** The card whose options are being searched; `error` once the search failed. */
+  const [lookup, setLookup] = React.useState<{
+    suggestion: TripSuggestion
+    dayId: string
+    error?: string
+  } | null>(null)
 
   /** Drop or tap: load the card's options, then choose (big) or go straight
    * to the day's form (small). Nothing is written until the form saves. */
   async function startAdd(suggestion: TripSuggestion, dayId: string) {
     const day = days.find((d) => d.id === dayId)
     if (!day || (active && day.dayIndex < todayIndex)) return
+    setLookup({ suggestion, dayId })
     const r = await loadSuggestionOptions(suggestion.id, tripSlug)
-    if (!r.options || r.options.length === 0) return
+    if (!r.options) {
+      setLookup({ suggestion, dayId, error: r.error })
+      return
+    }
+    setLookup(null)
     if (suggestion.kind === "small") beginForm(suggestion, dayId, r.options[0])
     else setAddFlow({ stage: "choose", suggestion, dayId, options: r.options })
   }
@@ -1341,6 +1357,14 @@ export function ItineraryTab({
                 onDragCancel={() => setDragId(null)}
               >
                 <SuggestionBox suggestions={boxSuggestions} tripSlug={tripSlug} />
+                {lookup ? (
+                  <SuggestionLookup
+                    title={lookup.suggestion.title}
+                    error={lookup.error}
+                    onRetry={() => void startAdd(lookup.suggestion, lookup.dayId)}
+                    onCancel={() => setLookup(null)}
+                  />
+                ) : null}
                 {addFlow?.stage === "choose" ? (
                   <OptionsDialog
                     suggestion={addFlow.suggestion}

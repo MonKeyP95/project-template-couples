@@ -23,6 +23,10 @@ export {
   type ItineraryDraftContext,
 } from "./agents/itinerary-planner"
 export { generateSuggestion } from "./agents/suggestion"
+export {
+  findSuggestionOptions,
+  type SuggestionOptionsQuery,
+} from "./agents/suggestion-options"
 export { generateDispatch, type DispatchQuery } from "./agents/dispatch"
 export { readReceiptFile, type ReceiptFile } from "./agents/read-receipt"
 export { readDocumentFile } from "./agents/read-document"
