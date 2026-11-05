@@ -283,6 +283,7 @@ export function ItineraryTab({
   tripSlug,
   tripName,
   destination,
+  idea,
   avoid,
   tripStartDate,
   tripEndDate,
@@ -300,6 +301,7 @@ export function ItineraryTab({
   tripSlug: string
   tripName: string
   destination: string
+  idea: string
   avoid: string
   /** Null on a dream: days show as "Day N" and nothing is past or today. */
   tripStartDate: string | null
@@ -840,6 +842,7 @@ export function ItineraryTab({
         tripSlug={tripSlug}
         tripName={tripName}
         destination={destination}
+        idea={idea}
         avoid={avoid}
         locations={locations}
         days={plannerDays}

@@ -22,6 +22,8 @@ export interface PlanItineraryProps {
   /** The trip's own name — the place, when no locations were ever added. */
   tripName: string
   destination: string
+  /** The trip's idea from its basic profile; shown read-only in the header. */
+  idea: string
   /** The trip's saved avoid text; the walk prefills from it and writes it back. */
   avoid: string
   /** The trip's existing locations and days — the walk opens on them. */
@@ -139,6 +141,7 @@ export function PlanItinerary({
   tripSlug,
   tripName,
   destination,
+  idea,
   avoid: initialAvoid,
   locations,
   days,
@@ -162,11 +165,13 @@ export function PlanItinerary({
   const daysValid = !asksDays || (dayCount >= lastDay && dayCount <= 365)
   const [open, setOpen] = React.useState(searchParams.get("plan") === "1")
   const [phase, setPhase] = React.useState<Phase>("places")
-  const [placeNames, setPlaceNames] = React.useState<string[]>(seedPlaces)
+  /** Places added in this walk on top of the trip's known ones (seedPlaces). */
+  const [addedPlaces, setAddedPlaces] = React.useState<string[]>([])
 
   function seedPlaces(): string[] {
     return walkPlaceSeed(saved.places.map((p) => p.name), days, tripName, startDate)
   }
+  /** What they want in this itinerary; goes to the drafter only, not saved. */
   const [freeText, setFreeText] = React.useState("")
   const [avoid, setAvoid] = React.useState(initialAvoid)
   const [steps, setSteps] = React.useState<ItineraryPlanStep[]>([])
@@ -177,21 +182,20 @@ export function PlanItinerary({
   const [error, setError] = React.useState<string | null>(null)
   const [isPending, startTransition] = React.useTransition()
 
-  const trimmedPlaces = placeNames.map((n) => n.trim()).filter((n) => n.length > 0)
+  const trimmedPlaces = [...seedPlaces(), ...addedPlaces]
+    .map((n) => n.trim())
+    .filter((n) => n.length > 0)
 
   function newRow(): ItemRow {
     return { id: `r-${seq.current++}`, subject: "", note: "" }
   }
 
   /** Opening always re-reads the itinerary, so a save then reopen shows the
-   * saved state rather than the rows this component mounted with. Editing never
-   * asks where you are going: the trip's locations — or the trip itself — are
-   * the places, so the walk starts at step 1. Back from there still reaches the
-   * Places step to add one. */
+   * saved state rather than the rows this component mounted with. It always
+   * opens on the first box (what the itinerary looks like), with the places
+   * prefilled. */
   function openWalk() {
     seedWalk()
-    const known = seedPlaces().filter((n) => n.length > 0)
-    if (hasDays && !asksDays && known.length > 0) beginWalk(known)
     setOpen(true)
   }
 
@@ -202,7 +206,7 @@ export function PlanItinerary({
 
   function seedWalk() {
     setPhase("places")
-    setPlaceNames(seedPlaces())
+    setAddedPlaces([])
     setDaysAsked("")
     setFreeText("")
     setAvoid(initialAvoid)
@@ -350,40 +354,65 @@ export function PlanItinerary({
     return (
       <>
         <Label>{title}</Label>
-        <div className="mt-2 font-mono text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
-          {destination}
+        <div className="mt-2 flex items-baseline justify-between gap-3">
+          <span className="shrink-0 font-mono text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+            {destination}
+          </span>
+          {idea ? (
+            <span
+              title={idea}
+              className="min-w-0 truncate font-serif text-[13px] italic text-muted-foreground"
+            >
+              {idea}
+            </span>
+          ) : null}
         </div>
 
-        <div className="mt-3 text-[13px] text-foreground">Where are you going?</div>
-        <div className="mt-2 space-y-1.5">
-          {placeNames.map((name, i) => (
-            <div key={i} className="flex items-center gap-2">
-              <input
-                type="text"
-                value={name}
-                placeholder={`Place ${i + 1}`}
-                onChange={(e) =>
-                  setPlaceNames((prev) => prev.map((n, idx) => (idx === i ? e.target.value : n)))
-                }
-                className="min-w-0 flex-1 border-0 border-b border-border bg-transparent text-[13px] text-foreground outline-none focus:border-foreground"
-              />
-              {placeNames.length > 1 ? (
+        <div className="mt-3 text-[13px] text-foreground">
+          What does your itinerary look like for this trip?
+        </div>
+        <textarea
+          value={freeText}
+          placeholder="optional — e.g. surf school for 5 days, maybe a trek or two"
+          rows={3}
+          maxLength={2000}
+          autoFocus
+          onChange={(e) => setFreeText(e.target.value)}
+          className="mt-1.5 w-full resize-y rounded-md border border-border bg-transparent px-2.5 py-2 text-[13px] text-foreground outline-none placeholder:text-muted-foreground focus:border-foreground"
+        />
+
+        {addedPlaces.length > 0 ? (
+          <div className="mt-3 space-y-1.5">
+            {addedPlaces.map((name, i) => (
+              <div key={i} className="flex items-center gap-2">
+                <input
+                  type="text"
+                  value={name}
+                  placeholder="New place"
+                  autoFocus
+                  onChange={(e) =>
+                    setAddedPlaces((prev) =>
+                      prev.map((n, idx) => (idx === i ? e.target.value : n)),
+                    )
+                  }
+                  className="min-w-0 flex-1 border-0 border-b border-border bg-transparent text-[13px] text-foreground outline-none focus:border-foreground"
+                />
                 <button
                   type="button"
-                  onClick={() => setPlaceNames((prev) => prev.filter((_, idx) => idx !== i))}
+                  onClick={() => setAddedPlaces((prev) => prev.filter((_, idx) => idx !== i))}
                   aria-label="Remove place"
                   className="border-0 bg-transparent font-mono text-[13px] text-muted-foreground hover:text-foreground"
                 >
                   ×
                 </button>
-              ) : null}
-            </div>
-          ))}
-        </div>
-        <div className="mt-2">
+              </div>
+            ))}
+          </div>
+        ) : null}
+        <div className="mt-3">
           <button
             type="button"
-            onClick={() => setPlaceNames((prev) => [...prev, ""])}
+            onClick={() => setAddedPlaces((prev) => [...prev, ""])}
             className="rounded-full border border-dashed border-border bg-transparent px-2.5 py-1 font-mono text-[9.5px] uppercase tracking-[0.12em] text-muted-foreground hover:text-foreground"
           >
             + add place
@@ -403,15 +432,6 @@ export function PlanItinerary({
             />
           </label>
         ) : null}
-
-        <div className="mt-4 text-[13px] text-foreground">Sum up this trip in a few words</div>
-        <textarea
-          value={freeText}
-          placeholder="optional — e.g. relaxed 2 weeks surfing in Portugal"
-          rows={2}
-          onChange={(e) => setFreeText(e.target.value)}
-          className="mt-1.5 w-full resize-y border-0 border-b border-border bg-transparent text-[13px] text-foreground outline-none placeholder:text-muted-foreground focus:border-foreground"
-        />
 
         <div className="mt-4 flex items-center justify-between">
           <span />
@@ -465,7 +485,7 @@ export function PlanItinerary({
             rows={3}
             maxLength={500}
             onChange={(e) => setAvoid(e.target.value)}
-            className="mt-3 w-full resize-y border-0 border-b border-border bg-transparent text-[13px] text-foreground outline-none placeholder:text-muted-foreground focus:border-foreground"
+            className="mt-3 w-full resize-y rounded-md border border-border bg-transparent px-2.5 py-2 text-[13px] text-foreground outline-none placeholder:text-muted-foreground focus:border-foreground"
           />
 
           <div className="mt-4 flex items-center justify-between">

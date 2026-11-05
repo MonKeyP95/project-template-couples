@@ -72,7 +72,9 @@ function itineraryPrompt(c: ItineraryDraftContext): string {
     c.brief ? `Trip brief: ${c.brief}.` : "",
     c.prefs ? `Their answers: ${c.prefs}.` : "",
     list("Activity types they want", c.activityTypes),
-    c.freeText ? `They also said: ${c.freeText}.` : "",
+    c.freeText
+      ? `What they want this itinerary to look like, in their words (build these in, over as many days as they say, before filling gaps): ${c.freeText}.`
+      : "",
     c.avoid ? `Must avoid - do not include any of these: ${c.avoid}.` : "",
     c.profileBlock ? `Who they are (a lens, not a checklist): ${c.profileBlock}` : "",
     c.tasteDirective,
