@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server"
+import type { BudgetPeriod } from "@/lib/trips/budget-period"
 import { parseTripProfile, type TripProfile } from "./trip-profile-types"
 
 export interface TripHeader {
@@ -21,6 +22,7 @@ export interface TripHeader {
   /** Where your bank account is. Every expense converts into this, and it is
    * frozen at creation so a later workspace change cannot rewrite this trip. */
   homeCurrency: string
+  budgetPeriod: BudgetPeriod
   /** Per-trip structured profile (slice 1). */
   tripProfile: TripProfile
   /** 1-based position within the workspace's trip list, ordered by start_date. */
@@ -44,6 +46,7 @@ interface TripRow {
   planned_budget_cents: number
   currency: string
   home_currency: string
+  budget_period: BudgetPeriod
   trip_profile: unknown
 }
 
@@ -60,7 +63,7 @@ export async function getTripBySlug(
   const tripQuery = supabase
     .from("trips")
     .select(
-      "id, workspace_id, slug, name, country, start_date, end_date, fuzzy_when, day_count, lat, lng, planned_budget_cents, currency, home_currency, trip_profile",
+      "id, workspace_id, slug, name, country, start_date, end_date, fuzzy_when, day_count, lat, lng, planned_budget_cents, currency, home_currency, budget_period, trip_profile",
     )
     .eq("workspace_id", workspaceId)
     .eq("slug", slug)
@@ -98,6 +101,7 @@ export async function getTripBySlug(
     plannedBudgetCents: trip.planned_budget_cents,
     currency: trip.currency,
     homeCurrency: trip.home_currency,
+    budgetPeriod: trip.budget_period,
     tripProfile: parseTripProfile(trip.trip_profile),
     index,
     total,

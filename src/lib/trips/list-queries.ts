@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server"
+import type { BudgetPeriod } from "@/lib/trips/budget-period"
 import { localToday } from "@/lib/time/local-today"
 
 export type TripState = "now" | "upcoming" | "past" | "dream"
@@ -18,6 +19,7 @@ export interface TripListItem {
   currency: string
   /** Where your bank account is; every expense converts into this. */
   homeCurrency: string
+  budgetPeriod: BudgetPeriod
   savedCents: number
   /** Sum of non-settlement expenses, matching the budget tab's spent figure. */
   spentCents: number
@@ -48,6 +50,7 @@ interface TripRow {
   planned_budget_cents: number
   currency: string
   home_currency: string
+  budget_period: BudgetPeriod
   created_at: string
 }
 
@@ -82,7 +85,7 @@ export async function listTripsForWorkspace(
   const { data } = await supabase
     .from("trips")
     .select(
-      "id, slug, name, country, start_date, end_date, fuzzy_when, lat, lng, planned_budget_cents, currency, home_currency, created_at",
+      "id, slug, name, country, start_date, end_date, fuzzy_when, lat, lng, planned_budget_cents, currency, home_currency, budget_period, created_at",
     )
     .eq("workspace_id", workspaceId)
     .order("created_at", { ascending: true })
@@ -127,6 +130,7 @@ export async function listTripsForWorkspace(
     plannedBudgetCents: row.planned_budget_cents,
     currency: row.currency,
     homeCurrency: row.home_currency,
+    budgetPeriod: row.budget_period,
     savedCents: savedByTrip[row.id] ?? 0,
     spentCents: spentByTrip[row.id] ?? 0,
     state: deriveState(today, row.start_date, row.end_date),

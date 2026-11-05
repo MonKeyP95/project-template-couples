@@ -1,5 +1,6 @@
 "use client"
 
+import { BudgetPeriodPicker } from "@/components/budget-period-picker"
 import type { DraftField, TripDraft } from "./new-trip-form"
 
 const eyebrow =
@@ -71,6 +72,7 @@ export function NotePage({
         </p>
       </div>
 
+      <div>
       <label className="block">
         <span className="block text-[17px] text-foreground">Budget</span>
         <span className="mt-1.5 flex items-baseline gap-2 border-b border-rule">
@@ -86,6 +88,12 @@ export function NotePage({
           <span className="text-[13px] text-muted-foreground">whole trip</span>
         </span>
       </label>
+      <BudgetPeriodPicker
+        value={draft.budgetPeriod}
+        onChange={(budgetPeriod) => onDraft({ budgetPeriod })}
+        className="mt-3"
+      />
+      </div>
 
       {noteHasPlace ? (
         <label className="flex items-baseline gap-3 border-b border-rule">

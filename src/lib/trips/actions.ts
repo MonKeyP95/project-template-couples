@@ -46,6 +46,7 @@ import {
 } from "@/lib/trips/outside-days"
 import { slugToTone } from "@/lib/trips/slug-tone"
 import { slugify } from "@/lib/trips/slugify"
+import { isBudgetPeriod, type BudgetPeriod } from "@/lib/trips/budget-period"
 import { tripHeadline, type PrefKey } from "@/lib/trips/trip-note-parse"
 import {
   EMPTY_TRIP_PROFILE,
@@ -805,6 +806,7 @@ export interface CreateTripInput {
   days: number | null
   /** Whole units of the workspace currency; 0 = no budget. */
   budget: number
+  budgetPeriod: BudgetPeriod
   place: string | null
   what: string
   /** Page 2 answers; null when skipped. */
@@ -849,6 +851,7 @@ export async function createTrip(
   if (!Number.isFinite(input.budget) || input.budget < 0) {
     return { error: "Budget invalid." }
   }
+  if (!isBudgetPeriod(input.budgetPeriod)) return { error: "Budget check invalid." }
 
   const workspace = await getCurrentWorkspace()
   if (!workspace) return { error: "No workspace." }
@@ -867,6 +870,7 @@ export async function createTrip(
     end_date: endDate,
     day_count: days,
     planned_budget_cents: Math.round(input.budget * 100),
+    budget_period: input.budgetPeriod,
     // Both copied, not looked up: changing the workspace currency later must
     // not rewrite a recorded trip's numbers. `currency` is the spend default
     // (editable per trip); `home_currency` is where the bank account is.
@@ -938,6 +942,7 @@ export interface UpdateTripInput {
   currency: string
   /** Where the money comes from; every total is reported in it. */
   homeCurrency: string
+  budgetPeriod: BudgetPeriod
   /** Planned length of a dream; ignored (cleared) for dated trips. */
   dayCount: number | null
   profile?: TripProfile
@@ -1062,6 +1067,7 @@ export async function updateTrip(
   if (!currencyOptions().some((o) => o.code === input.homeCurrency)) {
     return { error: "Unknown currency." }
   }
+  if (!isBudgetPeriod(input.budgetPeriod)) return { error: "Budget check invalid." }
 
   const hasLat = input.lat !== null
   const hasLng = input.lng !== null
@@ -1243,6 +1249,7 @@ export async function updateTrip(
         lat: input.lat,
         lng: input.lng,
         currency: input.currency,
+        budget_period: input.budgetPeriod,
         ...homePatch,
         ...profilePatch,
       })
@@ -1298,6 +1305,7 @@ export async function updateTrip(
           lat: input.lat,
           lng: input.lng,
           currency: input.currency,
+          budget_period: input.budgetPeriod,
           ...homePatch,
           ...profilePatch,
         })
@@ -1358,6 +1366,7 @@ export async function updateTrip(
       lat: input.lat,
       lng: input.lng,
       currency: input.currency,
+      budget_period: input.budgetPeriod,
       ...homePatch,
       ...profilePatch,
     })
