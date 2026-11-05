@@ -25,6 +25,8 @@ export interface LogExpenseRowProps {
   members: Record<string, MemberToneEntry>
   locations: ItineraryLocation[]
   categories: ExpenseCategoryRow[]
+  /** Cancel and the close button call this; saving keeps the form open for the next one. */
+  onClose: () => void
 }
 
 export function LogExpenseRow({
@@ -34,6 +36,7 @@ export function LogExpenseRow({
   members,
   locations,
   categories,
+  onClose,
 }: LogExpenseRowProps) {
   const { spendCurrency: tripCurrency } = useCurrency()
   const initialDay = React.useMemo(() => deviceToday(), [])
@@ -42,7 +45,6 @@ export function LogExpenseRow({
     categories[0]?.name ??
     ""
 
-  const [expanded, setExpanded] = React.useState(false)
   const [title, setTitle] = React.useState("")
   const [amount, setAmount] = React.useState("")
   const [category, setCategory] = React.useState<string>(defaultCategory)
@@ -78,21 +80,11 @@ export function LogExpenseRow({
   }
 
   React.useEffect(() => {
-    if (expanded) titleRef.current?.focus()
-  }, [expanded])
+    titleRef.current?.focus()
+  }, [])
 
-  function collapse() {
-    setExpanded(false)
-    setTitle("")
-    setAmount("")
-    setCategory(defaultCategory)
-    setPaidBy(currentPersonId)
-    setDayDate(initialDay)
-    setLocationId(null)
-    setExpenseCurrency(tripCurrency)
-    setError(null)
-    setReceiptId(null)
-  }
+  // Closing unmounts the form, which is what resets every field.
+  const collapse = onClose
 
   function submit(e: React.FormEvent) {
     e.preventDefault()
@@ -130,23 +122,6 @@ export function LogExpenseRow({
     })
   }
 
-  if (!expanded) {
-    return (
-      <button
-        type="button"
-        onClick={() => setExpanded(true)}
-        className="flex w-full items-center justify-between border-0 border-t border-border bg-card px-5 py-4 text-left"
-      >
-        <span className="font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
-          + add expense
-        </span>
-        <span aria-hidden className="font-mono text-[14px] text-muted-foreground">
-          ›
-        </span>
-      </button>
-    )
-  }
-
   const canSubmit =
     title.trim().length > 0 &&
     Number.isFinite(Number(amount)) &&
@@ -158,7 +133,7 @@ export function LogExpenseRow({
       onKeyDown={(e) => {
         if (e.key === "Escape") collapse()
       }}
-      className="border-t border-border bg-card px-5 py-4"
+      className="bg-card px-5 py-4"
     >
       <div className="mb-3 flex items-center justify-between">
         <span className="font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground">

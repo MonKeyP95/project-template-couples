@@ -12,6 +12,8 @@ import { type SavingsContribution } from "@/lib/trips/savings-types"
 import { money, moneyPlain, moneyRounded, currencySymbol } from "@/lib/money"
 import { useCurrency } from "@/components/currency-context"
 import { LocalEquivalent } from "@/components/local-equivalent"
+import { PaceDenominator, PaceNote } from "@/components/budget-pace-strip"
+import type { BudgetPace } from "@/lib/trips/budget-pace"
 import type { MemberToneEntry } from "./packing-tab"
 
 function Cue({ label }: { label: string }) {
@@ -131,6 +133,8 @@ export interface SpentFigureProps {
   /** True while any foreign expense is still on a mid-market rate. One "~"
    * character, so the headline number stops overclaiming. */
   hasUnconfirmed: boolean
+  /** Null outside the trip dates; then the line is just "left". */
+  pace: BudgetPace | null
 }
 
 export function SpentFigure({
@@ -139,6 +143,7 @@ export function SpentFigure({
   spentCents,
   plannedBudgetCents,
   hasUnconfirmed,
+  pace,
 }: SpentFigureProps) {
   const { currency } = useCurrency()
   const fmt = (cents: number) => money(cents, currency)
@@ -185,10 +190,18 @@ export function SpentFigure({
           <div className="mt-3">
             <Bar pct={spentPct} tone="sea" />
           </div>
-          <div className="mt-1.5 flex justify-between font-mono text-[10px] tracking-[0.06em] text-muted-foreground">
-            <span>{spentPct}% of planned</span>
-            <span>{fmt(leftCents)} left</span>
+          <div className="mt-1.5 font-mono text-[10px] tracking-[0.06em] text-muted-foreground">
+            {fmt(leftCents)} left
+            {pace ? (
+              <>
+                {" · "}
+                <PaceNote pace={pace} />
+              </>
+            ) : null}
           </div>
+          {pace ? (
+            <PaceDenominator pace={pace} plannedBudgetCents={plannedBudgetCents} />
+          ) : null}
         </>
       ) : null}
     </>
@@ -247,9 +260,7 @@ export function SavedFigure({
 }: SavedFigureProps) {
   const { currency } = useCurrency()
   const fmt = (cents: number) => money(cents, currency)
-  const [expanded, setExpanded] = React.useState(false)
   const hasPlanned = plannedBudgetCents > 0
-  const savedToGo = Math.max(0, plannedBudgetCents - savedCents)
   const savedPct = hasPlanned
     ? Math.min(100, Math.round((savedCents / plannedBudgetCents) * 100))
     : 0
@@ -262,32 +273,22 @@ export function SavedFigure({
     addSavingsContribution({ tripId, tripSlug, amountCents: cents })
 
   return (
-    <div className="mt-2">
-      <div className="flex items-baseline gap-1">
-        <span className="t-display text-[18px] text-muted-foreground">
-          {currencySymbol(currency)}
-        </span>
-        <button
-          type="button"
-          onClick={() => setExpanded((v) => !v)}
-          aria-expanded={expanded}
-          className="t-display t-num border-0 bg-transparent p-0 text-[28px] leading-none text-foreground"
-        >
-          {moneyPlain(savedCents, currency)}
-        </button>
+    <div className="px-5 py-4">
+      <div className="flex items-baseline gap-2 font-mono text-[10px] tracking-[0.06em] text-muted-foreground">
+        <span className="uppercase tracking-[0.18em]">Saved</span>
+        {savedCents > 0 ? (
+          <span>
+            <span className="t-num text-[13px] text-foreground">{fmt(savedCents)}</span>
+            {hasPlanned ? ` of ${fmt(plannedBudgetCents)} · ${savedPct}%` : null}
+          </span>
+        ) : null}
         <AmountField
           additive
           valueCents={savedCents}
           onSave={saveSaved}
           trigger={
             savedCents > 0 ? (
-              hasPlanned ? (
-                <span className="t-display text-[18px] text-muted-foreground">
-                  {" "}/ {fmt(plannedBudgetCents)}
-                </span>
-              ) : (
-                <span className="t-display text-[18px] text-muted-foreground" />
-              )
+              <span />
             ) : (
               <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
                 + set savings
@@ -295,40 +296,16 @@ export function SavedFigure({
             )
           }
         />
-        <button
-          type="button"
-          onClick={() => setExpanded((v) => !v)}
-          aria-expanded={expanded}
-          aria-label="Toggle savings details"
-          className="ml-auto self-center border-0 bg-transparent font-mono text-[14px] leading-none text-muted-foreground hover:text-foreground"
-        >
-          {expanded ? "⌄" : "›"}
-        </button>
       </div>
-      <LocalEquivalent homeCents={savedCents} className="mt-0.5 block text-[11px]" />
-
-      {hasPlanned && savedCents > 0 ? (
-        <>
-          <div className="mt-3">
-            <Bar pct={savedPct} tone="moss" />
-          </div>
-          <div className="mt-1.5 flex justify-between font-mono text-[10px] tracking-[0.06em] text-muted-foreground">
-            <span>{savedPct}% saved</span>
-            <span>{fmt(savedToGo)} to go</span>
-          </div>
-        </>
-      ) : null}
-      {expanded ? (
-        <SavingsDetails
-          contributions={contributions}
-          perUser={perUser}
-          members={members}
-          shareCents={shareCents}
-          tripId={tripId}
-          tripSlug={tripSlug}
-          currentPersonId={currentPersonId}
-        />
-      ) : null}
+      <SavingsDetails
+        contributions={contributions}
+        perUser={perUser}
+        members={members}
+        shareCents={shareCents}
+        tripId={tripId}
+        tripSlug={tripSlug}
+        currentPersonId={currentPersonId}
+      />
     </div>
   )
 }

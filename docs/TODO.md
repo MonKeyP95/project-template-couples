@@ -21,6 +21,18 @@
   4. On a failed search the bar says so; "Try again" searches again, "Cancel" clears it.
   5. Works on a phone viewport.
 
+**Budget page, basic layout -- pill row (one headline, tools behind pills like the itinerary, By category removed): implemented 2026-11-05; lint + `tsc --noEmit` clean; verified in-app 2026-11-05; no migration.** See DECISIONS 2026-11-05. A pill row under the header (`budget-toolbar.tsx`, the itinerary's `toolbarPill`): **+ expense, assistant, saved, settle, plan a budget**. A pill opens its panel on the line below, one at a time; the assistant pill is the AI switch and opens independently, as on the itinerary. + expense opens the add form directly (camera icon inside; "several receipts" under it; saving keeps it open for the next one, × / cancel closes). Saved shows the total, "+" and contributions. Settle shows the balance, settle, partial, split and history. Plan a budget shows the allocated bar and the guided drafter. The page below is: headline (spent / budget, bar, "X left", plus "Y spare / over as of D" during the trip; a "pace against..." line only when that figure differs from the budget), the per-location plan ("Planned"), the receipt pile, the expense list. `budget-by-category.tsx` deleted; the bottom assistant box, the separate Saved card and the settle strip are gone. In-app checks:
+  1. The pill row sits under the header in that order, styled like the itinerary's.
+  2. + expense opens the full form with the camera icon; saving adds the expense and leaves an empty form; × closes it. "several receipts" adds photos to the pile.
+  3. Assistant toggles the assistant panel below the pills.
+  4. Saved shows the total and contributions; "+" adds savings.
+  5. Settle shows the balance with settle and partial; a partial settle works; split and history show below.
+  6. Plan a budget shows the allocated bar and Edit budget / Start over; the walk runs inside the panel.
+  7. Pressing another pill closes the open one (except the assistant); pressing the open pill closes it.
+  8. Top box: big spent / budget, one bar, one line under it. On a trip with before-you-go costs, a small "pace against" line too.
+  9. Below: Planned (per location), receipt pile, expenses. No By category, no bottom assistant, no settle strip.
+  10. Looks right on a phone viewport.
+
 **Budget page, basic layout -- step 1, week rows removed: implemented 2026-11-05; lint + `tsc --noEmit` clean; verified in-app 2026-11-05; no migration.** `PaceStrip` keeps the "X spare / over · day N of M · as of" line and the "planned on the road" denominator; the per-day/week/month bucket rows are gone. `budgetPace` still computes `buckets` (unused by the UI now). In-app checks:
   1. The budget box shows the spare/over line and "planned on the road", with no WEEK rows below.
   2. "+ add expense" and "By category" still sit where they were.
