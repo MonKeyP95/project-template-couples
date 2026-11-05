@@ -15,7 +15,6 @@ import {
 } from "@/lib/trips/expense-types"
 import { type SavingsContribution } from "@/lib/trips/savings-types"
 import { budgetPace } from "@/lib/trips/budget-pace"
-import { PaceStrip } from "@/components/budget-pace-strip"
 import {
   dayLocationMap,
   expenseLocationId,
@@ -27,10 +26,9 @@ import { money } from "@/lib/money"
 import { useCurrency } from "@/components/currency-context"
 import { LocalEquivalent } from "@/components/local-equivalent"
 
-import { AssistantBlock } from "@/components/assistant-block"
 
-import { BudgetByCategory } from "./budget-by-category"
 import { BudgetDrafter } from "./budget-drafter"
+import { BudgetToolbar, type BudgetPanel } from "./budget-toolbar"
 import { BudgetScopeEditor } from "./budget-scope-editor"
 import { PlanningPlaceDoor } from "./find-a-place-planning"
 import type { BudgetItem } from "@/lib/trips/budget-item-types"
@@ -105,7 +103,6 @@ export function BudgetTab({
   nowMs,
 }: BudgetTabProps) {
   const { currency } = useCurrency()
-  const [settleOpen, setSettleOpen] = React.useState(false)
   const totalCents = summary.expenseTotalCents
   // Any foreign row still on a mid-market rate makes the headline approximate.
   const hasUnconfirmed = expenses.some(
@@ -135,67 +132,58 @@ export function BudgetTab({
     locationDays,
   })
 
-  return (
-    <section>
-      <div className="relative overflow-hidden bg-dusk-tint px-5 pt-6 pb-4">
-        <TopoBg tone="sea" opacity={0.1} />
-        <div className="relative">
-          <Label>Budget · {tripName}</Label>
-        </div>
-      </div>
-
-      {/* Saved bar */}
-      <div className="mx-5 my-4 overflow-hidden rounded-xl border border-border bg-card">
-        <div className="px-5 pt-4 pb-4">
-          <SavedFigure
+  function renderPanel(panel: BudgetPanel, close: () => void) {
+    if (panel === "expense") {
+      return (
+        <>
+          <LogExpenseRow
             tripId={tripId}
             tripSlug={tripSlug}
-            plannedBudgetCents={plannedBudgetCents}
-            savedCents={savedCents}
-            contributions={savingsContributions}
-            perUser={savedPerUser}
-            members={members}
             currentPersonId={currentPersonId}
+            members={members}
+            locations={locations}
+            categories={expenseCategories}
+            onClose={close}
           />
-        </div>
-      </div>
-
-      {/* Spent bar + add expense */}
-      <div className="mx-5 my-4 overflow-hidden rounded-xl border border-border bg-card">
-        <div className="px-5 pt-4 pb-4">
-          <SpentFigure
-            tripId={tripId}
-            tripSlug={tripSlug}
-            spentCents={totalCents}
-            plannedBudgetCents={plannedBudgetCents}
-            hasUnconfirmed={hasUnconfirmed}
-          />
-          {pace ? <PaceStrip pace={pace} /> : null}
-        </div>
-        <LogExpenseRow
+          <div className="border-t border-border px-5 py-3">
+            <AddReceiptsButton tripId={tripId} tripSlug={tripSlug} label="several receipts" />
+          </div>
+        </>
+      )
+    }
+    if (panel === "saved") {
+      return (
+        <SavedFigure
           tripId={tripId}
           tripSlug={tripSlug}
+          plannedBudgetCents={plannedBudgetCents}
+          savedCents={savedCents}
+          contributions={savingsContributions}
+          perUser={savedPerUser}
+          members={members}
           currentPersonId={currentPersonId}
-          members={members}
-          locations={locations}
-          categories={expenseCategories}
         />
-        <BudgetByCategory
-          expenses={expenses}
-          budgetItems={budgetItems}
-          categories={expenseCategories}
-          members={members}
+      )
+    }
+    if (panel === "settle") {
+      return (
+        <CompactSettle
+          summary={summary}
+          currentPersonId={currentPersonId}
+          tripId={tripId}
           tripSlug={tripSlug}
-          locations={locations}
-          itineraryDays={itineraryDays}
-        />
-      </div>
-
-      {/* Plan a budget */}
-      <div className="mx-5 my-4 overflow-hidden rounded-xl border border-border bg-card">
-        <div className="px-5 pt-4 pb-1">
-          <Label>Plan a budget</Label>
-        </div>
+        >
+          <SplitBreakdown
+            members={members}
+            paidByUser={summary.expensePaidByUser}
+            settlementsByUser={summary.settlementsByUser}
+          />
+          <SettlementHistory expenses={expenses} members={members} />
+        </CompactSettle>
+      )
+    }
+    return (
+      <>
         <AllocatedFigure
           allocatedCents={budgetItems.reduce((s, it) => s + it.amountCents, 0)}
           plannedBudgetCents={plannedBudgetCents}
@@ -213,6 +201,50 @@ export function BudgetTab({
           itinerarySeeds={itinerarySeeds}
           bufferRec={bufferRec}
         />
+      </>
+    )
+  }
+
+  return (
+    <section>
+      <div className="relative overflow-hidden bg-dusk-tint px-5 pt-6 pb-4">
+        <TopoBg tone="sea" opacity={0.1} />
+        <div className="relative">
+          <Label>Budget · {tripName}</Label>
+        </div>
+      </div>
+
+      <BudgetToolbar
+        tripSlug={tripSlug}
+        door={
+          <PlanningPlaceDoor
+            tripId={tripId}
+            tripSlug={tripSlug}
+            destination={destination}
+          />
+        }
+        renderPanel={renderPanel}
+      />
+
+      {/* Headline: spent against the budget */}
+      <div className="mx-5 my-4 overflow-hidden rounded-xl border border-border bg-card">
+        <div className="px-5 pt-4 pb-4">
+          <SpentFigure
+            tripId={tripId}
+            tripSlug={tripSlug}
+            spentCents={totalCents}
+            plannedBudgetCents={plannedBudgetCents}
+            hasUnconfirmed={hasUnconfirmed}
+            pace={pace}
+          />
+        </div>
+      </div>
+
+      {/* The plan, by location */}
+      <div className="mx-5 my-4 overflow-hidden rounded-xl border border-border bg-card">
+        <div className="px-5 pt-4 pb-1">
+          <Label>Planned</Label>
+        </div>
         <PlannedBudget
           tripId={tripId}
           tripSlug={tripSlug}
@@ -225,37 +257,8 @@ export function BudgetTab({
         />
       </div>
 
-      <CompactSettle
-        summary={summary}
-        currentPersonId={currentPersonId}
-        tripId={tripId}
-        tripSlug={tripSlug}
-        alwaysShow
-        open={settleOpen}
-        onToggle={() => setSettleOpen((v) => !v)}
-      >
-        <SplitBreakdown
-          members={members}
-          paidByUser={summary.expensePaidByUser}
-          settlementsByUser={summary.settlementsByUser}
-        />
-        <SettlementHistory expenses={expenses} members={members} />
-      </CompactSettle>
+      {/* What you spent */}
       <div className="px-5 pt-4">
-        <AssistantBlock
-          surface="budget"
-          tripSlug={tripSlug}
-          door={
-            <PlanningPlaceDoor
-              tripId={tripId}
-              tripSlug={tripSlug}
-              destination={destination}
-            />
-          }
-        />
-      </div>
-      <div className="flex flex-col gap-3 px-5 pt-4">
-        <AddReceiptsButton tripId={tripId} tripSlug={tripSlug} />
         <ReceiptPile
           tripSlug={tripSlug}
           receipts={receipts}
@@ -466,25 +469,18 @@ function CompactSettle({
   currentPersonId,
   tripId,
   tripSlug,
-  alwaysShow = false,
-  open,
-  onToggle,
   children,
 }: {
   summary: BudgetSummary
   currentPersonId: string
   tripId: string
   tripSlug: string
-  alwaysShow?: boolean
-  open?: boolean
-  onToggle?: () => void
   children?: React.ReactNode
 }) {
   const { currency } = useCurrency()
   const fmt = (cents: number) => money(cents, currency)
   const owedCents = Math.abs(summary.netBalanceCents)
   const isSquare = owedCents === 0
-  if (isSquare && !alwaysShow) return null
 
   const youPay = summary.debtorUserId === currentPersonId
   const youGet = summary.creditorUserId === currentPersonId
@@ -495,11 +491,10 @@ function CompactSettle({
       : youGet
         ? "you're owed"
         : "owed"
-  const collapsible = onToggle != null
 
   return (
-    <div className="border-y border-border">
-      <div className="px-5 py-3">
+    <div>
+      <div className="border-b border-border px-5 py-3">
         <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
           <SettleUpButtons owedCents={owedCents} tripId={tripId} tripSlug={tripSlug} />
           <div className="flex items-center gap-3">
@@ -512,21 +507,10 @@ function CompactSettle({
               </div>
               <LocalEquivalent homeCents={owedCents} className="text-[10px]" />
             </div>
-            {collapsible ? (
-              <button
-                type="button"
-                onClick={onToggle}
-                aria-expanded={open}
-                aria-label="Toggle settle details"
-                className="border-0 bg-transparent font-mono text-[14px] leading-none text-muted-foreground hover:text-foreground"
-              >
-                {open ? "⌄" : "›"}
-              </button>
-            ) : null}
           </div>
         </div>
       </div>
-      {collapsible && open ? children : null}
+      {children}
     </div>
   )
 }
