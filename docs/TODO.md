@@ -21,6 +21,11 @@
   4. On a failed search the bar says so; "Try again" searches again, "Cancel" clears it.
   5. Works on a phone viewport.
 
+**Budget page, basic layout -- step 1, week rows removed: implemented 2026-11-05; lint + `tsc --noEmit` clean; unverified in app; no migration.** `PaceStrip` keeps the "X spare / over · day N of M · as of" line and the "planned on the road" denominator; the per-day/week/month bucket rows are gone. `budgetPace` still computes `buckets` (unused by the UI now). In-app checks:
+  1. The budget box shows the spare/over line and "planned on the road", with no WEEK rows below.
+  2. "+ add expense" and "By category" still sit where they were.
+  3. Looks right on a phone viewport.
+
 **Budget estimate stays the couple's total: implemented 2026-11-05; lint + `tsc --noEmit` clean; unverified in app; no migration.** `saveBudgetItems`, `saveBudgetItemsForScope` and `savePreTripItems` no longer overwrite `planned_budget_cents` with the sum of lines; they seed it only when the trip has no estimate yet (`seedEstimateIfUnset`, guarded by `= 0`). `deleteBudgetItem` never touches it. New `AllocatedFigure` at the top of the "Plan a budget" card: "X of Y allocated · N%", clay with "Z over your estimate" when lines exceed it. In-app checks:
   1. On a trip with an estimate, saving the drafter with a different total leaves the estimate unchanged.
   2. Deleting a line leaves the estimate unchanged; the allocated bar drops.
