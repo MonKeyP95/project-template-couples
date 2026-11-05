@@ -18,7 +18,6 @@ import { formatShortDate, daySummary, isDated } from "@/lib/trips/itinerary-type
 import { getTripWeather } from "@/lib/weather/get-trip-weather"
 import { DispatchBox } from "@/components/dispatch-box"
 import { getDispatchForDay } from "@/lib/trips/dispatch-queries"
-import { isAiEnabled } from "@/lib/ai/ai-mode"
 import { DispatchTrigger } from "./dispatch-trigger"
 import {
   getTripExpenseCategories,
@@ -144,7 +143,6 @@ export default async function OnTheRoadPage() {
   const weatherPlace = { ...trip, locationName }
   const weather = await getTripWeather(weatherPlace)
   const dispatch = await getDispatchForDay(trip.id, today)
-  const aiOn = await isAiEnabled()
 
   return (
     <CurrencyProvider
@@ -224,10 +222,10 @@ export default async function OnTheRoadPage() {
               dayDate: d.dayDate,
               label: `${d.dow} ${d.dom} ${d.mon}`,
             }))}
-            news={dispatch ? "quiet" : aiOn ? "pending" : "off"}
+            news={dispatch ? "quiet" : "pending"}
             className="mt-3"
           />
-          {!dispatch && aiOn ? (
+          {!dispatch ? (
             <DispatchTrigger tripSlug={trip.slug} dayDate={today} />
           ) : null}
         </div>
