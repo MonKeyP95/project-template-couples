@@ -8,6 +8,7 @@ import {
   MouseSensor,
   TouchSensor,
   closestCenter,
+  pointerWithin,
   useSensor,
   useSensors,
   type DragEndEvent,
@@ -671,7 +672,8 @@ export function ItineraryTab({
   const onDaySuggestions = new Map<number, TripSuggestion[]>()
   const boxSuggestions: TripSuggestion[] = []
   for (const s of suggestions) {
-    if (s.dayIndex !== null && blankIndexes.has(s.dayIndex)) {
+    const past = active && s.dayIndex !== null && s.dayIndex < todayIndex
+    if (s.dayIndex !== null && blankIndexes.has(s.dayIndex) && !past) {
       onDaySuggestions.set(s.dayIndex, [...(onDaySuggestions.get(s.dayIndex) ?? []), s])
     } else {
       boxSuggestions.push(s)
@@ -1321,7 +1323,13 @@ export function ItineraryTab({
               <DndContext
                 id="dnd-itinerary"
                 sensors={dragSensors}
-                collisionDetection={closestCenter}
+                collisionDetection={(args) =>
+                  // A suggestion lands only on the day under the pointer, so
+                  // letting go anywhere else leaves it in the box.
+                  String(args.active.id).startsWith(SUGGESTION_DRAG_PREFIX)
+                    ? pointerWithin(args)
+                    : closestCenter(args)
+                }
                 onDragStart={onDragStart}
                 onDragEnd={onDragEnd}
                 onDragCancel={() => setDragId(null)}
@@ -1784,7 +1792,12 @@ function DayView({
             <span className="tracking-[0.06em] normal-case">day {Number(day.d)}</span>
           </button>
           {daySuggestions.map((s) => (
-            <SuggestionLine key={s.id} suggestion={s} onOpen={() => onOpenSuggestion(s)} />
+            <SuggestionLine
+              key={s.id}
+              suggestion={s}
+              tripSlug={tripSlug}
+              onOpen={() => onOpenSuggestion(s)}
+            />
           ))}
           </>
         ) : (

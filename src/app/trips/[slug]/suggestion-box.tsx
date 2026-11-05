@@ -44,13 +44,12 @@ function SuggestionCard({ suggestion, tripSlug }: { suggestion: TripSuggestion; 
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: SUGGESTION_DRAG_PREFIX + suggestion.id,
   })
-  const [isPending, startTransition] = React.useTransition()
   return (
     <div
       ref={setNodeRef}
       {...attributes}
       {...listeners}
-      className={`flex touch-none items-start gap-3 rounded-md border border-rule bg-card px-3 py-2 ${
+      className={`flex items-start gap-3 rounded-md border border-rule bg-card px-3 py-2 ${
         isDragging ? "opacity-40" : ""
       }`}
     >
@@ -63,38 +62,50 @@ function SuggestionCard({ suggestion, tripSlug }: { suggestion: TripSuggestion; 
           <div className="text-[12px] leading-snug text-muted-foreground">{suggestion.why}</div>
         ) : null}
       </div>
-      <button
-        type="button"
-        disabled={isPending}
-        // Keep a press on Dismiss from starting a drag.
-        onPointerDown={(e) => e.stopPropagation()}
-        onClick={() => startTransition(async () => void (await deleteSuggestion(suggestion.id, tripSlug)))}
-        className="shrink-0 border-0 bg-transparent p-0 font-mono text-[11px] text-muted-foreground hover:text-clay disabled:opacity-50"
-      >
-        Dismiss
-      </button>
+      <DismissButton id={suggestion.id} tripSlug={tripSlug} />
     </div>
+  )
+}
+
+function DismissButton({ id, tripSlug }: { id: string; tripSlug: string }) {
+  const [isPending, startTransition] = React.useTransition()
+  return (
+    <button
+      type="button"
+      disabled={isPending}
+      // Keep a press on Dismiss from starting a drag.
+      onPointerDown={(e) => e.stopPropagation()}
+      onClick={() => startTransition(async () => void (await deleteSuggestion(id, tripSlug)))}
+      className="shrink-0 border-0 bg-transparent p-0 font-mono text-[11px] text-muted-foreground hover:text-clay disabled:opacity-50"
+    >
+      Dismiss
+    </button>
   )
 }
 
 /** A suggestion sitting on a blank day: one line, never mistaken for an event. */
 export function SuggestionLine({
   suggestion,
+  tripSlug,
   onOpen,
 }: {
   suggestion: TripSuggestion
+  tripSlug: string
   onOpen: () => void
 }) {
   return (
-    <button
-      type="button"
-      onClick={onOpen}
-      className="mt-1.5 flex w-full items-baseline gap-2 border-0 bg-transparent p-0 text-left text-[12.5px] italic text-muted-foreground hover:text-foreground"
-    >
-      <span className="font-mono text-[9px] not-italic uppercase tracking-[0.14em] text-sea">
-        Suggestion
-      </span>
-      <span>{suggestion.title}</span>
-    </button>
+    <div className="mt-1.5 flex items-baseline gap-3">
+      <button
+        type="button"
+        onClick={onOpen}
+        className="flex min-w-0 flex-1 items-baseline gap-2 border-0 bg-transparent p-0 text-left text-[12.5px] italic text-muted-foreground hover:text-foreground"
+      >
+        <span className="font-mono text-[9px] not-italic uppercase tracking-[0.14em] text-sea">
+          Suggestion
+        </span>
+        <span>{suggestion.title}</span>
+      </button>
+      <DismissButton id={suggestion.id} tripSlug={tripSlug} />
+    </div>
   )
 }
