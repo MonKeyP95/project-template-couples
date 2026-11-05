@@ -6,7 +6,14 @@
 
 **Planner suggestions (spec `docs/superpowers/specs/2026-11-05-planner-suggestions-design.md`), pieces A -> B -> C.**
 - **A. Planner input cleanup: implemented 2026-11-05; lint + build clean; unverified in app.** `vibe` and `activityTypes` removed from the itinerary planner (new-trip flow no longer collects them). Plan `docs/superpowers/plans/2026-11-05-planner-input-cleanup.md`. Check: Generate on a new-flow trip still produces an itinerary with no error.
-- **B. Suggestions with mock options** (new `trip_suggestions` table, suggestion box, drag -> pre-filled event form, paid question): not started.
+- **B. Suggestions with mock options: implemented 2026-11-05; lint + typecheck clean; unverified in app.** Plan `docs/superpowers/plans/2026-11-05-planner-suggestions-b.md`. **Paste `supabase/migrations/20261105000001_planner_suggestions.sql` first** (reshapes the orphaned `trip_suggestions`). In-app checks:
+  1. After Generate, empty days show suggestions labelled as such; planned days show none; the rest are in the box.
+  2. Dragging a small card onto a day opens the event form pre-filled (name, link, category, location); saving with a time adds a real event on that day.
+  3. Dragging a big card onto a day shows its 3 options first; choosing one opens the pre-filled event form.
+  4. Cancelling at any step writes nothing and the card is back in the box.
+  5. After saving a priced suggestion, "Not yet" adds a planned cost under the right budget category; "Yes" also adds an expense.
+  6. Dismiss removes a card; Generate again does not pile up old cards.
+  7. Works on a phone viewport.
 - **C. Real options via search on first open:** not started.
 
 **Phases 1–5 are complete.** The itinerary work (locations, spans, events, during-trip mode, home today signal) shipped through 2026-06-10, and **Phase 5 — AI assistant** is live: six agents (`chat`, `discover`, `suggestion`, `budget-planner`, `itinerary-planner`, `summarize-taste`) each a descriptor file under `src/lib/ai/agents/`, run by the shared `runAgent`, imported through `src/lib/ai/claude.ts`. No mocks left; the MCP seam is built but no server is wired. Phase 6 (integrations) is optional and unstarted — **work is now feature slices and backlog items, not phases.** The completed-task log below stays as history.
