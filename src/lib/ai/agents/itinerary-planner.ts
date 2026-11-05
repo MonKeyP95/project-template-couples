@@ -3,22 +3,26 @@ import type Anthropic from "@anthropic-ai/sdk"
 import { runAgent, type AgentDescriptor } from "../runtime"
 
 /**
- * The itinerary planner AI. Drafts a sparse, grounded itinerary via the forced
- * propose_itinerary tool, or returns one clarifying question when the input is
- * too thin. Suggest-only. Edit `system`/`tools`/`mcpServers` to change it.
+ * The itinerary planner AI. Suggests new, grounded ideas around what the
+ * couple already planned via the forced propose_ideas tool, or returns one
+ * clarifying question when the input is too thin. It never writes an event:
+ * every idea becomes a suggestion the couple picks or dismisses.
+ * Edit `system`/`tools`/`mcpServers` to change it.
  */
 
-export interface DraftedItineraryEvent {
-  /** One of: Activities, Food, Transportation. */
+export interface DraftedIdea {
+  /** big = an activity worth comparing options for; small = eat/drink. */
+  kind: "big" | "small"
+  /** One of the itinerary categories, e.g. Activities, Food. */
   category: string
-  /** The exact itinerary location name this event belongs to. */
+  /** Short, e.g. "Kayak trip". */
+  title: string
+  /** The exact itinerary location name, or "". */
   place: string
-  /** Short label, e.g. "Surf lesson at the point" or "Dinner - seafood". */
-  text: string
-  /** Day number 1..N within the trip; 0 when the model could not place it. */
+  /** Day number 1..N; 0 = no preference. */
   day: number
-  /** HH:MM, may be empty. */
-  time: string
+  /** One line on why it suits them. */
+  why: string
 }
 
 export interface ItineraryDraftContext {
@@ -34,8 +38,8 @@ export interface ItineraryDraftContext {
   freeText: string
   /** What they do not want. A constraint, not a preference. */
   avoid: string
-  /** What the couple already chose in the guided walk; the itinerary is built
-   * around these, then gaps filled sparsely. */
+  /** What the couple already chose in the guided walk; ideas go around these,
+   * never repeat them. */
   knownPlans: { category: string; place: string; subject: string; when: string }[]
   profileBlock: string
   tasteDirective: string
@@ -58,18 +62,16 @@ function itineraryPrompt(c: ItineraryDraftContext): string {
         .join("; ")
     : ""
   return [
-    `Draft a ${c.dayCount}-day itinerary for ${c.destination}; days are numbered 1..${c.dayCount}.`,
+    `Suggest new ideas for a ${c.dayCount}-day trip to ${c.destination}; days are numbered 1..${c.dayCount}.`,
     c.startDate ? `Day 1 is ${c.startDate}.` : "There are no dates yet.",
     `Places in order: ${places}.`,
     known
-      ? `Plans they already chose (include each of these in the itinerary, on the days or nights they gave, then fill the gaps sparsely): ${known}.`
+      ? `Already planned by them (do not suggest these again; suggest around them): ${known}.`
       : "",
     c.brief ? `Trip brief: ${c.brief}.` : "",
     c.prefs ? `Their answers: ${c.prefs}.` : "",
-    c.freeText
-      ? `What they want this itinerary to look like, in their words (build these in, over as many days as they say, before filling gaps): ${c.freeText}.`
-      : "",
-    c.avoid ? `Must avoid - do not include any of these: ${c.avoid}.` : "",
+    c.freeText ? `What they want, in their words: ${c.freeText}.` : "",
+    c.avoid ? `Must avoid - do not suggest any of these: ${c.avoid}.` : "",
     c.profileBlock ? `Who they are (a lens, not a checklist): ${c.profileBlock}` : "",
     c.tasteDirective,
   ]
@@ -79,45 +81,46 @@ function itineraryPrompt(c: ItineraryDraftContext): string {
 
 const itineraryPlanner: AgentDescriptor<
   ItineraryDraftContext,
-  { events: DraftedItineraryEvent[]; question: string }
+  { ideas: DraftedIdea[]; question: string }
 > = {
   name: "itinerary-planner",
   model: "claude-sonnet-4-6",
   maxTokens: 2048,
   system:
-    "You draft a trip itinerary for a couple or family by calling propose_itinerary. " +
-    "Be SPARSE: propose only a few genuinely grounded items per category (roughly one " +
-    "or two), and leave a category empty if you have nothing concrete. Do not pad with " +
-    "generic filler like 'explore the old town'. Leave room for the user to fill the rest. " +
+    "You suggest ideas for a couple's or family's trip by calling propose_ideas. You only " +
+    "suggest: the couple picks what they want. Never re-propose what they already planned. " +
+    "Be SPARSE: about one big idea per place (an activity worth comparing options for) and " +
+    "three to five small ideas in total (a place to eat or drink). Do not pad with generic " +
+    "filler like 'explore the old town'. " +
     "GROUNDING: stay strictly on the specific place names given; never leap from a country " +
     "to a city the user did not name; never invent a place or date from the trip's name. " +
     "Set place to one of the exact place names given (or empty). Set day to a whole day " +
-    "number within 1..N inside that place's days, or 0 if you cannot place it. Keep each event a short " +
-    "label, not a paragraph. Weight the couple's taste as a lens, never a checklist. " +
-    "Do not invent prices or booking details. " +
+    "number inside that place's days only when the idea clearly belongs on that day, else 0. " +
+    "Keep each title short and each why to one line. Weight the couple's taste as a lens, " +
+    "never a checklist. Do not invent prices or booking details. " +
     "If what you were given is too thin or ambiguous to ground on — no usable place, or a " +
     "place name you cannot confidently locate or understand — do NOT guess: return an empty " +
-    "events array and put ONE short, specific clarifying question in question (name what you " +
-    "need, e.g. which town or region). Otherwise return your events and leave question empty.",
-  tools: ["propose_itinerary"],
-  toolChoice: { type: "tool", name: "propose_itinerary" },
+    "ideas array and put ONE short, specific clarifying question in question (name what you " +
+    "need, e.g. which town or region). Otherwise return your ideas and leave question empty.",
+  tools: ["propose_ideas"],
+  toolChoice: { type: "tool", name: "propose_ideas" },
   mcpServers: [],
   buildInput: (c) => itineraryPrompt(c),
   parseOutput: (message) => {
     const proposal = message.content.find(
       (block): block is Anthropic.ToolUseBlock =>
-        block.type === "tool_use" && block.name === "propose_itinerary",
+        block.type === "tool_use" && block.name === "propose_ideas",
     )
-    if (!proposal) return { events: [], question: "" }
-    const data = proposal.input as { events?: DraftedItineraryEvent[]; question?: string }
-    return { events: data.events ?? [], question: data.question ?? "" }
+    if (!proposal) return { ideas: [], question: "" }
+    const data = proposal.input as { ideas?: DraftedIdea[]; question?: string }
+    return { ideas: data.ideas ?? [], question: data.question ?? "" }
   },
 }
 
-/** Real Claude itinerary draft. Returns sparse, grounded events, OR an empty
- * events array plus one clarifying question when the input is too thin. */
+/** Real Claude ideas for the trip, OR an empty ideas array plus one
+ * clarifying question when the input is too thin. */
 export function draftItinerary(
   context: ItineraryDraftContext,
-): Promise<{ events: DraftedItineraryEvent[]; question: string }> {
+): Promise<{ ideas: DraftedIdea[]; question: string }> {
   return runAgent(itineraryPlanner, context)
 }
