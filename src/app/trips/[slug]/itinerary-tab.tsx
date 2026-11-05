@@ -8,6 +8,7 @@ import {
   MouseSensor,
   TouchSensor,
   closestCenter,
+  pointerWithin,
   useSensor,
   useSensors,
   type DragEndEvent,
@@ -95,6 +96,14 @@ import { selectionBlock } from "@/lib/trips/itinerary-blocks"
 import { planDrop, restoreDays, toSegments, type DaySegment } from "@/lib/trips/itinerary-slots"
 import { isPlannedRow } from "@/lib/trips/outside-days"
 import { UnplacedDays } from "./unplaced-days"
+import { SUGGESTION_DRAG_PREFIX, SuggestionBox, SuggestionLine } from "./suggestion-box"
+import type { SuggestionOption, TripSuggestion } from "@/lib/trips/suggestion-types"
+import {
+  addSuggestionCost,
+  deleteSuggestion,
+  loadSuggestionOptions,
+} from "@/lib/trips/suggestion-actions"
+import { OptionsDialog, PaidDialog } from "./suggestion-dialogs"
 import { moneyRounded } from "@/lib/money"
 import { useCurrency } from "@/components/currency-context"
 import { currencyOptions } from "@/lib/fx/currency-list"
@@ -298,6 +307,7 @@ export function ItineraryTab({
   categories,
   members,
   currentPersonId,
+  suggestions,
 }: {
   tripId: string
   tripSlug: string
@@ -320,6 +330,7 @@ export function ItineraryTab({
   categories: ExpenseCategoryRow[]
   members: Record<string, MemberToneEntry>
   currentPersonId: string
+  suggestions: TripSuggestion[]
 }) {
   const { currency } = useCurrency()
   const [days, setDays] = React.useState<ItineraryDay[]>(initialItems)
@@ -510,9 +521,18 @@ export function ItineraryTab({
   const [dragId, setDragId] = React.useState<string | null>(null)
   const dragDay = dragId ? days.find((d) => d.id === dragId) : undefined
   const dragUnplaced = dragId ? unplaced.find((d) => d.id === dragId) : undefined
+  const dragSuggestion = dragId?.startsWith(SUGGESTION_DRAG_PREFIX)
+    ? suggestions.find((s) => SUGGESTION_DRAG_PREFIX + s.id === dragId)
+    : undefined
+
+  // The drop animation scrolls back to where the drag started, which for a
+  // box card is the box, far from the day whose form just opened. Kept past
+  // drag end because the animation reads it after dragId is cleared.
+  const [fromBox, setFromBox] = React.useState(false)
 
   function onDragStart(e: DragStartEvent) {
     setDragId(String(e.active.id))
+    setFromBox(String(e.active.id).startsWith(SUGGESTION_DRAG_PREFIX))
   }
 
   /** An unplaced day dropped on an empty day takes its place, under that
@@ -560,6 +580,11 @@ export function ItineraryTab({
   function onDragEnd(e: DragEndEvent) {
     setDragId(null)
     if (!e.over) return
+    if (String(e.active.id).startsWith(SUGGESTION_DRAG_PREFIX)) {
+      const s = suggestions.find((x) => SUGGESTION_DRAG_PREFIX + x.id === e.active.id)
+      if (s) void startAdd(s, String(e.over.id))
+      return
+    }
     const placing = unplaced.find((d) => d.id === e.active.id)
     if (placing) {
       placeBack(placing, String(e.over.id))
@@ -646,6 +671,94 @@ export function ItineraryTab({
     tripStartDate !== null && tripActive(today, tripStartDate, tripEndDate ?? tripStartDate)
   // A dream has no today: 0 sits before every day, so nothing reads as past.
   const todayIndex = tripStartDate === null ? 0 : dayIndexOf(today, tripStartDate)
+
+  // A suggestion shows on its day only while that day is still blank; once
+  // the couple fills the day by hand, it moves to the box.
+  const blankIndexes = new Set(days.filter((d) => !isPlannedRow(d)).map((d) => d.dayIndex))
+  const onDaySuggestions = new Map<number, TripSuggestion[]>()
+  const boxSuggestions: TripSuggestion[] = []
+  for (const s of suggestions) {
+    const past = active && s.dayIndex !== null && s.dayIndex < todayIndex
+    if (s.dayIndex !== null && blankIndexes.has(s.dayIndex) && !past) {
+      onDaySuggestions.set(s.dayIndex, [...(onDaySuggestions.get(s.dayIndex) ?? []), s])
+    } else {
+      boxSuggestions.push(s)
+    }
+  }
+  const [addFlow, setAddFlow] = React.useState<AddFlow>(null)
+  const [isPaying, startPaying] = React.useTransition()
+
+  /** Drop or tap: load the card's options, then choose (big) or go straight
+   * to the day's form (small). Nothing is written until the form saves. */
+  async function startAdd(suggestion: TripSuggestion, dayId: string) {
+    const day = days.find((d) => d.id === dayId)
+    if (!day || (active && day.dayIndex < todayIndex)) return
+    const r = await loadSuggestionOptions(suggestion.id, tripSlug)
+    if (!r.options || r.options.length === 0) return
+    if (suggestion.kind === "small") beginForm(suggestion, dayId, r.options[0])
+    else setAddFlow({ stage: "choose", suggestion, dayId, options: r.options })
+  }
+
+  function beginForm(suggestion: TripSuggestion, dayId: string, option: SuggestionOption) {
+    setAddFlow({ stage: "form", suggestion, dayId, option })
+    setEditingId(dayId)
+  }
+
+  function suggestionSaved() {
+    if (addFlow?.stage !== "form") return
+    const { suggestion, option, dayId } = addFlow
+    const day = days.find((d) => d.id === dayId)
+    void deleteSuggestion(suggestion.id, tripSlug)
+    if (option.priceCents === null) {
+      setAddFlow(null)
+      return
+    }
+    setAddFlow({
+      stage: "paid",
+      suggestion,
+      option,
+      dayDate: day?.dayDate ?? null,
+      locationId: day?.locationId ?? suggestion.locationId,
+    })
+  }
+
+  function answerPaid(paid: boolean) {
+    if (addFlow?.stage !== "paid") return
+    const { suggestion, option, dayDate, locationId } = addFlow
+    startPaying(async () => {
+      const r = await addSuggestionCost({
+        tripId,
+        tripSlug,
+        category: suggestion.category,
+        subject: option.name,
+        option,
+        locationId,
+        dayDate,
+        paid,
+      })
+      if (r.error) window.alert(r.error)
+      setAddFlow(null)
+    })
+  }
+
+  const suggest: SuggestContext = {
+    onDay: onDaySuggestions,
+    open: (s, dayId) => void startAdd(s, dayId),
+    form:
+      addFlow?.stage === "form"
+        ? {
+            dayId: addFlow.dayId,
+            prefill: {
+              ...newEventDraft("", "", addFlow.option.name, addFlow.option.url, addFlow.option.location),
+              category: addFlow.suggestion.category,
+            },
+          }
+        : null,
+    onSaved: suggestionSaved,
+    // A stopped edit cancels the add only while still in the form: on save,
+    // onSaved has just moved the flow on to the paid question.
+    onStopEdit: () => setAddFlow((f) => (f?.stage === "form" ? null : f)),
+  }
   const plan =
     tripStartDate === null ? null : planFloor(today, tripStartDate, tripEndDate ?? tripStartDate)
   const floorIndex = plan === null || tripStartDate === null ? null : dayIndexOf(plan, tripStartDate)
@@ -919,6 +1032,7 @@ export function ItineraryTab({
                     selection={selection}
                     scopeKey="loose"
                     orderedIds={looseIds}
+                    suggest={suggest}
                   />
                 </div>
               )
@@ -1108,6 +1222,7 @@ export function ItineraryTab({
                           selection={selection}
                           scopeKey={group.key}
                           orderedIds={[...group.days].sort(byIndex).map((d) => d.id)}
+                          suggest={suggest}
                         />
                         )
 
@@ -1214,24 +1329,49 @@ export function ItineraryTab({
               <DndContext
                 id="dnd-itinerary"
                 sensors={dragSensors}
-                collisionDetection={closestCenter}
+                collisionDetection={(args) =>
+                  // A suggestion lands only on the day under the pointer, so
+                  // letting go anywhere else leaves it in the box.
+                  String(args.active.id).startsWith(SUGGESTION_DRAG_PREFIX)
+                    ? pointerWithin(args)
+                    : closestCenter(args)
+                }
                 onDragStart={onDragStart}
                 onDragEnd={onDragEnd}
                 onDragCancel={() => setDragId(null)}
               >
+                <SuggestionBox suggestions={boxSuggestions} tripSlug={tripSlug} />
+                {addFlow?.stage === "choose" ? (
+                  <OptionsDialog
+                    suggestion={addFlow.suggestion}
+                    options={addFlow.options}
+                    onPick={(o) => beginForm(addFlow.suggestion, addFlow.dayId, o)}
+                    onCancel={() => setAddFlow(null)}
+                  />
+                ) : null}
+                {addFlow?.stage === "paid" ? (
+                  <PaidDialog isPending={isPaying} onAnswer={answerPaid} />
+                ) : null}
                 <SortableContext items={liveLooseIds} strategy={verticalListSortingStrategy}>
                   {rendered}
                 </SortableContext>
                 <UnplacedDays days={unplaced} onDelete={deleteUnplaced} />
                 {/* Follows the pointer across locations and onto empty days,
                     where the card's own list can't move it. */}
-                <DragOverlay>
+                <DragOverlay dropAnimation={fromBox ? null : undefined}>
                   {dragDay ? (
                     <div className="rounded-lg border border-sea bg-card px-3.5 py-2 shadow-md">
                       <div className="font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
                         {dragDay.date}
                       </div>
                       <div className="text-[14px] text-foreground">{dragDay.title || daySummary(dragDay)}</div>
+                    </div>
+                  ) : dragSuggestion ? (
+                    <div className="rounded-lg border border-sea bg-card px-3.5 py-2 shadow-md">
+                      <div className="font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
+                        Suggestion
+                      </div>
+                      <div className="text-[14px] text-foreground">{dragSuggestion.title}</div>
                     </div>
                   ) : dragUnplaced ? (
                     <div className="rounded-lg border border-sea bg-card px-3.5 py-2 shadow-md">
@@ -1324,6 +1464,7 @@ function DaySegmentView({
   selection,
   scopeKey,
   orderedIds,
+  suggest,
 }: {
   seg: DaySegment
   tripId: string
@@ -1346,6 +1487,7 @@ function DaySegmentView({
   /** Selection scope (location key) and its days in date order. */
   scopeKey: string
   orderedIds: string[]
+  suggest: SuggestContext
 }) {
   const cards = seg.days.map((day) => {
     const cardProps = {
@@ -1360,7 +1502,10 @@ function DaySegmentView({
       isLast: day.id === lastDayId,
       isEditing: editingId === day.id,
       onStartEdit: () => setEditingId(day.id),
-      onStopEdit: () => setEditingId(null),
+      onStopEdit: () => {
+        setEditingId(null)
+        suggest.onStopEdit()
+      },
       locations,
       categories,
       members,
@@ -1368,6 +1513,10 @@ function DaySegmentView({
       selected: selection.selected.has(day.id),
       onSelectStart: (shift: boolean, x: number, y: number) =>
         selection.begin(scopeKey, orderedIds, day.id, shift, x, y),
+      daySuggestions: suggest.onDay.get(day.dayIndex) ?? [],
+      prefill: suggest.form?.dayId === day.id ? suggest.form.prefill : undefined,
+      onSaved: suggest.form?.dayId === day.id ? suggest.onSaved : undefined,
+      onOpenSuggestion: (s: TripSuggestion) => suggest.open(s, day.id),
     }
     return sortable ? (
       <SortableDayCard key={day.id} id={day.id} {...cardProps} />
@@ -1420,6 +1569,29 @@ function DaySegmentView({
   return <>{cards}</>
 }
 
+/** What every day needs from the suggestion flow. */
+interface SuggestContext {
+  /** Suggestions by the blank day they sit on. */
+  onDay: Map<number, TripSuggestion[]>
+  open: (s: TripSuggestion, dayId: string) => void
+  /** The day whose form is open on a picked suggestion, and its event. */
+  form: { dayId: string; prefill: EventDraft } | null
+  onSaved: () => void
+  onStopEdit: () => void
+}
+
+type AddFlow =
+  | { stage: "choose"; suggestion: TripSuggestion; dayId: string; options: SuggestionOption[] }
+  | { stage: "form"; suggestion: TripSuggestion; dayId: string; option: SuggestionOption }
+  | {
+      stage: "paid"
+      suggestion: TripSuggestion
+      option: SuggestionOption
+      dayDate: string | null
+      locationId: string | null
+    }
+  | null
+
 interface DayCardProps {
   day: ItineraryDay
   tripId: string
@@ -1440,6 +1612,11 @@ interface DayCardProps {
   currentPersonId: string
   selected: boolean
   onSelectStart: (shift: boolean, x: number, y: number) => void
+  daySuggestions: TripSuggestion[]
+  onOpenSuggestion: (s: TripSuggestion) => void
+  /** A picked suggestion's event, appended when the form opens. */
+  prefill?: EventDraft
+  onSaved?: () => void
 }
 
 function SortableDayCard({ id, ...rest }: DayCardProps & { id: string }) {
@@ -1482,10 +1659,16 @@ function DayCard({
   currentPersonId,
   selected,
   onSelectStart,
+  daySuggestions,
+  onOpenSuggestion,
+  prefill,
+  onSaved,
 }: DayCardProps) {
   if (isEditing) {
     return (
       <DayEditor
+        prefill={prefill}
+        onSaved={onSaved}
         day={day}
         tripSlug={tripSlug}
         tripStartDate={tripStartDate}
@@ -1512,6 +1695,8 @@ function DayCard({
       currentPersonId={currentPersonId}
       selected={selected}
       onSelectStart={onSelectStart}
+      daySuggestions={daySuggestions}
+      onOpenSuggestion={onOpenSuggestion}
     />
   )
 }
@@ -1533,6 +1718,8 @@ function DayView({
   currentPersonId,
   selected,
   onSelectStart,
+  daySuggestions,
+  onOpenSuggestion,
 }: {
   day: ItineraryDay
   tripId: string
@@ -1550,6 +1737,8 @@ function DayView({
   currentPersonId: string
   selected: boolean
   onSelectStart: (shift: boolean, x: number, y: number) => void
+  daySuggestions: TripSuggestion[]
+  onOpenSuggestion: (s: TripSuggestion) => void
 }) {
   // Which event's panel is open (press the event), and whether that panel's
   // expense form has been asked for. Only one event is open at a time.
@@ -1599,6 +1788,7 @@ function DayView({
         } ${dimBefore !== null && day.dayIndex < dimBefore ? "opacity-60" : ""}`}
       >
         {empty ? (
+          <>
           <button
             type="button"
             onClick={onStartEdit}
@@ -1607,6 +1797,15 @@ function DayView({
             <span>free · plan this day</span>
             <span className="tracking-[0.06em] normal-case">day {Number(day.d)}</span>
           </button>
+          {daySuggestions.map((s) => (
+            <SuggestionLine
+              key={s.id}
+              suggestion={s}
+              tripSlug={tripSlug}
+              onOpen={() => onOpenSuggestion(s)}
+            />
+          ))}
+          </>
         ) : (
         <>
         <div className="mb-1.5 flex items-center justify-between">
@@ -1759,20 +1958,26 @@ function DayEditor({
   tripStartDate,
   locations,
   onDone,
+  prefill,
+  onSaved,
 }: {
   day: ItineraryDay
   tripSlug: string
   tripStartDate: string | null
   locations: ItineraryLocation[]
   onDone: () => void
+  prefill?: EventDraft
+  onSaved?: () => void
 }) {
   const [dayIndex, setDayIndex] = React.useState<number | null>(day.dayIndex)
   const [title, setTitle] = React.useState(day.title)
   const [sub, setSub] = React.useState(day.sub)
   // A free day opens on a blank event: adding one is what editing it is for.
-  const [events, setEvents] = React.useState<EventDraft[]>(() =>
-    day.events.length > 0 ? toEventDrafts(day.events) : [newEventDraft()],
-  )
+  const [events, setEvents] = React.useState<EventDraft[]>(() => {
+    const existing = toEventDrafts(day.events)
+    if (prefill) return [...existing, prefill]
+    return existing.length > 0 ? existing : [newEventDraft()]
+  })
   const [focusFirst] = React.useState(day.events.length === 0)
   const [tone, setTone] = React.useState<ItineraryTone>(day.tone)
   const [locationId, setLocationId] = React.useState<string | null>(
@@ -1800,6 +2005,7 @@ function DayEditor({
         setError(result.error)
         return
       }
+      onSaved?.()
       onDone()
     })
   }

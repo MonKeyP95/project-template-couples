@@ -25,13 +25,13 @@ import type { ItineraryLocation } from "@/lib/trips/location-types"
 import { getCurrentWorkspace } from "@/lib/workspace/queries"
 import { getTripBySlug, type TripHeader } from "@/lib/trips/queries"
 import { buildAssistantContext } from "@/lib/ai/assistant-context"
-import { draftItinerary } from "@/lib/ai/claude"
+import { draftItinerary, type DraftedIdea } from "@/lib/ai/claude"
+import { ideaDay } from "@/lib/trips/suggestion-types"
+import { revalidatePath } from "next/cache"
 import {
   planItinerarySkeleton,
-  itemsToSkeleton,
   entriesToSkeleton,
   type ItinerarySkeleton,
-  type DraftItem,
   type PlanEntry,
 } from "@/lib/ai/itinerary-planner"
 
@@ -384,69 +384,89 @@ export async function applyPlanEntries(input: {
   })
 }
 
+/** One trip_suggestions row per idea. An idea sits on its day only when that
+ * day is still blank and not past; everything else waits in the box. */
+function ideaRows(
+  tripId: string,
+  ideas: DraftedIdea[],
+  days: ItineraryDay[],
+  locations: ItineraryLocation[],
+  dayCount: number,
+  floor: number | null,
+) {
+  const blank = new Set(days.filter((d) => !isPlannedRow(d)).map((d) => d.dayIndex))
+  return ideas.map((idea) => {
+    const dayIndex = ideaDay(idea.day, dayCount, blank, floor)
+    const key = idea.place.trim().toLowerCase()
+    const named = key ? locations.find((l) => l.name.trim().toLowerCase() === key) : undefined
+    const onDay = dayIndex === null ? undefined : days.find((d) => d.dayIndex === dayIndex)
+    return {
+      trip_id: tripId,
+      kind: idea.kind,
+      category: idea.category,
+      title: idea.title,
+      why: idea.why,
+      day_index: dayIndex,
+      location_id: named?.id ?? onDay?.locationId ?? null,
+    }
+  })
+}
+
 /**
- * The guided walk's terminal action: draft a day-by-day itinerary from the
- * places + the couple's entered plans + their trip/couple profile, then write
- * it (reusing applyItinerarySkeleton). The model works in day numbers; a dated
- * trip's start goes along as context. Pressing Generate is the human's
- * explicit approval, so it always calls the model regardless of the global
- * assistant toggle. Never throws.
+ * The guided walk's Generate: first write the couple's entries exactly as
+ * Apply does, then ask the planner for new ideas around them and store those
+ * as suggestions only, replacing the trip's previous ones. No idea is ever
+ * written as an event. Pressing Generate is the human's explicit approval, so
+ * it always calls the model regardless of the global assistant toggle.
  */
 export async function draftAndApplyItinerary(input: {
   tripId: string
   tripSlug: string
   places: string[]
   entries: PlanEntry[]
-  /** Free-text intent for the whole trip; goes to the drafter as-is. */
+  /** Free-text intent for the whole trip; goes to the planner as-is. */
   freeText?: string
   /** Edited in the walk's avoid step; written back to the trip profile. */
   avoid?: string
   /** The walk's "How many days?" answer, for a trip with no length yet. */
   dayCount?: number
-}): Promise<{ error?: string; created?: { locations: number; days: number } }> {
+}): Promise<{ error?: string }> {
+  const applied = await applyPlanEntries(input)
+  if (applied.error) return { error: applied.error }
+
   const workspace = await getCurrentWorkspace()
   if (!workspace) return { error: "Not signed in." }
   const trip = await getTripBySlug(workspace.id, input.tripSlug)
-  if (!trip) return { error: "Trip not found." }
-
-  await persistAvoid(trip, input.tripSlug, input.avoid)
-  const length = await ensureDayCount(trip, input.dayCount)
-  if ("error" in length) return length
-  const dayCount = length.dayCount
+  if (!trip || trip.dayCount === null) return { error: "Trip not found." }
+  const dayCount = trip.dayCount
   const names = input.places.map((n) => n.trim()).filter((n) => n.length > 0)
   const label = (i: number) => positionLabel(i, trip.startDate)
 
-  try {
-    // Scaffold only to learn each place's days for grounding.
-    const scaffold = planItinerarySkeleton({
-      destination: trip.name,
-      dayCount,
-      placeNames: names,
+  // Scaffold only to learn each place's days for grounding.
+  const scaffold = planItinerarySkeleton({ destination: trip.name, dayCount, placeNames: names })
+  const grounding = scaffold.places
+    .filter((p) => p.days.length > 0)
+    .map((p) => {
+      const first = p.days[0].dayIndex
+      const last = p.days[p.days.length - 1].dayIndex
+      return {
+        name: p.name,
+        first,
+        last,
+        label: first === last ? label(first) : `${label(first)} to ${label(last)}`,
+      }
     })
-    const locations = scaffold.places
-      .filter((p) => p.days.length > 0)
-      .map((p) => {
-        const first = p.days[0].dayIndex
-        const last = p.days[p.days.length - 1].dayIndex
-        return {
-          name: p.name,
-          first,
-          last,
-          label: first === last ? label(first) : `${label(first)} to ${label(last)}`,
-        }
-      })
+  const { profileBlock, tasteDirective } = await buildAssistantContext(workspace.id, trip.id)
 
-    const { profileBlock, tasteDirective } = await buildAssistantContext(workspace.id, trip.id)
-
-    const { events, question } = await draftItinerary({
+  let drafted: { ideas: DraftedIdea[]; question: string }
+  try {
+    drafted = await draftItinerary({
       destination: trip.country ?? trip.name,
       startDate: trip.startDate,
       dayCount,
-      locations,
-      vibe: trip.tripProfile.vibe,
+      locations: grounding,
       brief: trip.tripProfile.idea,
       prefs: prefsLine(trip.tripProfile),
-      activityTypes: [],
       freeText: input.freeText?.trim() ?? "",
       avoid: input.avoid?.trim() ?? trip.tripProfile.avoid,
       knownPlans: input.entries.map((e) => ({
@@ -458,22 +478,27 @@ export async function draftAndApplyItinerary(input: {
       profileBlock,
       tasteDirective,
     })
-    if (events.length === 0 && question) return { error: question }
-
-    const items: DraftItem[] = events.map((e) => ({
-      category: e.category,
-      place: e.place,
-      text: e.text,
-      day: e.day,
-      time: e.time,
-    }))
-    const skeleton = itemsToSkeleton(items, names, trip.name, dayCount)
-    return await applyItinerarySkeleton({
-      tripId: input.tripId,
-      tripSlug: input.tripSlug,
-      skeleton,
-    })
   } catch {
-    return { error: "Couldn't draft right now — try again." }
+    return { error: "Your plans are saved, but no ideas right now — try again." }
   }
+  if (drafted.ideas.length === 0 && drafted.question) return { error: drafted.question }
+
+  const rows = ideaRows(
+    trip.id,
+    drafted.ideas,
+    await getItineraryDays(trip.id),
+    await getItineraryLocations(trip.id),
+    dayCount,
+    await writeFloor(trip),
+  )
+  // Replace only now, so a failed model call keeps the previous suggestions.
+  const supabase = await createClient()
+  const { error: delErr } = await supabase.from("trip_suggestions").delete().eq("trip_id", trip.id)
+  if (delErr) return { error: delErr.message }
+  if (rows.length > 0) {
+    const { error: insErr } = await supabase.from("trip_suggestions").insert(rows)
+    if (insErr) return { error: insErr.message }
+  }
+  revalidatePath(`/trips/${input.tripSlug}`)
+  return {}
 }

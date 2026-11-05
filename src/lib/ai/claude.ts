@@ -19,7 +19,7 @@ export {
 } from "./agents/budget-planner"
 export {
   draftItinerary,
-  type DraftedItineraryEvent,
+  type DraftedIdea,
   type ItineraryDraftContext,
 } from "./agents/itinerary-planner"
 export { generateSuggestion } from "./agents/suggestion"

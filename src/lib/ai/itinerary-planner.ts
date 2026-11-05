@@ -207,66 +207,6 @@ export function planItinerarySteps(placeNames: string[]): ItineraryPlanStep[] {
   return steps
 }
 
-/** A flat, per-item draft: category + optional place/day, the wizard's staging
- * unit. Structurally the same as claude.ts's DraftedItineraryEvent; kept here
- * (client-safe) so the stepper and the converter never import the server seam. */
-export interface DraftItem {
-  category: string
-  place: string
-  text: string
-  /** 1-based day; 0 = not placed. */
-  day: number
-  time: string
-}
-
-/**
- * Turn the wizard's flat draft items into an ItinerarySkeleton for the existing
- * write path. Builds the deterministic scaffold to learn each place's days and
- * day metadata, then files each item under its place (place-less -> first place)
- * on its day (unplaced or out of the place's range -> that place's first day).
- * Days with no items are dropped so Apply never creates empty itinerary days.
- */
-export function itemsToSkeleton(
-  items: DraftItem[],
-  placeNames: string[],
-  destination: string,
-  dayCount: number,
-): ItinerarySkeleton {
-  const names = placeNames.map((n) => n.trim()).filter((n) => n.length > 0)
-  const scaffold = planItinerarySkeleton({ destination, dayCount, placeNames: names })
-
-  // Per scaffold place: a map day -> collected events, plus its day set.
-  const buckets = scaffold.places.map((place) => ({
-    place,
-    days: new Set(place.days.map((d) => d.dayIndex)),
-    firstDay: place.days[0]?.dayIndex ?? null,
-    byDay: new Map<number, SkeletonEvent[]>(),
-  }))
-  // Place 0 always has at least one day (dayCount >= 1, remainder to earlier places).
-  const fallbackPlaceIdx = 0
-
-  for (const item of items) {
-    const key = item.place.trim().toLowerCase()
-    let idx = key ? scaffold.places.findIndex((p) => p.name.trim().toLowerCase() === key) : -1
-    if (idx < 0) idx = fallbackPlaceIdx
-    let bucket = buckets[idx]
-    if (bucket.firstDay === null) bucket = buckets[fallbackPlaceIdx]
-    const day = bucket.days.has(item.day) ? item.day : (bucket.firstDay as number)
-    const list = bucket.byDay.get(day) ?? []
-    list.push({ text: item.text, time: item.time, category: item.category })
-    bucket.byDay.set(day, list)
-  }
-
-  return {
-    places: buckets.map(({ place, byDay }) => ({
-      name: place.name,
-      days: place.days
-        .filter((d) => byDay.has(d.dayIndex))
-        .map((d) => ({ ...d, events: byDay.get(d.dayIndex) as SkeletonEvent[] })),
-    })),
-  }
-}
-
 /** Categories whose day range brackets a span rather than filling it: you
  * check into a hotel and out of it, the nights between are yours. */
 const BRACKET_LABELS: Record<string, [string, string]> = {
@@ -293,8 +233,8 @@ function entryDays(entry: PlanEntry): { day: number; label: string }[] {
 
 /**
  * Turn the guided walk's entries straight into a skeleton, with no model in the
- * loop: what the couple typed, on the days they picked. Unlike itemsToSkeleton
- * the day wins over the place name — a Lisbon check-out on the day you reach
+ * loop: what the couple typed, on the days they picked. The day wins over
+ * the place name — a Lisbon check-out on the day you reach
  * Porto belongs on that Porto day — and every scaffold day is kept, so the
  * places you listed all appear even where you entered nothing.
  */

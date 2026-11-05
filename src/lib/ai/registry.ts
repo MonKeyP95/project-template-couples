@@ -49,52 +49,59 @@ export const TOOL_REGISTRY: Record<string, Anthropic.Messages.ToolUnion> = {
     },
   },
 
-  propose_itinerary: {
-    name: "propose_itinerary",
-    description: "Return the drafted itinerary events.",
+  propose_ideas: {
+    name: "propose_ideas",
+    description: "Return new ideas for the couple to choose from.",
     strict: true,
     input_schema: {
       type: "object",
       additionalProperties: false,
       properties: {
-        events: {
+        ideas: {
           type: "array",
           items: {
             type: "object",
             additionalProperties: false,
             properties: {
+              kind: {
+                type: "string",
+                enum: ["big", "small"],
+                description:
+                  "big = an activity worth comparing options for; small = a place to eat or drink.",
+              },
               category: {
                 type: "string",
                 enum: ["Accommodation", "Transportation", "Activities", "Food", "Other"],
-                description: "Which kind of event this is.",
+                description: "Which kind of event this would be.",
+              },
+              title: {
+                type: "string",
+                description: "Short, e.g. 'Kayak trip' or 'Seafood dinner'.",
               },
               place: {
                 type: "string",
-                description: "The exact itinerary place name given for this event, or empty.",
-              },
-              text: {
-                type: "string",
-                description: "Short label for the event, e.g. 'Surf lesson' or 'Dinner - seafood'.",
+                description: "The exact place name given for this idea, or empty.",
               },
               day: {
                 type: "integer",
-                description: "Day number 1..N within the trip. 0 if you can't place it.",
+                description:
+                  "Day number 1..N when the idea clearly belongs on a day; 0 = no preference.",
               },
-              time: {
+              why: {
                 type: "string",
-                description: "HH:MM 24h, or empty.",
+                description: "One short line: why this suits them.",
               },
             },
-            required: ["category", "place", "text", "day", "time"],
+            required: ["kind", "category", "title", "place", "day", "why"],
           },
         },
         question: {
           type: "string",
           description:
-            "Empty when you proposed events. When the input is too thin to ground on, leave events empty and put ONE short clarifying question here.",
+            "Empty when you proposed ideas. When the input is too thin to ground on, leave ideas empty and put ONE short clarifying question here.",
         },
       },
-      required: ["events", "question"],
+      required: ["ideas", "question"],
     },
   },
 

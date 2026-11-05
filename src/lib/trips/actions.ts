@@ -2641,8 +2641,27 @@ export interface SaveBudgetItemsInput {
 }
 
 /**
- * Replace-all save of a trip's budget line items, then set the planned total
- * to their sum. Any workspace member of the trip may edit (RLS-gated).
+ * The couple's estimate is the trip total and lines never overwrite it. The
+ * one exception: a trip with no estimate yet takes the sum of its lines.
+ */
+async function seedEstimateIfUnset(tripId: string): Promise<{ error?: string }> {
+  const supabase = await createClient()
+  const { data: allRows } = await supabase
+    .from("trip_budget_items")
+    .select("amount_cents")
+    .eq("trip_id", tripId)
+  const total = (allRows ?? []).reduce((s, r) => s + (r.amount_cents as number), 0)
+  const { error } = await supabase
+    .from("trips")
+    .update({ planned_budget_cents: total })
+    .eq("id", tripId)
+    .eq("planned_budget_cents", 0)
+  return error ? { error: error.message } : {}
+}
+
+/**
+ * Replace-all save of a trip's budget line items. Seeds the trip's estimate
+ * only when it has none. Any workspace member of the trip may edit (RLS-gated).
  */
 export async function saveBudgetItems(
   input: SaveBudgetItemsInput,
@@ -2708,18 +2727,8 @@ export async function saveBudgetItems(
     if (insErr) return { error: insErr.message }
   }
 
-  // Sum all rows, not just the ones just inserted, so preserved Pre-trip
-  // (before-you-go) items stay counted in the planned total.
-  const { data: allRows } = await supabase
-    .from("trip_budget_items")
-    .select("amount_cents")
-    .eq("trip_id", input.tripId)
-  const total = (allRows ?? []).reduce((sum, r) => sum + (r.amount_cents as number), 0)
-  const { error: budErr } = await supabase
-    .from("trips")
-    .update({ planned_budget_cents: total })
-    .eq("id", input.tripId)
-  if (budErr) return { error: budErr.message }
+  const seeded = await seedEstimateIfUnset(input.tripId)
+  if (seeded.error) return seeded
 
   revalidatePath(`/trips/${input.tripSlug}`)
   return {}
@@ -2734,8 +2743,8 @@ export interface SaveScopeInput {
 
 /**
  * Replace the budget items of a single scope — one location, or the trip-wide
- * bucket (locationId null) — then recompute the trip's planned total. Other
- * scopes are untouched.
+ * bucket (locationId null). Seeds the estimate only when the trip has none.
+ * Other scopes are untouched.
  */
 export async function saveBudgetItemsForScope(
   input: SaveScopeInput,
@@ -2822,19 +2831,8 @@ export async function saveBudgetItemsForScope(
     if (delErr) return { error: delErr.message }
   }
 
-  const { data: allRows } = await supabase
-    .from("trip_budget_items")
-    .select("amount_cents")
-    .eq("trip_id", input.tripId)
-  const total = (allRows ?? []).reduce(
-    (s, r) => s + (r.amount_cents as number),
-    0,
-  )
-  const { error: budErr } = await supabase
-    .from("trips")
-    .update({ planned_budget_cents: total })
-    .eq("id", input.tripId)
-  if (budErr) return { error: budErr.message }
+  const seeded = await seedEstimateIfUnset(input.tripId)
+  if (seeded.error) return seeded
 
   revalidatePath(`/trips/${input.tripSlug}`)
   return {}
@@ -2848,8 +2846,8 @@ export interface SavePreTripItemsInput {
 
 /**
  * Replace the trip's "Pre-trip" budget items (the before-you-go checklist),
- * updating in place to preserve paid links, then recompute the planned total
- * across all items. No other category is touched.
+ * updating in place to preserve paid links. Seeds the estimate only when the
+ * trip has none. No other category is touched.
  */
 export async function savePreTripItems(
   input: SavePreTripItemsInput,
@@ -2924,19 +2922,8 @@ export async function savePreTripItems(
     if (delErr) return { error: delErr.message }
   }
 
-  const { data: allRows } = await supabase
-    .from("trip_budget_items")
-    .select("amount_cents")
-    .eq("trip_id", input.tripId)
-  const total = (allRows ?? []).reduce(
-    (s, r) => s + (r.amount_cents as number),
-    0,
-  )
-  const { error: budErr } = await supabase
-    .from("trips")
-    .update({ planned_budget_cents: total })
-    .eq("id", input.tripId)
-  if (budErr) return { error: budErr.message }
+  const seeded = await seedEstimateIfUnset(input.tripId)
+  if (seeded.error) return seeded
 
   revalidatePath(`/trips/${input.tripSlug}`)
   return {}
@@ -3041,8 +3028,8 @@ export async function unpayBudgetItem(
 }
 
 /**
- * Deletes one planned cost immediately (and its linked expense, if paid), then
- * recomputes the trip's planned total. No-op if the id isn't a saved item.
+ * Deletes one planned cost immediately (and its linked expense, if paid). The
+ * trip's estimate is untouched. No-op if the id isn't a saved item.
  */
 export async function deleteBudgetItem(
   itemId: string,
@@ -3070,19 +3057,6 @@ export async function deleteBudgetItem(
     .delete()
     .eq("id", itemId)
   if (delErr) return { error: delErr.message }
-
-  const { data: allRows } = await supabase
-    .from("trip_budget_items")
-    .select("amount_cents")
-    .eq("trip_id", item.trip_id)
-  const total = (allRows ?? []).reduce(
-    (s, r) => s + (r.amount_cents as number),
-    0,
-  )
-  await supabase
-    .from("trips")
-    .update({ planned_budget_cents: total })
-    .eq("id", item.trip_id)
 
   revalidatePath(`/trips/${tripSlug}`)
   return {}
