@@ -3,7 +3,6 @@
 import { revalidatePath } from "next/cache"
 
 import { createClient } from "@/lib/supabase/server"
-import { isAiEnabled } from "@/lib/ai/ai-mode"
 import { buildAssistantContext } from "@/lib/ai/assistant-context"
 import { generateDispatch, generateDispatchDetail } from "@/lib/ai/claude"
 import { getCurrentWorkspace } from "@/lib/workspace/queries"
@@ -42,8 +41,6 @@ export async function ensureDispatch(
   tripSlug: string,
   dayDate: string,
 ): Promise<void> {
-  if (!(await isAiEnabled())) return
-
   const workspace = await getCurrentWorkspace()
   if (!workspace) return
   const trip = await getTripBySlug(workspace.id, tripSlug)
@@ -89,8 +86,6 @@ export async function learnAboutItem(
   itemIndex: number,
   question: string,
 ): Promise<{ detail?: DispatchDetail; error?: string }> {
-  if (!(await isAiEnabled())) return { error: "AI mode is off." }
-
   const workspace = await getCurrentWorkspace()
   if (!workspace) return { error: "Not signed in." }
   const trip = await getTripBySlug(workspace.id, tripSlug)

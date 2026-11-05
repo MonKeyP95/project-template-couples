@@ -14,11 +14,10 @@ import type { DispatchItem } from "@/lib/trips/dispatch-types"
 
 const ADVANCE_MS = 7000
 
-export type NewsState = "pending" | "off" | "quiet"
+export type NewsState = "pending" | "quiet"
 
 const NEWS_EMPTY_TEXT: Record<NewsState, string> = {
   pending: "Checking today's news...",
-  off: "Off while the assistant is collapsed.",
   quiet: "Nothing notable today.",
 }
 
@@ -85,7 +84,7 @@ export function DispatchBox({
 }: {
   weather: Weather | null
   items: DispatchItem[]
-  /** Why there may be no news cards: still fetching, assistant off, or a quiet day. */
+  /** Why there may be no news cards: still fetching, or a quiet day. */
   news: NewsState
   /** The trip's budget check; null when there is no estimate or no running trip. */
   budget: PeriodCheck | null
