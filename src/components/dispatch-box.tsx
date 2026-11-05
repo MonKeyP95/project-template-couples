@@ -13,6 +13,15 @@ import type { Weather } from "@/lib/weather/get-weather"
 import type { DispatchItem } from "@/lib/trips/dispatch-types"
 
 const ADVANCE_MS = 7000
+
+export type NewsState = "pending" | "off" | "quiet"
+
+const NEWS_EMPTY_TEXT: Record<NewsState, string> = {
+  pending: "Checking today's news...",
+  off: "Off while the assistant is collapsed.",
+  quiet: "Nothing notable today.",
+}
+
 const REDUCED_MOTION = "(prefers-reduced-motion: reduce)"
 
 /** Never changes after mount; the snapshot alone carries the answer. */
@@ -47,16 +56,11 @@ function useReducedMotion(): boolean {
  * short visits ever show. Per-device by design: each partner gets their own
  * first visit. Read-only — the marking happens in an effect.
  */
-function pickStart(
-  storageKey: string,
-  count: number,
-  hasWeather: boolean,
-): number {
+function pickStart(storageKey: string, count: number): number {
   const seen = window.localStorage.getItem(seenKey(storageKey)) !== null
   if (!seen) return 0
-  const first = hasWeather ? 1 : 0
-  const pool = count - first
-  return pool > 0 ? first + Math.floor(Math.random() * pool) : 0
+  const pool = count - 1
+  return pool > 0 ? 1 + Math.floor(Math.random() * pool) : 0
 }
 
 const seenKey = (storageKey: string) => `dispatch-seen:${storageKey}`
@@ -64,8 +68,8 @@ const seenKey = (storageKey: string) => `dispatch-seen:${storageKey}`
 /**
  * The one ambient box at the top of /on-the-road: weather first, then today's
  * dispatch items. Rotates itself; pauses whenever the user is hovering or
- * focused inside it. With a single card it is a plain static card — no dots,
- * no timer — which is the common, quiet-day state.
+ * focused inside it. Weather, budget and news always hold a card — an empty one
+ * keeps its header — so the box never disappears on a no-data day.
  */
 export function DispatchBox({
   weather,
@@ -76,10 +80,13 @@ export function DispatchBox({
   tripSlug,
   today,
   days,
+  news,
   className,
 }: {
   weather: Weather | null
   items: DispatchItem[]
+  /** Why there may be no news cards: still fetching, assistant off, or a quiet day. */
+  news: NewsState
   /** The trip's budget check; null when there is no estimate or no running trip. */
   budget: PeriodCheck | null
   /** Distinguishes one trip-day from another in localStorage. */
@@ -91,9 +98,7 @@ export function DispatchBox({
   className?: string
 }) {
   const isClient = useIsClient()
-  const ctx = { tripId, tripSlug, today, days, budget }
-
-  if (!weather && items.length === 0 && !budget) return null
+  const ctx = { tripId, tripSlug, today, days, budget, news }
 
   // Server and hydration render the first card, static and collapsed. The live
   // deck takes over immediately after, which is where the random start is
@@ -126,11 +131,12 @@ interface CardContext {
   today: string
   days: DispatchDay[]
   budget: PeriodCheck | null
+  news: NewsState
 }
 
-/** The deck in order: weather, budget, then today's findings. Weather and
- * budget are not pressable; every item is. `expanded` is a deck index, so their
- * offset applies. */
+/** The deck in order: weather, budget, then today's findings (or one empty news
+ * card). Weather and budget are not pressable; every item is. `expanded` is a
+ * deck index, so their offset applies. */
 function buildCards(
   weather: Weather | null,
   items: DispatchItem[],
@@ -138,10 +144,27 @@ function buildCards(
   expanded: number | null,
   onToggle: (deckIndex: number | null) => void,
 ): React.ReactNode[] {
-  const offset = (weather ? 1 : 0) + (ctx.budget ? 1 : 0)
+  const offset = 2
   return [
-    ...(weather ? [<WeatherCard key="weather" weather={weather} />] : []),
-    ...(ctx.budget ? [<BudgetCard key="budget" check={ctx.budget} />] : []),
+    weather ? (
+      <WeatherCard key="weather" weather={weather} />
+    ) : (
+      <EmptyCard key="weather" label="Weather" text="No forecast for here." />
+    ),
+    ctx.budget ? (
+      <BudgetCard key="budget" check={ctx.budget} />
+    ) : (
+      <EmptyCard key="budget" label="Budget" text="No budget set for this trip." />
+    ),
+    ...(items.length === 0
+      ? [
+          <EmptyCard
+            key="news"
+            label="News"
+            text={NEWS_EMPTY_TEXT[ctx.news]}
+          />,
+        ]
+      : []),
     ...items.map((item, i) => (
       <DispatchItemCard
         key={`item-${i}`}
@@ -173,11 +196,7 @@ function LiveDeck({
 }) {
   const reduced = useReducedMotion()
   const [index, setIndex] = React.useState(() =>
-    pickStart(
-      storageKey,
-      (weather ? 1 : 0) + (ctx.budget ? 1 : 0) + items.length,
-      weather !== null,
-    ),
+    pickStart(storageKey, 2 + Math.max(items.length, 1)),
   )
   const [paused, setPaused] = React.useState(false)
   const [expanded, setExpanded] = React.useState<number | null>(null)
@@ -271,6 +290,18 @@ function Frame({
           ))}
         </div>
       ) : null}
+    </div>
+  )
+}
+
+/** A deck slot with no data: keeps its header so the feature stays visible. */
+function EmptyCard({ label, text }: { label: string; text: string }) {
+  return (
+    <div className="rounded-lg border border-border bg-card px-3.5 py-2.5">
+      <div className="font-mono text-[10px] uppercase tracking-[0.12em] text-muted-foreground">
+        {label}
+      </div>
+      <div className="mt-1 text-[13px] text-muted-foreground">{text}</div>
     </div>
   )
 }
