@@ -224,6 +224,7 @@ export default async function OnTheRoadPage() {
               dayDate: d.dayDate,
               label: `${d.dow} ${d.dom} ${d.mon}`,
             }))}
+            news={dispatch ? "quiet" : aiOn ? "pending" : "off"}
             className="mt-3"
           />
           {!dispatch && aiOn ? (
