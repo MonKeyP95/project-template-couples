@@ -66,6 +66,7 @@ export default async function EditTripPage({
           country: trip.country,
           currency: trip.currency,
           homeCurrency: trip.homeCurrency,
+          budgetPeriod: trip.budgetPeriod,
           lat: trip.lat,
           lng: trip.lng,
         }}

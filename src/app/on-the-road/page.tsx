@@ -36,7 +36,7 @@ import { computeTripDays } from "@/lib/trips/trip-days"
 import { getBudgetItems } from "@/lib/trips/budget-item-queries"
 import { budgetPace, dayLabel } from "@/lib/trips/budget-pace"
 import { detectUnloggedDays } from "@/lib/nudges/unlogged-days"
-import { PaceLine } from "@/components/budget-pace-strip"
+import { periodCheck } from "@/lib/trips/budget-period"
 import { CatchUpNudge } from "./catch-up-nudge"
 
 import { CurrencyProvider } from "@/components/currency-context"
@@ -89,6 +89,9 @@ export default async function OnTheRoadPage() {
   const spentTodayCents = expenses
     .filter((e) => !e.isSettlement && e.dayDate === today)
     .reduce((sum, e) => sum + homeCents(e), 0)
+  const tripSpentCents = expenses
+    .filter((e) => !e.isSettlement)
+    .reduce((sum, e) => sum + homeCents(e), 0)
   const capNudge = detectNearDailyCap({
     plannedBudgetCents: trip.plannedBudgetCents,
     tripDays: computeTripDays(trip.startDate, trip.endDate),
@@ -136,9 +139,7 @@ export default async function OnTheRoadPage() {
   const locationName = todayDay?.locationId
     ? locations.find((l) => l.id === todayDay.locationId)?.name ?? null
     : null
-  const place = locationName ?? trip.country ?? "On the road"
-  // "On the road" is a UI placeholder, not a place to search — fall back to the
-  // trip's country/name instead.
+  const place = locationName ?? trip.country
   const searchDestination = locationName ?? trip.country ?? trip.name
   const weatherPlace = { ...trip, locationName }
   const weather = await getTripWeather(weatherPlace)
@@ -198,12 +199,22 @@ export default async function OnTheRoadPage() {
         <TopoBg tone={tone} opacity={0.12} />
         <div className="relative">
           <Coord>{fullDate}</Coord>
-          <div className="t-display mt-2 text-[36px] leading-none text-foreground">
-            <em>{place}</em>
-          </div>
+          {place ? (
+            <div className="t-display mt-2 text-[36px] leading-none text-foreground">
+              <em>{place}</em>
+            </div>
+          ) : null}
           <DispatchBox
             weather={weather}
             items={dispatch?.items ?? []}
+            budget={
+              pace
+                ? periodCheck(pace, trip.budgetPeriod, today, {
+                    budgetCents: trip.plannedBudgetCents,
+                    spentCents: tripSpentCents,
+                  })
+                : null
+            }
             storageKey={`${trip.slug}:${today}`}
             tripId={trip.id}
             tripSlug={trip.slug}
@@ -257,7 +268,6 @@ export default async function OnTheRoadPage() {
 
       {capNudge ? <RoadNudge nudge={capNudge} /> : null}
 
-      {pace ? <PaceLine pace={pace} className="mt-4 block" /> : null}
       {unloggedNudge ? <CatchUpNudge nudge={unloggedNudge} /> : null}
 
       <div id="road-expense">

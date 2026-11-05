@@ -23,7 +23,19 @@
   4. On a fresh trip with no estimate, the first drafter save sets the estimate to the sum.
   5. When lines exceed the estimate, the bar is clay and shows how much over.
   6. Looks right on a phone viewport.
-- **Next: budget status in the on-the-road dispatch box**, replacing `PaceLine` there (decided 2026-11-05, so the over/under number lives in one place). Supersedes the 2026-08-03 cut of a budget card.
+
+**Budget card in the dispatch box: implemented 2026-11-05; lint + `tsc --noEmit` clean; card verified in-app 2026-11-05 (whole trip / per day / per week readings, place read from "Copenhagen relaxation"); remaining checks below unconfirmed.** Spec `docs/superpowers/specs/2026-11-05-dispatch-budget-card-design.md`, plan `docs/superpowers/plans/2026-11-05-dispatch-budget-card.md`. **Paste `supabase/migrations/20261105000002_trip_budget_period.sql` first** (adds `trips.budget_period`, default `trip`). Per-trip "check budget: per day / per week / whole trip" beside the estimate in the new-trip flow and in the edit form; `periodCheck` (`budget-period.ts`) reads `budgetPace`'s per-day spread; `BudgetCard` sits after weather in the dispatch box; `PaceLine` deleted. In-app checks:
+  1. New trip: the budget step shows the per day / per week / whole trip choice under the Budget field, defaulting to whole trip; creating a trip with "per day" saves it (visible in the trip's edit form).
+  2. Edit trip: changing the choice sticks after reload; the partner sees the same value and can change it too.
+  3. On the road with "Whole trip": the box has a budget card after weather with the same over/under `PaceLine` used to show; `PaceLine` is gone below.
+  4. With "Per day": the card reads "X left today" before logging anything today; logging an expense lowers it; overspending turns it clay "X over today".
+  5. With "Per week": the card reads over/under "this week" with "as of" the last logged day.
+  6. A trip with no estimate shows no budget card.
+  7. With the assistant off, the budget card still shows.
+  8. Phone viewport: card fits the box; dots include the budget card.
+- **Revisit: before-you-go costs in the budget card (noted 2026-11-05 at the user's request).** "Whole trip" compares the full estimate against everything spent, flights/insurance included, while "per day" and "per week" use the daily spread, which leaves before-you-go costs and the buffer out. So the three modes don't add up to the same money: a paid flight lowers "left" for the whole trip but no day or week. Decide whether day/week should be carved from (estimate - before-you-go), and how the buffer counts.
+  Card copy changed the same day: day "X left today" / "X over today", week "X left this week" / "X over this week", trip "X left" / "X over budget"; no "as of" date. Checks 3 and 5 above now read: whole trip shows the estimate minus everything spent; per week shows this trip-week's share minus this week's spend.
+- **Backlog: the partner cannot save Home currency on `/profile`.** `workspaces_update_owner` (`20260525000001_phase_2_schema.sql`) lets only the owner update `workspaces`; a non-owner's `setWorkspaceCurrency` matches zero rows and reports no error. Found 2026-11-05; not fixed.
 
 **Phases 1–5 are complete.** The itinerary work (locations, spans, events, during-trip mode, home today signal) shipped through 2026-06-10, and **Phase 5 — AI assistant** is live: six agents (`chat`, `discover`, `suggestion`, `budget-planner`, `itinerary-planner`, `summarize-taste`) each a descriptor file under `src/lib/ai/agents/`, run by the shared `runAgent`, imported through `src/lib/ai/claude.ts`. No mocks left; the MCP seam is built but no server is wired. Phase 6 (integrations) is optional and unstarted — **work is now feature slices and backlog items, not phases.** The completed-task log below stays as history.
 

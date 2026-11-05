@@ -29,37 +29,6 @@ function toneClass(tone: "clay" | "muted"): string {
   return tone === "clay" ? "text-clay" : "text-muted-foreground"
 }
 
-/** Compact road verdict: one line, one bar, no drill-down. */
-export function PaceLine({
-  pace,
-  className,
-}: {
-  pace: BudgetPace
-  className?: string
-}) {
-  const { currency } = useCurrency()
-  const v = verdict(pace.deltaCents, currency)
-  const current = pace.buckets.find((b) => b.status === "current")
-  return (
-    <section
-      className={cn("rounded-[14px] border border-border bg-card px-5 py-4", className)}
-    >
-      <div className="flex flex-wrap items-baseline justify-between gap-x-2 gap-y-1">
-        <span className={cn("t-num text-[15px]", toneClass(v.tone))}>{v.text}</span>
-        <span className="font-mono text-[9.5px] uppercase tracking-[0.18em] text-muted-foreground">
-          {current ? `${current.label} · ` : ""}
-          {asOf(pace)}
-        </span>
-      </div>
-      <Bar
-        className="mt-2"
-        pct={pctOf(pace.spentToDateCents, pace.plannedToDateCents)}
-        tone={v.tone}
-      />
-    </section>
-  )
-}
-
 function bucketNote(bucket: PaceBucket, currency: string): string {
   if (bucket.status === "future") return "to come"
   if (!bucket.logged) return "not logged"

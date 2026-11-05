@@ -68,6 +68,14 @@ export interface BudgetPace {
   /** The tracker's denominator: planned items, or the budget less pre-trip. */
   onTheRoadBudgetCents: number
   preTripPlannedCents: number
+  /** Every trip date in order with its planned share and spend (unrounded). */
+  byDay: PaceDay[]
+}
+
+export interface PaceDay {
+  date: string
+  plannedCents: number
+  spentCents: number
 }
 
 export interface BudgetPaceInput {
@@ -307,5 +315,10 @@ export function budgetPace(input: BudgetPaceInput): BudgetPace | null {
     source,
     onTheRoadBudgetCents,
     preTripPlannedCents,
+    byDay: tripDates.map((date) => ({
+      date,
+      plannedCents: plannedByDay.get(date) ?? 0,
+      spentCents: spentByDay.get(date) ?? 0,
+    })),
   }
 }

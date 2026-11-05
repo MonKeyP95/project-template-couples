@@ -6,6 +6,8 @@ import { useRouter } from "next/navigation"
 import { deleteTrip, updateTrip, type UpdateTripInput } from "@/lib/trips/actions"
 import { dateOfIndex, toDayIndex } from "@/lib/trips/itinerary-types"
 import { currencyOptions } from "@/lib/fx/currency-list"
+import type { BudgetPeriod } from "@/lib/trips/budget-period"
+import { BudgetPeriodPicker } from "@/components/budget-period-picker"
 import { type LocalCategory } from "../../profile-fields"
 import { ProfileWalkthrough } from "../../profile-walkthrough"
 import { type TripProfile } from "@/lib/trips/trip-profile-types"
@@ -52,6 +54,7 @@ export interface EditTripInitial {
   currency: string
   /** Where the money comes from; what every total is reported in. */
   homeCurrency: string
+  budgetPeriod: BudgetPeriod
 }
 
 export function EditTripForm({
@@ -80,6 +83,7 @@ export function EditTripForm({
   const [country, setCountry] = React.useState(initial.country ?? "")
   const [currency, setCurrency] = React.useState(initial.currency)
   const [homeCurrency, setHomeCurrency] = React.useState(initial.homeCurrency)
+  const [budgetPeriod, setBudgetPeriod] = React.useState(initial.budgetPeriod)
   const [advancedOpen, setAdvancedOpen] = React.useState(
     initial.lat !== null || initial.lng !== null,
   )
@@ -163,6 +167,7 @@ export function EditTripForm({
         country: country.trim() || null,
         currency,
         homeCurrency,
+        budgetPeriod,
         lat: parseFloatOrNull(lat),
         lng: parseFloatOrNull(lng),
         dayCount: isDream ? Number(days) || null : null,
@@ -383,6 +388,13 @@ export function EditTripForm({
             actually been converted into {initial.homeCurrency}.
           </span>
         </label>
+
+        <BudgetPeriodPicker
+          value={budgetPeriod}
+          onChange={setBudgetPeriod}
+          disabled={isPending}
+          className="mt-5"
+        />
 
         <button
           type="button"

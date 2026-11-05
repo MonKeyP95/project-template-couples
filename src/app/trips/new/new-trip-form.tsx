@@ -10,6 +10,7 @@ import {
   readNote,
   type PrefKey,
 } from "@/lib/trips/trip-note-parse"
+import type { BudgetPeriod } from "@/lib/trips/budget-period"
 import { NotePage } from "./note-page"
 import { PrefsPage } from "./prefs-page"
 
@@ -20,6 +21,7 @@ export interface TripDraft {
   start: string
   end: string
   budget: string
+  budgetPeriod: BudgetPeriod
   place: string
   unsure: boolean
   what: string
@@ -34,6 +36,7 @@ const EMPTY_DRAFT: TripDraft = {
   start: "",
   end: "",
   budget: "",
+  budgetPeriod: "trip",
   place: "",
   unsure: false,
   what: "",
@@ -108,6 +111,7 @@ export function NewTripForm({ currency }: { currency: string }) {
         endDate: draft.end || null,
         days: draft.days || null,
         budget: Number(draft.budget) || 0,
+        budgetPeriod: draft.budgetPeriod,
         place: draft.unsure ? null : draft.place,
         what: draft.what,
         prefs: withPrefs ? draft.prefs : null,
