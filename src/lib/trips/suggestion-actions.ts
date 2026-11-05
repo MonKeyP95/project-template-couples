@@ -52,8 +52,8 @@ export async function deleteSuggestion(id: string, tripSlug: string): Promise<{ 
 
 /**
  * The picked option's price as one planned cost (an estimate, linked to its
- * source), then the trip's planned total recomputed. `paid` also logs the
- * expense through the normal mark-paid path. No price, nothing written.
+ * source). `paid` also logs the expense through the normal mark-paid path.
+ * No price, nothing written.
  */
 export async function addSuggestionCost(input: {
   tripId: string
@@ -101,17 +101,8 @@ export async function addSuggestionCost(input: {
     .single()
   if (insErr) return { error: insErr.message }
 
-  const { data: allRows } = await supabase
-    .from("trip_budget_items")
-    .select("amount_cents")
-    .eq("trip_id", input.tripId)
-  const total = (allRows ?? []).reduce((sum, r) => sum + (r.amount_cents as number), 0)
-  const { error: budErr } = await supabase
-    .from("trips")
-    .update({ planned_budget_cents: total })
-    .eq("id", input.tripId)
-  if (budErr) return { error: budErr.message }
-
+  // The trip's planned total is left alone: it may be the couple's own
+  // estimate with no lines behind it, and one restaurant must not replace it.
   if (input.paid) return await payBudgetItem(item.id, input.tripSlug, input.dayDate)
   revalidatePath(`/trips/${input.tripSlug}`)
   return {}

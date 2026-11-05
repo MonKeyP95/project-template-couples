@@ -525,8 +525,14 @@ export function ItineraryTab({
     ? suggestions.find((s) => SUGGESTION_DRAG_PREFIX + s.id === dragId)
     : undefined
 
+  // The drop animation scrolls back to where the drag started, which for a
+  // box card is the box, far from the day whose form just opened. Kept past
+  // drag end because the animation reads it after dragId is cleared.
+  const [fromBox, setFromBox] = React.useState(false)
+
   function onDragStart(e: DragStartEvent) {
     setDragId(String(e.active.id))
+    setFromBox(String(e.active.id).startsWith(SUGGESTION_DRAG_PREFIX))
   }
 
   /** An unplaced day dropped on an empty day takes its place, under that
@@ -1352,7 +1358,7 @@ export function ItineraryTab({
                 <UnplacedDays days={unplaced} onDelete={deleteUnplaced} />
                 {/* Follows the pointer across locations and onto empty days,
                     where the card's own list can't move it. */}
-                <DragOverlay>
+                <DragOverlay dropAnimation={fromBox ? null : undefined}>
                   {dragDay ? (
                     <div className="rounded-lg border border-sea bg-card px-3.5 py-2 shadow-md">
                       <div className="font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground">

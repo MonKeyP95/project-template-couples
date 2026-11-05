@@ -87,29 +87,30 @@ function slug(s: string): string {
   return s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")
 }
 
-const BIG_VARIANTS: [string, number][] = [
-  ["Classic", 1],
-  ["Small group", 0.75],
-  ["Private", 1.6],
+/** Three made-up providers, so the options read as different businesses. */
+const BIG_VARIANTS: [provider: string, style: string, factor: number, rating: number][] = [
+  ["Harbour", "classic", 1, 4.6],
+  ["Old Town", "small group", 0.75, 4.2],
+  ["Bluewater", "private", 1.6, 4.9],
 ]
 
 /** Sample options until real search exists (piece C). Deterministic per title. */
 export function mockOptions(kind: SuggestionKind, title: string, place: string): SuggestionOption[] {
   const h = hash(title)
-  const reviews = `${(4 + (h % 9) / 10).toFixed(1)} (sample)`
-  const base = `${place.trim() || "Local"} ${title}`
-  const option = (name: string, priceCents: number): SuggestionOption => ({
+  const option = (name: string, priceCents: number, rating: number): SuggestionOption => ({
     name,
     location: place,
     priceCents,
     priceUnit: "per_person",
     url: `https://example.com/${slug(name)}`,
-    reviews,
+    reviews: `${rating.toFixed(1)} (sample)`,
   })
-  if (kind === "small") return [option(base, 1500 + (h % 4) * 500)]
+  if (kind === "small") {
+    return [option(`${place.trim() || "Local"} ${title}`, 1500 + (h % 4) * 500, 4 + (h % 9) / 10)]
+  }
   const price = 4000 + (h % 6) * 1000
-  return BIG_VARIANTS.map(([label, factor]) =>
-    option(`${base} - ${label}`, Math.round((price * factor) / 100) * 100),
+  return BIG_VARIANTS.map(([provider, style, factor, rating]) =>
+    option(`${provider} ${title} (${style})`, Math.round((price * factor) / 100) * 100, rating),
   )
 }
 
