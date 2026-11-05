@@ -89,6 +89,9 @@ export default async function OnTheRoadPage() {
   const spentTodayCents = expenses
     .filter((e) => !e.isSettlement && e.dayDate === today)
     .reduce((sum, e) => sum + homeCents(e), 0)
+  const tripSpentCents = expenses
+    .filter((e) => !e.isSettlement)
+    .reduce((sum, e) => sum + homeCents(e), 0)
   const capNudge = detectNearDailyCap({
     plannedBudgetCents: trip.plannedBudgetCents,
     tripDays: computeTripDays(trip.startDate, trip.endDate),
@@ -204,7 +207,14 @@ export default async function OnTheRoadPage() {
           <DispatchBox
             weather={weather}
             items={dispatch?.items ?? []}
-            budget={pace ? periodCheck(pace, trip.budgetPeriod, today) : null}
+            budget={
+              pace
+                ? periodCheck(pace, trip.budgetPeriod, today, {
+                    budgetCents: trip.plannedBudgetCents,
+                    spentCents: tripSpentCents,
+                  })
+                : null
+            }
             storageKey={`${trip.slug}:${today}`}
             tripId={trip.id}
             tripSlug={trip.slug}

@@ -11,50 +11,47 @@ export function isBudgetPeriod(v: string): v is BudgetPeriod {
 
 export interface PeriodCheck {
   period: BudgetPeriod
+  /** The period's budget: today's share, this trip-week's, or the whole estimate. */
   plannedCents: number
   spentCents: number
   /** Spent minus planned; positive = over. */
   deltaCents: number
-  /** The last-logged watermark the figure runs to; null for a day or nothing logged. */
-  asOf: string | null
-  /** Week/trip only: nothing logged in the period yet, so there is no verdict. */
-  nothingLogged: boolean
+}
+
+/** The whole trip's figures: the couple's estimate and everything spent. */
+export interface TripTotal {
+  budgetCents: number
+  spentCents: number
 }
 
 const WEEK_DAYS = 7
 
-function sum(days: PaceDay[], key: "plannedCents" | "spentCents"): number {
-  return Math.round(days.reduce((s, d) => s + d[key], 0))
-}
-
-function check(period: BudgetPeriod, days: PaceDay[], asOf: string | null): PeriodCheck {
-  const plannedCents = sum(days, "plannedCents")
-  const spentCents = sum(days, "spentCents")
-  return { period, plannedCents, spentCents, deltaCents: spentCents - plannedCents, asOf, nothingLogged: false }
+function check(period: BudgetPeriod, days: PaceDay[]): PeriodCheck {
+  const plannedCents = Math.round(days.reduce((s, d) => s + d.plannedCents, 0))
+  const spentCents = Math.round(days.reduce((s, d) => s + d.spentCents, 0))
+  return { period, plannedCents, spentCents, deltaCents: spentCents - plannedCents }
 }
 
 /**
- * The over/under for one period. Day is today alone, no watermark. Week is the
- * current trip-week (days 1-7, 8-14, ...) up to the last logged day, so an
- * unlogged day never reads as money saved. Trip is `budgetPace`'s own figure.
+ * One budget minus what was spent against it. Day: today's share. Week: the
+ * current trip-week's share (days 1-7, 8-14, ...). Trip: the whole estimate
+ * against everything spent, before-you-go costs included.
  */
-export function periodCheck(pace: BudgetPace, period: BudgetPeriod, today: string): PeriodCheck {
-  if (period === "day") return check("day", pace.byDay.filter((d) => d.date === today), null)
+export function periodCheck(
+  pace: BudgetPace,
+  period: BudgetPeriod,
+  today: string,
+  total: TripTotal,
+): PeriodCheck {
   if (period === "trip") {
     return {
       period,
-      plannedCents: pace.plannedToDateCents,
-      spentCents: pace.spentToDateCents,
-      deltaCents: pace.deltaCents,
-      asOf: pace.lastLogged,
-      nothingLogged: pace.lastLogged === null,
+      plannedCents: total.budgetCents,
+      spentCents: total.spentCents,
+      deltaCents: total.spentCents - total.budgetCents,
     }
   }
+  if (period === "day") return check("day", pace.byDay.filter((d) => d.date === today))
   const start = Math.floor((pace.dayIndex - 1) / WEEK_DAYS) * WEEK_DAYS
-  const week = pace.byDay.slice(start, start + WEEK_DAYS)
-  const mark = pace.lastLogged
-  if (!mark || mark < week[0].date) {
-    return { ...check("week", [], null), nothingLogged: true }
-  }
-  return check("week", week.filter((d) => d.date <= mark), mark)
+  return check("week", pace.byDay.slice(start, start + WEEK_DAYS))
 }
