@@ -443,10 +443,8 @@ export async function draftAndApplyItinerary(input: {
       startDate: trip.startDate,
       dayCount,
       locations,
-      vibe: trip.tripProfile.vibe,
       brief: trip.tripProfile.idea,
       prefs: prefsLine(trip.tripProfile),
-      activityTypes: [],
       freeText: input.freeText?.trim() ?? "",
       avoid: input.avoid?.trim() ?? trip.tripProfile.avoid,
       knownPlans: input.entries.map((e) => ({

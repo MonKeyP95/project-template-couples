@@ -28,11 +28,9 @@ export interface ItineraryDraftContext {
   dayCount: number
   /** Each place's days; `label` reads them as dates on a dated trip. */
   locations: { name: string; first: number; last: number; label: string }[]
-  vibe: string[]
   brief: string
   /** The trip's own answers: where they sleep, getting around, doing, eating. */
   prefs: string
-  activityTypes: string[]
   freeText: string
   /** What they do not want. A constraint, not a preference. */
   avoid: string
@@ -44,8 +42,6 @@ export interface ItineraryDraftContext {
 }
 
 function itineraryPrompt(c: ItineraryDraftContext): string {
-  const list = (label: string, items: string[]) =>
-    items.length ? `${label}: ${items.join(", ")}.` : ""
   const days = (l: { first: number; last: number }) =>
     l.first === l.last ? `Day ${l.first}` : `Days ${l.first}-${l.last}`
   const places = c.locations.length
@@ -68,10 +64,8 @@ function itineraryPrompt(c: ItineraryDraftContext): string {
     known
       ? `Plans they already chose (include each of these in the itinerary, on the days or nights they gave, then fill the gaps sparsely): ${known}.`
       : "",
-    list("Trip vibe", c.vibe),
     c.brief ? `Trip brief: ${c.brief}.` : "",
     c.prefs ? `Their answers: ${c.prefs}.` : "",
-    list("Activity types they want", c.activityTypes),
     c.freeText
       ? `What they want this itinerary to look like, in their words (build these in, over as many days as they say, before filling gaps): ${c.freeText}.`
       : "",
@@ -99,7 +93,7 @@ const itineraryPlanner: AgentDescriptor<
     "to a city the user did not name; never invent a place or date from the trip's name. " +
     "Set place to one of the exact place names given (or empty). Set day to a whole day " +
     "number within 1..N inside that place's days, or 0 if you cannot place it. Keep each event a short " +
-    "label, not a paragraph. Weight the couple's taste and vibe as a lens, never a checklist. " +
+    "label, not a paragraph. Weight the couple's taste as a lens, never a checklist. " +
     "Do not invent prices or booking details. " +
     "If what you were given is too thin or ambiguous to ground on — no usable place, or a " +
     "place name you cannot confidently locate or understand — do NOT guess: return an empty " +
