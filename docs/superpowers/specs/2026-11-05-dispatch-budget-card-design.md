@@ -10,8 +10,9 @@ information: the dispatch box (the "feed") at the top of `/on-the-road`, which
 rotates weather and the daily what's-on items.
 
 They also want to choose **what "the budget" means for that check**: today's
-share, this week's share, or the whole trip so far. The choice is the
-couple's, shared by both partners, set once on the profile and editable.
+share, this week's share, or the whole trip so far. The choice is per trip,
+shared by both partners, set when creating the trip next to the budget
+estimate and editable afterwards.
 
 ## Why now
 
@@ -26,7 +27,8 @@ couple's own total, which this card reads.
 
 1. A budget card in the dispatch box: one over/under sentence plus a bar, for
    the chosen period.
-2. A shared, editable profile setting: **per day / per week / whole trip**.
+2. A per-trip setting, **per day / per week / whole trip**, chosen in the
+   new-trip flow and editable.
 3. `PaceLine` removed from `/on-the-road`.
 
 ## Non-goals
@@ -34,7 +36,7 @@ couple's own total, which this card reads.
 - No change to the budget tab's full `PaceStrip` (`budget-tab.tsx`).
 - No change to the near-daily-cap nudge, the catch-up nudge, or the quick
   expense form's own figures.
-- No per-trip override of the setting.
+- No workspace-level default for the setting.
 - No AI involvement. The card is pure numbers.
 
 ## Anti-goals
@@ -47,31 +49,30 @@ couple's own total, which this card reads.
 
 ## The setting
 
-- New column `workspaces.budget_period text not null default 'trip'` with a
-  check constraint `in ('day', 'week', 'trip')`. One migration in
+Per trip, set in the new-trip flow next to the budget estimate, editable later.
+
+- New column `trips.budget_period text not null default 'trip'` with a check
+  constraint `in ('day', 'week', 'trip')`. One migration in
   `supabase/migrations/`, re-runnable (add column if not exists; drop-then-add
-  the constraint). Pasted by hand in the Supabase SQL editor.
-- **RLS: only the workspace owner can update `workspaces`**
-  (`workspaces_update_owner`, `20260525000001_phase_2_schema.sql`). A
-  non-owner's update matches zero rows and returns no error, so
-  `setWorkspaceCurrency` already silently does nothing for the partner today.
-  **Decided (user, 2026-11-05): any member may update their workspace.** The
-  same migration drops `workspaces_update_owner` and creates
-  `workspaces_update_members` (`using` and `with check`
-  `public.is_workspace_member(id)`), drop-if-exists first so it re-runs. This
-  also fixes Home currency for the partner; the accepted cost is that a member
-  can edit any workspace field (e.g. its name).
-- UI on `/profile`, directly under the "Home currency" form, same pattern: its
-  own `<form>` with a `<select>` and a save button, server action
-  `setWorkspaceBudgetPeriod` in `src/lib/workspace/actions.ts` beside
-  `setWorkspaceCurrency`. Label: "Budget check". Options: "Per day",
-  "Per week", "Whole trip". Short helper line explaining it sets what the
-  on-the-road budget card compares.
-- The workspace query (`getCurrentWorkspace`) exposes it as `budgetPeriod`.
-- *Claude's call:* default `'trip'`, so behaviour matches today until the
-  couple chooses otherwise.
-- "Set up when making the profile": there is no separate profile-creation
-  flow, so this means the profile page, the same as Home currency.
+  the constraint). Pasted by hand in the Supabase SQL editor. Existing trips get
+  `'trip'`, matching today's `PaceLine`.
+- RLS: `trips` already allows any workspace member to update (resynced
+  2026-06-14), so no policy change.
+- **New trip** (`src/app/trips/new/note-page.tsx`): directly under the
+  "Budget" field, a three-way choice "Check budget: per day / per week / whole
+  trip", default whole trip. It joins the form draft (`new-trip-form.tsx`) and
+  `createTrip` writes `budget_period`. Shown whether or not the trip has dates
+  (a dream can carry it until it gets dates).
+- **Edit** (`src/app/trips/[slug]/edit/edit-trip-form.tsx`): the same choice,
+  next to the trip's currency fields; the trip update action writes it.
+- The trip query used by `/on-the-road` exposes it as `budgetPeriod`.
+- Profile page: no change.
+- *Claude's call:* the control is three small pill buttons styled like the
+  form's other choices rather than a `<select>`; exact copy is the builder's.
+- Not in this slice: the workspace `update` RLS is owner-only
+  (`workspaces_update_owner`), so the partner cannot save Home currency on
+  `/profile` (the update silently matches zero rows). Logged to `docs/TODO.md`
+  as its own item; it no longer blocks this design.
 
 ## The card
 
@@ -136,8 +137,7 @@ must reuse the same spread so the trip figure and the budget tab agree.
 ## Docs to update when built
 
 - `docs/DECISIONS.md`: a row superseding the 2026-08-03 "budget dropped from
-  the box" cut, stating why (card replaces `PaceLine`; number shows once), and
-  a row for workspace updates opening from owner to any member.
+  the box" cut, stating why (card replaces `PaceLine`; number shows once).
 - `docs/TODO.md`: entry with the in-app checklist below.
 
 ## Left to the builder
@@ -153,28 +153,31 @@ Verified by Claude:
    server runs) or the Vercel preview build passes.
 2. Migration re-runs without error (idempotent by construction: if-not-exists
    column, drop-then-add constraint and policies). After pasting,
-   `select policyname from pg_policies where tablename = 'workspaces'` lists
-   `workspaces_update_members` and not `workspaces_update_owner`.
+   `select budget_period, count(*) from trips group by 1` returns only
+   `trip` for existing rows.
 3. Pure period function: for a 10-day trip, flat €1,000 on-the-road budget,
    today day 9, one €120 expense on day 8 and nothing on day 9:
    - day: planned 100, spent 0, delta -100;
    - week (week 2 = days 8–10, watermark day 8): planned 100, spent 120,
      delta +20;
    - trip: equals `budgetPace`'s `deltaCents` for the same input.
-4. `setWorkspaceBudgetPeriod` rejects values outside day/week/trip.
+4. `createTrip` and the trip update action reject values outside
+   day/week/trip.
 5. `PaceLine` no longer rendered on `/on-the-road`.
 
 Verified by the user in-app:
-1. `/profile` shows "Budget check" under Home currency; saving "Per day" sticks
-   after reload, and the partner sees the same value. The **partner** (not the
-   owner) can also change it, and Home currency, and it sticks.
-2. On the road with "Whole trip": the box has a budget card after weather with
+1. New trip: the budget step shows the per day / per week / whole trip choice
+   under the Budget field, defaulting to whole trip; creating a trip with
+   "per day" saves it (visible in the trip's edit form).
+2. Edit trip: changing the choice sticks after reload; the partner sees the
+   same value and can change it too.
+3. On the road with "Whole trip": the box has a budget card after weather with
    the same over/under `PaceLine` used to show; `PaceLine` is gone below.
-3. With "Per day": the card reads "€X left today" before logging anything
+4. With "Per day": the card reads "€X left today" before logging anything
    today; logging an expense lowers it; overspending turns it clay "€X over
    today".
-4. With "Per week": the card reads over/under "this week" with "as of" the last
+5. With "Per week": the card reads over/under "this week" with "as of" the last
    logged day.
-5. A trip with no estimate shows no budget card.
-6. With the assistant off, the budget card still shows.
-7. Phone viewport: card fits the box; dots include the budget card.
+6. A trip with no estimate shows no budget card.
+7. With the assistant off, the budget card still shows.
+8. Phone viewport: card fits the box; dots include the budget card.
