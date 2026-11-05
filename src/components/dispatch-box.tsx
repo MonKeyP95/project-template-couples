@@ -3,6 +3,8 @@
 import * as React from "react"
 
 import { WeatherCard } from "@/components/weather-card"
+import { BudgetCard } from "@/components/budget-card"
+import type { PeriodCheck } from "@/lib/trips/budget-period"
 import {
   DispatchItemCard,
   type DispatchDay,
@@ -69,6 +71,7 @@ export function DispatchBox({
   weather,
   items,
   storageKey,
+  budget,
   tripId,
   tripSlug,
   today,
@@ -77,6 +80,8 @@ export function DispatchBox({
 }: {
   weather: Weather | null
   items: DispatchItem[]
+  /** The trip's budget check; null when there is no estimate or no running trip. */
+  budget: PeriodCheck | null
   /** Distinguishes one trip-day from another in localStorage. */
   storageKey: string
   tripId: string
@@ -86,9 +91,9 @@ export function DispatchBox({
   className?: string
 }) {
   const isClient = useIsClient()
-  const ctx = { tripId, tripSlug, today, days }
+  const ctx = { tripId, tripSlug, today, days, budget }
 
-  if (!weather && items.length === 0) return null
+  if (!weather && items.length === 0 && !budget) return null
 
   // Server and hydration render the first card, static and collapsed. The live
   // deck takes over immediately after, which is where the random start is
@@ -120,10 +125,12 @@ interface CardContext {
   tripSlug: string
   today: string
   days: DispatchDay[]
+  budget: PeriodCheck | null
 }
 
-/** The deck in order: weather, then today's findings. Weather is not pressable;
- * every item is. `expanded` is a deck index, so the weather offset applies. */
+/** The deck in order: weather, budget, then today's findings. Weather and
+ * budget are not pressable; every item is. `expanded` is a deck index, so their
+ * offset applies. */
 function buildCards(
   weather: Weather | null,
   items: DispatchItem[],
@@ -131,9 +138,10 @@ function buildCards(
   expanded: number | null,
   onToggle: (deckIndex: number | null) => void,
 ): React.ReactNode[] {
-  const offset = weather ? 1 : 0
+  const offset = (weather ? 1 : 0) + (ctx.budget ? 1 : 0)
   return [
     ...(weather ? [<WeatherCard key="weather" weather={weather} />] : []),
+    ...(ctx.budget ? [<BudgetCard key="budget" check={ctx.budget} />] : []),
     ...items.map((item, i) => (
       <DispatchItemCard
         key={`item-${i}`}
@@ -165,7 +173,11 @@ function LiveDeck({
 }) {
   const reduced = useReducedMotion()
   const [index, setIndex] = React.useState(() =>
-    pickStart(storageKey, (weather ? 1 : 0) + items.length, weather !== null),
+    pickStart(
+      storageKey,
+      (weather ? 1 : 0) + (ctx.budget ? 1 : 0) + items.length,
+      weather !== null,
+    ),
   )
   const [paused, setPaused] = React.useState(false)
   const [expanded, setExpanded] = React.useState<number | null>(null)

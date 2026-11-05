@@ -36,7 +36,7 @@ import { computeTripDays } from "@/lib/trips/trip-days"
 import { getBudgetItems } from "@/lib/trips/budget-item-queries"
 import { budgetPace, dayLabel } from "@/lib/trips/budget-pace"
 import { detectUnloggedDays } from "@/lib/nudges/unlogged-days"
-import { PaceLine } from "@/components/budget-pace-strip"
+import { periodCheck } from "@/lib/trips/budget-period"
 import { CatchUpNudge } from "./catch-up-nudge"
 
 import { CurrencyProvider } from "@/components/currency-context"
@@ -204,6 +204,7 @@ export default async function OnTheRoadPage() {
           <DispatchBox
             weather={weather}
             items={dispatch?.items ?? []}
+            budget={pace ? periodCheck(pace, trip.budgetPeriod, today) : null}
             storageKey={`${trip.slug}:${today}`}
             tripId={trip.id}
             tripSlug={trip.slug}
@@ -257,7 +258,6 @@ export default async function OnTheRoadPage() {
 
       {capNudge ? <RoadNudge nudge={capNudge} /> : null}
 
-      {pace ? <PaceLine pace={pace} className="mt-4 block" /> : null}
       {unloggedNudge ? <CatchUpNudge nudge={unloggedNudge} /> : null}
 
       <div id="road-expense">
