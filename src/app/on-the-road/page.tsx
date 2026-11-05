@@ -136,9 +136,7 @@ export default async function OnTheRoadPage() {
   const locationName = todayDay?.locationId
     ? locations.find((l) => l.id === todayDay.locationId)?.name ?? null
     : null
-  const place = locationName ?? trip.country ?? "On the road"
-  // "On the road" is a UI placeholder, not a place to search — fall back to the
-  // trip's country/name instead.
+  const place = locationName ?? trip.country
   const searchDestination = locationName ?? trip.country ?? trip.name
   const weatherPlace = { ...trip, locationName }
   const weather = await getTripWeather(weatherPlace)
@@ -198,9 +196,11 @@ export default async function OnTheRoadPage() {
         <TopoBg tone={tone} opacity={0.12} />
         <div className="relative">
           <Coord>{fullDate}</Coord>
-          <div className="t-display mt-2 text-[36px] leading-none text-foreground">
-            <em>{place}</em>
-          </div>
+          {place ? (
+            <div className="t-display mt-2 text-[36px] leading-none text-foreground">
+              <em>{place}</em>
+            </div>
+          ) : null}
           <DispatchBox
             weather={weather}
             items={dispatch?.items ?? []}

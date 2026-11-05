@@ -49,6 +49,9 @@ const UNIT_DAYS: Record<string, number> = { day: 1, night: 1, week: 7, month: 30
 const NOT_PLACES =
   /^(jan(uary)?|feb(ruary)?|mar(ch)?|apr(il)?|may|june?|july?|aug(ust)?|sep(t(ember)?)?|oct(ober)?|nov(ember)?|dec(ember)?|mon(day)?|tue(sday)?|wed(nesday)?|thu(rsday)?|fri(day)?|sat(urday)?|sun(day)?)$/i
 
+/** Capitalised only because they start the note; never a place. */
+const STARTERS = /^(a|an|the|we|our|my|i|me|us|just|maybe)$/i
+
 function parseDays(t: string): number {
   if (/fortnight/i.test(t)) return 14
   if (/long weekend/i.test(t)) return 3
@@ -85,8 +88,23 @@ function parseWhere(t: string): string {
   const m = t.match(
     /\b(?:in|to|around|across)\s+(?:the\s+)?([A-Z][\w'-]+(?:\s+[A-Z][\w'-]+)*)/,
   )
-  if (!m || NOT_PLACES.test(m[1])) return ""
-  return m[1]
+  if (m && !NOT_PLACES.test(m[1])) return m[1]
+  return parseBareWhere(t)
+}
+
+/**
+ * No "in X": the first capitalised run that isn't the activity, a month or a
+ * weekday ("Copenhagen relaxation"). It lands in the visible Where field, so a
+ * capitalised non-place ("Relaxing weekend") is seen and corrected there.
+ */
+function parseBareWhere(t: string): string {
+  for (const [run] of t.matchAll(/\b[A-Z][\w'-]+(?:\s+[A-Z][\w'-]+)*/g)) {
+    const words = run.split(/\s+/)
+    while (words.length > 0 && STARTERS.test(words[0])) words.shift()
+    const place = words.join(" ")
+    if (place && !NOT_PLACES.test(place) && !parseWhat(place)) return place
+  }
+  return ""
 }
 
 function parseWhat(t: string): string {
