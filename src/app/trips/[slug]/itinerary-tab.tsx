@@ -95,6 +95,8 @@ import { selectionBlock } from "@/lib/trips/itinerary-blocks"
 import { planDrop, restoreDays, toSegments, type DaySegment } from "@/lib/trips/itinerary-slots"
 import { isPlannedRow } from "@/lib/trips/outside-days"
 import { UnplacedDays } from "./unplaced-days"
+import { SUGGESTION_DRAG_PREFIX, SuggestionBox, SuggestionLine } from "./suggestion-box"
+import type { TripSuggestion } from "@/lib/trips/suggestion-types"
 import { moneyRounded } from "@/lib/money"
 import { useCurrency } from "@/components/currency-context"
 import { currencyOptions } from "@/lib/fx/currency-list"
@@ -298,6 +300,7 @@ export function ItineraryTab({
   categories,
   members,
   currentPersonId,
+  suggestions,
 }: {
   tripId: string
   tripSlug: string
@@ -320,6 +323,7 @@ export function ItineraryTab({
   categories: ExpenseCategoryRow[]
   members: Record<string, MemberToneEntry>
   currentPersonId: string
+  suggestions: TripSuggestion[]
 }) {
   const { currency } = useCurrency()
   const [days, setDays] = React.useState<ItineraryDay[]>(initialItems)
@@ -510,6 +514,9 @@ export function ItineraryTab({
   const [dragId, setDragId] = React.useState<string | null>(null)
   const dragDay = dragId ? days.find((d) => d.id === dragId) : undefined
   const dragUnplaced = dragId ? unplaced.find((d) => d.id === dragId) : undefined
+  const dragSuggestion = dragId?.startsWith(SUGGESTION_DRAG_PREFIX)
+    ? suggestions.find((s) => SUGGESTION_DRAG_PREFIX + s.id === dragId)
+    : undefined
 
   function onDragStart(e: DragStartEvent) {
     setDragId(String(e.active.id))
@@ -560,6 +567,7 @@ export function ItineraryTab({
   function onDragEnd(e: DragEndEvent) {
     setDragId(null)
     if (!e.over) return
+    if (String(e.active.id).startsWith(SUGGESTION_DRAG_PREFIX)) return
     const placing = unplaced.find((d) => d.id === e.active.id)
     if (placing) {
       placeBack(placing, String(e.over.id))
@@ -646,6 +654,23 @@ export function ItineraryTab({
     tripStartDate !== null && tripActive(today, tripStartDate, tripEndDate ?? tripStartDate)
   // A dream has no today: 0 sits before every day, so nothing reads as past.
   const todayIndex = tripStartDate === null ? 0 : dayIndexOf(today, tripStartDate)
+
+  // A suggestion shows on its day only while that day is still blank; once
+  // the couple fills the day by hand, it moves to the box.
+  const blankIndexes = new Set(days.filter((d) => !isPlannedRow(d)).map((d) => d.dayIndex))
+  const onDaySuggestions = new Map<number, TripSuggestion[]>()
+  const boxSuggestions: TripSuggestion[] = []
+  for (const s of suggestions) {
+    if (s.dayIndex !== null && blankIndexes.has(s.dayIndex)) {
+      onDaySuggestions.set(s.dayIndex, [...(onDaySuggestions.get(s.dayIndex) ?? []), s])
+    } else {
+      boxSuggestions.push(s)
+    }
+  }
+  const suggest: SuggestContext = {
+    onDay: onDaySuggestions,
+    open: () => {},
+  }
   const plan =
     tripStartDate === null ? null : planFloor(today, tripStartDate, tripEndDate ?? tripStartDate)
   const floorIndex = plan === null || tripStartDate === null ? null : dayIndexOf(plan, tripStartDate)
@@ -919,6 +944,7 @@ export function ItineraryTab({
                     selection={selection}
                     scopeKey="loose"
                     orderedIds={looseIds}
+                    suggest={suggest}
                   />
                 </div>
               )
@@ -1108,6 +1134,7 @@ export function ItineraryTab({
                           selection={selection}
                           scopeKey={group.key}
                           orderedIds={[...group.days].sort(byIndex).map((d) => d.id)}
+                          suggest={suggest}
                         />
                         )
 
@@ -1219,6 +1246,7 @@ export function ItineraryTab({
                 onDragEnd={onDragEnd}
                 onDragCancel={() => setDragId(null)}
               >
+                <SuggestionBox suggestions={boxSuggestions} tripSlug={tripSlug} />
                 <SortableContext items={liveLooseIds} strategy={verticalListSortingStrategy}>
                   {rendered}
                 </SortableContext>
@@ -1232,6 +1260,13 @@ export function ItineraryTab({
                         {dragDay.date}
                       </div>
                       <div className="text-[14px] text-foreground">{dragDay.title || daySummary(dragDay)}</div>
+                    </div>
+                  ) : dragSuggestion ? (
+                    <div className="rounded-lg border border-sea bg-card px-3.5 py-2 shadow-md">
+                      <div className="font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
+                        Suggestion
+                      </div>
+                      <div className="text-[14px] text-foreground">{dragSuggestion.title}</div>
                     </div>
                   ) : dragUnplaced ? (
                     <div className="rounded-lg border border-sea bg-card px-3.5 py-2 shadow-md">
@@ -1324,6 +1359,7 @@ function DaySegmentView({
   selection,
   scopeKey,
   orderedIds,
+  suggest,
 }: {
   seg: DaySegment
   tripId: string
@@ -1346,6 +1382,7 @@ function DaySegmentView({
   /** Selection scope (location key) and its days in date order. */
   scopeKey: string
   orderedIds: string[]
+  suggest: SuggestContext
 }) {
   const cards = seg.days.map((day) => {
     const cardProps = {
@@ -1368,6 +1405,8 @@ function DaySegmentView({
       selected: selection.selected.has(day.id),
       onSelectStart: (shift: boolean, x: number, y: number) =>
         selection.begin(scopeKey, orderedIds, day.id, shift, x, y),
+      daySuggestions: suggest.onDay.get(day.dayIndex) ?? [],
+      onOpenSuggestion: (s: TripSuggestion) => suggest.open(s, day.id),
     }
     return sortable ? (
       <SortableDayCard key={day.id} id={day.id} {...cardProps} />
@@ -1420,6 +1459,13 @@ function DaySegmentView({
   return <>{cards}</>
 }
 
+/** What every day needs from the suggestion flow. */
+interface SuggestContext {
+  /** Suggestions by the blank day they sit on. */
+  onDay: Map<number, TripSuggestion[]>
+  open: (s: TripSuggestion, dayId: string) => void
+}
+
 interface DayCardProps {
   day: ItineraryDay
   tripId: string
@@ -1440,6 +1486,8 @@ interface DayCardProps {
   currentPersonId: string
   selected: boolean
   onSelectStart: (shift: boolean, x: number, y: number) => void
+  daySuggestions: TripSuggestion[]
+  onOpenSuggestion: (s: TripSuggestion) => void
 }
 
 function SortableDayCard({ id, ...rest }: DayCardProps & { id: string }) {
@@ -1482,6 +1530,8 @@ function DayCard({
   currentPersonId,
   selected,
   onSelectStart,
+  daySuggestions,
+  onOpenSuggestion,
 }: DayCardProps) {
   if (isEditing) {
     return (
@@ -1512,6 +1562,8 @@ function DayCard({
       currentPersonId={currentPersonId}
       selected={selected}
       onSelectStart={onSelectStart}
+      daySuggestions={daySuggestions}
+      onOpenSuggestion={onOpenSuggestion}
     />
   )
 }
@@ -1533,6 +1585,8 @@ function DayView({
   currentPersonId,
   selected,
   onSelectStart,
+  daySuggestions,
+  onOpenSuggestion,
 }: {
   day: ItineraryDay
   tripId: string
@@ -1550,6 +1604,8 @@ function DayView({
   currentPersonId: string
   selected: boolean
   onSelectStart: (shift: boolean, x: number, y: number) => void
+  daySuggestions: TripSuggestion[]
+  onOpenSuggestion: (s: TripSuggestion) => void
 }) {
   // Which event's panel is open (press the event), and whether that panel's
   // expense form has been asked for. Only one event is open at a time.
@@ -1599,6 +1655,7 @@ function DayView({
         } ${dimBefore !== null && day.dayIndex < dimBefore ? "opacity-60" : ""}`}
       >
         {empty ? (
+          <>
           <button
             type="button"
             onClick={onStartEdit}
@@ -1607,6 +1664,10 @@ function DayView({
             <span>free · plan this day</span>
             <span className="tracking-[0.06em] normal-case">day {Number(day.d)}</span>
           </button>
+          {daySuggestions.map((s) => (
+            <SuggestionLine key={s.id} suggestion={s} onOpen={() => onOpenSuggestion(s)} />
+          ))}
+          </>
         ) : (
         <>
         <div className="mb-1.5 flex items-center justify-between">
