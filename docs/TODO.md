@@ -17,6 +17,9 @@
   10. Looks right on a phone viewport.
   11. A day whose plan names both surfing and diving shows two cards, Surf and Dive, for that day. (Fix 2026-11-06: the matcher used to stop at the first activity.)
 
+**Tide labels time only: implemented 2026-11-06; lint + `tsc --noEmit` clean; unverified in app; no migration.** Dropped "High"/"Low" beside each dot in `tide-chart.tsx` (crowded on a phone; the curve shows which is which). Labels stay above highs and below lows.
+  1. Each dot on the tide curve shows only its time (e.g. "06:00"), on a phone and on desktop.
+
 **Open card cut off on mobile + tide as a chart: implemented 2026-11-06; verified in-app 2026-11-06 (all 7 checks); lint + `tsc --noEmit` clean; no migration.** Cut: the deck stacks cards in one grid cell whose `auto` column grew to the open card's widest row (dropdown + "Check another place" input at its ~160px default width + check, ~295px vs ~263px on a 375px phone) and the box's `overflow-hidden` clipped it; fix `grid-cols-1` in `dispatch-box.tsx` caps the column at the box width. Tide: `Conditions.tideLevels` (hourly sea level) drawn by `components/tide-chart.tsx`, hour across, level up, a dot + "High/Low HH:00" at each turn, 00/06/12/18 under it; the y axis shows the day's highest and lowest level in metres from mean sea level (e.g. "+0.9 m" / "-0.8 m").
   1. On a phone, an opened Surf or Dive card sits fully inside the box; nothing is cut on the right, including the check row.
   2. The tide shows as a curve with a labelled dot at each high and low, times roughly matching a local tide table (hourly data, so within the hour).

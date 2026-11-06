@@ -29,7 +29,7 @@ const metres = (v: number) => `${v > 0 ? "+" : ""}${v.toFixed(1)} m`
 
 /**
  * One day of tide as a curve: hour across, sea level up, each high and low
- * marked with its time. The y axis shows the day's highest and lowest level,
+ * marked with its time; the curve shows which is which. The y axis shows the day's highest and lowest level,
  * in metres from mean sea level.
  */
 export function TideChart({
@@ -86,7 +86,7 @@ export function TideChart({
                     transform: `translate(${anchorShift(p.x)}, ${high ? "calc(-100% - 6px)" : "6px"})`,
                   }}
                 >
-                  {high ? "High" : "Low"} {t.time}
+                  {t.time}
                 </span>
               </div>
             )
