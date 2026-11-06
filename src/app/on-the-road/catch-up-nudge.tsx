@@ -10,11 +10,11 @@ export function CatchUpNudge({ nudge }: { nudge: Nudge }) {
     <div className="mt-4 rounded-[14px] border border-l-2 border-border border-l-moss bg-card px-4 py-3">
       <NudgeLine
         nudge={nudge}
-        onHelp={() =>
-          document
-            .getElementById("road-expense")
-            ?.scrollIntoView({ behavior: "smooth" })
-        }
+        onHelp={() => {
+          const box = document.getElementById("road-expense") as HTMLDetailsElement
+          box.open = true
+          box.scrollIntoView({ behavior: "smooth" })
+        }}
       />
     </div>
   )

@@ -9,7 +9,6 @@ import { prefillFromReading, type ReceiptReading } from "@/lib/trips/receipt-typ
 import { ReceiptCameraButton } from "@/components/receipts/receipt-camera-button"
 import { Label } from "@/components/together"
 import type { ExpenseCategoryRow } from "@/lib/trips/expense-types"
-import { money } from "@/lib/money"
 import { useCurrency } from "@/components/currency-context"
 import { CurrencyChip } from "@/app/trips/[slug]/currency-chip"
 
@@ -20,7 +19,6 @@ export interface QuickExpenseProps {
   today: string
   currentPersonId: string
   categories: ExpenseCategoryRow[]
-  spentTodayCents: number
   /** Currency of today's location; null = the trip's. */
   locationCurrency: string | null
 }
@@ -31,10 +29,9 @@ export function QuickExpense({
   today,
   currentPersonId,
   categories,
-  spentTodayCents,
   locationCurrency,
 }: QuickExpenseProps) {
-  const { currency, spendCurrency } = useCurrency()
+  const { spendCurrency } = useCurrency()
   const router = useRouter()
   const [name, setName] = React.useState("")
   const [amount, setAmount] = React.useState("")
@@ -94,7 +91,7 @@ export function QuickExpense({
   }
 
   return (
-    <section className="mt-4 rounded-[14px] border border-border bg-card p-5">
+    <div className="px-[18px] py-3">
       <div className="flex items-center gap-3">
         <Label>Expense</Label>
         <CurrencyChip
@@ -105,9 +102,6 @@ export function QuickExpense({
           disabled={isPending}
           className="items-center gap-2"
         />
-        <span className="t-num ml-auto text-[13px] text-muted-foreground">
-          {money(spentTodayCents, currency)} today
-        </span>
       </div>
       <form onSubmit={submit} className="mt-3 flex flex-col gap-2.5">
         <div className="flex items-start gap-2">
@@ -163,6 +157,6 @@ export function QuickExpense({
           <div className="font-mono text-[10px] text-clay">{error}</div>
         ) : null}
       </form>
-    </section>
+    </div>
   )
 }

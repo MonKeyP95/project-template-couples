@@ -1,6 +1,9 @@
+import type { ReactNode } from "react"
 import { MapPin } from "lucide-react"
 
+import { Bar, Label } from "@/components/together"
 import { BoxCard, BoxSection } from "@/components/collapsible-box"
+import { moneyRounded } from "@/lib/money"
 import { daySummary, type ItineraryDay } from "@/lib/trips/itinerary-types"
 import type { LookingAhead } from "@/lib/trips/looking-ahead"
 import { AddTodayEvent } from "./add-today-event"
@@ -30,6 +33,94 @@ export function RoadHeaderLine({
         {dateLabel}
         {tripDays > 0 ? ` · day ${dayOfTrip} / ${tripDays}` : null}
       </span>
+    </div>
+  )
+}
+
+/** Today's spend against today's share of the budget; opens to the expense form. */
+export function MoneyCard({
+  spentTodayCents,
+  dayBudgetCents,
+  currency,
+  children,
+}: {
+  spentTodayCents: number
+  /** Today's planned share; null when the trip has no budget estimate. */
+  dayBudgetCents: number | null
+  currency: string
+  children: ReactNode
+}) {
+  const planned = dayBudgetCents ?? 0
+  const over = planned > 0 && spentTodayCents > planned
+  const pct = planned > 0 ? Math.round((spentTodayCents / planned) * 100) : 0
+  return (
+    <BoxCard className="mt-4">
+      <BoxSection
+        id="road-expense"
+        summary={
+          <div className="py-2">
+            <div className="flex items-baseline justify-between gap-3">
+              <Label>Spent today</Label>
+              {planned > 0 ? (
+                <span className="font-mono text-[11px] text-muted-foreground">
+                  of about {moneyRounded(planned, currency)}
+                </span>
+              ) : null}
+            </div>
+            <div className="mt-1 font-serif text-[34px] leading-none text-foreground">
+              {moneyRounded(spentTodayCents, currency)}
+            </div>
+            {planned > 0 ? (
+              <>
+                <Bar pct={pct} tone={over ? "clay" : "sea"} className="mt-3" />
+                <div className="mt-1.5 text-right font-mono text-[11px] text-muted-foreground">
+                  {moneyRounded(Math.abs(planned - spentTodayCents), currency)}{" "}
+                  {over ? "over today" : "left today"}
+                </div>
+              </>
+            ) : null}
+          </div>
+        }
+      >
+        {children}
+      </BoxSection>
+    </BoxCard>
+  )
+}
+
+/** Today's documents and notes, one collapsible row each. */
+export function KeepCard({
+  documentsToday,
+  notesToday,
+  documents,
+  notes,
+}: {
+  documentsToday: number
+  notesToday: number
+  documents: ReactNode
+  notes: ReactNode
+}) {
+  return (
+    <BoxCard className="mt-4">
+      <BoxSection summary={<SummaryRow label="Documents" detail={todayCount(documentsToday)} />}>
+        {documents}
+      </BoxSection>
+      <BoxSection summary={<SummaryRow label="Notes" detail={todayCount(notesToday)} />}>
+        {notes}
+      </BoxSection>
+    </BoxCard>
+  )
+}
+
+function todayCount(n: number): string {
+  return n === 0 ? "nothing today" : `${n} today`
+}
+
+function SummaryRow({ label, detail }: { label: string; detail: string }) {
+  return (
+    <div className="flex items-baseline justify-between gap-3">
+      <Label>{label}</Label>
+      <span className="font-mono text-[11px] text-muted-foreground">{detail}</span>
     </div>
   )
 }

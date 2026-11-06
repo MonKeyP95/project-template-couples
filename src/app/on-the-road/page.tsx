@@ -50,7 +50,8 @@ import { QuickExpense } from "./quick-expense"
 import { QuickNote } from "./quick-note"
 import { RoadPlaceDoor } from "./find-a-place"
 import { RoadNudge } from "./road-nudge"
-import { RoadHeaderLine, TodayCard } from "./road-cards"
+import { KeepCard, MoneyCard, RoadHeaderLine, TodayCard } from "./road-cards"
+import { documentsForDay } from "@/lib/trips/document-types"
 
 const WEEKDAY_FMT = new Intl.DateTimeFormat("en-GB", {
   weekday: "short",
@@ -249,36 +250,47 @@ export default async function OnTheRoadPage() {
 
       {unloggedNudge ? <CatchUpNudge nudge={unloggedNudge} /> : null}
 
-      <div id="road-expense">
+      <MoneyCard
+        spentTodayCents={spentTodayCents}
+        dayBudgetCents={
+          pace
+            ? periodCheck(pace, "day", today, {
+                budgetCents: trip.plannedBudgetCents,
+                spentCents: tripSpentCents,
+              }).plannedCents
+            : null
+        }
+        currency={trip.homeCurrency}
+      >
         <QuickExpense
           tripId={trip.id}
           tripSlug={trip.slug}
           today={today}
           currentPersonId={workspace.myPersonId ?? ""}
           categories={categories}
-          spentTodayCents={spentTodayCents}
           locationCurrency={
             locations.find((l) => l.id === todayDay?.locationId)?.currency ?? null
           }
         />
-      </div>
+        <div className="px-[18px] pb-3 empty:hidden">
+          <ReceiptPile
+            tripSlug={trip.slug}
+            receipts={receipts}
+            expenses={expenses}
+            nowMs={receiptClockMs()}
+          />
+        </div>
+      </MoneyCard>
 
-      <div className="mt-4 empty:hidden">
-        <ReceiptPile
-          tripSlug={trip.slug}
-          receipts={receipts}
-          expenses={expenses}
-          nowMs={receiptClockMs()}
-        />
-      </div>
-
-      <DocumentsToday documents={documents} today={today} tripId={trip.id} tripSlug={trip.slug} />
-
-      <QuickNote
-        tripId={trip.id}
-        tripSlug={trip.slug}
-        today={today}
-        notes={notes}
+      <KeepCard
+        documentsToday={documentsForDay(documents, today).length}
+        notesToday={notes.length}
+        documents={
+          <DocumentsToday documents={documents} today={today} tripId={trip.id} tripSlug={trip.slug} />
+        }
+        notes={
+          <QuickNote tripId={trip.id} tripSlug={trip.slug} today={today} notes={notes} />
+        }
       />
       </div>
     </main>

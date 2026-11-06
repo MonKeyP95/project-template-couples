@@ -17,6 +17,18 @@
   10. Looks right on a phone viewport.
   11. A day whose plan names both surfing and diving shows two cards, Surf and Dive, for that day. (Fix 2026-11-06: the matcher used to stop at the first activity.)
 
+**On-the-road collapsed layout (like the mobile trip page): implemented 2026-11-06; lint + `pnpm build` clean; unverified in app; no migration.** The topo hero is replaced by a ruled header line (place, date, day N / M). Order: assistant (unchanged), **Feed** card (the DispatchBox deck as before — rotates, each card still opens and holds it), **Today** card (open by default; closed row = title + "next · HH:MM event"; Looking ahead is its second row), **Money** card (spent today big + bar vs today's budget share; opens to the expense form + receipts to match), **Documents / Notes** card (one row each with today's count). Nudges stay as their own lines above Money; catch-up's help tap now also opens the Money row. Reuses `BoxCard`/`BoxSection` (gained `defaultOpen` + `id`). Files: `on-the-road/{page,road-cards,looking-ahead-panel,today-upcoming,quick-expense,quick-note,documents-today,catch-up-nudge}.tsx`, `collapsible-box.tsx`. In-app checks:
+  1. Top of the page is the members line, then a thin ruled strip: place left, "Fri 06 Nov · day N / M" right. No big map box.
+  2. The Feed card rotates as before; opening a weather/surf/news card shows its full detail and stops the rotation.
+  3. Today is open on load, with events, past-event ratings and "add event". Closing it shows the title and a "next · ..." line (or "day's done").
+  4. Looking ahead is a row under Today; closed it shows the first item, open it shows both lines.
+  5. The Money row shows today's spend in big type; with a budget, a bar and "X left today" / "X over today". Opening it shows the expense form; logging an expense updates the big number.
+  6. Unmatched receipts show inside the opened Money row.
+  7. The catch-up nudge's help tap opens the Money row and scrolls to it.
+  8. Documents and Notes rows show today's counts; opened, search/add documents and save a note still work.
+  9. Adding an event or logging an expense leaves the rows you opened or closed as they were (Today included).
+  10. Looks right on a phone viewport and on desktop.
+
 **News cards closed show the headline only: implemented 2026-11-06; verified in-app 2026-11-06; lint + `tsc --noEmit` clean; no migration.** The deck is as tall as its tallest card (one grid cell), so a closed news card's body sized the whole box. `dispatch-item-card.tsx` now shows the body only when open; the closed title is clamped to 2 lines. Applies on every screen size.
   1. On a phone, a closed news card shows its label, headline and the time/source line, no body text.
   2. With all cards closed, the box is clearly shorter than before and stays the same height as it rotates.
