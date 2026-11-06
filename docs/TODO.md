@@ -17,6 +17,11 @@
   10. Looks right on a phone viewport.
   11. A day whose plan names both surfing and diving shows two cards, Surf and Dive, for that day. (Fix 2026-11-06: the matcher used to stop at the first activity.)
 
+**News cards closed show the headline only: implemented 2026-11-06; lint + `tsc --noEmit` clean; unverified in app; no migration.** The deck is as tall as its tallest card (one grid cell), so a closed news card's body sized the whole box. `dispatch-item-card.tsx` now shows the body only when open; the closed title is clamped to 2 lines. Applies on every screen size.
+  1. On a phone, a closed news card shows its label, headline and the time/source line, no body text.
+  2. With all cards closed, the box is clearly shorter than before and stays the same height as it rotates.
+  3. Opening a news card shows the full headline, the body, and add to a date / learn more.
+
 **Tide labels time only: implemented 2026-11-06; lint + `tsc --noEmit` clean; unverified in app; no migration.** Dropped "High"/"Low" beside each dot in `tide-chart.tsx` (crowded on a phone; the curve shows which is which). Labels stay above highs and below lows. Below `sm` (640px) the label drops ":00" too.
   1. On a phone each dot on the tide curve shows only the hour (e.g. "06"); on desktop (640px and wider) it shows "06:00".
 

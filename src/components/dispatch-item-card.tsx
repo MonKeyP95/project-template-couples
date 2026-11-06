@@ -16,9 +16,9 @@ function eventCategory(item: DispatchItem): string | undefined {
 }
 
 /**
- * One dispatch card. Read-only until pressed; expanded it offers the two things
- * a found event is actually for — putting it on a date, and asking more about
- * it. Expansion is owned by the deck (it stops the rotation), everything else
+ * One dispatch card. Closed it shows the headline; expanded it adds the body
+ * and offers the two things a found event is actually for — putting it on a
+ * date, and asking more about it. Expansion is owned by the deck (it stops the rotation), everything else
  * lives here.
  */
 export function DispatchItemCard({
@@ -103,10 +103,16 @@ export function DispatchItemCard({
         aria-expanded={expanded}
         className="mt-1 block w-full border-0 bg-transparent p-0 text-left"
       >
-        <span className="block text-[13px] text-foreground">{item.title}</span>
-        <span className="mt-0.5 block text-[12px] leading-snug text-muted-foreground">
-          {item.body}
+        <span className={`block text-[13px] text-foreground ${expanded ? "" : "line-clamp-2"}`}>
+          {item.title}
         </span>
+        {/* Closed shows the headline only: the deck is as tall as its tallest
+            card, so a closed body would size the whole box. */}
+        {expanded ? (
+          <span className="mt-0.5 block text-[12px] leading-snug text-muted-foreground">
+            {item.body}
+          </span>
+        ) : null}
       </button>
       <div className="mt-1.5 flex flex-wrap items-center gap-2 font-mono text-[10px] uppercase tracking-[0.12em] text-muted-foreground">
         <span>{item.window}</span>
