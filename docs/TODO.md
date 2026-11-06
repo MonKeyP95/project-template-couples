@@ -4,7 +4,7 @@
 
 **Next up: work on the AI itinerary planner** (`itinerary-planner` agent, `src/lib/ai/agents/`). Noted 2026-11-03.
 
-**Opening the app lands on on-the-road during an active trip: implemented 2026-11-06; lint + typecheck clean; build not run (dev server up); unverified in app.** Sign-in already did this; a signed-in cold open of `/` showed the marketing page, and `/signin` while signed in bounced straight to `/home`. Now `/` redirects signed-in users via `defaultLanding()` (moved to `src/lib/auth/landing.ts`), and the proxy sends signed-in `/signin`/`/signup` to `/`. `/home` itself is unchanged so the nav Home link still works mid-trip. In-app checks:
+**Opening the app lands on on-the-road during an active trip: implemented 2026-11-06 (PR #97); lint + typecheck + Vercel build clean; verified in-app 2026-11-06.** Sign-in already did this; a signed-in cold open of `/` showed the marketing page, and `/signin` while signed in bounced straight to `/home`. Now `/` redirects signed-in users via `defaultLanding()` (moved to `src/lib/auth/landing.ts`), and the proxy sends signed-in `/signin`/`/signup` to `/`. `/home` itself is unchanged so the nav Home link still works mid-trip. In-app checks:
   1. Signed in, during an active trip, opening the site root lands on On the road.
   2. Same with no active trip lands on Home.
   3. Signed out, the root still shows the landing page.
