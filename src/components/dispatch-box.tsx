@@ -1,6 +1,7 @@
 "use client"
 
 import * as React from "react"
+import { ChevronLeft, ChevronRight } from "lucide-react"
 
 import { WeatherCard } from "@/components/weather-card"
 import { BudgetCard } from "@/components/budget-card"
@@ -291,8 +292,10 @@ function Frame({
   return (
     <div className={className} {...handlers}>
       {/* Every card occupies the same grid cell, so the box is as tall as its
-          tallest card and the page never reflows as it rotates. */}
-      <div className="grid">
+          tallest card and the page never reflows as it rotates. One column
+          capped at the box width: an auto column grows to the widest card's
+          content and the box clips it. */}
+      <div className="grid grid-cols-1">
         {cards.map((card, i) => (
           <div
             key={i}
@@ -304,7 +307,13 @@ function Frame({
         ))}
       </div>
       {cards.length > 1 ? (
-        <div className="mt-2 flex justify-center gap-1.5">
+        <div className="mt-2 flex items-center justify-center gap-1.5">
+          <StepButton
+            label="Previous card"
+            onClick={() => onSelect?.((index - 1 + cards.length) % cards.length)}
+          >
+            <ChevronLeft className="size-4" />
+          </StepButton>
           {cards.map((_, i) => (
             <button
               key={i}
@@ -317,9 +326,36 @@ function Frame({
               }`}
             />
           ))}
+          <StepButton
+            label="Next card"
+            onClick={() => onSelect?.((index + 1) % cards.length)}
+          >
+            <ChevronRight className="size-4" />
+          </StepButton>
         </div>
       ) : null}
     </div>
+  )
+}
+
+function StepButton({
+  label,
+  onClick,
+  children,
+}: {
+  label: string
+  onClick: () => void
+  children: React.ReactNode
+}) {
+  return (
+    <button
+      type="button"
+      aria-label={label}
+      onClick={onClick}
+      className="rounded-full p-1 text-muted-foreground transition-colors hover:text-foreground"
+    >
+      {children}
+    </button>
   )
 }
 

@@ -10,6 +10,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { TideChart } from "@/components/tide-chart"
 import type { Activity } from "@/lib/conditions/activity"
 import type {
   Conditions,
@@ -144,15 +145,16 @@ function OpenBody({
       <div className="mt-2">
         <SlotTable conditions={shown} />
       </div>
-      <div className="mt-3 space-y-1 border-t border-border pt-3">
-        <Line label="Tide approx." value={tideText(shown)} />
-        {shown.activity === "surf" ? null : (
-          <>
-            <Line label="Water" value={num(shown.waterC, 0, "°")} />
-            <Line label="Rain, last 3 days" value={num(shown.rainMm3d, 0, " mm")} />
-          </>
-        )}
+      <div className="mt-3 border-t border-border pt-3">
+        <span className={LABEL}>Tide approx.</span>
+        <TideChart levels={shown.tideLevels} turns={shown.tides} />
       </div>
+      {shown.activity === "surf" ? null : (
+        <div className="mt-3 space-y-1 border-t border-border pt-3">
+          <Line label="Water" value={num(shown.waterC, 0, "°")} />
+          <Line label="Rain, last 3 days" value={num(shown.rainMm3d, 0, " mm")} />
+        </div>
+      )}
       {card.planned.includes(shown.activity) ? null : (
         <AddToPlan
           key={shown.activity}
@@ -336,13 +338,6 @@ function swellText(slot: ConditionsSlot): string {
 
 function windText(slot: ConditionsSlot): string {
   return `${compass(slot.windDirDeg)} ${num(slot.windKph, 0, " km/h")}`
-}
-
-function tideText(conditions: Conditions): string {
-  if (conditions.tides.length === 0) return "-"
-  return conditions.tides
-    .map((t) => `${t.kind === "high" ? "High" : "Low"} ${t.time}`)
-    .join(" · ")
 }
 
 function SlotTable({ conditions }: { conditions: Conditions }) {
