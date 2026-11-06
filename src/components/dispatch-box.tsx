@@ -4,6 +4,8 @@ import * as React from "react"
 
 import { WeatherCard } from "@/components/weather-card"
 import { BudgetCard } from "@/components/budget-card"
+import { ConditionsCard } from "@/components/conditions-card"
+import type { DayConditions } from "@/lib/conditions/get-conditions"
 import type { PeriodCheck } from "@/lib/trips/budget-period"
 import {
   DispatchItemCard,
@@ -72,6 +74,7 @@ const seenKey = (storageKey: string) => `dispatch-seen:${storageKey}`
  */
 export function DispatchBox({
   weather,
+  conditions,
   items,
   storageKey,
   budget,
@@ -83,6 +86,8 @@ export function DispatchBox({
   className,
 }: {
   weather: Weather | null
+  /** Surf or dive days among today and tomorrow; usually empty. */
+  conditions: DayConditions[]
   items: DispatchItem[]
   /** Why there may be no news cards: still fetching, or a quiet day. */
   news: NewsState
@@ -97,7 +102,7 @@ export function DispatchBox({
   className?: string
 }) {
   const isClient = useIsClient()
-  const ctx = { tripId, tripSlug, today, days, budget, news }
+  const ctx = { tripId, tripSlug, today, days, budget, news, conditions }
 
   // Server and hydration render the first card, static and collapsed. The live
   // deck takes over immediately after, which is where the random start is
@@ -131,11 +136,12 @@ interface CardContext {
   days: DispatchDay[]
   budget: PeriodCheck | null
   news: NewsState
+  conditions: DayConditions[]
 }
 
-/** The deck in order: weather, budget, then today's findings (or one empty news
- * card). Weather and budget are not pressable; every item is. `expanded` is a
- * deck index, so their offset applies. */
+/** The deck in order: weather, any surf or dive conditions, budget, then today's
+ * findings (or one empty news card). Weather and budget are not pressable;
+ * conditions and items are. `expanded` is a deck index, so offsets apply. */
 function buildCards(
   weather: Weather | null,
   items: DispatchItem[],
@@ -143,13 +149,22 @@ function buildCards(
   expanded: number | null,
   onToggle: (deckIndex: number | null) => void,
 ): React.ReactNode[] {
-  const offset = 2
+  const offset = 2 + ctx.conditions.length
   return [
     weather ? (
       <WeatherCard key="weather" weather={weather} />
     ) : (
       <EmptyCard key="weather" label="Weather" text="No forecast for here." />
     ),
+    ...ctx.conditions.map((c, i) => (
+      <ConditionsCard
+        key={`conditions-${c.conditions.dayDate}-${c.conditions.activity}`}
+        conditions={c.conditions}
+        dayLabel={c.dayLabel}
+        expanded={expanded === i + 1}
+        onToggle={(next) => onToggle(next ? i + 1 : null)}
+      />
+    )),
     ctx.budget ? (
       <BudgetCard key="budget" check={ctx.budget} />
     ) : (
@@ -195,7 +210,7 @@ function LiveDeck({
 }) {
   const reduced = useReducedMotion()
   const [index, setIndex] = React.useState(() =>
-    pickStart(storageKey, 2 + Math.max(items.length, 1)),
+    pickStart(storageKey, 2 + ctx.conditions.length + Math.max(items.length, 1)),
   )
   const [paused, setPaused] = React.useState(false)
   const [expanded, setExpanded] = React.useState<number | null>(null)

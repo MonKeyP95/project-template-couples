@@ -225,7 +225,7 @@ export const TOOL_REGISTRY: Record<string, Anthropic.Messages.ToolUnion> = {
                 type: "string",
                 enum: ["whats_on", "disrupted", "conditions"],
                 description:
-                  "whats_on: a festival, market, holiday, concert or match. disrupted: a strike, closure, protest or weather warning. conditions: surf, snow, tide, air quality — something they care about doing.",
+                  "whats_on: a festival, market, holiday, concert or match. disrupted: a strike, closure, protest or weather warning. conditions: snow, jellyfish, air quality — something they care about doing. Never surf, swell, diving or tide.",
               },
               title: {
                 type: "string",

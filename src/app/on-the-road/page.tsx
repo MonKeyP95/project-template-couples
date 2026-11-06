@@ -16,6 +16,7 @@ import { getItineraryLocations } from "@/lib/trips/location-queries"
 import { slugToTone } from "@/lib/trips/slug-tone"
 import { formatShortDate, daySummary, isDated } from "@/lib/trips/itinerary-types"
 import { getTripWeather } from "@/lib/weather/get-trip-weather"
+import { getUpcomingConditions } from "@/lib/conditions/day-conditions"
 import { DispatchBox } from "@/components/dispatch-box"
 import { getDispatchForDay } from "@/lib/trips/dispatch-queries"
 import { DispatchTrigger } from "./dispatch-trigger"
@@ -142,6 +143,7 @@ export default async function OnTheRoadPage() {
   const searchDestination = locationName ?? trip.country ?? trip.name
   const weatherPlace = { ...trip, locationName }
   const weather = await getTripWeather(weatherPlace)
+  const conditions = await getUpcomingConditions(trip, days, locations, today)
   const dispatch = await getDispatchForDay(trip.id, today)
 
   return (
@@ -204,6 +206,7 @@ export default async function OnTheRoadPage() {
           ) : null}
           <DispatchBox
             weather={weather}
+            conditions={conditions}
             items={dispatch?.items ?? []}
             budget={
               pace

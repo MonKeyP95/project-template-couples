@@ -7,7 +7,7 @@ import {
   type Weather,
 } from "./get-weather"
 
-interface TripPlace {
+export interface TripPlace {
   lat: number | null
   lng: number | null
   country: string | null
@@ -21,6 +21,8 @@ interface Resolved {
   lng: number
   /** The string that produced these coordinates. */
   label: string
+  /** What the coordinates actually are, e.g. "Ericeira, Lisbon District, PT". */
+  fullName: string
 }
 
 /**
@@ -30,13 +32,13 @@ interface Resolved {
  * forecasting Lisbon for a Madeira trip is the bug this order fixes. Returns
  * the label that produced the hit so callers can show which place they got.
  */
-async function resolveCoords(place: TripPlace): Promise<Resolved | null> {
+export async function resolveCoords(place: TripPlace): Promise<Resolved | null> {
   if (place.locationName) {
-    const geo = await geocodePlace(place.locationName)
+    const geo = await geocodePlace(place.locationName, place.country)
     if (geo) return { ...geo, label: place.locationName }
   }
   if (place.lat != null && place.lng != null) {
-    return { lat: place.lat, lng: place.lng, label: place.name }
+    return { lat: place.lat, lng: place.lng, label: place.name, fullName: place.name }
   }
   const byName = await geocodePlace(place.name)
   if (byName) return { ...byName, label: place.name }
