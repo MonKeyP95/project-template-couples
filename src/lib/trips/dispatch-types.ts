@@ -21,6 +21,16 @@ export interface TripDispatch {
   generatedAt: string
 }
 
+/** One day's news in the box: today always, tomorrow from the evening on. */
+export interface NewsDay {
+  dayDate: string
+  /** "Today" or "Tomorrow". */
+  dayLabel: string
+  items: DispatchItem[]
+  /** "HH:MM" the row was generated, phone time; null while still fetching. */
+  checkedAt: string | null
+}
+
 export const DISPATCH_KIND_LABEL: Record<DispatchKind, string> = {
   whats_on: "What's on",
   disrupted: "Heads up",

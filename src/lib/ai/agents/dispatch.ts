@@ -24,7 +24,7 @@ export interface DispatchQuery {
 }
 
 const SYSTEM = [
-  "You brief a couple on what is happening where they are travelling today.",
+  "You brief a couple on what is happening where they are travelling on one day of their trip.",
   "Never ask questions and never reply conversationally — you cannot receive a reply.",
   "On every request you MUST use the web_search tool first, then call propose_dispatch.",
   "Only three kinds of thing qualify:",
@@ -42,11 +42,11 @@ const SYSTEM = [
 
 function dispatchPrompt(query: DispatchQuery): string {
   return [
-    `Today is ${query.dayDate}. The couple is in ${query.place}.`,
-    query.todayPlan ? `Their plan for today: ${query.todayPlan}.` : "",
+    `The day to brief on is ${query.dayDate}. That day the couple is in ${query.place}.`,
+    query.todayPlan ? `Their plan for that day: ${query.todayPlan}.` : "",
     query.profileBlock ? `What we know about them — ${query.profileBlock}` : "",
     query.tasteDirective,
-    `Search for what is on, what is disrupted, and any conditions in ${query.place} for today and the next few days, then call propose_dispatch.`,
+    `Search for what is on, what is disrupted, and any conditions in ${query.place} for that day and the few days after it, then call propose_dispatch.`,
   ]
     .filter(Boolean)
     .join(" ")

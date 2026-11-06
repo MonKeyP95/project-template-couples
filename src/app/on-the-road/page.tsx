@@ -18,7 +18,7 @@ import { formatShortDate, daySummary, isDated } from "@/lib/trips/itinerary-type
 import { getTripWeather } from "@/lib/weather/get-trip-weather"
 import { getUpcomingConditions } from "@/lib/conditions/day-conditions"
 import { DispatchBox } from "@/components/dispatch-box"
-import { getDispatchForDay } from "@/lib/trips/dispatch-queries"
+import { getNewsDays } from "@/lib/trips/news-days"
 import { DispatchTrigger } from "./dispatch-trigger"
 import {
   getTripExpenseCategories,
@@ -30,7 +30,8 @@ import { DocumentsToday } from "./documents-today"
 import { ReceiptPile } from "@/components/receipts/receipt-pile"
 import { getNotesForDay } from "@/lib/trips/note-queries"
 import { computeLookingAhead } from "@/lib/trips/looking-ahead"
-import { localToday } from "@/lib/time/local-today"
+import { localTimeZone } from "@/lib/time/local-today"
+import { todayInTimeZone } from "@/lib/time/today"
 import { detectNearDailyCap } from "@/lib/nudges/near-daily-cap"
 import { computeTripDays } from "@/lib/trips/trip-days"
 import { getBudgetItems } from "@/lib/trips/budget-item-queries"
@@ -70,7 +71,8 @@ export default async function OnTheRoadPage() {
   const trip = buckets.now[0]
   if (!trip) redirect("/home")
 
-  const today = await localToday()
+  const tz = await localTimeZone()
+  const today = todayInTimeZone(tz)
   const todayDay = await getTodayForTrip(trip.id, today)
   const locations = await getItineraryLocations(trip.id)
   const tone = slugToTone(trip.slug)
@@ -144,7 +146,7 @@ export default async function OnTheRoadPage() {
   const weatherPlace = { ...trip, locationName }
   const weather = await getTripWeather(weatherPlace)
   const conditions = await getUpcomingConditions(trip, days, locations, today)
-  const dispatch = await getDispatchForDay(trip.id, today)
+  const news = await getNewsDays(trip, today, tz)
 
   return (
     <CurrencyProvider
@@ -207,7 +209,7 @@ export default async function OnTheRoadPage() {
           <DispatchBox
             weather={weather}
             conditions={conditions}
-            items={dispatch?.items ?? []}
+            news={news}
             budget={
               pace
                 ? periodCheck(pace, trip.budgetPeriod, today, {
@@ -219,18 +221,22 @@ export default async function OnTheRoadPage() {
             storageKey={`${trip.slug}:${today}`}
             tripId={trip.id}
             tripSlug={trip.slug}
-            today={today}
             days={days.map((d) => ({
               id: d.id,
               dayDate: d.dayDate,
               label: `${d.dow} ${d.dom} ${d.mon}`,
             }))}
-            news={dispatch ? "quiet" : "pending"}
             className="mt-3"
           />
-          {!dispatch ? (
-            <DispatchTrigger tripSlug={trip.slug} dayDate={today} />
-          ) : null}
+          {news
+            .filter((day) => day.checkedAt === null)
+            .map((day) => (
+              <DispatchTrigger
+                key={day.dayDate}
+                tripSlug={trip.slug}
+                dayDate={day.dayDate}
+              />
+            ))}
         </div>
       </section>
 
