@@ -38,11 +38,13 @@ export interface Conditions {
   rainMm3d: number | null
 }
 
-/** One surf or dive day's conditions, labelled for the deck. */
+/** One conditions card in the deck: a day's conditions, its label, and what
+ * the day's plan already names (empty when the card shows the usual activity). */
 export interface DayConditions {
   conditions: Conditions
   /** "Today" or "Tomorrow". */
   dayLabel: string
+  planned: Activity[]
 }
 
 const MARINE_VARS = [

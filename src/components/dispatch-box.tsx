@@ -6,11 +6,10 @@ import { WeatherCard } from "@/components/weather-card"
 import { BudgetCard } from "@/components/budget-card"
 import { ConditionsCard } from "@/components/conditions-card"
 import type { DayConditions } from "@/lib/conditions/get-conditions"
+import type { Activity } from "@/lib/conditions/activity"
 import type { PeriodCheck } from "@/lib/trips/budget-period"
-import {
-  DispatchItemCard,
-  type DispatchDay,
-} from "@/components/dispatch-item-card"
+import { DispatchItemCard } from "@/components/dispatch-item-card"
+import type { DispatchDay } from "@/components/add-to-day-form"
 import type { Weather } from "@/lib/weather/get-weather"
 import type { NewsDay } from "@/lib/trips/dispatch-types"
 
@@ -76,6 +75,7 @@ const seenKey = (storageKey: string) => `dispatch-seen:${storageKey}`
 export function DispatchBox({
   weather,
   conditions,
+  usual,
   news,
   storageKey,
   budget,
@@ -85,8 +85,10 @@ export function DispatchBox({
   className,
 }: {
   weather: Weather | null
-  /** Surf or dive days among today and tomorrow; usually empty. */
+  /** Today always (the usual activity when nothing is planned), plus a planned surf or dive tomorrow. */
   conditions: DayConditions[]
+  /** Every activity, the couple's most usual first. */
+  usual: Activity[]
   news: NewsDay[]
   /** The trip's budget check; null when there is no estimate or no running trip. */
   budget: PeriodCheck | null
@@ -98,7 +100,7 @@ export function DispatchBox({
   className?: string
 }) {
   const isClient = useIsClient()
-  const ctx = { tripId, tripSlug, days, budget, news, conditions }
+  const ctx = { tripId, tripSlug, days, budget, news, conditions, usual }
 
   // Server and hydration render the first card, static and collapsed. The live
   // deck takes over immediately after, which is where the random start is
@@ -131,6 +133,7 @@ interface CardContext {
   budget: PeriodCheck | null
   news: NewsDay[]
   conditions: DayConditions[]
+  usual: Activity[]
 }
 
 /** A news day with no findings: one card naming why. */
@@ -167,8 +170,11 @@ function buildCards(
     ...ctx.conditions.map((c, i) => (
       <ConditionsCard
         key={`conditions-${c.conditions.dayDate}-${c.conditions.activity}`}
-        conditions={c.conditions}
-        dayLabel={c.dayLabel}
+        card={c}
+        usual={ctx.usual}
+        tripId={ctx.tripId}
+        tripSlug={ctx.tripSlug}
+        days={ctx.days}
         expanded={expanded === i + 1}
         onToggle={(next) => onToggle(next ? i + 1 : null)}
       />

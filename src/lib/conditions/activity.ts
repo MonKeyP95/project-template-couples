@@ -1,5 +1,8 @@
 export type Activity = "surf" | "dive"
 
+/** Every activity the conditions card can check; also the tie-break order. */
+export const ACTIVITIES: Activity[] = ["surf", "dive"]
+
 const PATTERNS: [Activity, RegExp][] = [
   ["surf", /\b(surf|surfing)\b/i],
   ["dive", /\b(dive|diving|scuba)\b/i],
