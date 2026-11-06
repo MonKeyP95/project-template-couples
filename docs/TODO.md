@@ -28,6 +28,9 @@
   8. Documents and Notes rows show today's counts; opened, search/add documents and save a note still work.
   9. Adding an event or logging an expense leaves the rows you opened or closed as they were (Today included).
   10. Looks right on a phone viewport and on desktop.
+  **Follow-up, same branch: every feed card is two lines closed** (label on top, the key fact below at 14px), like the mockup. Weather: "Weather · Today", then icon + condition, temp · high / low. Surf/dive: "Surf · Today", then swell · period · direction (or waves for dive). Budget: "Budget · Today/This week/Trip", then the verdict and bar. News headlines and empty cards moved to 14px. Open cards unchanged. Lint + `tsc --noEmit` clean.
+  11. Each closed feed card shows a small label line and a larger value line under it; the box stays one height as it rotates.
+  12. Opening weather, surf/dive or news still shows the same full detail as before.
 
 **News cards closed show the headline only: implemented 2026-11-06; verified in-app 2026-11-06; lint + `tsc --noEmit` clean; no migration.** The deck is as tall as its tallest card (one grid cell), so a closed news card's body sized the whole box. `dispatch-item-card.tsx` now shows the body only when open; the closed title is clamped to 2 lines. Applies on every screen size.
   1. On a phone, a closed news card shows its label, headline and the time/source line, no body text.

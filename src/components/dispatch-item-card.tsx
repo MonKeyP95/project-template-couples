@@ -103,7 +103,7 @@ export function DispatchItemCard({
         aria-expanded={expanded}
         className="mt-1 block w-full border-0 bg-transparent p-0 text-left"
       >
-        <span className={`block text-[13px] text-foreground ${expanded ? "" : "line-clamp-2"}`}>
+        <span className={`block text-[14px] text-foreground ${expanded ? "" : "line-clamp-2"}`}>
           {item.title}
         </span>
         {/* Closed shows the headline only: the deck is as tall as its tallest

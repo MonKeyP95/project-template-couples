@@ -26,13 +26,24 @@ export function WeatherCard({
         type="button"
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
-        className="flex w-full items-center justify-between px-3.5 py-2.5"
+        className="flex w-full items-center justify-between gap-2 px-3.5 py-2.5 text-left"
       >
-        <span className="flex items-center gap-2">
-          <WeatherIcon code={weather.code} className="h-4 w-4" />
-          <span className="text-[13px] text-foreground">{labelFor(weather.code)}</span>
-          <span className="t-num text-[13px] text-muted-foreground">
-            {Math.round(weather.tempC)}°
+        <span className="min-w-0 flex-1">
+          <span className="block font-mono text-[10px] uppercase tracking-[0.12em] text-muted-foreground">
+            Weather · Today
+          </span>
+          <span className="mt-0.5 flex items-center justify-between gap-2">
+            <span className="flex items-center gap-2 text-[14px] text-foreground">
+              <WeatherIcon code={weather.code} className="h-4 w-4" />
+              {labelFor(weather.code)}
+            </span>
+            <span className="t-num text-[13px] text-foreground">
+              {Math.round(weather.tempC)}°
+              <span className="text-muted-foreground">
+                {" "}
+                · {Math.round(weather.highC)}° / {Math.round(weather.lowC)}°
+              </span>
+            </span>
           </span>
         </span>
         <span
