@@ -1,9 +1,16 @@
 import Link from "next/link"
+import { redirect } from "next/navigation"
 
 import { buttonVariants } from "@/components/ui/button"
+import { defaultLanding } from "@/lib/auth/landing"
+import { createClient } from "@/lib/supabase/server"
 import { cn } from "@/lib/utils"
 
-export default function Home() {
+export default async function Home() {
+  const supabase = await createClient()
+  const { data } = await supabase.auth.getUser()
+  if (data.user) redirect(await defaultLanding())
+
   return (
     <main className="relative flex min-h-screen flex-col overflow-hidden">
       <div

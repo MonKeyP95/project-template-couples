@@ -142,7 +142,6 @@ export function TodayCard({
   return (
     <BoxCard className="mt-4">
       <BoxSection
-        defaultOpen
         summary={
           <div className="py-1">
             <span className="block font-serif text-[22px] leading-tight text-foreground">

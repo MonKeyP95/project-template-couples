@@ -58,10 +58,10 @@ export async function proxy(request: NextRequest) {
   const pathname =
     rawPath !== "/" && rawPath.endsWith("/") ? rawPath.slice(0, -1) : rawPath
 
-  // Authed user visiting auth pages → bounce to /home.
+  // Authed user visiting auth pages → bounce to / which picks the landing page.
   if (user && (pathname === "/signin" || pathname === "/signup")) {
     return withRefreshedCookies(
-      NextResponse.redirect(new URL("/home", request.url)),
+      NextResponse.redirect(new URL("/", request.url)),
       response,
     )
   }
