@@ -12,15 +12,15 @@ import {
   type DispatchDay,
 } from "@/components/dispatch-item-card"
 import type { Weather } from "@/lib/weather/get-weather"
-import type { DispatchItem } from "@/lib/trips/dispatch-types"
+import type { NewsDay } from "@/lib/trips/dispatch-types"
 
 const ADVANCE_MS = 7000
 
-export type NewsState = "pending" | "quiet"
-
-const NEWS_EMPTY_TEXT: Record<NewsState, string> = {
-  pending: "Checking today's news...",
-  quiet: "Nothing notable today.",
+function emptyNewsText(day: NewsDay): string {
+  const when = day.dayLabel.toLowerCase()
+  return day.checkedAt === null
+    ? `Checking ${when}'s news...`
+    : `Nothing notable ${when}.`
 }
 
 const REDUCED_MOTION = "(prefers-reduced-motion: reduce)"
@@ -67,42 +67,38 @@ function pickStart(storageKey: string, count: number): number {
 const seenKey = (storageKey: string) => `dispatch-seen:${storageKey}`
 
 /**
- * The one ambient box at the top of /on-the-road: weather first, then today's
- * dispatch items. Rotates itself; pauses whenever the user is hovering or
- * focused inside it. Weather, budget and news always hold a card — an empty one
- * keeps its header — so the box never disappears on a no-data day.
+ * The one ambient box at the top of /on-the-road: weather first, then the
+ * news (today's, plus tomorrow's from the evening on). Rotates itself; pauses
+ * whenever the user is hovering or focused inside it. Weather, budget and each
+ * news day always hold a card — an empty one keeps its header — so the box
+ * never disappears on a no-data day.
  */
 export function DispatchBox({
   weather,
   conditions,
-  items,
+  news,
   storageKey,
   budget,
   tripId,
   tripSlug,
-  today,
   days,
-  news,
   className,
 }: {
   weather: Weather | null
   /** Surf or dive days among today and tomorrow; usually empty. */
   conditions: DayConditions[]
-  items: DispatchItem[]
-  /** Why there may be no news cards: still fetching, or a quiet day. */
-  news: NewsState
+  news: NewsDay[]
   /** The trip's budget check; null when there is no estimate or no running trip. */
   budget: PeriodCheck | null
   /** Distinguishes one trip-day from another in localStorage. */
   storageKey: string
   tripId: string
   tripSlug: string
-  today: string
   days: DispatchDay[]
   className?: string
 }) {
   const isClient = useIsClient()
-  const ctx = { tripId, tripSlug, today, days, budget, news, conditions }
+  const ctx = { tripId, tripSlug, days, budget, news, conditions }
 
   // Server and hydration render the first card, static and collapsed. The live
   // deck takes over immediately after, which is where the random start is
@@ -111,7 +107,7 @@ export function DispatchBox({
     return (
       <Frame
         className={className}
-        cards={buildCards(weather, items, ctx, null, () => {})}
+        cards={buildCards(weather, ctx, null, () => {})}
         index={0}
       />
     )
@@ -119,7 +115,6 @@ export function DispatchBox({
   return (
     <LiveDeck
       weather={weather}
-      items={items}
       storageKey={storageKey}
       ctx={ctx}
       className={className}
@@ -127,30 +122,43 @@ export function DispatchBox({
   )
 }
 
-/** What every item card needs to act: the trip, today, and the days it can
+/** What every item card needs to act: the trip and the days it can
  * drop an event on. */
 interface CardContext {
   tripId: string
   tripSlug: string
-  today: string
   days: DispatchDay[]
   budget: PeriodCheck | null
-  news: NewsState
+  news: NewsDay[]
   conditions: DayConditions[]
 }
 
-/** The deck in order: weather, any surf or dive conditions, budget, then today's
- * findings (or one empty news card). Weather and budget are not pressable;
- * conditions and items are. `expanded` is a deck index, so offsets apply. */
+/** A news day with no findings: one card naming why. */
+function EmptyNewsCard({ day }: { day: NewsDay }) {
+  return (
+    <EmptyCard
+      label={`News · ${day.dayLabel}`}
+      text={emptyNewsText(day)}
+      checkedAt={day.checkedAt}
+    />
+  )
+}
+
+/** How many deck slots the news takes: each day's items, or one empty card. */
+function newsSlots(news: NewsDay[]): number {
+  return news.reduce((n, day) => n + Math.max(day.items.length, 1), 0)
+}
+
+/** The deck in order: weather, any surf or dive conditions, budget, then each
+ * news day's findings (or one empty card per day). Weather and budget are not
+ * pressable; conditions and items are. `expanded` is a deck index. */
 function buildCards(
   weather: Weather | null,
-  items: DispatchItem[],
   ctx: CardContext,
   expanded: number | null,
   onToggle: (deckIndex: number | null) => void,
 ): React.ReactNode[] {
-  const offset = 2 + ctx.conditions.length
-  return [
+  const cards: React.ReactNode[] = [
     weather ? (
       <WeatherCard key="weather" weather={weather} />
     ) : (
@@ -170,47 +178,48 @@ function buildCards(
     ) : (
       <EmptyCard key="budget" label="Budget" text="No budget set for this trip." />
     ),
-    ...(items.length === 0
-      ? [
-          <EmptyCard
-            key="news"
-            label="News"
-            text={NEWS_EMPTY_TEXT[ctx.news]}
-          />,
-        ]
-      : []),
-    ...items.map((item, i) => (
-      <DispatchItemCard
-        key={`item-${i}`}
-        item={item}
-        index={i}
-        tripId={ctx.tripId}
-        tripSlug={ctx.tripSlug}
-        today={ctx.today}
-        days={ctx.days}
-        expanded={expanded === i + offset}
-        onToggle={(next) => onToggle(next ? i + offset : null)}
-      />
-    )),
   ]
+  for (const day of ctx.news) {
+    if (day.items.length === 0) {
+      cards.push(<EmptyNewsCard key={`news-${day.dayDate}`} day={day} />)
+      continue
+    }
+    day.items.forEach((item, i) => {
+      const deckIndex = cards.length
+      cards.push(
+        <DispatchItemCard
+          key={`item-${day.dayDate}-${i}`}
+          item={item}
+          index={i}
+          dayDate={day.dayDate}
+          dayLabel={day.dayLabel}
+          checkedAt={day.checkedAt}
+          tripId={ctx.tripId}
+          tripSlug={ctx.tripSlug}
+          days={ctx.days}
+          expanded={expanded === deckIndex}
+          onToggle={(next) => onToggle(next ? deckIndex : null)}
+        />,
+      )
+    })
+  }
+  return cards
 }
 
 function LiveDeck({
   weather,
-  items,
   storageKey,
   ctx,
   className,
 }: {
   weather: Weather | null
-  items: DispatchItem[]
   storageKey: string
   ctx: CardContext
   className?: string
 }) {
   const reduced = useReducedMotion()
   const [index, setIndex] = React.useState(() =>
-    pickStart(storageKey, 2 + ctx.conditions.length + Math.max(items.length, 1)),
+    pickStart(storageKey, 2 + ctx.conditions.length + newsSlots(ctx.news)),
   )
   const [paused, setPaused] = React.useState(false)
   const [expanded, setExpanded] = React.useState<number | null>(null)
@@ -222,7 +231,7 @@ function LiveDeck({
     if (deckIndex !== null) setHeld(true)
     setExpanded(deckIndex)
   }
-  const cards = buildCards(weather, items, ctx, expanded, toggle)
+  const cards = buildCards(weather, ctx, expanded, toggle)
   const count = cards.length
 
   React.useEffect(() => {
@@ -309,13 +318,26 @@ function Frame({
 }
 
 /** A deck slot with no data: keeps its header so the feature stays visible. */
-function EmptyCard({ label, text }: { label: string; text: string }) {
+function EmptyCard({
+  label,
+  text,
+  checkedAt = null,
+}: {
+  label: string
+  text: string
+  checkedAt?: string | null
+}) {
   return (
     <div className="rounded-lg border border-border bg-card px-3.5 py-2.5">
       <div className="font-mono text-[10px] uppercase tracking-[0.12em] text-muted-foreground">
         {label}
       </div>
       <div className="mt-1 text-[13px] text-muted-foreground">{text}</div>
+      {checkedAt ? (
+        <div className="mt-1.5 font-mono text-[10px] uppercase tracking-[0.12em] text-muted-foreground">
+          checked {checkedAt}
+        </div>
+      ) : null}
     </div>
   )
 }

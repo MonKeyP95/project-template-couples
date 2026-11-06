@@ -34,9 +34,11 @@ function eventCategory(item: DispatchItem): string | undefined {
 export function DispatchItemCard({
   item,
   index,
+  dayDate,
+  dayLabel,
+  checkedAt,
   tripId,
   tripSlug,
-  today,
   days,
   expanded,
   onToggle,
@@ -44,9 +46,14 @@ export function DispatchItemCard({
   item: DispatchItem
   /** Position in the stored dispatch row — how the server finds it again. */
   index: number
+  /** The news day this item belongs to: today, or tomorrow in the evening. */
+  dayDate: string
+  /** "Today" or "Tomorrow". */
+  dayLabel: string
+  /** "HH:MM" the day's news was fetched, phone time. */
+  checkedAt: string | null
   tripId: string
   tripSlug: string
-  today: string
   days: DispatchDay[]
   expanded: boolean
   onToggle: (expanded: boolean) => void
@@ -55,9 +62,9 @@ export function DispatchItemCard({
   const [adding, setAdding] = React.useState(false)
   const [added, setAdded] = React.useState(false)
   const [dayId, setDayId] = React.useState(
-    () => days.find((d) => d.dayDate === today)?.id ?? days[0]?.id ?? "",
+    () => days.find((d) => d.dayDate === dayDate)?.id ?? days[0]?.id ?? "",
   )
-  const [newDate, setNewDate] = React.useState(today)
+  const [newDate, setNewDate] = React.useState(dayDate)
   const [time, setTime] = React.useState("")
   const [answers, setAnswers] = React.useState<
     { question: string; detail: DispatchDetail }[]
@@ -95,7 +102,7 @@ export function DispatchItemCard({
   function learn(ask: string) {
     setLoading(true)
     setError(null)
-    learnAboutItem(tripSlug, today, index, ask).then((result) => {
+    learnAboutItem(tripSlug, dayDate, index, ask).then((result) => {
       setLoading(false)
       if (result.error) {
         setError(result.error)
@@ -117,7 +124,7 @@ export function DispatchItemCard({
     <div className="rounded-lg border border-border bg-card px-3.5 py-2.5">
       <div className="flex items-start justify-between gap-2">
         <div className="font-mono text-[10px] uppercase tracking-[0.12em] text-muted-foreground">
-          {DISPATCH_KIND_LABEL[item.kind]}
+          {DISPATCH_KIND_LABEL[item.kind]} · {dayLabel}
         </div>
         {expanded ? (
           <button
@@ -151,6 +158,7 @@ export function DispatchItemCard({
         >
           source
         </a>
+        {checkedAt ? <span>checked {checkedAt}</span> : null}
       </div>
 
       {expanded ? (
