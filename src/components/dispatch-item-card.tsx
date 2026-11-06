@@ -1,23 +1,13 @@
 "use client"
 
 import * as React from "react"
-import { useRouter } from "next/navigation"
-
-import { addTodayEvent } from "@/lib/trips/actions"
+import { AddToDayForm, type DispatchDay } from "@/components/add-to-day-form"
 import { learnAboutItem } from "@/lib/trips/dispatch-actions"
-import { normalizeTime } from "@/lib/trips/event-time"
 import {
   DISPATCH_KIND_LABEL,
   type DispatchDetail,
   type DispatchItem,
 } from "@/lib/trips/dispatch-types"
-
-/** One itinerary day the card can drop an event on. */
-export interface DispatchDay {
-  id: string
-  dayDate: string
-  label: string
-}
 
 /** whats_on is a thing you go and do; a strike or a swell is not. Drives the
  * default category on the event's expense form. */
@@ -58,44 +48,14 @@ export function DispatchItemCard({
   expanded: boolean
   onToggle: (expanded: boolean) => void
 }) {
-  const router = useRouter()
   const [adding, setAdding] = React.useState(false)
   const [added, setAdded] = React.useState(false)
-  const [dayId, setDayId] = React.useState(
-    () => days.find((d) => d.dayDate === dayDate)?.id ?? days[0]?.id ?? "",
-  )
-  const [newDate, setNewDate] = React.useState(dayDate)
-  const [time, setTime] = React.useState("")
   const [answers, setAnswers] = React.useState<
     { question: string; detail: DispatchDetail }[]
   >([])
   const [question, setQuestion] = React.useState("")
   const [loading, setLoading] = React.useState(false)
   const [error, setError] = React.useState<string | null>(null)
-
-  // No day selected means the trip has none yet: create one on the typed date.
-  function add() {
-    const day = days.find((d) => d.id === dayId)
-    setError(null)
-    addTodayEvent({
-      tripId,
-      tripSlug,
-      dayDate: day ? day.dayDate : newDate,
-      dayId: day?.id ?? null,
-      time: normalizeTime(time),
-      text: item.title,
-      url: item.sourceUrl,
-      category: eventCategory(item),
-    }).then((result) => {
-      if (result.error) {
-        setError(result.error)
-        return
-      }
-      setAdded(true)
-      setAdding(false)
-      router.refresh()
-    })
-  }
 
   /** Answers stack: the first one is what the card is about, and a follow-up is
    * read alongside it, not instead of it. */
@@ -188,54 +148,20 @@ export function DispatchItemCard({
           </div>
 
           {adding ? (
-            <div className="flex flex-wrap items-center gap-2">
-              {days.length ? (
-                <select
-                  value={dayId}
-                  onChange={(e) => setDayId(e.target.value)}
-                  className="rounded-lg border border-border bg-background px-2 py-1 text-[12px] text-foreground"
-                >
-                  {days.map((d) => (
-                    <option key={d.id} value={d.id}>
-                      {d.label}
-                    </option>
-                  ))}
-                </select>
-              ) : (
-                <input
-                  type="date"
-                  value={newDate}
-                  onChange={(e) => setNewDate(e.target.value)}
-                  className="t-num rounded-lg border border-border bg-background px-2 py-1 text-[12px] text-foreground"
-                />
-              )}
-              <input
-                type="text"
-                value={time}
-                onChange={(e) => setTime(e.target.value)}
-                onBlur={() => setTime((t) => normalizeTime(t))}
-                placeholder="19:30"
-                className="t-num w-16 border-0 border-b border-rule bg-transparent py-1 text-[13px] text-foreground placeholder:text-muted-foreground focus:border-clay focus:outline-none"
-              />
-              <button
-                type="button"
-                onClick={add}
-                className="rounded-full border-0 bg-foreground px-3.5 py-1.5 font-mono text-[10px] uppercase tracking-[0.2em] text-background"
-              >
-                add
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setAdding(false)
-                  setTime("")
-                }}
-                aria-label="Cancel"
-                className="border-0 bg-transparent px-1.5 py-1 font-mono text-[13px] text-muted-foreground hover:text-clay"
-              >
-                ×
-              </button>
-            </div>
+            <AddToDayForm
+              tripId={tripId}
+              tripSlug={tripSlug}
+              days={days}
+              defaultDate={dayDate}
+              text={item.title}
+              url={item.sourceUrl}
+              category={eventCategory(item)}
+              onAdded={() => {
+                setAdded(true)
+                setAdding(false)
+              }}
+              onCancel={() => setAdding(false)}
+            />
           ) : null}
 
           {answers.length ? (

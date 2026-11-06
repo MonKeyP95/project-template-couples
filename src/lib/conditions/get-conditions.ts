@@ -38,11 +38,18 @@ export interface Conditions {
   rainMm3d: number | null
 }
 
-/** One surf or dive day's conditions, labelled for the deck. */
+/** One conditions card in the deck: a day, where it is, and what its plan
+ * names. `conditions` is null on a picker card -- nothing planned, nothing
+ * fetched until an activity is tapped. */
 export interface DayConditions {
-  conditions: Conditions
+  dayDate: string
   /** "Today" or "Tomorrow". */
   dayLabel: string
+  /** Where the day's plan puts the couple. */
+  place: PlaceMatch
+  /** Activities the day's plan already names. */
+  planned: Activity[]
+  conditions: Conditions | null
 }
 
 const MARINE_VARS = [
