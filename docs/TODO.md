@@ -4,6 +4,13 @@
 
 **Next up: work on the AI itinerary planner** (`itinerary-planner` agent, `src/lib/ai/agents/`). Noted 2026-11-03.
 
+**Conditions card (surf + dive) in the dispatch box: implemented 2026-11-06; lint + build clean; unverified in app; no migration.** Slice 1 of 3 (next: evening news run for tomorrow with a "checked at" time, then a refresh button). Today and tomorrow are checked; a day whose title/summary/events name surf/surfing or dive/diving/scuba (whole words) gets a card after Weather, labelled Today/Tomorrow. Located by that day's itinerary location (`resolveCoords`). Data from Open-Meteo marine + forecast (no AI), at 08/12/16: surf = swell height/period/direction + wind; dive = wave height, wind, current (approx.), water temp, rain last 3 days. Tide high/low times (approx.) on both. Data points chosen from research, not guesses. The news prompt no longer reports surf/swell/dive/tide (snow, jellyfish, air quality stay). Files: `src/lib/conditions/{activity,get-conditions,day-conditions}.ts`, `src/components/conditions-card.tsx`, `dispatch-box.tsx`, `on-the-road/page.tsx`, `agents/dispatch.ts`, `registry.ts`. More activities later (user asked to be reminded). In-app checks:
+  1. A day whose plan says "surf" shows a Surf card; opened, it shows swell, wind and tide, with tide marked approx.
+  2. A dive day shows a Dive card with waves, wind, current (approx.), tide (approx.), water and rain.
+  3. When tomorrow is a surf or dive day, a card labelled "Tomorrow" shows.
+  4. A day with neither shows no Conditions card.
+  5. Looks right on a phone viewport.
+
 **Planner suggestions (spec `docs/superpowers/specs/2026-11-05-planner-suggestions-design.md`), pieces A -> B -> C.**
 - **A. Planner input cleanup: implemented 2026-11-05; lint + build clean; unverified in app.** `vibe` and `activityTypes` removed from the itinerary planner (new-trip flow no longer collects them). Plan `docs/superpowers/plans/2026-11-05-planner-input-cleanup.md`. Check: Generate on a new-flow trip still produces an itinerary with no error.
 - **B. Suggestions with mock options: implemented 2026-11-05; verified in-app 2026-11-05.** Plan `docs/superpowers/plans/2026-11-05-planner-suggestions-b.md`. **Paste `supabase/migrations/20261105000001_planner_suggestions.sql` first** (reshapes the orphaned `trip_suggestions`). In-app checks:
