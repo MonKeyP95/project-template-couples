@@ -17,6 +17,7 @@ import { slugToTone } from "@/lib/trips/slug-tone"
 import { formatShortDate, daySummary, isDated } from "@/lib/trips/itinerary-types"
 import { getTripWeather } from "@/lib/weather/get-trip-weather"
 import { getUpcomingConditions } from "@/lib/conditions/day-conditions"
+import { getUsualActivities } from "@/lib/conditions/usual-activities"
 import { DispatchBox } from "@/components/dispatch-box"
 import { getNewsDays } from "@/lib/trips/news-days"
 import { DispatchTrigger } from "./dispatch-trigger"
@@ -145,7 +146,8 @@ export default async function OnTheRoadPage() {
   const searchDestination = locationName ?? trip.country ?? trip.name
   const weatherPlace = { ...trip, locationName }
   const weather = await getTripWeather(weatherPlace)
-  const conditions = await getUpcomingConditions(trip, days, locations, today)
+  const usual = await getUsualActivities(workspace.id)
+  const conditions = await getUpcomingConditions(trip, days, locations, today, usual)
   const news = await getNewsDays(trip, today, tz)
 
   return (
@@ -209,6 +211,7 @@ export default async function OnTheRoadPage() {
           <DispatchBox
             weather={weather}
             conditions={conditions}
+            usual={usual}
             news={news}
             budget={
               pace

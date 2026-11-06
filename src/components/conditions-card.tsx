@@ -3,6 +3,13 @@
 import * as React from "react"
 
 import { AddToDayForm, type DispatchDay } from "@/components/add-to-day-form"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import type { Activity } from "@/lib/conditions/activity"
 import type {
   Conditions,
@@ -25,8 +32,6 @@ function compass(deg: number | null): string {
 const num = (v: number | null, digits: number, unit: string) =>
   v == null ? "-" : `${v.toFixed(digits)}${unit}`
 
-const ACTIVITIES: Activity[] = ["surf", "dive"]
-
 const TITLE: Record<Activity, string> = { surf: "Surf", dive: "Dive" }
 
 /** What lands on the itinerary when an activity is added from the card. */
@@ -34,16 +39,21 @@ const EVENT_TEXT: Record<Activity, string> = { surf: "Surfing", dive: "Diving" }
 
 const LABEL = "font-mono text-[10px] uppercase tracking-[0.12em] text-muted-foreground"
 
+/** The look of the check-another-place input, shared by the activity dropdown
+ * that sits beside it. */
+const FIELD =
+  "rounded-md border border-border bg-background px-2 py-1 text-[12px] text-foreground"
+
 /**
  * Surf or dive conditions for one day: a compact row that taps open into three
- * times of day plus tide, the place checked, a Surf / Dive switch and a box to
- * check another place. With nothing planned it opens on the switch alone.
- * Checking an activity the plan does not name offers to add it. Numbers only,
- * no verdicts -- what makes a good day depends on the spot. Tide and current
- * are model output, so labelled approximate.
+ * times of day plus tide, the place checked, and a row to switch activity or
+ * check another place. Checking an activity the plan does not name offers to
+ * add it. Numbers only, no verdicts -- what makes a good day depends on the
+ * spot. Tide and current are model output, so labelled approximate.
  */
 export function ConditionsCard({
   card,
+  usual,
   tripId,
   tripSlug,
   days,
@@ -51,6 +61,8 @@ export function ConditionsCard({
   onToggle,
 }: {
   card: DayConditions
+  /** Every activity, the couple's most usual first: the dropdown's order. */
+  usual: Activity[]
   tripId: string
   tripSlug: string
   days: DispatchDay[]
@@ -68,12 +80,10 @@ export function ConditionsCard({
       >
         <span className="flex items-baseline gap-2">
           <span className={LABEL}>
-            {c ? TITLE[c.activity] : "Conditions"} · {card.dayLabel}
+            {TITLE[c.activity]} · {card.dayLabel}
           </span>
           {expanded ? null : (
-            <span className="t-num text-[13px] text-foreground">
-              {c ? summaryText(c) : "Check surf or dive"}
-            </span>
+            <span className="t-num text-[13px] text-foreground">{summaryText(c)}</span>
           )}
         </span>
         <span
@@ -84,7 +94,13 @@ export function ConditionsCard({
         </span>
       </button>
       {expanded ? (
-        <OpenBody card={card} tripId={tripId} tripSlug={tripSlug} days={days} />
+        <OpenBody
+          card={card}
+          usual={usual}
+          tripId={tripId}
+          tripSlug={tripSlug}
+          days={days}
+        />
       ) : null}
     </div>
   )
@@ -99,107 +115,55 @@ function summaryText(c: Conditions): string {
  * place is forgotten when the card closes: unmounting is the reset. */
 function OpenBody({
   card,
+  usual,
   tripId,
   tripSlug,
   days,
 }: {
   card: DayConditions
+  usual: Activity[]
   tripId: string
   tripSlug: string
   days: DispatchDay[]
 }) {
   const [shown, setShown] = React.useState(card.conditions)
-  const [error, setError] = React.useState<string | null>(null)
-  const [pending, startTransition] = React.useTransition()
-  const place = shown?.place ?? card.place
-
-  const switchTo = (activity: Activity) => {
-    startTransition(async () => {
-      const result = await conditionsAt(activity, place, card.dayDate)
-      setError(result ? null : "No forecast for there.")
-      if (result) setShown(result)
-    })
-  }
-
   return (
     <div className="border-t border-border px-3.5 py-3">
       <div className="flex items-baseline justify-between gap-3">
-        <span className="text-[12px] text-foreground">{place.fullName}</span>
+        <span className="text-[12px] text-foreground">{shown.place.fullName}</span>
         {shown !== card.conditions ? (
           <button
             type="button"
             onClick={() => setShown(card.conditions)}
             className="font-mono text-[10px] text-muted-foreground underline underline-offset-2"
           >
-            {card.conditions ? "back to plan" : "back"}
+            back to plan
           </button>
         ) : null}
       </div>
-      <ActivitySwitch
-        active={shown?.activity ?? null}
-        pending={pending}
-        onPick={switchTo}
-      />
-      {error ? <div className="mt-2 text-[12px] text-muted-foreground">{error}</div> : null}
-      {shown ? (
-        <>
-          <div className="mt-2">
-            <SlotTable conditions={shown} />
-          </div>
-          <div className="mt-3 space-y-1 border-t border-border pt-3">
-            <Line label="Tide approx." value={tideText(shown)} />
-            {shown.activity === "surf" ? null : (
-              <>
-                <Line label="Water" value={num(shown.waterC, 0, "°")} />
-                <Line label="Rain, last 3 days" value={num(shown.rainMm3d, 0, " mm")} />
-              </>
-            )}
-          </div>
-          {card.planned.includes(shown.activity) ? null : (
-            <AddToPlan
-              key={shown.activity}
-              activity={shown.activity}
-              dayDate={card.dayDate}
-              tripId={tripId}
-              tripSlug={tripSlug}
-              days={days}
-            />
-          )}
-          <PlaceLookup shown={shown} onPick={setShown} />
-        </>
-      ) : null}
-    </div>
-  )
-}
-
-/** Surf / Dive buttons; tapping the other one fetches it for the same place. */
-function ActivitySwitch({
-  active,
-  pending,
-  onPick,
-}: {
-  active: Activity | null
-  pending: boolean
-  onPick: (activity: Activity) => void
-}) {
-  return (
-    <div className="mt-2 flex gap-1.5">
-      {ACTIVITIES.map((a) => (
-        <button
-          key={a}
-          type="button"
-          disabled={pending || a === active}
-          aria-pressed={a === active}
-          onClick={() => onPick(a)}
-          className={`rounded-full border px-3 py-1 font-mono text-[10px] uppercase tracking-[0.12em] disabled:cursor-default ${
-            a === active
-              ? "border-foreground bg-foreground text-background"
-              : "border-border text-muted-foreground hover:text-foreground disabled:opacity-50"
-          }`}
-        >
-          {TITLE[a]}
-        </button>
-      ))}
+      <div className="mt-2">
+        <SlotTable conditions={shown} />
+      </div>
+      <div className="mt-3 space-y-1 border-t border-border pt-3">
+        <Line label="Tide approx." value={tideText(shown)} />
+        {shown.activity === "surf" ? null : (
+          <>
+            <Line label="Water" value={num(shown.waterC, 0, "°")} />
+            <Line label="Rain, last 3 days" value={num(shown.rainMm3d, 0, " mm")} />
+          </>
+        )}
+      </div>
+      {card.planned.includes(shown.activity) ? null : (
+        <AddToPlan
+          key={shown.activity}
+          activity={shown.activity}
+          dayDate={card.conditions.dayDate}
+          tripId={tripId}
+          tripSlug={tripSlug}
+          days={days}
+        />
+      )}
+      <CheckRow shown={shown} usual={usual} onShow={setShown} />
     </div>
   )
 }
@@ -262,18 +226,37 @@ function AddToPlan({
   )
 }
 
-/** Type a place, pick one of the nearest matches, see the same activity there. */
-function PlaceLookup({
+/**
+ * The card's one control row: the activity dropdown, then a box to check
+ * another place. Changing the activity keeps the place; picking a place keeps
+ * the activity.
+ */
+function CheckRow({
   shown,
-  onPick,
+  usual,
+  onShow,
 }: {
   shown: Conditions
-  onPick: (conditions: Conditions) => void
+  usual: Activity[]
+  onShow: (conditions: Conditions) => void
 }) {
   const [query, setQuery] = React.useState("")
   const [matches, setMatches] = React.useState<NearbyPlace[] | null>(null)
   const [error, setError] = React.useState<string | null>(null)
   const [pending, startTransition] = React.useTransition()
+
+  const load = (activity: Activity, place: NearbyPlace | Conditions["place"]) =>
+    startTransition(async () => {
+      const result = await conditionsAt(activity, place, shown.dayDate)
+      if (!result) {
+        setError("No forecast for there.")
+        return
+      }
+      onShow(result)
+      setMatches(null)
+      setQuery("")
+      setError(null)
+    })
 
   const search = (e: React.FormEvent) => {
     e.preventDefault()
@@ -284,29 +267,36 @@ function PlaceLookup({
     })
   }
 
-  const pick = (place: NearbyPlace) => {
-    startTransition(async () => {
-      const result = await conditionsAt(shown.activity, place, shown.dayDate)
-      if (!result) {
-        setError("No forecast for there.")
-        return
-      }
-      onPick(result)
-      setMatches(null)
-      setQuery("")
-      setError(null)
-    })
-  }
-
   return (
     <div className="mt-3 border-t border-border pt-3">
       <form onSubmit={search} className="flex gap-2">
+        <Select
+          value={shown.activity}
+          onValueChange={(next: Activity | null) => {
+            if (next && next !== shown.activity) load(next, shown.place)
+          }}
+          disabled={pending}
+        >
+          <SelectTrigger
+            aria-label="Activity"
+            className={`mt-0 w-auto shrink-0 ${FIELD} focus:border-clay`}
+          >
+            <SelectValue>{(value: Activity) => TITLE[value]}</SelectValue>
+          </SelectTrigger>
+          <SelectContent>
+            {usual.map((a) => (
+              <SelectItem key={a} value={a}>
+                {TITLE[a]}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
         <input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Check another place"
           aria-label="Check another place"
-          className="min-w-0 flex-1 rounded-md border border-border bg-background px-2 py-1 text-[12px] text-foreground"
+          className={`min-w-0 flex-1 ${FIELD}`}
         />
         <button
           type="submit"
@@ -323,7 +313,7 @@ function PlaceLookup({
               <button
                 type="button"
                 disabled={pending}
-                onClick={() => pick(m)}
+                onClick={() => load(shown.activity, m)}
                 className="w-full text-left text-[12px] text-foreground hover:underline"
               >
                 {m.fullName}{" "}
