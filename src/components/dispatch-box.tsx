@@ -158,7 +158,7 @@ function buildCards(
     ),
     ...ctx.conditions.map((c, i) => (
       <ConditionsCard
-        key={`conditions-${c.conditions.dayDate}`}
+        key={`conditions-${c.conditions.dayDate}-${c.conditions.activity}`}
         conditions={c.conditions}
         dayLabel={c.dayLabel}
         expanded={expanded === i + 1}

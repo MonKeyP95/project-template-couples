@@ -15,6 +15,7 @@
   8. While the card is open the box does not rotate away, including while typing.
   9. Weather still shows for the trip's location.
   10. Looks right on a phone viewport.
+  11. A day whose plan names both surfing and diving shows two cards, Surf and Dive, for that day. (Fix 2026-11-06: the matcher used to stop at the first activity.)
 
 **Planner suggestions (spec `docs/superpowers/specs/2026-11-05-planner-suggestions-design.md`), pieces A -> B -> C.**
 - **A. Planner input cleanup: implemented 2026-11-05; lint + build clean; unverified in app.** `vibe` and `activityTypes` removed from the itinerary planner (new-trip flow no longer collects them). Plan `docs/superpowers/plans/2026-11-05-planner-input-cleanup.md`. Check: Generate on a new-flow trip still produces an itinerary with no error.
