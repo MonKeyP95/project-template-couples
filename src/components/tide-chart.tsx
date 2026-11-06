@@ -24,9 +24,13 @@ function anchorShift(x: number): string {
   return "-50%"
 }
 
+/** Signed metres from mean sea level, e.g. "+0.9 m". */
+const metres = (v: number) => `${v > 0 ? "+" : ""}${v.toFixed(1)} m`
+
 /**
  * One day of tide as a curve: hour across, sea level up, each high and low
- * marked with its time. Heights are relative, so the y axis carries no numbers.
+ * marked with its time. The y axis shows the day's highest and lowest level,
+ * in metres from mean sea level.
  */
 export function TideChart({
   levels,
@@ -40,7 +44,8 @@ export function TideChart({
     return <div className="t-num text-[12px] text-foreground">-</div>
   }
   const max = Math.max(...known)
-  const span = max - Math.min(...known) || 1
+  const min = Math.min(...known)
+  const span = max - min || 1
   const last = levels.length - 1
   const x = (hour: number) => (hour / last) * 100
   const y = (v: number) => ((max - v) / span) * 100
@@ -48,41 +53,47 @@ export function TideChart({
 
   return (
     <div className="pt-5 pb-1">
-      <div className="relative h-14">
-        <svg
-          viewBox="0 0 100 100"
-          preserveAspectRatio="none"
-          aria-hidden
-          className="absolute inset-0 h-full w-full overflow-visible text-foreground"
-        >
-          <path
-            d={curvePath(points)}
-            fill="none"
-            stroke="currentColor"
-            strokeWidth={2}
-            strokeLinejoin="round"
-            vectorEffect="non-scaling-stroke"
-          />
-        </svg>
-        {turns.map((t) => {
-          const p = points[t.hour]!
-          const high = t.kind === "high"
-          return (
-            <div key={t.hour} className="absolute" style={{ left: `${p.x}%`, top: `${p.y}%` }}>
-              <span className="absolute size-2 -translate-1/2 rounded-full bg-foreground ring-2 ring-card" />
-              <span
-                className="absolute whitespace-nowrap font-mono text-[10px] text-foreground"
-                style={{
-                  transform: `translate(${anchorShift(p.x)}, ${high ? "calc(-100% - 6px)" : "6px"})`,
-                }}
-              >
-                {high ? "High" : "Low"} {t.time}
-              </span>
-            </div>
-          )
-        })}
+      <div className="flex gap-2">
+        <div className="relative h-14 w-10 shrink-0 text-right font-mono text-[9px] text-muted-foreground">
+          <span className="absolute top-0 right-0 -translate-y-1/2">{metres(max)}</span>
+          <span className="absolute right-0 bottom-0 translate-y-1/2">{metres(min)}</span>
+        </div>
+        <div className="relative h-14 flex-1">
+          <svg
+            viewBox="0 0 100 100"
+            preserveAspectRatio="none"
+            aria-hidden
+            className="absolute inset-0 h-full w-full overflow-visible text-foreground"
+          >
+            <path
+              d={curvePath(points)}
+              fill="none"
+              stroke="currentColor"
+              strokeWidth={2}
+              strokeLinejoin="round"
+              vectorEffect="non-scaling-stroke"
+            />
+          </svg>
+          {turns.map((t) => {
+            const p = points[t.hour]!
+            const high = t.kind === "high"
+            return (
+              <div key={t.hour} className="absolute" style={{ left: `${p.x}%`, top: `${p.y}%` }}>
+                <span className="absolute size-2 -translate-1/2 rounded-full bg-foreground ring-2 ring-card" />
+                <span
+                  className="absolute whitespace-nowrap font-mono text-[10px] text-foreground"
+                  style={{
+                    transform: `translate(${anchorShift(p.x)}, ${high ? "calc(-100% - 6px)" : "6px"})`,
+                  }}
+                >
+                  {high ? "High" : "Low"} {t.time}
+                </span>
+              </div>
+            )
+          })}
+        </div>
       </div>
-      <div className="relative mt-5 h-3 font-mono text-[9px] text-muted-foreground">
+      <div className="relative mt-5 ml-12 h-3 font-mono text-[9px] text-muted-foreground">
         {AXIS_HOURS.map((h) => (
           <span
             key={h}
