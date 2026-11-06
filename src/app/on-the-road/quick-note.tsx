@@ -4,7 +4,6 @@ import * as React from "react"
 import { useRouter } from "next/navigation"
 
 import { addNote } from "@/lib/trips/actions"
-import { Label } from "@/components/together"
 import type { TripNote } from "@/lib/trips/note-queries"
 
 export interface QuickNoteProps {
@@ -41,9 +40,8 @@ export function QuickNote({ tripId, tripSlug, today, notes }: QuickNoteProps) {
   }
 
   return (
-    <section className="mt-4 rounded-[14px] border border-border bg-card p-5">
-      <Label>Note</Label>
-      <form onSubmit={submit} className="mt-3 flex gap-2">
+    <div className="px-[18px] py-3">
+      <form onSubmit={submit} className="flex gap-2">
         <input
           value={body}
           onChange={(e) => setBody(e.target.value)}
@@ -71,6 +69,6 @@ export function QuickNote({ tripId, tripSlug, today, notes }: QuickNoteProps) {
           ))}
         </ul>
       ) : null}
-    </section>
+    </div>
   )
 }

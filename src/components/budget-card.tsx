@@ -6,6 +6,11 @@ import { money } from "@/lib/money"
 import { cn } from "@/lib/utils"
 import type { BudgetPeriod, PeriodCheck } from "@/lib/trips/budget-period"
 
+const PERIOD: Record<BudgetPeriod, string> = {
+  day: "Today",
+  week: "This week",
+  trip: "Trip",
+}
 const UNDER: Record<BudgetPeriod, string> = {
   day: "left today",
   week: "left this week",
@@ -34,7 +39,10 @@ export function BudgetCard({ check }: { check: PeriodCheck }) {
   const over = check.deltaCents > 0
   return (
     <div className="rounded-lg border border-border bg-card px-3.5 py-2.5">
-      <span className={cn("t-num text-[13px]", over ? "text-clay" : "text-muted-foreground")}>
+      <span className="block font-mono text-[10px] uppercase tracking-[0.12em] text-muted-foreground">
+        Budget · {PERIOD[check.period]}
+      </span>
+      <span className={cn("t-num mt-0.5 block text-[14px]", over ? "text-clay" : "text-foreground")}>
         {verdict(check, currency)}
       </span>
       <Bar className="mt-2" pct={pct(check)} tone={over ? "clay" : "muted"} />

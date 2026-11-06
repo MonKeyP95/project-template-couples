@@ -32,6 +32,30 @@ function useLocalHhMm(): string | null {
   return React.useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot)
 }
 
+/** Timed events at/after `now` (ascending), then the untimed ones. */
+function upcomingEvents(events: ItineraryEvent[], now: string): ItineraryEvent[] {
+  const timed = events
+    .filter((e) => e.time)
+    .sort((a, b) => (a.time < b.time ? -1 : a.time > b.time ? 1 : 0))
+  const untimed = events.filter((e) => !e.time)
+  return [...timed.filter((e) => e.time >= now), ...untimed]
+}
+
+/** One line for the closed Today row: "next · 14:00 Lunch". Client-only. */
+export function TodayNext({ events }: { events: ItineraryEvent[] }) {
+  const now = useLocalHhMm()
+  if (now === null || events.length === 0) return null
+  const next = upcomingEvents(events, now)[0]
+  const text = next
+    ? `next · ${next.time ? `${formatEventTime(next.time, next.endTime)} ` : ""}${next.text}`
+    : "day's done"
+  return (
+    <span className="block truncate font-mono text-[11px] text-muted-foreground">
+      {text}
+    </span>
+  )
+}
+
 /**
  * Today's still-upcoming events: timed events at/after the current local time
  * (ascending) followed by any untimed ones. "Day's done" once everything timed
@@ -42,12 +66,7 @@ export function TodayUpcoming({ events }: { events: ItineraryEvent[] }) {
   const now = useLocalHhMm()
   if (now === null) return null
 
-  const timed = events
-    .filter((e) => e.time)
-    .sort((a, b) => (a.time < b.time ? -1 : a.time > b.time ? 1 : 0))
-  const untimed = events.filter((e) => !e.time)
-  const upcoming = [...timed.filter((e) => e.time >= now), ...untimed]
-
+  const upcoming = upcomingEvents(events, now)
   if (upcoming.length === 0) {
     return (
       <div className="mt-2 font-mono text-[11px] uppercase tracking-[0.14em] text-muted-foreground">

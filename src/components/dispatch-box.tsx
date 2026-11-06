@@ -374,7 +374,7 @@ function EmptyCard({
       <div className="font-mono text-[10px] uppercase tracking-[0.12em] text-muted-foreground">
         {label}
       </div>
-      <div className="mt-1 text-[13px] text-muted-foreground">{text}</div>
+      <div className="mt-0.5 text-[14px] text-muted-foreground">{text}</div>
       {checkedAt ? (
         <div className="mt-1.5 font-mono text-[10px] uppercase tracking-[0.12em] text-muted-foreground">
           checked {checkedAt}

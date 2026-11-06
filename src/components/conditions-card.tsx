@@ -77,14 +77,16 @@ export function ConditionsCard({
         type="button"
         onClick={() => onToggle(!expanded)}
         aria-expanded={expanded}
-        className="flex w-full items-center justify-between gap-2 px-3.5 py-2.5"
+        className="flex w-full items-center justify-between gap-2 px-3.5 py-2.5 text-left"
       >
-        <span className="flex items-baseline gap-2">
-          <span className={LABEL}>
+        <span className="min-w-0 flex-1">
+          <span className={`block ${LABEL}`}>
             {TITLE[c.activity]} · {card.dayLabel}
           </span>
           {expanded ? null : (
-            <span className="t-num text-[13px] text-foreground">{summaryText(c)}</span>
+            <span className="t-num mt-0.5 block text-[14px] text-foreground">
+              {summaryText(c)}
+            </span>
           )}
         </span>
         <span
@@ -109,7 +111,8 @@ export function ConditionsCard({
 
 function summaryText(c: Conditions): string {
   const first = c.slots[0]
-  return c.activity === "surf" ? swellText(first) : `Waves ${num(first.waveM, 1, " m")}`
+  const lead = c.activity === "surf" ? swellText(first) : `Waves ${num(first.waveM, 1, " m")}`
+  return `${lead} · wind ${windText(first)}`
 }
 
 /** The opened card. Its own component so a switched activity or looked-up

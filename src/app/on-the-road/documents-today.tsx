@@ -2,7 +2,6 @@
 
 import * as React from "react"
 
-import { Label } from "@/components/together"
 import { AddDocumentButtons, DocumentSearch } from "@/components/documents/document-search"
 import { DocumentView, entryDatesLabel } from "@/components/documents/document-view"
 import {
@@ -32,9 +31,8 @@ export function DocumentsToday({ documents, today, tripId, tripSlug }: Documents
     ? searchDocuments(documents, query).map((doc) => ({ doc, entry: null }))
     : documentsForDay(documents, today)
   return (
-    <section className="mt-4 rounded-[14px] border border-border bg-card p-5">
-      <Label>Documents</Label>
-      <div className="mt-3 flex flex-col gap-3">
+    <div className="px-[18px] py-3">
+      <div className="flex flex-col gap-3">
         <DocumentSearch query={query} onQueryChange={setQuery} />
         {items.map(({ doc, entry }) => (
           <DocumentTodayRow key={doc.id} doc={doc} entry={entry} today={today} tripSlug={tripSlug} />
@@ -46,7 +44,7 @@ export function DocumentsToday({ documents, today, tripId, tripSlug }: Documents
         ) : null}
         <AddDocumentButtons tripId={tripId} tripSlug={tripSlug} />
       </div>
-    </section>
+    </div>
   )
 }
 

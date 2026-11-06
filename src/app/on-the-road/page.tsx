@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation"
 
-import { Coord, Label, TopoBg } from "@/components/together"
+import { Label } from "@/components/together"
+import { BoxCard } from "@/components/collapsible-box"
 import { isDarkTheme } from "@/lib/theme"
 import {
   LeftRail,
@@ -13,8 +14,7 @@ import { getCurrentWorkspace } from "@/lib/workspace/queries"
 import { listTripsForWorkspace } from "@/lib/trips/list-queries"
 import { getTodayForTrip, getItineraryDays } from "@/lib/trips/itinerary-queries"
 import { getItineraryLocations } from "@/lib/trips/location-queries"
-import { slugToTone } from "@/lib/trips/slug-tone"
-import { formatShortDate, daySummary, isDated } from "@/lib/trips/itinerary-types"
+import { formatShortDate, isDated } from "@/lib/trips/itinerary-types"
 import { getTripWeather } from "@/lib/weather/get-trip-weather"
 import { getUpcomingConditions } from "@/lib/conditions/day-conditions"
 import { getUsualActivities } from "@/lib/conditions/usual-activities"
@@ -48,12 +48,10 @@ import { AssistantBlock } from "@/components/assistant-block"
 import { RealtimeRefresh } from "@/components/realtime-refresh"
 import { QuickExpense } from "./quick-expense"
 import { QuickNote } from "./quick-note"
-import { LookingAheadPanel } from "./looking-ahead-panel"
-import { AddTodayEvent } from "./add-today-event"
-import { TodayUpcoming } from "./today-upcoming"
-import { TodayPast } from "./today-past"
 import { RoadPlaceDoor } from "./find-a-place"
 import { RoadNudge } from "./road-nudge"
+import { KeepCard, MoneyCard, RoadHeaderLine, TodayCard } from "./road-cards"
+import { documentsForDay } from "@/lib/trips/document-types"
 
 const WEEKDAY_FMT = new Intl.DateTimeFormat("en-GB", {
   weekday: "short",
@@ -76,7 +74,6 @@ export default async function OnTheRoadPage() {
   const today = todayInTimeZone(tz)
   const todayDay = await getTodayForTrip(trip.id, today)
   const locations = await getItineraryLocations(trip.id)
-  const tone = slugToTone(trip.slug)
   const dark = await isDarkTheme()
   const navDestinations = buildNavDestinations({
     onTheRoad: true,
@@ -182,6 +179,12 @@ export default async function OnTheRoadPage() {
           </div>
           <SignOutButton className="flex items-center text-muted-foreground hover:text-foreground lg:hidden" />
         </div>
+        <RoadHeaderLine
+          place={place}
+          dateLabel={fullDate}
+          dayOfTrip={computeTripDays(trip.startDate, today)}
+          tripDays={computeTripDays(trip.startDate, trip.endDate)}
+        />
         <div id="road-assistant">
           <AssistantBlock
             surface="road"
@@ -199,15 +202,8 @@ export default async function OnTheRoadPage() {
           />
         </div>
 
-      <section className="relative overflow-hidden rounded-[14px] border border-border bg-card p-5">
-        <TopoBg tone={tone} opacity={0.12} />
-        <div className="relative">
-          <Coord>{fullDate}</Coord>
-          {place ? (
-            <div className="t-display mt-2 text-[36px] leading-none text-foreground">
-              <em>{place}</em>
-            </div>
-          ) : null}
+      <BoxCard className="px-3 pt-2.5 pb-1">
+        <Label className="px-1.5">Feed</Label>
           <DispatchBox
             weather={weather}
             conditions={conditions}
@@ -229,7 +225,7 @@ export default async function OnTheRoadPage() {
               dayDate: d.dayDate,
               label: `${d.dow} ${d.dom} ${d.mon}`,
             }))}
-            className="mt-3"
+            className="mt-2"
           />
           {news
             .filter((day) => day.checkedAt === null)
@@ -240,80 +236,62 @@ export default async function OnTheRoadPage() {
                 dayDate={day.dayDate}
               />
             ))}
-        </div>
-      </section>
+      </BoxCard>
 
-      <section className="mt-4 rounded-[14px] border border-border bg-card p-5">
-        <Label>Today</Label>
-        {todayDay ? (
-          <>
-            {todayDay.title ? (
-              <div className="t-display mt-2 text-[24px] leading-tight text-foreground">
-                {todayDay.title}
-              </div>
-            ) : null}
-            {daySummary(todayDay) ? (
-              <div className="mt-1 text-[13px] leading-snug text-muted-foreground">
-                {daySummary(todayDay)}
-              </div>
-            ) : null}
-            <TodayUpcoming events={todayDay.events} />
-            <TodayPast
-              tripSlug={trip.slug}
-              dayId={todayDay.id}
-              events={todayDay.events}
-            />
-          </>
-        ) : (
-          <div className="mt-2 text-[13px] text-muted-foreground">
-            Nothing planned for today.
-          </div>
-        )}
-        <AddTodayEvent
-          tripId={trip.id}
-          tripSlug={trip.slug}
-          dayDate={today}
-          dayId={todayDay?.id ?? null}
-        />
-      </section>
+      <TodayCard
+        todayDay={todayDay}
+        tripId={trip.id}
+        tripSlug={trip.slug}
+        today={today}
+        ahead={ahead}
+      />
 
       {capNudge ? <RoadNudge nudge={capNudge} /> : null}
 
       {unloggedNudge ? <CatchUpNudge nudge={unloggedNudge} /> : null}
 
-      <div id="road-expense">
+      <MoneyCard
+        spentTodayCents={spentTodayCents}
+        dayBudgetCents={
+          pace
+            ? periodCheck(pace, "day", today, {
+                budgetCents: trip.plannedBudgetCents,
+                spentCents: tripSpentCents,
+              }).plannedCents
+            : null
+        }
+        currency={trip.homeCurrency}
+      >
         <QuickExpense
           tripId={trip.id}
           tripSlug={trip.slug}
           today={today}
           currentPersonId={workspace.myPersonId ?? ""}
           categories={categories}
-          spentTodayCents={spentTodayCents}
           locationCurrency={
             locations.find((l) => l.id === todayDay?.locationId)?.currency ?? null
           }
         />
-      </div>
+        <div className="px-[18px] pb-3 empty:hidden">
+          <ReceiptPile
+            tripSlug={trip.slug}
+            receipts={receipts}
+            expenses={expenses}
+            nowMs={receiptClockMs()}
+          />
+        </div>
+      </MoneyCard>
 
-      <div className="mt-4 empty:hidden">
-        <ReceiptPile
-          tripSlug={trip.slug}
-          receipts={receipts}
-          expenses={expenses}
-          nowMs={receiptClockMs()}
-        />
-      </div>
-
-      <DocumentsToday documents={documents} today={today} tripId={trip.id} tripSlug={trip.slug} />
-
-      <QuickNote
-        tripId={trip.id}
-        tripSlug={trip.slug}
-        today={today}
-        notes={notes}
+      <KeepCard
+        documentsToday={documentsForDay(documents, today).length}
+        notesToday={notes.length}
+        documents={
+          <DocumentsToday documents={documents} today={today} tripId={trip.id} tripSlug={trip.slug} />
+        }
+        notes={
+          <QuickNote tripId={trip.id} tripSlug={trip.slug} today={today} notes={notes} />
+        }
       />
-
-      <LookingAheadPanel ahead={ahead} />
       </div>
     </main>
     </CurrencyProvider>
