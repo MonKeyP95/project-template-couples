@@ -33,7 +33,7 @@ export async function getUpcomingConditions(
         locations.find((l) => l.id === day.locationId)?.name ?? null
       const coords = await resolveCoords({ ...trip, locationName })
       if (!coords) return null
-      const conditions = await getConditions(activity, coords.lat, coords.lng, dayDate)
+      const conditions = await getConditions(activity, coords, dayDate)
       return conditions ? { conditions, dayLabel } : null
     }),
   )

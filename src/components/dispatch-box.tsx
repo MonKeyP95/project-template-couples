@@ -140,8 +140,8 @@ interface CardContext {
 }
 
 /** The deck in order: weather, any surf or dive conditions, budget, then today's
- * findings (or one empty news card). Weather and budget are not pressable; every item is. `expanded` is a
- * deck index, so their offset applies. */
+ * findings (or one empty news card). Weather and budget are not pressable;
+ * conditions and items are. `expanded` is a deck index, so offsets apply. */
 function buildCards(
   weather: Weather | null,
   items: DispatchItem[],
@@ -156,11 +156,13 @@ function buildCards(
     ) : (
       <EmptyCard key="weather" label="Weather" text="No forecast for here." />
     ),
-    ...ctx.conditions.map((c) => (
+    ...ctx.conditions.map((c, i) => (
       <ConditionsCard
         key={`conditions-${c.conditions.dayDate}`}
         conditions={c.conditions}
         dayLabel={c.dayLabel}
+        expanded={expanded === i + 1}
+        onToggle={(next) => onToggle(next ? i + 1 : null)}
       />
     )),
     ctx.budget ? (

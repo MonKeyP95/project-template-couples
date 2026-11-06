@@ -1,3 +1,4 @@
+import type { PlaceMatch } from "@/lib/weather/geocode"
 import type { Activity } from "./activity"
 
 /** The hours each card reports; wind often turns between morning and afternoon. */
@@ -27,6 +28,8 @@ export interface TideTurn {
 export interface Conditions {
   activity: Activity
   dayDate: string
+  /** The place these numbers are for; shown so a wrong match is visible. */
+  place: PlaceMatch
   slots: ConditionsSlot[]
   tides: TideTurn[]
   /** Midday sea surface temperature. */
@@ -100,16 +103,15 @@ async function getJson<T>(url: string): Promise<T | null> {
 }
 
 /**
- * Surf or dive conditions for one day at a coordinate, from Open-Meteo's free
+ * Surf or dive conditions for one day at a place, from Open-Meteo's free
  * marine and weather APIs. Null if either call fails; the caller drops the card.
  */
 export async function getConditions(
   activity: Activity,
-  lat: number,
-  lng: number,
+  place: PlaceMatch,
   dayDate: string,
 ): Promise<Conditions | null> {
-  const at = `latitude=${lat}&longitude=${lng}&timezone=auto`
+  const at = `latitude=${place.lat}&longitude=${place.lng}&timezone=auto`
   const [marine, forecast] = await Promise.all([
     getJson<Marine>(
       `https://marine-api.open-meteo.com/v1/marine?${at}&hourly=${MARINE_VARS}` +
@@ -140,6 +142,7 @@ export async function getConditions(
   return {
     activity,
     dayDate,
+    place,
     slots,
     tides: tideTurns(m.sea_level_height_msl),
     waterC: m.sea_surface_temperature[12],
