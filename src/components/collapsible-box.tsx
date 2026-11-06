@@ -26,12 +26,17 @@ export function BoxCard({
 export function BoxSection({
   summary,
   children,
+  defaultOpen = false,
+  id,
 }: {
   summary: ReactNode
   children: ReactNode
+  /** Opens on first render; the reader owns it after that. */
+  defaultOpen?: boolean
+  id?: string
 }) {
   return (
-    <details className="group">
+    <details id={id} className="group" open={defaultOpen}>
       <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 px-[18px] py-2 [&::-webkit-details-marker]:hidden">
         <div className="min-w-0 flex-1">{summary}</div>
         <span
