@@ -20,7 +20,9 @@ export interface ConditionsSlot {
 }
 
 export interface TideTurn {
-  /** "HH:00" local time; hourly data, so approximate. */
+  /** Local hour, 0-23; hourly data, so approximate. */
+  hour: number
+  /** "HH:00" local time. */
   time: string
   kind: "high" | "low"
 }
@@ -32,6 +34,8 @@ export interface Conditions {
   place: PlaceMatch
   slots: ConditionsSlot[]
   tides: TideTurn[]
+  /** Hourly sea level for the day in metres from mean sea level: the tide curve. */
+  tideLevels: (number | null)[]
   /** Midday sea surface temperature. */
   waterC: number | null
   /** Rain over the three days before `dayDate`, mm. */
@@ -93,8 +97,8 @@ export function tideTurns(levels: (number | null)[]): TideTurn[] {
   for (let i = 1; i < levels.length - 1; i++) {
     const [prev, here, next] = [levels[i - 1], levels[i], levels[i + 1]]
     if (prev == null || here == null || next == null) continue
-    if (here > prev && here >= next) turns.push({ time: hourLabel(i), kind: "high" })
-    if (here < prev && here <= next) turns.push({ time: hourLabel(i), kind: "low" })
+    if (here > prev && here >= next) turns.push({ hour: i, time: hourLabel(i), kind: "high" })
+    if (here < prev && here <= next) turns.push({ hour: i, time: hourLabel(i), kind: "low" })
   }
   return turns
 }
@@ -147,6 +151,7 @@ export async function getConditions(
     place,
     slots,
     tides: tideTurns(m.sea_level_height_msl),
+    tideLevels: m.sea_level_height_msl,
     waterC: m.sea_surface_temperature[12],
     rainMm3d: pastRain.some((v) => v == null)
       ? null
