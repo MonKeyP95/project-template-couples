@@ -86,7 +86,8 @@ export function TideChart({
                     transform: `translate(${anchorShift(p.x)}, ${high ? "calc(-100% - 6px)" : "6px"})`,
                   }}
                 >
-                  {t.time}
+                  {t.time.slice(0, 2)}
+                  <span className="hidden sm:inline">{t.time.slice(2)}</span>
                 </span>
               </div>
             )
