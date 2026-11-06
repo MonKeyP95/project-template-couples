@@ -111,7 +111,9 @@ export function ConditionsCard({
 
 function summaryText(c: Conditions): string {
   const first = c.slots[0]
-  return c.activity === "surf" ? swellText(first) : `Waves ${num(first.waveM, 1, " m")}`
+  return c.activity === "surf"
+    ? `${swellText(first)} · wind ${windText(first)}`
+    : `Waves ${num(first.waveM, 1, " m")}`
 }
 
 /** The opened card. Its own component so a switched activity or looked-up
