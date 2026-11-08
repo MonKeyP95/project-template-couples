@@ -17,13 +17,14 @@ const SUGGESTION_SYSTEM =
   "context provided; never invent facts (place names, dates, prices) not given. " +
   "Keep the body to one or two sentences. Return only the propose_suggestion tool."
 
+// No toolChoice: Haiku 5.5 rejects a forced tool choice (see read-receipt);
+// the system prompt asks for the tool. maxTokens leaves room for thinking.
 const suggestion: AgentDescriptor<string, Suggestion> = {
   name: "suggestion",
-  model: "claude-sonnet-4-6",
-  maxTokens: 512,
+  model: "claude-haiku-5-5",
+  maxTokens: 2048,
   system: SUGGESTION_SYSTEM,
   tools: ["propose_suggestion"],
-  toolChoice: { type: "tool", name: "propose_suggestion" },
   mcpServers: [],
   buildInput: (prompt) => prompt,
   parseOutput: (message) => {
