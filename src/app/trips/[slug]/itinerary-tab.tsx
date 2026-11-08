@@ -1777,7 +1777,10 @@ function DayView({
       </div>
       <div
         data-day-card
-        className={`flex-1 cursor-auto rounded-lg border ${
+        onClick={(e) => {
+          if (!(e.target as Element).closest("button, a, input, textarea, form")) onStartEdit()
+        }}
+        className={`flex-1 cursor-pointer rounded-lg border ${
           empty
             ? `border-dashed px-3.5 py-2 ${selected ? "border-sea bg-sea/10" : "border-rule"}`
             : `px-3.5 py-3 border-l-[3px] ${
