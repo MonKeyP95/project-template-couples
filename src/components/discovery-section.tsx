@@ -159,7 +159,7 @@ export function DiscoverySection({
                 value={near}
                 onChange={(e) => setNear(e.target.value)}
                 placeholder="which area? (optional)"
-                className="w-full border-0 border-b border-rule bg-transparent py-1 text-[13px] text-foreground placeholder:text-muted-foreground focus:border-clay focus:outline-none"
+                className="w-full border-0 border-b border-rule bg-transparent py-1 text-[13px] text-foreground placeholder:text-muted-foreground/60 focus:border-clay focus:outline-none"
               />
               <div className="flex gap-1.5">
                 {(["any", "budget", "mid", "splurge"] as const).map((b) => (
@@ -185,14 +185,14 @@ export function DiscoverySection({
                 value={craving}
                 onChange={(e) => setCraving(e.target.value)}
                 placeholder="what do you feel like? (optional)"
-                className="w-full border-0 border-b border-rule bg-transparent py-1 text-[13px] text-foreground placeholder:text-muted-foreground focus:border-clay focus:outline-none"
+                className="w-full border-0 border-b border-rule bg-transparent py-1 text-[13px] text-foreground placeholder:text-muted-foreground/60 focus:border-clay focus:outline-none"
               />
               <input
                 type="text"
                 value={near}
                 onChange={(e) => setNear(e.target.value)}
                 placeholder="near…"
-                className="w-full border-0 border-b border-rule bg-transparent py-1 text-[13px] text-foreground placeholder:text-muted-foreground focus:border-clay focus:outline-none"
+                className="w-full border-0 border-b border-rule bg-transparent py-1 text-[13px] text-foreground placeholder:text-muted-foreground/60 focus:border-clay focus:outline-none"
               />
               <label className="flex items-center gap-2 font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
                 <input
@@ -270,7 +270,7 @@ export function DiscoverySection({
                     onChange={(e) => setTime(e.target.value)}
                     onBlur={() => setTime((t) => normalizeTime(t))}
                     placeholder="00:00"
-                    className="t-num w-16 border-0 border-b border-rule bg-transparent py-1 text-[13px] text-foreground placeholder:text-muted-foreground focus:border-clay focus:outline-none"
+                    className="t-num w-16 border-0 border-b border-rule bg-transparent py-1 text-[13px] text-foreground placeholder:text-muted-foreground/60 focus:border-clay focus:outline-none"
                   />
                   <button
                     type="button"

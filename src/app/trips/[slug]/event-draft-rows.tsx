@@ -117,7 +117,7 @@ export function EventRow({
           onBlur={onNormalizeTime}
           placeholder="00:00"
           disabled={isPending}
-          className="t-num w-16 shrink-0 border-0 border-b border-rule bg-transparent py-1.5 text-[13px] text-foreground placeholder:text-muted-foreground focus:border-clay focus:outline-none disabled:opacity-50"
+          className="t-num w-16 shrink-0 border-0 border-b border-rule bg-transparent py-1.5 text-[13px] text-foreground placeholder:text-muted-foreground/60 focus:border-clay focus:outline-none disabled:opacity-50"
         />
         <input
           type="text"
@@ -126,7 +126,7 @@ export function EventRow({
           onBlur={onNormalizeEndTime}
           placeholder="00:00"
           disabled={isPending}
-          className="t-num w-16 shrink-0 border-0 border-b border-rule bg-transparent py-1.5 text-[13px] text-foreground placeholder:text-muted-foreground focus:border-clay focus:outline-none disabled:opacity-50"
+          className="t-num w-16 shrink-0 border-0 border-b border-rule bg-transparent py-1.5 text-[13px] text-foreground placeholder:text-muted-foreground/60 focus:border-clay focus:outline-none disabled:opacity-50"
         />
         <input
           type="text"
@@ -135,7 +135,7 @@ export function EventRow({
           placeholder="What happens"
           autoFocus={autoFocus}
           disabled={isPending}
-          className="min-w-0 flex-1 border-0 border-b border-rule bg-transparent py-1.5 text-[14px] text-foreground placeholder:text-muted-foreground focus:border-clay focus:outline-none disabled:opacity-50"
+          className="min-w-0 flex-1 border-0 border-b border-rule bg-transparent py-1.5 text-[14px] text-foreground placeholder:text-muted-foreground/60 focus:border-clay focus:outline-none disabled:opacity-50"
         />
         <button
           type="button"
@@ -153,7 +153,7 @@ export function EventRow({
         onChange={(e) => onPatch({ url: e.target.value })}
         placeholder="link (optional)"
         disabled={isPending}
-        className="w-full border-0 border-b border-rule bg-transparent py-1 text-[12px] text-foreground placeholder:text-muted-foreground focus:border-clay focus:outline-none disabled:opacity-50"
+        className="w-full border-0 border-b border-rule bg-transparent py-1 text-[12px] text-foreground placeholder:text-muted-foreground/60 focus:border-clay focus:outline-none disabled:opacity-50"
       />
       <textarea
         value={ev.details}
@@ -161,7 +161,7 @@ export function EventRow({
         placeholder="details (optional) — address, booking name, what to bring"
         rows={2}
         disabled={isPending}
-        className="w-full resize-y border-0 border-b border-rule bg-transparent py-1 text-[12px] text-foreground placeholder:text-muted-foreground focus:border-clay focus:outline-none disabled:opacity-50"
+        className="w-full resize-y border-0 border-b border-rule bg-transparent py-1 text-[12px] text-foreground placeholder:text-muted-foreground/60 focus:border-clay focus:outline-none disabled:opacity-50"
       />
     </div>
   )

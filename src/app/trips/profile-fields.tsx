@@ -126,7 +126,7 @@ export function CategoryCard({
             }}
             placeholder="add specific…"
             disabled={pending}
-            className="mt-2 w-full rounded-lg border border-dashed border-rule bg-transparent px-3 py-2 text-[14px] text-foreground placeholder:text-muted-foreground focus:border-clay focus:outline-none disabled:opacity-50"
+            className="mt-2 w-full rounded-lg border border-dashed border-rule bg-transparent px-3 py-2 text-[14px] text-foreground placeholder:text-muted-foreground/60 focus:border-clay focus:outline-none disabled:opacity-50"
           />
         </div>
       ) : null}
@@ -228,7 +228,7 @@ export function LocalCategoryEditor({
           }}
           placeholder="Add a category…"
           disabled={disabled}
-          className="flex-1 rounded-xl border border-dashed border-rule bg-transparent px-4 py-3 text-[15px] text-foreground placeholder:text-muted-foreground focus:border-clay focus:outline-none disabled:opacity-50"
+          className="flex-1 rounded-xl border border-dashed border-rule bg-transparent px-4 py-3 text-[15px] text-foreground placeholder:text-muted-foreground/60 focus:border-clay focus:outline-none disabled:opacity-50"
         />
         <button
           type="button"

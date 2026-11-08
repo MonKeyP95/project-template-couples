@@ -53,7 +53,7 @@ export function PrefsPage({
             rows={2}
             placeholder={t.hint}
             disabled={isPending}
-            className="mt-2 block w-full resize-none rounded-[10px] border border-border bg-card px-3 py-2.5 text-[15px] leading-snug text-foreground placeholder:text-muted-foreground focus:border-clay focus:outline-none"
+            className="mt-2 block w-full resize-none rounded-[10px] border border-border bg-card px-3 py-2.5 text-[15px] leading-snug text-foreground placeholder:text-muted-foreground/60 focus:border-clay focus:outline-none"
           />
         </label>
       ))}

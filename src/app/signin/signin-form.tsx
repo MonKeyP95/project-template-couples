@@ -21,7 +21,7 @@ export function SignInForm({ nextPath }: { nextPath: string }) {
           placeholder="you@example.com"
           required
           disabled={isPending}
-          className="mt-1 w-full border-0 border-b border-rule bg-transparent py-1.5 text-[16px] text-foreground placeholder:text-muted-foreground focus:border-clay focus:outline-none disabled:opacity-50"
+          className="mt-1 w-full border-0 border-b border-rule bg-transparent py-1.5 text-[16px] text-foreground placeholder:text-muted-foreground/60 focus:border-clay focus:outline-none disabled:opacity-50"
         />
       </label>
 
@@ -34,7 +34,7 @@ export function SignInForm({ nextPath }: { nextPath: string }) {
           type="password"
           required
           disabled={isPending}
-          className="mt-1 w-full border-0 border-b border-rule bg-transparent py-1.5 text-[16px] text-foreground placeholder:text-muted-foreground focus:border-clay focus:outline-none disabled:opacity-50"
+          className="mt-1 w-full border-0 border-b border-rule bg-transparent py-1.5 text-[16px] text-foreground placeholder:text-muted-foreground/60 focus:border-clay focus:outline-none disabled:opacity-50"
         />
       </label>
 

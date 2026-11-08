@@ -67,7 +67,7 @@ export function PlanningPlaceDoor({
       value={askedPlace}
       onChange={(e) => setAskedPlace(e.target.value)}
       placeholder={`Where in ${destination} are you headed?`}
-      className="block w-full rounded-lg border border-border bg-background px-2.5 py-1.5 text-[13px] text-foreground placeholder:text-muted-foreground"
+      className="block w-full rounded-lg border border-border bg-background px-2.5 py-1.5 text-[13px] text-foreground placeholder:text-muted-foreground/60"
     />
   )
 

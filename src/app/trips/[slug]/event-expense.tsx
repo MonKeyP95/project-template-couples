@@ -118,7 +118,7 @@ export function EventExpense({
             placeholder="0.00"
             autoFocus
             disabled={isPending}
-            className="t-num w-full border-0 bg-transparent font-mono text-[13px] text-foreground placeholder:text-muted-foreground focus:outline-none"
+            className="t-num w-full border-0 bg-transparent font-mono text-[13px] text-foreground placeholder:text-muted-foreground/60 focus:outline-none"
           />
         </div>
         <select

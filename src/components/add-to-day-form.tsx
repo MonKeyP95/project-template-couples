@@ -100,7 +100,7 @@ export function AddToDayForm({
           onChange={(e) => setTime(e.target.value)}
           onBlur={() => setTime((t) => normalizeTime(t))}
           placeholder="00:00"
-          className="t-num w-16 border-0 border-b border-rule bg-transparent py-1 text-[13px] text-foreground placeholder:text-muted-foreground focus:border-clay focus:outline-none"
+          className="t-num w-16 border-0 border-b border-rule bg-transparent py-1 text-[13px] text-foreground placeholder:text-muted-foreground/60 focus:border-clay focus:outline-none"
         />
         <button
           type="button"

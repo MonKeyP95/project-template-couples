@@ -76,7 +76,7 @@ export function ProfileWalkthrough({
               placeholder="e.g. 2 weeks surfing in Portugal"
               rows={3}
               disabled={disabled}
-              className="w-full resize-y rounded-lg border border-rule bg-transparent p-3 text-[15px] text-foreground placeholder:text-muted-foreground focus:border-clay focus:outline-none disabled:opacity-50"
+              className="w-full resize-y rounded-lg border border-rule bg-transparent p-3 text-[15px] text-foreground placeholder:text-muted-foreground/60 focus:border-clay focus:outline-none disabled:opacity-50"
             />
           </StepShell>
         ) : null}
@@ -98,7 +98,7 @@ export function ProfileWalkthrough({
               placeholder="In your own words…"
               maxLength={500}
               disabled={disabled}
-              className="mt-3 w-full border-0 border-b border-rule bg-transparent py-1.5 text-[14px] text-foreground placeholder:text-muted-foreground focus:border-clay focus:outline-none disabled:opacity-50"
+              className="mt-3 w-full border-0 border-b border-rule bg-transparent py-1.5 text-[14px] text-foreground placeholder:text-muted-foreground/60 focus:border-clay focus:outline-none disabled:opacity-50"
             />
           </StepShell>
         ) : null}
@@ -140,7 +140,7 @@ export function ProfileWalkthrough({
               rows={3}
               maxLength={500}
               disabled={disabled}
-              className="w-full resize-y rounded-lg border border-rule bg-transparent p-3 text-[15px] text-foreground placeholder:text-muted-foreground focus:border-clay focus:outline-none disabled:opacity-50"
+              className="w-full resize-y rounded-lg border border-rule bg-transparent p-3 text-[15px] text-foreground placeholder:text-muted-foreground/60 focus:border-clay focus:outline-none disabled:opacity-50"
             />
           </StepShell>
         ) : null}

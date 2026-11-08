@@ -342,7 +342,7 @@ export function BudgetScopeEditor({
                       onChange={(e) => patch(r.id, { subject: e.target.value })}
                       onKeyDown={onCostKeyDown}
                       placeholder="What"
-                      className="min-w-0 flex-1 rounded-lg border border-clay bg-transparent px-2.5 py-1.5 text-[12px] text-foreground placeholder:text-muted-foreground focus:outline-none"
+                      className="min-w-0 flex-1 rounded-lg border border-clay bg-transparent px-2.5 py-1.5 text-[12px] text-foreground placeholder:text-muted-foreground/60 focus:outline-none"
                     />
                     {withDates ? (
                       <>
@@ -372,7 +372,7 @@ export function BudgetScopeEditor({
                       onChange={(e) => patchValue(r.id, e.target.value)}
                       onKeyDown={onCostKeyDown}
                       placeholder={r.priceUnknown ? "add" : "0"}
-                      className="w-16 rounded-lg border border-clay bg-transparent px-2 py-1.5 text-right text-[12px] text-foreground placeholder:text-muted-foreground focus:outline-none"
+                      className="w-16 rounded-lg border border-clay bg-transparent px-2 py-1.5 text-right text-[12px] text-foreground placeholder:text-muted-foreground/60 focus:outline-none"
                     />
                     {r.estimated ? (
                       <span className="shrink-0 font-mono text-[9px] uppercase tracking-[0.12em] text-clay">
@@ -447,7 +447,7 @@ export function BudgetScopeEditor({
                   autoFocus
                   maxLength={40}
                   placeholder="New category"
-                  className="w-40 rounded-lg border border-clay bg-transparent px-2.5 py-1.5 text-[12px] text-foreground placeholder:text-muted-foreground focus:outline-none"
+                  className="w-40 rounded-lg border border-clay bg-transparent px-2.5 py-1.5 text-[12px] text-foreground placeholder:text-muted-foreground/60 focus:outline-none"
                 />
                 <button
                   type="submit"

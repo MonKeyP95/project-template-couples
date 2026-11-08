@@ -256,7 +256,7 @@ function AddNoteRow({
         placeholder="jot down a note…"
         rows={3}
         disabled={isPending}
-        className="w-full resize-none rounded-lg border border-rule bg-card px-3 py-2 text-[14px] text-foreground placeholder:text-muted-foreground focus:border-clay focus:outline-none disabled:opacity-50 [field-sizing:content]"
+        className="w-full resize-none rounded-lg border border-rule bg-card px-3 py-2 text-[14px] text-foreground placeholder:text-muted-foreground/60 focus:border-clay focus:outline-none disabled:opacity-50 [field-sizing:content]"
       />
       {error ? (
         <div className="mt-2 font-mono text-[10px] text-clay">{error}</div>

@@ -960,7 +960,7 @@ export function ItineraryTab({
               if (!newLocName.trim()) setAddingLocation(false)
             }}
             placeholder="Location name"
-            className="block w-full rounded-lg border border-clay bg-transparent px-3 py-2.5 font-mono text-[12px] text-foreground placeholder:text-muted-foreground focus:outline-none"
+            className="block w-full rounded-lg border border-clay bg-transparent px-3 py-2.5 font-mono text-[12px] text-foreground placeholder:text-muted-foreground/60 focus:outline-none"
           />
         </form>
       ) : null}
@@ -2271,7 +2271,7 @@ function DayForm({
               onChange={setEndIndex}
               startDate={tripStartDate}
               disabled={isPending}
-              className="t-num mt-1 w-full border-0 border-b border-rule bg-transparent py-1.5 text-[14px] text-foreground placeholder:text-muted-foreground focus:border-clay focus:outline-none disabled:opacity-50"
+              className="t-num mt-1 w-full border-0 border-b border-rule bg-transparent py-1.5 text-[14px] text-foreground placeholder:text-muted-foreground/60 focus:border-clay focus:outline-none disabled:opacity-50"
             />
           </label>
         ) : null}
@@ -2288,7 +2288,7 @@ function DayForm({
             onChange={(e) => setGroupName(e.target.value)}
             placeholder="Optional, e.g. Rinjani Trek"
             disabled={isPending}
-            className="mt-1 w-full border-0 border-b border-rule bg-transparent py-1.5 text-[14px] text-foreground placeholder:text-muted-foreground focus:border-clay focus:outline-none disabled:opacity-50"
+            className="mt-1 w-full border-0 border-b border-rule bg-transparent py-1.5 text-[14px] text-foreground placeholder:text-muted-foreground/60 focus:border-clay focus:outline-none disabled:opacity-50"
           />
         </label>
       ) : null}
@@ -2316,7 +2316,7 @@ function DayForm({
           onChange={(e) => setSub(e.target.value)}
           placeholder="One-line overview of the day"
           disabled={isPending}
-          className="mt-1 w-full border-0 border-b border-rule bg-transparent py-1.5 text-[14px] text-foreground placeholder:text-muted-foreground focus:border-clay focus:outline-none disabled:opacity-50"
+          className="mt-1 w-full border-0 border-b border-rule bg-transparent py-1.5 text-[14px] text-foreground placeholder:text-muted-foreground/60 focus:border-clay focus:outline-none disabled:opacity-50"
         />
       </label>
 

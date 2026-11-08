@@ -92,7 +92,7 @@ export function ExpenseFields({
           onChange={(e) => onTitleChange(e.target.value)}
           placeholder="Add an expense…"
           disabled={disabled}
-          className="w-full border-0 border-b border-rule bg-transparent py-1.5 text-[14px] text-foreground placeholder:text-muted-foreground focus:border-clay focus:outline-none disabled:opacity-50"
+          className="w-full border-0 border-b border-rule bg-transparent py-1.5 text-[14px] text-foreground placeholder:text-muted-foreground/60 focus:border-clay focus:outline-none disabled:opacity-50"
         />
         {titleAction}
       </div>
@@ -122,7 +122,7 @@ export function ExpenseFields({
               onChange={(e) => onAmountChange(e.target.value)}
               placeholder="0.00"
               disabled={disabled}
-              className="t-num w-full border-0 bg-transparent text-[14px] text-foreground placeholder:text-muted-foreground focus:outline-none disabled:opacity-50"
+              className="t-num w-full border-0 bg-transparent text-[14px] text-foreground placeholder:text-muted-foreground/60 focus:outline-none disabled:opacity-50"
             />
           </div>
         </label>

@@ -54,7 +54,7 @@ export function AddEventBox({
             onKeyDown={onKeyDown}
             placeholder="00:00"
             disabled={isPending}
-            className="t-num mt-1 w-full border-0 border-b border-rule bg-transparent py-1.5 text-[13px] text-foreground placeholder:text-muted-foreground focus:border-clay focus:outline-none disabled:opacity-50"
+            className="t-num mt-1 w-full border-0 border-b border-rule bg-transparent py-1.5 text-[13px] text-foreground placeholder:text-muted-foreground/60 focus:border-clay focus:outline-none disabled:opacity-50"
           />
         </label>
         <label className="block w-16 shrink-0">
@@ -67,7 +67,7 @@ export function AddEventBox({
             onKeyDown={onKeyDown}
             placeholder="00:00"
             disabled={isPending}
-            className="t-num mt-1 w-full border-0 border-b border-rule bg-transparent py-1.5 text-[13px] text-foreground placeholder:text-muted-foreground focus:border-clay focus:outline-none disabled:opacity-50"
+            className="t-num mt-1 w-full border-0 border-b border-rule bg-transparent py-1.5 text-[13px] text-foreground placeholder:text-muted-foreground/60 focus:border-clay focus:outline-none disabled:opacity-50"
           />
         </label>
         <label className="block min-w-0 flex-1">
@@ -77,10 +77,9 @@ export function AddEventBox({
             value={text}
             onChange={(e) => setText(e.target.value)}
             onKeyDown={onKeyDown}
-            placeholder="Dinner at the harbour"
             autoFocus={autoFocus}
             disabled={isPending}
-            className="mt-1 w-full border-0 border-b border-rule bg-transparent py-1.5 text-[14px] text-foreground placeholder:text-muted-foreground focus:border-clay focus:outline-none disabled:opacity-50"
+            className="mt-1 w-full border-0 border-b border-rule bg-transparent py-1.5 text-[14px] text-foreground placeholder:text-muted-foreground/60 focus:border-clay focus:outline-none disabled:opacity-50"
           />
         </label>
         <button

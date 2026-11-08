@@ -529,7 +529,7 @@ function ItemEditor({
             if (e.key === "Escape") onDone()
           }}
           disabled={pending}
-          className="flex-1 border-0 border-b border-rule bg-transparent py-1 text-[14px] text-foreground placeholder:text-muted-foreground focus:border-sea focus:outline-none disabled:opacity-50"
+          className="flex-1 border-0 border-b border-rule bg-transparent py-1 text-[14px] text-foreground placeholder:text-muted-foreground/60 focus:border-sea focus:outline-none disabled:opacity-50"
         />
         <button
           type="submit"
@@ -621,7 +621,7 @@ function AddItemRow({
           }}
           placeholder={placeholder ?? `Add to ${category.toLowerCase()}…`}
           disabled={pending}
-          className="flex-1 border-0 border-b border-rule bg-transparent py-1 text-[14px] text-foreground placeholder:text-muted-foreground focus:border-sea focus:outline-none disabled:opacity-50"
+          className="flex-1 border-0 border-b border-rule bg-transparent py-1 text-[14px] text-foreground placeholder:text-muted-foreground/60 focus:border-sea focus:outline-none disabled:opacity-50"
         />
         <button
           type="submit"
@@ -708,7 +708,7 @@ function AddCategoryRow({
           }}
           placeholder="New category, e.g. Shelter"
           disabled={pending}
-          className="flex-1 border-0 border-b border-rule bg-transparent py-1 text-[14px] text-foreground placeholder:text-muted-foreground focus:border-sea focus:outline-none disabled:opacity-50"
+          className="flex-1 border-0 border-b border-rule bg-transparent py-1 text-[14px] text-foreground placeholder:text-muted-foreground/60 focus:border-sea focus:outline-none disabled:opacity-50"
         />
         <button
           type="submit"

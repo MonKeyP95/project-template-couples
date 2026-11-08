@@ -403,7 +403,7 @@ function LedgerRowEditor({
               onChange={(e) => setHomeAmount(e.target.value)}
               placeholder="0.00"
               disabled={isPending}
-              className="t-num w-full border-0 bg-transparent text-[14px] text-foreground placeholder:text-muted-foreground focus:outline-none disabled:opacity-50"
+              className="t-num w-full border-0 bg-transparent text-[14px] text-foreground placeholder:text-muted-foreground/60 focus:outline-none disabled:opacity-50"
             />
           </div>
           <span className="mt-1 block font-mono text-[10px] text-muted-foreground">
