@@ -63,6 +63,7 @@ import {
   moveItineraryDay,
   rescheduleItineraryDaysTo,
   setLocationSpanWithShift,
+  ungroupItineraryDays,
   updateItineraryDay,
 } from "@/lib/trips/actions"
 import {
@@ -1560,6 +1561,17 @@ function DaySegmentView({
         >
           {seg.days[0].groupName ?? "added together"}
         </span>
+        <form
+          action={ungroupItineraryDays.bind(null, tripId, tripSlug, seg.groupId)}
+          className="absolute right-[6.5rem] top-0.5 inline-flex"
+        >
+          <button
+            type="submit"
+            className="border-0 bg-transparent px-2 py-1 font-mono text-[11px] text-muted-foreground hover:text-foreground"
+          >
+            ungroup
+          </button>
+        </form>
         <button
           type="button"
           onClick={() => onEditBlock(seg.days.map((d) => d.id), seg.groupId!)}

@@ -2166,6 +2166,23 @@ export async function deleteItineraryGroup(
   revalidatePath(`/trips/${tripSlug}`)
 }
 
+/** Splits a multi-day block back into single days; the days themselves stay. */
+export async function ungroupItineraryDays(
+  tripId: string,
+  tripSlug: string,
+  groupId: string,
+): Promise<void> {
+  const supabase = await createClient()
+  const { error } = await supabase
+    .from("itinerary_days")
+    .update({ group_id: null, group_name: null })
+    .eq("trip_id", tripId)
+    .eq("group_id", groupId)
+  if (error) throw new Error(error.message)
+
+  revalidatePath(`/trips/${tripSlug}`)
+}
+
 export interface EditItineraryBlockInput {
   tripId: string
   tripSlug: string
