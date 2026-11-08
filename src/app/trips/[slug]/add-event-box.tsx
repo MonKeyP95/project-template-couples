@@ -83,14 +83,11 @@ export function AddEventBox({
             className="mt-1 w-full border-0 border-b border-rule bg-transparent py-1.5 text-[14px] text-foreground placeholder:text-muted-foreground focus:border-clay focus:outline-none disabled:opacity-50"
           />
         </label>
-      </div>
-
-      <div className="mt-3 flex justify-end">
         <button
           type="button"
           onClick={onAdd}
           disabled={isPending || !text.trim()}
-          className="rounded-full border border-foreground bg-transparent px-3 py-1 font-mono text-[10px] uppercase tracking-[0.18em] text-foreground disabled:opacity-40"
+          className="mb-1 shrink-0 rounded-full border border-foreground bg-transparent px-3 py-1 font-mono text-[10px] uppercase tracking-[0.18em] text-foreground disabled:opacity-40"
         >
           add
         </button>
