@@ -696,6 +696,10 @@ Four items carried as "known gaps" on shipped features. Two were real and are fi
 - [x] **`/on-the-road` header: names + sign-out on one line** — Verified in-app 2026-11-03 (afec8f9). The "On the road · trip" label now shows the members' names; sign-out moved from its own centred row to the right end of that line (hidden at `lg`, where the rail has it). The page renders `MobileNavPill` directly. Lint + `tsc --noEmit` clean; in-app verify pending: (1) phone: names left, sign-out icon right, no row above; (2) icon signs out; (3) desktop: no icon in the header. Names now use the home page's serif italic (8b1b79a).
 - [x] **Looking ahead: next planned day, not just tomorrow** — Verified in-app 2026-11-03 (a0fef6d). The box hid whenever tomorrow was blank and the trip didn't move again. The tomorrow line is now the first later day with a plan (first timed event, else first untimed, else the title), headed "tomorrow" or "Fri 06 Nov". Collapse rule unchanged (hidden when that day is the next move day). Lint + `tsc --noEmit` clean; in-app verify pending: (1) /on-the-road with tomorrow blank and an event on a later day shows "Looking ahead" with that day's date and event; (2) an event tomorrow still reads "tomorrow".
 
+## AI cost visibility — 2026-11-08
+
+- [x] **Per-turn usage log in `runAgent`** — Implemented 2026-11-08. Every API turn prints `[ai-usage] agent=… model=… turn=… in=… out=… cache_read=… cache_write=… searches=…` (dev terminal / Vercel function logs). Purpose: find which agent drives cost before choosing Haiku, prompt caching, or a Places-API search tool. `tsc --noEmit` + eslint + `pnpm build` clean. In-app check: (1) trigger any AI feature (e.g. discover) and see one `[ai-usage]` line per turn in the terminal with `searches>0` for search agents.
+
 ## Working rules
 - One task per session. Finish, validate, then move on.
 - After completing a task, check it off here and add a row to `DECISIONS.md` if anything non-obvious was chosen.

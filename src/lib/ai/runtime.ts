@@ -67,6 +67,7 @@ export async function runAgent<In, Out>(
           ...(descriptor.toolChoice ? { tool_choice: descriptor.toolChoice } : {}),
           messages,
         })
+    logUsage(descriptor, i, response.usage)
     // Resume the server-side search loop; otherwise this is the final response.
     if (response.stop_reason === "pause_turn") {
       messages.push({ role: "assistant", content: response.content })
@@ -75,6 +76,21 @@ export async function runAgent<In, Out>(
     break
   }
   return descriptor.parseOutput(response!, input)
+}
+
+/** One log line per API turn, so cost can be attributed per agent. */
+function logUsage<In, Out>(
+  descriptor: AgentDescriptor<In, Out>,
+  turn: number,
+  usage: Anthropic.Usage,
+) {
+  console.log(
+    `[ai-usage] agent=${descriptor.name} model=${descriptor.model} turn=${turn}` +
+      ` in=${usage.input_tokens} out=${usage.output_tokens}` +
+      ` cache_read=${usage.cache_read_input_tokens ?? 0}` +
+      ` cache_write=${usage.cache_creation_input_tokens ?? 0}` +
+      ` searches=${usage.server_tool_use?.web_search_requests ?? 0}`,
+  )
 }
 
 /**
