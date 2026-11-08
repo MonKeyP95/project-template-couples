@@ -215,7 +215,7 @@ export function DispatchItemCard({
                   onChange={(e) => setQuestion(e.target.value)}
                   placeholder="ask about this…"
                   disabled={loading}
-                  className="w-full border-0 border-b border-rule bg-transparent py-1 text-[13px] text-foreground placeholder:text-muted-foreground focus:border-clay focus:outline-none disabled:opacity-40"
+                  className="w-full border-0 border-b border-rule bg-transparent py-1 text-[13px] text-foreground placeholder:text-muted-foreground/60 focus:border-clay focus:outline-none disabled:opacity-40"
                 />
               </form>
             </div>

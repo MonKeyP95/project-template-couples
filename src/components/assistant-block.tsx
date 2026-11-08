@@ -291,7 +291,7 @@ function SuggestLine({
               run({ kind: "free", text: freeText.trim() })
           }}
           placeholder="how can I help?"
-          className="flex-1 border-0 border-b border-rule bg-transparent text-[13px] text-foreground outline-none placeholder:text-muted-foreground focus:border-foreground"
+          className="flex-1 border-0 border-b border-rule bg-transparent text-[13px] text-foreground outline-none placeholder:text-muted-foreground/60 focus:border-foreground"
         />
         <button
           type="button"
@@ -392,7 +392,7 @@ function AskLine({ tripSlug }: { tripSlug?: string }) {
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={onKeyDown}
           placeholder="ask me anything…"
-          className="max-h-24 min-h-[2rem] flex-1 resize-none border-0 border-b border-rule bg-transparent text-[13px] text-foreground outline-none placeholder:text-muted-foreground focus:border-foreground"
+          className="max-h-24 min-h-[2rem] flex-1 resize-none border-0 border-b border-rule bg-transparent text-[13px] text-foreground outline-none placeholder:text-muted-foreground/60 focus:border-foreground"
         />
         <button
           type="button"

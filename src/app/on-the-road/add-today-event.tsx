@@ -85,7 +85,7 @@ export function AddTodayEvent({
         <input
           value={text}
           onChange={(e) => setText(e.target.value)}
-          placeholder="dinner"
+          placeholder="what's happening?"
           disabled={isPending}
           autoFocus
           className="flex-1 rounded-lg border border-border bg-background px-3 py-2 text-[14px] text-foreground"

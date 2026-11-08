@@ -17,7 +17,7 @@ import {
 const labelClass =
   "block font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground"
 const inputClass =
-  "mt-1 w-full border-0 border-b border-rule bg-transparent py-1.5 text-[14px] text-foreground placeholder:text-muted-foreground focus:border-clay focus:outline-none disabled:opacity-50"
+  "mt-1 w-full border-0 border-b border-rule bg-transparent py-1.5 text-[14px] text-foreground placeholder:text-muted-foreground/60 focus:border-clay focus:outline-none disabled:opacity-50"
 
 /** Edits a block's shared headline and events across all its days. */
 export function BlockEditor({

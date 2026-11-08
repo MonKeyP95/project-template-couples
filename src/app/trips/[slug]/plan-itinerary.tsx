@@ -386,7 +386,7 @@ export function PlanItinerary({
           maxLength={2000}
           autoFocus
           onChange={(e) => setFreeText(e.target.value)}
-          className="mt-1.5 w-full resize-y rounded-md border border-border bg-transparent px-2.5 py-2 text-[13px] text-foreground outline-none placeholder:text-muted-foreground focus:border-foreground"
+          className="mt-1.5 w-full resize-y rounded-md border border-border bg-transparent px-2.5 py-2 text-[13px] text-foreground outline-none placeholder:text-muted-foreground/60 focus:border-foreground"
         />
 
         {addedPlaces.length > 0 ? (
@@ -493,7 +493,7 @@ export function PlanItinerary({
             rows={3}
             maxLength={500}
             onChange={(e) => setAvoid(e.target.value)}
-            className="mt-3 w-full resize-y rounded-md border border-border bg-transparent px-2.5 py-2 text-[13px] text-foreground outline-none placeholder:text-muted-foreground focus:border-foreground"
+            className="mt-3 w-full resize-y rounded-md border border-border bg-transparent px-2.5 py-2 text-[13px] text-foreground outline-none placeholder:text-muted-foreground/60 focus:border-foreground"
           />
 
           <div className="mt-4 flex items-center justify-between">

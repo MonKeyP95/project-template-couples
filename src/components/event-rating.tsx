@@ -88,7 +88,7 @@ export function EventRating({
         onChange={(e) => setText(e.target.value)}
         placeholder="note (optional)"
         disabled={saving}
-        className="w-full border-0 border-b border-rule bg-transparent py-1 text-[12px] text-foreground placeholder:text-muted-foreground focus:border-clay focus:outline-none disabled:opacity-50"
+        className="w-full border-0 border-b border-rule bg-transparent py-1 text-[12px] text-foreground placeholder:text-muted-foreground/60 focus:border-clay focus:outline-none disabled:opacity-50"
       />
       <div className="flex items-center gap-2">
         <button

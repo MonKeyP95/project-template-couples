@@ -6,7 +6,7 @@ import type { DraftField, TripDraft } from "./new-trip-form"
 const eyebrow =
   "font-mono text-[11px] uppercase tracking-[0.16em] text-muted-foreground"
 const lineInput =
-  "border-0 border-b border-rule bg-transparent py-2 text-[20px] text-foreground placeholder:text-muted-foreground focus:border-clay focus:outline-none"
+  "border-0 border-b border-rule bg-transparent py-2 text-[20px] text-foreground placeholder:text-muted-foreground/60 focus:border-clay focus:outline-none"
 const chip =
   "min-h-10 rounded-full border px-3.5 text-[14px] transition-colors"
 
@@ -42,9 +42,9 @@ export function NotePage({
           value={draft.note}
           onChange={(e) => onNote(e.target.value)}
           rows={5}
-          placeholder="2 weeks surfing"
+          placeholder="e.g. 2 weeks surfing"
           aria-label="Tell me about the trip"
-          className="mt-6 block w-full resize-none rounded-xl border border-border bg-card p-3.5 text-[18px] leading-snug text-foreground placeholder:text-muted-foreground focus:border-clay focus:outline-none"
+          className="mt-6 block w-full resize-none rounded-xl border border-border bg-card p-3.5 text-[18px] leading-snug text-foreground placeholder:text-muted-foreground/60 focus:border-clay focus:outline-none"
         />
       </div>
 
@@ -114,7 +114,7 @@ export function NotePage({
               value={draft.place}
               onChange={(e) => onEdit("place", e.target.value)}
               disabled={draft.unsure}
-              placeholder="Portugal, Bali, the coast..."
+              placeholder="e.g. Portugal, Bali, the coast"
               className={`${lineInput} mt-1.5 block w-full disabled:opacity-40`}
             />
           </label>

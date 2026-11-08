@@ -9,7 +9,7 @@ import { StepShell } from "../../trips/profile-fields"
 const STEPS = ["Name", "Travellers", "Review"]
 
 const inputClass =
-  "w-full rounded-md border border-rule bg-background px-3 py-2 text-[14px] text-foreground placeholder:text-muted-foreground"
+  "w-full rounded-md border border-rule bg-background px-3 py-2 text-[14px] text-foreground placeholder:text-muted-foreground/60"
 
 const pillButton =
   "rounded-full border border-rule px-3.5 py-1.5 font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground hover:text-foreground disabled:opacity-40"
@@ -65,7 +65,6 @@ export function NewWorkspaceForm() {
             value={name}
             onChange={(e) => setName(e.target.value)}
             maxLength={40}
-            placeholder="Sarah & Mom"
             className={inputClass}
           />
         </StepShell>
@@ -82,7 +81,6 @@ export function NewWorkspaceForm() {
                 value={t}
                 onChange={(e) => setTraveller(i, e.target.value)}
                 maxLength={40}
-                placeholder="Mom"
                 className={inputClass}
               />
               {travellers.length > 1 ? (

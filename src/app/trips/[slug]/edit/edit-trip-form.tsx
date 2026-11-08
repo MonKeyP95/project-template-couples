@@ -226,7 +226,7 @@ export function EditTripForm({
             onChange={(e) => setName(e.target.value)}
             placeholder="Where to?"
             disabled={isPending}
-            className="mt-1 w-full border-0 border-b border-rule bg-transparent py-1.5 text-[16px] text-foreground placeholder:text-muted-foreground focus:border-clay focus:outline-none disabled:opacity-50"
+            className="mt-1 w-full border-0 border-b border-rule bg-transparent py-1.5 text-[16px] text-foreground placeholder:text-muted-foreground/60 focus:border-clay focus:outline-none disabled:opacity-50"
           />
         </label>
 
@@ -238,9 +238,8 @@ export function EditTripForm({
             type="text"
             value={slug}
             onChange={(e) => setSlug(e.target.value)}
-            placeholder="iceland-ring-road"
             disabled={isPending}
-            className="t-num mt-1 w-full border-0 border-b border-rule bg-transparent py-1.5 text-[14px] text-foreground placeholder:text-muted-foreground focus:border-clay focus:outline-none disabled:opacity-50"
+            className="t-num mt-1 w-full border-0 border-b border-rule bg-transparent py-1.5 text-[14px] text-foreground placeholder:text-muted-foreground/60 focus:border-clay focus:outline-none disabled:opacity-50"
           />
           <span className="mt-1 block font-mono text-[10px] text-muted-foreground">
             URL: /trips/{slug || "—"}
@@ -260,7 +259,7 @@ export function EditTripForm({
                 onChange={(e) => setDays(e.target.value.replace(/\D/g, ""))}
                 placeholder="10"
                 disabled={isPending}
-                className="t-num mt-1 w-full border-0 border-b border-rule bg-transparent py-1.5 text-[14px] text-foreground placeholder:text-muted-foreground focus:border-clay focus:outline-none disabled:opacity-50"
+                className="t-num mt-1 w-full border-0 border-b border-rule bg-transparent py-1.5 text-[14px] text-foreground placeholder:text-muted-foreground/60 focus:border-clay focus:outline-none disabled:opacity-50"
               />
             </label>
             <label className="mt-5 block">
@@ -271,10 +270,10 @@ export function EditTripForm({
                 type="text"
                 value={fuzzyWhen}
                 onChange={(e) => setFuzzyWhen(e.target.value)}
-                placeholder="summer 2030, someday, ..."
+                placeholder="e.g. summer 2030, someday"
                 maxLength={64}
                 disabled={isPending}
-                className="mt-1 w-full border-0 border-b border-rule bg-transparent py-1.5 text-[14px] text-foreground placeholder:text-muted-foreground focus:border-clay focus:outline-none disabled:opacity-50"
+                className="mt-1 w-full border-0 border-b border-rule bg-transparent py-1.5 text-[14px] text-foreground placeholder:text-muted-foreground/60 focus:border-clay focus:outline-none disabled:opacity-50"
               />
             </label>
           </>
@@ -340,7 +339,7 @@ export function EditTripForm({
             onChange={(e) => setCountry(e.target.value)}
             placeholder="Optional"
             disabled={isPending}
-            className="mt-1 w-full border-0 border-b border-rule bg-transparent py-1.5 text-[14px] text-foreground placeholder:text-muted-foreground focus:border-clay focus:outline-none disabled:opacity-50"
+            className="mt-1 w-full border-0 border-b border-rule bg-transparent py-1.5 text-[14px] text-foreground placeholder:text-muted-foreground/60 focus:border-clay focus:outline-none disabled:opacity-50"
           />
         </label>
 
@@ -418,9 +417,8 @@ export function EditTripForm({
                 inputMode="decimal"
                 value={lat}
                 onChange={(e) => setLat(e.target.value)}
-                placeholder="-8.6500"
                 disabled={isPending}
-                className="t-num mt-1 w-full border-0 border-b border-rule bg-transparent py-1.5 text-[14px] text-foreground placeholder:text-muted-foreground focus:border-clay focus:outline-none disabled:opacity-50"
+                className="t-num mt-1 w-full border-0 border-b border-rule bg-transparent py-1.5 text-[14px] text-foreground placeholder:text-muted-foreground/60 focus:border-clay focus:outline-none disabled:opacity-50"
               />
             </label>
             <label className="block">
@@ -432,9 +430,8 @@ export function EditTripForm({
                 inputMode="decimal"
                 value={lng}
                 onChange={(e) => setLng(e.target.value)}
-                placeholder="116.3200"
                 disabled={isPending}
-                className="t-num mt-1 w-full border-0 border-b border-rule bg-transparent py-1.5 text-[14px] text-foreground placeholder:text-muted-foreground focus:border-clay focus:outline-none disabled:opacity-50"
+                className="t-num mt-1 w-full border-0 border-b border-rule bg-transparent py-1.5 text-[14px] text-foreground placeholder:text-muted-foreground/60 focus:border-clay focus:outline-none disabled:opacity-50"
               />
             </label>
           </div>
@@ -457,7 +454,7 @@ export function EditTripForm({
                 rows={2}
                 placeholder={t.hint}
                 disabled={isPending}
-                className="mt-1.5 block w-full resize-none rounded-lg border border-border bg-card px-3 py-2 text-[14px] leading-snug text-foreground placeholder:text-muted-foreground focus:border-clay focus:outline-none disabled:opacity-50"
+                className="mt-1.5 block w-full resize-none rounded-lg border border-border bg-card px-3 py-2 text-[14px] leading-snug text-foreground placeholder:text-muted-foreground/60 focus:border-clay focus:outline-none disabled:opacity-50"
               />
             </label>
           ))}
