@@ -58,8 +58,8 @@ function summarizePrompt(input: SummarizeTasteInput): string {
 
 const summarizeTasteAgent: AgentDescriptor<SummarizeTasteInput, string> = {
   name: "summarize-taste",
-  model: "claude-sonnet-4-6",
-  maxTokens: 512,
+  model: "claude-haiku-5-5",
+  maxTokens: 2048,
   mcpServers: [],
   buildInput: (input) => summarizePrompt(input),
   parseOutput: (message) => joinText(message),
