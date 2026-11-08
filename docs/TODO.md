@@ -14,6 +14,12 @@
   7. Add day form shows the same box and works the same.
   8. Looks right on a phone viewport.
 
+**Day form + card tightening: implemented 2026-11-08; lint + typecheck clean; unverified in-app; no migration.** The `add` pill sits on the same line as time / end / what happens; cancel / save sit on the Color pills' line (errors show below). The day card title is now 12.5px, the size of the event lines (was 22px). Files: `add-event-box.tsx`, `itinerary-tab.tsx`. In-app checks:
+  1. On a phone viewport, `add` sits on the input line and "What happens" is still usable.
+  2. Color pills wrap cleanly beside cancel / save, no horizontal scroll.
+  3. Enter and the `add` pill still add an event; save still submits the day.
+  4. A titled day card shows the title at event-line size; tapping it still toggles the day.
+
 **Opening the app lands on on-the-road during an active trip: implemented 2026-11-06 (PR #97); lint + typecheck + Vercel build clean; verified in-app 2026-11-06.** Sign-in already did this; a signed-in cold open of `/` showed the marketing page, and `/signin` while signed in bounced straight to `/home`. Now `/` redirects signed-in users via `defaultLanding()` (moved to `src/lib/auth/landing.ts`), and the proxy sends signed-in `/signin`/`/signup` to `/`. `/home` itself is unchanged so the nav Home link still works mid-trip. In-app checks:
   1. Signed in, during an active trip, opening the site root lands on On the road.
   2. Same with no active trip lands on Home.

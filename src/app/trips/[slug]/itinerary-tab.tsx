@@ -1839,7 +1839,7 @@ function DayView({
             type="button"
             onClick={onToggle}
             aria-expanded={expanded}
-            className="t-display mb-1 block w-full text-left text-[22px] leading-tight text-foreground"
+            className="t-display mb-1 block w-full text-left text-[12.5px] leading-snug text-foreground"
           >
             {day.title}
           </button>
@@ -2349,37 +2349,32 @@ function DayForm({
         />
       </div>
 
-      <div className="mt-4">
-        <span className="block font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
-          Color
-        </span>
-        <div className="mt-1.5 flex flex-wrap gap-1.5">
-          {ITINERARY_TONES.map((t) => (
-            <button
-              key={t}
-              type="button"
-              onClick={() => setTone(t)}
-              disabled={isPending}
-              aria-pressed={tone === t}
-              className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 font-mono text-[10px] uppercase tracking-[0.14em] transition-colors disabled:opacity-50 ${
-                tone === t
-                  ? "border-foreground bg-foreground text-background"
-                  : "border-rule bg-transparent text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              <span className={`h-2 w-2 rounded-full bg-${t}`} aria-hidden />
-              {t}
-            </button>
-          ))}
+      <div className="mt-4 flex items-end gap-3">
+        <div className="min-w-0 flex-1">
+          <span className="block font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
+            Color
+          </span>
+          <div className="mt-1.5 flex flex-wrap gap-1.5">
+            {ITINERARY_TONES.map((t) => (
+              <button
+                key={t}
+                type="button"
+                onClick={() => setTone(t)}
+                disabled={isPending}
+                aria-pressed={tone === t}
+                className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 font-mono text-[10px] uppercase tracking-[0.14em] transition-colors disabled:opacity-50 ${
+                  tone === t
+                    ? "border-foreground bg-foreground text-background"
+                    : "border-rule bg-transparent text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                <span className={`h-2 w-2 rounded-full bg-${t}`} aria-hidden />
+                {t}
+              </button>
+            ))}
+          </div>
         </div>
-      </div>
-
-      {error ? (
-        <div className="mt-3 font-mono text-[10px] text-clay">{error}</div>
-      ) : null}
-
-      <div className="mt-4 flex items-center justify-end">
-        <div className="flex gap-2">
+        <div className="flex shrink-0 gap-2">
           <button
             type="button"
             onClick={onCancel}
@@ -2397,6 +2392,10 @@ function DayForm({
           </button>
         </div>
       </div>
+
+      {error ? (
+        <div className="mt-3 font-mono text-[10px] text-clay">{error}</div>
+      ) : null}
     </form>
   )
 }
