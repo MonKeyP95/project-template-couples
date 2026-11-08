@@ -4,7 +4,13 @@
 
 **Next up: work on the AI itinerary planner** (`itinerary-planner` agent, `src/lib/ai/agents/`). Noted 2026-11-03.
 
-**First-plan walk keeps saved lines: implemented 2026-11-08; lint + `tsc` clean; unverified in app; no migration.** Proved by code trace: suggestion costs (`addSuggestionCost`) add lines but leave `planned_budget_cents` at 0, so the trip still shows "Plan a budget"; that walk seeded only from the itinerary and `saveBudgetItems` replace-all then deleted the suggestion lines. Fix (option b): the first-plan walk now seeds from saved lines first (price, estimate mark, source kept), then itinerary items not already among them (case-insensitive by name). Label unchanged. File: `trips/[slug]/budget-drafter.tsx`. In-app checks:
+**Itinerary walk: trip answers are a hint, not a row: implemented 2026-11-08; lint + `tsc` clean; unverified in app; no migration.** Proved by trace + the user's report (one day-1 event holding the whole "doing" text): `beginWalk` pre-filled each Stay/Food/Activities/Transport step with an undated row holding the trip's answer from the new-trip note, and Generate/apply dropped it on the place's first day. Steps now open on an empty row and show "From your trip: ..." above it; the planner still receives the answers via `prefsLine`. See DECISIONS 2026-11-08. File: `trips/[slug]/plan-itinerary.tsx`. In-app checks:
+  1. On a trip whose note named activities, open Plan your itinerary: the Activities step shows "From your trip: ..." and an empty row, not a filled one.
+  2. Generate without typing anything: no event holding the whole answer appears on day 1; ideas still reflect the answers.
+  3. A step whose answer is blank shows no hint line.
+  4. Reads well at phone width.
+
+**First-plan walk keeps saved lines: implemented 2026-11-08 (PR #118); lint + `tsc` clean; verified in-app 2026-11-08; no migration.** Proved by code trace: suggestion costs (`addSuggestionCost`) add lines but leave `planned_budget_cents` at 0, so the trip still shows "Plan a budget"; that walk seeded only from the itinerary and `saveBudgetItems` replace-all then deleted the suggestion lines. Fix (option b): the first-plan walk now seeds from saved lines first (price, estimate mark, source kept), then itinerary items not already among them (case-insensitive by name). Label unchanged. File: `trips/[slug]/budget-drafter.tsx`. In-app checks:
   1. Trip with no budget: add a priced cost from a suggestion card. Budget tab still says "Plan a budget".
   2. Walk it: the suggestion line appears in its place · category step with its price and estimate mark.
   3. An itinerary event with the same name as the suggestion line shows once, not twice.
