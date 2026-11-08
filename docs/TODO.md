@@ -4,6 +4,11 @@
 
 **Next up: work on the AI itinerary planner** (`itinerary-planner` agent, `src/lib/ai/agents/`). Noted 2026-11-03.
 
+**Ungroup a block: implemented 2026-11-08; lint + `pnpm build` clean; unverified in-app; no migration.** A multi-day block's header has an `ungroup` button beside `edit all` / `×`. It clears `group_id` and `group_name` for that block (`ungroupItineraryDays`); the days and their content stay. No confirm, since nothing is deleted. In-app checks:
+  1. Group 3 days, tap `ungroup`: the frame and label go, all 3 days keep their content.
+  2. Grouping them again still works.
+  3. On a phone viewport `ungroup`, `edit all` and `×` sit side by side without overlapping.
+
 **Placeholder cleanup: implemented 2026-11-08 (PRs #102, #103); lint + Vercel build clean; verified in-app 2026-11-08; no migration.** Every time placeholder is `00:00`. Removed placeholders that read as saved data (add-event "Dinner at the harbour", workspace names, slug, coordinates); on-the-road event box now says "what's happening?". Open-ended examples always start with "e.g.". All placeholders render at `muted-foreground/60` so none pass for real text. Short "e.g." names (block/day names, checklist categories) left as is.
 
 **Day form "Add event" box: implemented 2026-11-08; lint + `pnpm build` clean; unverified in-app; no migration.** Edit day and Add day (shared `DayForm`) now have an always-open bordered box headed "Add event": time, end, what happens, with an `add` button (placeholders `00:00`). The day color picker (was "Tone") sits below the box, labelled Color. "Title" is now "Day title". The Location select is removed from Edit day; saving keeps the day's current location (moving days between locations is by drag). Enter in the box adds instead of saving the day. Existing events stay as editable rows above; the footer `+ add event` link is gone and a free day no longer opens on a blank row. Text left typed in the box is saved with the day. File: `add-event-box.tsx`, `itinerary-tab.tsx`, manual wording. In-app checks:
