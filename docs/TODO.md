@@ -4,6 +4,16 @@
 
 **Next up: work on the AI itinerary planner** (`itinerary-planner` agent, `src/lib/ai/agents/`). Noted 2026-11-03.
 
+**Day form "Add event" box: implemented 2026-11-08; lint + `pnpm build` clean; unverified in-app; no migration.** Edit day and Add day (shared `DayForm`) now have an always-open bordered box headed "Add event": time, end, what happens, with an `add` button (placeholders `00:00`). The day color picker (was "Tone") sits below the box, labelled Color. "Title" is now "Day title". The Location select is removed from Edit day; saving keeps the day's current location (moving days between locations is by drag). Enter in the box adds instead of saving the day. Existing events stay as editable rows above; the footer `+ add event` link is gone and a free day no longer opens on a blank row. Text left typed in the box is saved with the day. File: `add-event-box.tsx`, `itinerary-tab.tsx`, manual wording. In-app checks:
+  1. Edit a day with events: rows show above, the Add event box below with time, end, what happens, add; Color pills below the box; no Location field; first label reads "Day title".
+  2. Typing "11", end "13" + "Lunch" and tapping add puts "11:00–13:00 Lunch" in the list in time order and clears the box.
+  3. Pressing Enter in the box adds the event; the form stays open.
+  4. Edit a free day: no blank row, cursor sits in "What happens".
+  5. Typing an event and pressing save without add saves it with the day.
+  6. Picking a color in the box changes the day's color after save.
+  7. Add day form shows the same box and works the same.
+  8. Looks right on a phone viewport.
+
 **Opening the app lands on on-the-road during an active trip: implemented 2026-11-06 (PR #97); lint + typecheck + Vercel build clean; verified in-app 2026-11-06.** Sign-in already did this; a signed-in cold open of `/` showed the marketing page, and `/signin` while signed in bounced straight to `/home`. Now `/` redirects signed-in users via `defaultLanding()` (moved to `src/lib/auth/landing.ts`), and the proxy sends signed-in `/signin`/`/signup` to `/`. `/home` itself is unchanged so the nav Home link still works mid-trip. In-app checks:
   1. Signed in, during an active trip, opening the site root lands on On the road.
   2. Same with no active trip lands on Home.
