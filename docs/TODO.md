@@ -4,7 +4,7 @@
 
 **Next up: work on the AI itinerary planner** (`itinerary-planner` agent, `src/lib/ai/agents/`). Noted 2026-11-03.
 
-**Ungroup a block: implemented 2026-11-08; lint + `pnpm build` clean; unverified in-app; no migration.** A multi-day block's header has an `ungroup` button beside `edit all` / `×`. It clears `group_id` and `group_name` for that block (`ungroupItineraryDays`); the days and their content stay. No confirm, since nothing is deleted. In-app checks:
+**Ungroup a block: implemented 2026-11-08 (PR #107); lint + `pnpm build` clean; verified in-app 2026-11-08; no migration.** A multi-day block's header has an `ungroup` button beside `edit all` / `×`. It clears `group_id` and `group_name` for that block (`ungroupItineraryDays`); the days and their content stay. No confirm, since nothing is deleted. In-app checks:
   1. Group 3 days, tap `ungroup`: the frame and label go, all 3 days keep their content.
   2. Grouping them again still works.
   3. On a phone viewport `ungroup`, `edit all` and `×` sit side by side without overlapping.
