@@ -4,13 +4,14 @@
 
 **Next up: work on the AI itinerary planner** (`itinerary-planner` agent, `src/lib/ai/agents/`). Noted 2026-11-03.
 
-**Repeat an event onto later days: implemented 2026-11-08 (PR #108); lint + typecheck + `pnpm build` clean; pure helpers checked by script; verified in-app 2026-11-08; no migration.** Pressing a saved event shows `+ expense` and `+ repeat`. Repeat offers "every day" or "every {weekday}" (dated trips only; it is every 7 days) and an "until" list of the matching later days (defaults to the last), with an "adds to N days" line. Each copy is an independent event (time, end, text, link, details, category; not rating/note); no grouping. Days that already have the same time + end + text are skipped. Files: `src/lib/trips/repeat-event.ts`, `repeatItineraryEvent` in `actions.ts`, `repeat-event.tsx`, `itinerary-tab.tsx`. In-app checks:
-  1. Surf school 09:00 on day 1, repeat every day until day 5: days 2-5 have it, nothing is grouped.
-  2. Pizza night on a Wednesday, repeat every Wed until the last option: only Wednesdays get it.
-  3. Repeating the same event again adds no duplicates.
-  4. Changing the time on one copy leaves the others alone.
-  5. On a dream, only "every day" shows and the list reads "day N".
-  6. The panel fits on a phone viewport.
+**Repeat by picking days: implemented 2026-11-08; lint + `tsc` clean; unverified in-app; no migration.** Replaces the every-day / every-weekday / until panel (PR #108). One shared `DayMultiPicker` (`day-multi-picker.tsx`): a Monday-first calendar of the trip's days (numbered "day N" grid on a dream), tap to toggle, the event's own day shown selected and locked, past days off on the road, an `all` / `none` shortcut. Used in two places: (1) the Add event box of both day forms (Edit day and `+ day`), behind a `+ days` pill at its top right; the picked days ride on the draft (`alsoOn`, never stored) and are copied after the day saves, one event at a time; (2) the `+ repeat` panel on a saved event. `repeatItineraryEvent` now takes `tripId` + `dayIndexes`. Picks are dates: if `+ day` pushes later days forward, the event still lands on the dates tapped. Copies are still independent and duplicates are still skipped. In-app checks:
+  1. In Edit day and in `+ day`, the Add event box shows a `+ days` pill top right; opening it shows the calendar with the day itself filled and locked.
+  2. Tap 3 other days, add, save: the event row said "also on 3 more days"; all 4 days now have it, ungrouped.
+  3. `all` selects every remaining day, then reads `none` and clears them.
+  4. On the road, days before today can't be tapped.
+  5. `+ repeat` on a saved event shows the same calendar; repeating onto a day that already has it adds no duplicate.
+  6. On a dream the grid shows day numbers with no weekday header.
+  7. The calendar fits on a phone viewport.
 
 **Staying line on each day: implemented 2026-11-08; lint + `tsc` clean; verified in-app 2026-11-08; no migration.** Every day card (planned or empty) shows a small `Staying · <place>` footer, derived by pure `stayFor` (`src/lib/trips/stays.ts`) from events tagged `Accommodation`: a check-in (or an unlabelled stay) holds until its matching `(check out)`; on a swap day the new place shows. Hand-typed events carry no category, so they don't count. In-app checks:
   1. A walk-planned hotel (check in day 2, check out day 5) shows `Staying · <hotel>` on days 2-4, including empty days, and not on day 5.

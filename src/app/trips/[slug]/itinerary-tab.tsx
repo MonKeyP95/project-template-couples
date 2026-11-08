@@ -60,6 +60,7 @@ import {
   deleteItineraryLocation,
   insertItineraryDayWithShift,
   renameItineraryLocation,
+  repeatItineraryEvent,
   moveItineraryDay,
   rescheduleItineraryDaysTo,
   setLocationSpanWithShift,
@@ -110,6 +111,7 @@ import { moneyRounded } from "@/lib/money"
 import { useCurrency } from "@/components/currency-context"
 import { currencyOptions } from "@/lib/fx/currency-list"
 import { stayFor } from "@/lib/trips/stays"
+import { DayMultiPicker } from "./day-multi-picker"
 
 const itineraryBorder: Record<ItineraryTone, string> = {
   sea: "border-l-sea",
@@ -946,6 +948,8 @@ export function ItineraryTab({
           tripId={tripId}
           tripSlug={tripSlug}
           tripStartDate={tripStartDate}
+          tripDays={days}
+          todayIndex={todayIndex}
           defaultIndex={defaultIndex}
           locationId={null}
           open={addDayOpen}
@@ -1306,6 +1310,8 @@ export function ItineraryTab({
                         tripId={tripId}
                         tripSlug={tripSlug}
                         tripStartDate={tripStartDate}
+                        tripDays={days}
+                        todayIndex={todayIndex}
                         defaultIndex={defaultIndex}
                         locationId={isLoc ? group.key : null}
                         open={addDayFor === group.key}
@@ -1711,6 +1717,9 @@ function DayCard({
         prefill={prefill}
         onSaved={onSaved}
         day={day}
+        tripId={tripId}
+        tripDays={tripDays}
+        todayIndex={todayIndex}
         tripSlug={tripSlug}
         tripStartDate={tripStartDate}
         onDone={onStopEdit}
@@ -1933,10 +1942,12 @@ function DayView({
                         />
                       ) : openForm === "repeat" ? (
                         <RepeatEvent
+                          tripId={tripId}
                           tripSlug={tripSlug}
                           day={day}
                           event={ev}
                           days={tripDays}
+                          todayIndex={todayIndex}
                           onClose={() => setOpenForm(null)}
                         />
                       ) : (
@@ -2030,6 +2041,9 @@ function StayLine({ stay, className }: { stay: string; className: string }) {
 
 function DayEditor({
   day,
+  tripId,
+  tripDays,
+  todayIndex,
   tripSlug,
   tripStartDate,
   onDone,
@@ -2037,6 +2051,9 @@ function DayEditor({
   onSaved,
 }: {
   day: ItineraryDay
+  tripId: string
+  tripDays: ItineraryDay[]
+  todayIndex: number
   tripSlug: string
   tripStartDate: string | null
   onDone: () => void
@@ -2074,6 +2091,11 @@ function DayEditor({
         setError(result.error)
         return
       }
+      const copyError = await copyPickedDays(tripId, tripSlug, finalEvents)
+      if (copyError) {
+        setError(copyError)
+        return
+      }
       onSaved?.()
       onDone()
     })
@@ -2097,6 +2119,7 @@ function DayEditor({
       error={error}
       isPending={isPending}
       submitLabel="save"
+      pickDays={{ days: tripDays, minIndex: todayIndex }}
       onSubmit={save}
       onCancel={onDone}
     />
@@ -2107,6 +2130,8 @@ function AddDayRow({
   tripId,
   tripSlug,
   tripStartDate,
+  tripDays,
+  todayIndex,
   defaultIndex,
   locationId,
   open,
@@ -2115,6 +2140,8 @@ function AddDayRow({
   tripId: string
   tripSlug: string
   tripStartDate: string | null
+  tripDays: ItineraryDay[]
+  todayIndex: number
   defaultIndex: number
   locationId: string | null
   open: boolean
@@ -2166,16 +2193,18 @@ function AddDayRow({
           )
         ) {
           const pushed = await insertItineraryDayWithShift(payload)
-          if (pushed.error) {
-            setError(pushed.error)
+          const pushError = pushed.error ?? (await copyPickedDays(tripId, tripSlug, finalEvents))
+          if (pushError) {
+            setError(pushError)
             return
           }
           reset()
         }
         return
       }
-      if (result.error) {
-        setError(result.error)
+      const addError = result.error ?? (await copyPickedDays(tripId, tripSlug, finalEvents))
+      if (addError) {
+        setError(addError)
         return
       }
       reset()
@@ -2206,10 +2235,30 @@ function AddDayRow({
       error={error}
       isPending={isPending}
       submitLabel="add"
+      pickDays={{ days: tripDays, minIndex: todayIndex }}
       onSubmit={submit}
       onCancel={reset}
     />
   )
+}
+
+/** Copies each event onto the extra days picked for it; returns an error or
+ * null. One at a time: two copies onto the same day would overwrite each other. */
+async function copyPickedDays(
+  tripId: string,
+  tripSlug: string,
+  events: EventDraft[],
+): Promise<string | null> {
+  for (const d of events.filter((e) => e.alsoOn?.length)) {
+    const copied = await repeatItineraryEvent({
+      tripId,
+      tripSlug,
+      event: draftToEvent(d),
+      dayIndexes: d.alsoOn ?? [],
+    })
+    if (copied.error) return copied.error
+  }
+  return null
 }
 
 /** A day form can save once it has a title, a summary or an event with text. */
@@ -2238,6 +2287,7 @@ function DayForm({
   error,
   isPending,
   submitLabel,
+  pickDays,
   onSubmit,
   onCancel,
 }: {
@@ -2264,6 +2314,8 @@ function DayForm({
   error: string | null
   isPending: boolean
   submitLabel: string
+  /** When provided, the Add event box can also pick other days. */
+  pickDays?: { days: ItineraryDay[]; minIndex: number }
   /** Receives the event list including anything still typed in the Add event box. */
   onSubmit: (events: EventDraft[]) => void
   onCancel: () => void
@@ -2271,6 +2323,8 @@ function DayForm({
   const [addTime, setAddTime] = React.useState("")
   const [addEndTime, setAddEndTime] = React.useState("")
   const [addText, setAddText] = React.useState("")
+  const [addDays, setAddDays] = React.useState<number[]>([])
+  const [showDays, setShowDays] = React.useState(false)
 
   function withTypedEvent(): EventDraft[] {
     if (!addText.trim()) return events
@@ -2279,7 +2333,8 @@ function DayForm({
       normalizeTime(addEndTime),
       addText.trim(),
     )
-    return sortEvents([...events, typed])
+    const others = addDays.filter((i) => i !== dayIndex)
+    return sortEvents([...events, others.length ? { ...typed, alsoOn: others } : typed])
   }
 
   function addEvent() {
@@ -2288,6 +2343,8 @@ function DayForm({
     setAddTime("")
     setAddEndTime("")
     setAddText("")
+    setAddDays([])
+    setShowDays(false)
   }
 
   function submit(e: React.FormEvent) {
@@ -2404,7 +2461,36 @@ function DayForm({
           onAdd={addEvent}
           isPending={isPending}
           autoFocus={focusFirstEvent}
-        />
+          headerAction={
+            pickDays ? (
+              <button
+                type="button"
+                onClick={() => setShowDays(!showDays)}
+                aria-expanded={showDays}
+                className={`rounded-full border px-2.5 py-0.5 font-mono text-[10px] uppercase tracking-[0.14em] ${
+                  showDays || addDays.length > 0
+                    ? "border-sea text-sea"
+                    : "border-rule text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                {addDays.length > 0 ? `+ ${addDays.length} ${addDays.length === 1 ? "day" : "days"}` : "+ days"}
+              </button>
+            ) : null
+          }
+        >
+          {pickDays && showDays ? (
+            <div className="max-w-[260px]">
+              <DayMultiPicker
+                days={pickDays.days}
+                ownIndex={dayIndex}
+                minIndex={pickDays.minIndex}
+                selected={addDays}
+                onChange={setAddDays}
+                disabled={isPending}
+              />
+            </div>
+          ) : null}
+        </AddEventBox>
       </div>
 
       <div className="mt-4 flex items-end gap-3">

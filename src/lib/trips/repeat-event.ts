@@ -1,13 +1,5 @@
 import type { ItineraryEvent } from "./itinerary-types"
 
-/** Day numbers after `from`, every `step` days, up to and including `until`.
- * Step 7 is "every same weekday". */
-export function repeatDayIndexes(from: number, until: number, step: number): number[] {
-  const out: number[] = []
-  for (let i = from + step; i <= until; i += step) out.push(i)
-  return out
-}
-
 /** The parts of an event worth copying; rating and note belong to the day it happened. */
 export function repeatableCopy(ev: ItineraryEvent): ItineraryEvent {
   return {
