@@ -4,6 +4,8 @@
 
 **Next up: work on the AI itinerary planner** (`itinerary-planner` agent, `src/lib/ai/agents/`). Noted 2026-11-03.
 
+**Whole day card opens the editor: implemented 2026-11-08; lint + `tsc` clean; verified in-app 2026-11-08; no migration.** Pressing anywhere on a day card (planned or free) opens Edit day, not just the ✎ button. Clicks on the card's own buttons, links and forms (title/summary expand, events, source, rating, delete, drag handle) keep their behaviour. Desktop drag-select outside the card is unchanged.
+
 **Event panel trimmed: implemented 2026-11-08 (PR #112); lint + `tsc` clean; verified in-app 2026-11-08; no migration.** Removed the `+ expense` and `+ repeat` pills from a saved event's panel on the day view (deleted `event-expense.tsx`, `repeat-event.tsx`). Pressing an event now only toggles its details. Repeating lives only in the day forms' `+ days` picker; expenses are logged from the budget tab. In-app checks:
   1. Pressing an event with details shows the details and no pills; pressing one without details shows nothing.
   2. Edit day / `+ day` `+ days` picker still copies the event onto the picked days.
