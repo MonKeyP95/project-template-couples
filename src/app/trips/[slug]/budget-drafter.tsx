@@ -29,6 +29,10 @@ import {
   PRE_TRIP_CATEGORY,
   PRE_TRIP_STEPS,
 } from "./budget-drafter-pretrip"
+import { BudgetDrafterList, type ListGroup } from "./budget-drafter-list"
+
+/** stepIndex value for edit mode's heading list. */
+const LIST = -1
 
 function asCents(value: string): number {
   const n = Number(value)
@@ -140,6 +144,8 @@ export function BudgetDrafter({
   const fmt = (cents: number) => moneyRounded(cents, currency)
   const [session, setSession] = React.useState<Session | null>(null)
   const [stepIndex, setStepIndex] = React.useState(0)
+  /** Opened as Edit budget: steps return to the list instead of walking on. */
+  const [fromList, setFromList] = React.useState(false)
   const [bufferPct, setBufferPct] = React.useState(bufferRec.pct)
   const [generated, setGenerated] = React.useState(false)
   const [error, setError] = React.useState<string | null>(null)
@@ -302,7 +308,7 @@ export function BudgetDrafter({
     return out
   }
 
-  function seedSession(seed: Record<string, Partial<ItemRow>[]>, pct: number) {
+  function seedSession(seed: Record<string, Partial<ItemRow>[]>, pct: number, startIndex: number) {
     const steps = planBudgetSteps({
       tripName,
       totalDays,
@@ -320,7 +326,7 @@ export function BudgetDrafter({
       items[step.key] = rows.length > 0 ? rows : [newRow()]
     }
     // Pre-trip buckets always come from what's saved: there is nothing in the
-    // itinerary to seed them from, and Start over must not blank them.
+    // itinerary to seed them from.
     const pre = savedPreTripRows()
     for (const step of PRE_TRIP_STEPS) {
       const rows = (pre[step.key] ?? []).map((r) =>
@@ -336,16 +342,16 @@ export function BudgetDrafter({
     setError(null)
     setGenerated(false)
     setBufferPct(pct)
-    setStepIndex(0)
+    setStepIndex(startIndex)
     setSession({ steps, items })
   }
 
-  function open(fromScratch = false) {
-    const restore = !fromScratch && plannedBudgetCents > 0
-    seedSession(
-      restore ? savedRows() : seedFromItinerary(),
-      restore ? (savedBufferPct() ?? 0) : bufferRec.pct,
-    )
+  /** A saved budget opens on the heading list; a first plan walks from step 1. */
+  function open() {
+    const restore = plannedBudgetCents > 0
+    setFromList(restore)
+    if (restore) seedSession(savedRows(), savedBufferPct() ?? 0, LIST)
+    else seedSession(seedFromItinerary(), bufferRec.pct, 0)
   }
 
   function addItem(bucketId: string, fields: Partial<ItemRow> = {}) {
@@ -405,13 +411,17 @@ export function BudgetDrafter({
     })
   }
 
-  function goNext() {
+  function leaveStepTo(next: number) {
     if (!session) return
     const catIndex = stepIndex - preCount
     if (catIndex >= 0 && catIndex < session.steps.length) {
       normalizeStep(session.steps[catIndex])
     }
-    setStepIndex((i) => i + 1)
+    setStepIndex(next)
+  }
+
+  function goNext() {
+    leaveStepTo(stepIndex + 1)
   }
 
   function collectLines(s: Session): EnteredLine[] {
@@ -611,20 +621,11 @@ export function BudgetDrafter({
       <div className="flex items-center justify-between border-t border-border px-5 pt-4 pb-2">
         <button
           type="button"
-          onClick={() => open()}
+          onClick={open}
           className="rounded-full border border-border bg-transparent px-3 py-1.5 font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground hover:text-foreground"
         >
           {plannedBudgetCents > 0 ? "Edit budget" : "Plan a budget"}
         </button>
-        {plannedBudgetCents > 0 ? (
-          <button
-            type="button"
-            onClick={() => open(true)}
-            className="rounded-full border border-dashed border-border bg-transparent px-3 py-1.5 font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground hover:text-foreground"
-          >
-            Start over
-          </button>
-        ) : null}
       </div>
     )
   }
@@ -632,7 +633,9 @@ export function BudgetDrafter({
   return (
     <div className="border-t border-border px-5 pt-4 pb-2">
       <div className="rounded-lg border border-border bg-card px-3.5 py-3">
-        {stepIndex < preCount
+        {stepIndex === LIST
+          ? renderList()
+          : stepIndex < preCount
           ? renderPreTripStep(stepIndex)
           : stepIndex < bufferIndex
             ? renderStep(session.steps[stepIndex - preCount])
@@ -659,6 +662,69 @@ export function BudgetDrafter({
           {isPending ? "…" : "save"}
         </button>
       </>
+    )
+  }
+
+  function listButton() {
+    return (
+      <button
+        type="button"
+        onClick={() => leaveStepTo(LIST)}
+        disabled={isPending}
+        className="border-0 bg-transparent p-0 font-mono text-[10px] uppercase tracking-[0.2em] text-muted-foreground hover:text-foreground"
+      >
+        list
+      </button>
+    )
+  }
+
+  function renderList() {
+    const s = session!
+    const amount = (cents: number) => (cents > 0 ? fmt(cents) : "")
+    const subtotal = subtotalCents(s)
+    const buffer = Math.round((subtotal * bufferPct) / 100)
+    const total = preTripSubtotalCents(s) + subtotal + buffer
+    const groups: ListGroup[] = [
+      {
+        title: "Before you go",
+        rows: PRE_TRIP_STEPS.map((step, i) => ({
+          index: i,
+          label: step.label,
+          amount: amount((s.items[step.key] ?? []).reduce((n, r) => n + asCents(r.value), 0)),
+        })),
+      },
+      {
+        title: "Trip",
+        rows: s.steps.map((step, i) => ({
+          index: preCount + i,
+          label: step.place ? `${step.place} · ${step.title}` : step.title,
+          amount: amount(
+            (s.items[step.key] ?? []).reduce((n, r) => n + rowTotalCents(step.key, r), 0),
+          ),
+        })),
+      },
+      {
+        title: "Finish",
+        rows: [
+          {
+            index: bufferIndex,
+            label: `Buffer (${bufferPct}%)`,
+            amount: amount(buffer),
+          },
+          { index: reviewIndex, label: "Review & generate", amount: amount(total) },
+        ],
+      },
+    ]
+    return (
+      <BudgetDrafterList
+        groups={groups}
+        total={fmt(total)}
+        error={error}
+        isPending={isPending}
+        onOpen={setStepIndex}
+        onSave={apply}
+        onCancel={() => setSession(null)}
+      />
     )
   }
 
@@ -792,14 +858,18 @@ export function BudgetDrafter({
         />
 
         <div className="mt-4 flex items-center justify-between">
-          <button
-            type="button"
-            onClick={() => setStepIndex((s) => Math.max(0, s - 1))}
-            disabled={i === 0}
-            className="border-0 bg-transparent p-0 font-mono text-[10px] uppercase tracking-[0.2em] text-muted-foreground hover:text-foreground disabled:opacity-30"
-          >
-            back
-          </button>
+          {fromList ? (
+            listButton()
+          ) : (
+            <button
+              type="button"
+              onClick={() => setStepIndex((s) => Math.max(0, s - 1))}
+              disabled={i === 0}
+              className="border-0 bg-transparent p-0 font-mono text-[10px] uppercase tracking-[0.2em] text-muted-foreground hover:text-foreground disabled:opacity-30"
+            >
+              back
+            </button>
+          )}
           <div className="flex items-center gap-1.5">
             <button
               type="button"
@@ -809,13 +879,15 @@ export function BudgetDrafter({
               cancel
             </button>
             {saveFromHere()}
-            <button
-              type="button"
-              onClick={() => setStepIndex((s) => s + 1)}
-              className="rounded-md border-0 bg-foreground px-3 py-1.5 font-mono text-[9.5px] uppercase tracking-[0.2em] text-background"
-            >
-              next
-            </button>
+            {fromList ? null : (
+              <button
+                type="button"
+                onClick={() => setStepIndex((s) => s + 1)}
+                className="rounded-md border-0 bg-foreground px-3 py-1.5 font-mono text-[9.5px] uppercase tracking-[0.2em] text-background"
+              >
+                next
+              </button>
+            )}
           </div>
         </div>
       </>
@@ -864,14 +936,18 @@ export function BudgetDrafter({
         </div>
 
         <div className="mt-4 flex items-center justify-between">
-          <button
-            type="button"
-            onClick={() => setStepIndex((i) => Math.max(0, i - 1))}
-            disabled={stepIndex === 0}
-            className="border-0 bg-transparent p-0 font-mono text-[10px] uppercase tracking-[0.2em] text-muted-foreground hover:text-foreground disabled:opacity-30"
-          >
-            back
-          </button>
+          {fromList ? (
+            listButton()
+          ) : (
+            <button
+              type="button"
+              onClick={() => setStepIndex((i) => Math.max(0, i - 1))}
+              disabled={stepIndex === 0}
+              className="border-0 bg-transparent p-0 font-mono text-[10px] uppercase tracking-[0.2em] text-muted-foreground hover:text-foreground disabled:opacity-30"
+            >
+              back
+            </button>
+          )}
           <div className="flex items-center gap-1.5">
             <button
               type="button"
@@ -881,13 +957,15 @@ export function BudgetDrafter({
               cancel
             </button>
             {saveFromHere()}
-            <button
-              type="button"
-              onClick={goNext}
-              className="rounded-md border-0 bg-foreground px-3 py-1.5 font-mono text-[9.5px] uppercase tracking-[0.2em] text-background"
-            >
-              next
-            </button>
+            {fromList ? null : (
+              <button
+                type="button"
+                onClick={goNext}
+                className="rounded-md border-0 bg-foreground px-3 py-1.5 font-mono text-[9.5px] uppercase tracking-[0.2em] text-background"
+              >
+                next
+              </button>
+            )}
           </div>
         </div>
       </>
@@ -938,22 +1016,28 @@ export function BudgetDrafter({
         </div>
 
         <div className="mt-4 flex items-center justify-between">
-          <button
-            type="button"
-            onClick={() => setStepIndex(bufferIndex - 1)}
-            className="border-0 bg-transparent p-0 font-mono text-[10px] uppercase tracking-[0.2em] text-muted-foreground hover:text-foreground"
-          >
-            back
-          </button>
-          <div className="flex items-center gap-1.5">
-            {saveFromHere()}
+          {fromList ? (
+            listButton()
+          ) : (
             <button
               type="button"
-              onClick={() => setStepIndex(reviewIndex)}
-              className="rounded-md border-0 bg-foreground px-3 py-1.5 font-mono text-[9.5px] uppercase tracking-[0.2em] text-background"
+              onClick={() => setStepIndex(bufferIndex - 1)}
+              className="border-0 bg-transparent p-0 font-mono text-[10px] uppercase tracking-[0.2em] text-muted-foreground hover:text-foreground"
             >
-              review
+              back
             </button>
+          )}
+          <div className="flex items-center gap-1.5">
+            {saveFromHere()}
+            {fromList ? null : (
+              <button
+                type="button"
+                onClick={() => setStepIndex(reviewIndex)}
+                className="rounded-md border-0 bg-foreground px-3 py-1.5 font-mono text-[9.5px] uppercase tracking-[0.2em] text-background"
+              >
+                review
+              </button>
+            )}
           </div>
         </div>
       </>
@@ -991,11 +1075,11 @@ export function BudgetDrafter({
           <Label>Your budget</Label>
           <button
             type="button"
-            onClick={() => setStepIndex(bufferIndex)}
+            onClick={() => setStepIndex(fromList ? LIST : bufferIndex)}
             disabled={isPending}
             className="border-0 bg-transparent p-0 font-mono text-[9px] uppercase tracking-[0.16em] text-muted-foreground hover:text-foreground"
           >
-            back
+            {fromList ? "list" : "back"}
           </button>
         </div>
 

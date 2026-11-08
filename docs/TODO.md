@@ -4,6 +4,14 @@
 
 **Next up: work on the AI itinerary planner** (`itinerary-planner` agent, `src/lib/ai/agents/`). Noted 2026-11-03.
 
+**Edit budget opens a heading list: implemented 2026-11-08; lint + `tsc` clean; verified in-app 2026-11-08; no migration.** With no budget, "Plan a budget" walks step by step as before. With a saved budget, "Edit budget" opens a list of every walk heading (before-you-go items, each place · category, buffer, review) with subtotals and the total, plus save/cancel; tapping a heading opens that step, whose back/next become "list". "Start over" removed. An AI budget-planner pill was discussed and dropped: Generate already prices lines, and itinerary suggestions already price what's picked. Files: `trips/[slug]/{budget-drafter,budget-drafter-list}.tsx`. Follow-ups (not built): (a) check whether a trip whose only lines came from itinerary suggestions shows "Plan a budget" (planned total stays 0) and whether saving the walk then wipes those lines -- prove before fixing; (b) maybe seed basic stay / eating-out / transport lines per place so Generate has something to price. In-app checks:
+  1. Trip with no budget: "Plan a budget" starts the walk at step 1.
+  2. Trip with a budget: "Edit budget" opens the list with all headings; no Start over pill.
+  3. Tapping a heading opens that step with saved lines; "list" returns with the subtotal updated.
+  4. Save from the list persists; reopening shows the change.
+  5. Cancel from the list discards unsaved edits.
+  6. Reads well at phone width.
+
 **Add cost box in the planned budget: implemented 2026-11-08; lint + `tsc` clean; verified in-app 2026-11-08; no migration.** Each budget scope editor (trip-wide, per location, pre-trip, and the itinerary's location editors) replaces the per-group `+ add` and the bottom `+ add category` dropdown with one always-open "Add cost" box modelled on Add event: what, amount, add; below them a category picker (with `+ New category…`, which persists trip-wide when the trip has a category list) and From/To dates where the scope has dates. Add or Enter drops the line into its category group; the scope's `save` still persists. Pre-trip hides the category. Files: `trips/[slug]/{add-cost-box,budget-scope-editor}.tsx`. In-app checks:
   1. Opening a scope shows the Add cost box at the top, above the groups; no `+ add` under each group and no `+ add category` dropdown.
   2. Typing a name and amount and pressing Enter adds the line to the picked category's group and clears the name/amount; the category stays picked.
