@@ -14,7 +14,7 @@
   7. Add day form shows the same box and works the same.
   8. Looks right on a phone viewport.
 
-**Day form + card tightening: implemented 2026-11-08; lint + typecheck clean; unverified in-app; no migration.** The `add` pill sits on the same line as time / end / what happens; cancel / save sit on the Color pills' line (errors show below). The day card title is now 12.5px, the size of the event lines (was 22px). Files: `add-event-box.tsx`, `itinerary-tab.tsx`. In-app checks:
+**Day form + card tightening: implemented 2026-11-08 (PR #100); lint + typecheck + Vercel build clean; verified in-app 2026-11-08; no migration.** The `add` pill sits on the same line as time / end / what happens; cancel / save sit on the Color pills' line (errors show below). The day card title is now 12.5px, the size of the event lines (was 22px). Files: `add-event-box.tsx`, `itinerary-tab.tsx`. In-app checks:
   1. On a phone viewport, `add` sits on the input line and "What happens" is still usable.
   2. Color pills wrap cleanly beside cancel / save, no horizontal scroll.
   3. Enter and the `add` pill still add an event; save still submits the day.
