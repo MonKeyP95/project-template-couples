@@ -18,11 +18,7 @@ import { listChecklists } from "@/lib/checklists/queries"
 import type { PackingCategory, PackingItem } from "@/lib/trips/packing-types"
 import { rowToNote, type TripNote } from "@/lib/trips/note-queries"
 import { getTripStartDate } from "@/lib/trips/itinerary-queries"
-import {
-  hasSameEvent,
-  repeatableCopy,
-  repeatDayIndexes,
-} from "@/lib/trips/repeat-event"
+import { hasSameEvent, repeatableCopy } from "@/lib/trips/repeat-event"
 import {
   ITINERARY_TONES,
   dateOfIndex,
@@ -1865,36 +1861,24 @@ export async function addTodayEvent(
 }
 
 export interface RepeatEventInput {
+  tripId: string
   tripSlug: string
-  /** The day the event is on; copies go to later days only. */
-  dayId: string
   event: ItineraryEvent
-  /** Last day number to copy to, inclusive. */
-  untilIndex: number
-  /** 1 = every day, 7 = same weekday. */
-  step: 1 | 7
+  /** The picked day numbers to copy onto. */
+  dayIndexes: number[]
 }
 
-/** Copies one event onto later days as independent events. Days that already
- * have it are skipped. Returns how many days got the copy. */
+/** Copies one event onto the picked days as independent events. Days that
+ * already have it are skipped. Returns how many days got the copy. */
 export async function repeatItineraryEvent(
   input: RepeatEventInput,
 ): Promise<{ error?: string; added?: number }> {
   const supabase = await createClient()
-  const { data: source, error: sourceError } = await supabase
-    .from("itinerary_days")
-    .select("trip_id, day_index")
-    .eq("id", input.dayId)
-    .maybeSingle()
-  if (sourceError) return { error: sourceError.message }
-  if (!source) return { error: "Day not found." }
-
-  const indexes = repeatDayIndexes(source.day_index, input.untilIndex, input.step)
   const { data: rows, error: loadError } = await supabase
     .from("itinerary_days")
     .select("id, events")
-    .eq("trip_id", source.trip_id)
-    .in("day_index", indexes)
+    .eq("trip_id", input.tripId)
+    .in("day_index", input.dayIndexes)
   if (loadError) return { error: loadError.message }
 
   const copy = repeatableCopy(input.event)

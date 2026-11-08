@@ -19,6 +19,8 @@ export function AddEventBox({
   onAdd,
   isPending,
   autoFocus,
+  headerAction,
+  children,
 }: {
   time: string
   setTime: (s: string) => void
@@ -29,6 +31,10 @@ export function AddEventBox({
   onAdd: () => void
   isPending: boolean
   autoFocus?: boolean
+  /** A control at the top right, beside the heading. */
+  headerAction?: React.ReactNode
+  /** Extra controls under the inputs, e.g. the day picker. */
+  children?: React.ReactNode
 }) {
   // Enter adds the event instead of submitting the whole day form.
   function onKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
@@ -39,8 +45,11 @@ export function AddEventBox({
 
   return (
     <div className="rounded-lg border border-rule p-3">
-      <div className="font-mono text-[10px] uppercase tracking-[0.18em] text-foreground">
-        Add event
+      <div className="flex items-center justify-between gap-2">
+        <div className="font-mono text-[10px] uppercase tracking-[0.18em] text-foreground">
+          Add event
+        </div>
+        {headerAction}
       </div>
 
       <div className="mt-2 flex items-end gap-2">
@@ -91,6 +100,7 @@ export function AddEventBox({
           add
         </button>
       </div>
+      {children}
     </div>
   )
 }

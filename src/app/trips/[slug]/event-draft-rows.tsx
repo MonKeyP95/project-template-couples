@@ -34,6 +34,8 @@ export interface EventDraft {
   /** Pass-through only — the discovery door stamps this expense-category tag;
    * the edit form never shows it but must not drop it on save. */
   category?: string
+  /** Draft-only: other day numbers to copy this event onto when the day saves. */
+  alsoOn?: number[]
 }
 
 export function newEventDraft(time = "", endTime = "", text = "", url = "", details = ""): EventDraft {
@@ -163,6 +165,11 @@ export function EventRow({
         disabled={isPending}
         className="w-full resize-y border-0 border-b border-rule bg-transparent py-1 text-[12px] text-foreground placeholder:text-muted-foreground/60 focus:border-clay focus:outline-none disabled:opacity-50"
       />
+      {ev.alsoOn && ev.alsoOn.length > 0 ? (
+        <div className="font-mono text-[10px] text-muted-foreground">
+          also on {ev.alsoOn.length} more {ev.alsoOn.length === 1 ? "day" : "days"}
+        </div>
+      ) : null}
     </div>
   )
 }
