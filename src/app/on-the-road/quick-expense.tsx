@@ -9,6 +9,7 @@ import { prefillFromReading, type ReceiptReading } from "@/lib/trips/receipt-typ
 import { ReceiptCameraButton } from "@/components/receipts/receipt-camera-button"
 import { Label } from "@/components/together"
 import type { ExpenseCategoryRow } from "@/lib/trips/expense-types"
+import type { ItineraryEvent } from "@/lib/trips/itinerary-types"
 import { useCurrency } from "@/components/currency-context"
 import { CurrencyChip } from "@/app/trips/[slug]/currency-chip"
 
@@ -19,6 +20,8 @@ export interface QuickExpenseProps {
   today: string
   currentPersonId: string
   categories: ExpenseCategoryRow[]
+  /** Today's events, offered as chips that fill the title and category. */
+  events: ItineraryEvent[]
   /** Currency of today's location; null = the trip's. */
   locationCurrency: string | null
 }
@@ -29,6 +32,7 @@ export function QuickExpense({
   today,
   currentPersonId,
   categories,
+  events,
   locationCurrency,
 }: QuickExpenseProps) {
   const { spendCurrency } = useCurrency()
@@ -52,6 +56,13 @@ export function QuickExpense({
     setName(next.title)
     setAmount(next.amount)
     setExpenseCurrency(next.currency)
+  }
+
+  function fillFromEvent(event: ItineraryEvent) {
+    setName(event.text)
+    if (categories.some((c) => c.name === event.category)) {
+      setCategory(event.category!)
+    }
   }
 
   const canSubmit =
@@ -104,6 +115,7 @@ export function QuickExpense({
         />
       </div>
       <form onSubmit={submit} className="mt-3 flex flex-col gap-2.5">
+        <EventChips events={events} selected={name} onPick={fillFromEvent} disabled={isPending} />
         <div className="flex items-start gap-2">
           <input
             value={amount}
@@ -157,6 +169,37 @@ export function QuickExpense({
           <div className="font-mono text-[10px] text-clay">{error}</div>
         ) : null}
       </form>
+    </div>
+  )
+}
+
+function EventChips({
+  events,
+  selected,
+  onPick,
+  disabled,
+}: {
+  events: ItineraryEvent[]
+  selected: string
+  onPick: (event: ItineraryEvent) => void
+  disabled: boolean
+}) {
+  const named = events.filter((e) => e.text.trim().length > 0)
+  if (named.length === 0) return null
+  return (
+    <div className="flex flex-wrap gap-1.5">
+      {named.map((event, i) => (
+        <button
+          key={`${i}-${event.text}`}
+          type="button"
+          onClick={() => onPick(event)}
+          disabled={disabled}
+          aria-pressed={selected === event.text}
+          className="max-w-full truncate rounded-full border border-border bg-background px-2.5 py-1 text-[12px] text-muted-foreground aria-pressed:border-foreground aria-pressed:text-foreground"
+        >
+          {event.text}
+        </button>
+      ))}
     </div>
   )
 }
