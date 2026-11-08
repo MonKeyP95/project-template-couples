@@ -233,9 +233,9 @@ export function PlanItinerary({
       const next: Record<string, ItemRow[]> = {}
       for (const s of nextSteps) {
         if (s.kind !== "entries") continue
-        next[s.key] = prev[s.key] ?? [
-          { ...newRow(), subject: profileAnswerFor(s.category, answers) },
-        ]
+        // The trip's answer is a preference, not a plan: it shows as a hint on
+        // the step, never as an undated row that would become an event.
+        next[s.key] = prev[s.key] ?? [newRow()]
       }
       return next
     })
@@ -543,6 +543,14 @@ export function PlanItinerary({
         <div className="mt-1 font-mono text-[10px] leading-snug tracking-[0.06em] text-muted-foreground">
           {step.hint}
         </div>
+        {profileAnswerFor(step.category, answers) ? (
+          <div className="mt-2 text-[12.5px] leading-snug text-muted-foreground">
+            From your trip:{" "}
+            <span className="font-serif italic text-foreground">
+              {profileAnswerFor(step.category, answers)}
+            </span>
+          </div>
+        ) : null}
 
         <div className="mt-3 space-y-2">
           {rows.map((row) => (
