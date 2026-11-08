@@ -45,6 +45,7 @@ import { EventRating } from "@/components/event-rating"
 import { PlanningPlaceDoor } from "./find-a-place-planning"
 import { BudgetScopeEditor } from "./budget-scope-editor"
 import { EventExpense } from "./event-expense"
+import { RepeatEvent } from "./repeat-event"
 import { PlanItinerary, toolbarPill } from "./plan-itinerary"
 import type { ProfileAnswers } from "@/lib/ai/itinerary-planner"
 import type { BudgetItem } from "@/lib/trips/budget-item-types"
@@ -1045,6 +1046,7 @@ export function ItineraryTab({
                     scopeKey="loose"
                     orderedIds={looseIds}
                     suggest={suggest}
+                    tripDays={days}
                   />
                 </div>
               )
@@ -1235,6 +1237,7 @@ export function ItineraryTab({
                           scopeKey={group.key}
                           orderedIds={[...group.days].sort(byIndex).map((d) => d.id)}
                           suggest={suggest}
+                          tripDays={days}
                         />
                         )
 
@@ -1485,6 +1488,7 @@ function DaySegmentView({
   scopeKey,
   orderedIds,
   suggest,
+  tripDays,
 }: {
   seg: DaySegment
   tripId: string
@@ -1508,10 +1512,13 @@ function DaySegmentView({
   scopeKey: string
   orderedIds: string[]
   suggest: SuggestContext
+  /** Every day of the trip, for repeating an event onto later days. */
+  tripDays: ItineraryDay[]
 }) {
   const cards = seg.days.map((day) => {
     const cardProps = {
       day,
+      tripDays,
       tripId,
       tripSlug,
       expanded: !collapsedDays.has(day.id),
@@ -1625,6 +1632,7 @@ type AddFlow =
 
 interface DayCardProps {
   day: ItineraryDay
+  tripDays: ItineraryDay[]
   tripId: string
   tripSlug: string
   isLast: boolean
@@ -1672,6 +1680,7 @@ function SortableDayCard({ id, ...rest }: DayCardProps & { id: string }) {
 
 function DayCard({
   day,
+  tripDays,
   tripId,
   tripSlug,
   isLast,
@@ -1710,6 +1719,7 @@ function DayCard({
   return (
     <DayView
       day={day}
+      tripDays={tripDays}
       tripId={tripId}
       tripSlug={tripSlug}
       isLast={isLast}
@@ -1731,8 +1741,12 @@ function DayCard({
   )
 }
 
+const eventPillClass =
+  "rounded-full border border-dashed border-border bg-transparent px-2.5 py-1 font-mono text-[9.5px] uppercase tracking-[0.12em] text-muted-foreground hover:text-foreground"
+
 function DayView({
   day,
+  tripDays,
   tripId,
   tripSlug,
   isLast,
@@ -1752,6 +1766,7 @@ function DayView({
   onOpenSuggestion,
 }: {
   day: ItineraryDay
+  tripDays: ItineraryDay[]
   tripId: string
   tripSlug: string
   isLast: boolean
@@ -1770,10 +1785,10 @@ function DayView({
   daySuggestions: TripSuggestion[]
   onOpenSuggestion: (s: TripSuggestion) => void
 }) {
-  // Which event's panel is open (press the event), and whether that panel's
-  // expense form has been asked for. Only one event is open at a time.
+  // Which event's panel is open (press the event), and which form inside it.
+  // Only one event is open at a time.
   const [openEvent, setOpenEvent] = React.useState<number | null>(null)
-  const [openExpense, setOpenExpense] = React.useState<number | null>(null)
+  const [openForm, setOpenForm] = React.useState<"expense" | "repeat" | null>(null)
   const empty = !isPlannedRow(day)
   return (
     // A mouse press anywhere in the row but the card selects days (desktop
@@ -1866,7 +1881,7 @@ function DayView({
                       type="button"
                       onClick={() => {
                         setOpenEvent(openEvent === i ? null : i)
-                        setOpenExpense(null)
+                        setOpenForm(null)
                       }}
                       aria-expanded={openEvent === i}
                       className="flex gap-1.5 border-0 bg-transparent p-0 text-left text-[12.5px] leading-snug text-muted-foreground"
@@ -1896,7 +1911,7 @@ function DayView({
                           {ev.details}
                         </p>
                       ) : null}
-                      {openExpense === i ? (
+                      {openForm === "expense" ? (
                         <EventExpense
                           tripId={tripId}
                           tripSlug={tripSlug}
@@ -1911,16 +1926,33 @@ function DayView({
                           currentPersonId={currentPersonId}
                           categories={categories}
                           members={members}
-                          onClose={() => setOpenExpense(null)}
+                          onClose={() => setOpenForm(null)}
+                        />
+                      ) : openForm === "repeat" ? (
+                        <RepeatEvent
+                          tripSlug={tripSlug}
+                          day={day}
+                          event={ev}
+                          days={tripDays}
+                          onClose={() => setOpenForm(null)}
                         />
                       ) : (
-                        <button
-                          type="button"
-                          onClick={() => setOpenExpense(i)}
-                          className="mt-1 rounded-full border border-dashed border-border bg-transparent px-2.5 py-1 font-mono text-[9.5px] uppercase tracking-[0.12em] text-muted-foreground hover:text-foreground"
-                        >
-                          + expense
-                        </button>
+                        <div className="mt-1 flex gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => setOpenForm("expense")}
+                            className={eventPillClass}
+                          >
+                            + expense
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setOpenForm("repeat")}
+                            className={eventPillClass}
+                          >
+                            + repeat
+                          </button>
+                        </div>
                       )}
                     </div>
                   ) : null}
