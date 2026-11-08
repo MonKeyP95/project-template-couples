@@ -268,6 +268,7 @@ export default async function OnTheRoadPage() {
           today={today}
           currentPersonId={workspace.myPersonId ?? ""}
           categories={categories}
+          events={todayDay?.events ?? []}
           locationCurrency={
             locations.find((l) => l.id === todayDay?.locationId)?.currency ?? null
           }

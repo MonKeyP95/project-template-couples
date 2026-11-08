@@ -6,6 +6,13 @@
 
 **Whole day card opens the editor: implemented 2026-11-08; lint + `tsc` clean; verified in-app 2026-11-08; no migration.** Pressing anywhere on a day card (planned or free) opens Edit day, not just the ✎ button. Clicks on the card's own buttons, links and forms (title/summary expand, events, source, rating, delete, drag handle) keep their behaviour. Desktop drag-select outside the card is unchanged.
 
+**Event chips in the on-the-road expense form: implemented 2026-11-08; lint + `tsc` clean; verified in-app 2026-11-08; no migration.** The Money card's quick expense shows today's events as chips; tapping one fills the title with the event's text and sets the category when the event carries one that exists on the trip. Expenses still have no event link (events have no id); the day link stays `day_date`. Files: `on-the-road/{page,quick-expense}.tsx`. In-app checks:
+  1. On a day with events, the Money card's expense form shows one chip per event above the amount field; a day without events shows no chip row.
+  2. Tapping a chip fills "what for?" with the event's text, and the chip shows as selected.
+  3. An event added through the find door (e.g. tagged Food) also switches the category; an event without a category leaves the category as it was.
+  4. Typing an amount and pressing add logs the expense under today, like before.
+  5. Long event names truncate and the chips wrap on a phone viewport, light and dark.
+
 **Event panel trimmed: implemented 2026-11-08 (PR #112); lint + `tsc` clean; verified in-app 2026-11-08; no migration.** Removed the `+ expense` and `+ repeat` pills from a saved event's panel on the day view (deleted `event-expense.tsx`, `repeat-event.tsx`). Pressing an event now only toggles its details. Repeating lives only in the day forms' `+ days` picker; expenses are logged from the budget tab. In-app checks:
   1. Pressing an event with details shows the details and no pills; pressing one without details shows nothing.
   2. Edit day / `+ day` `+ days` picker still copies the event onto the picked days.
