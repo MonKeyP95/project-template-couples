@@ -300,10 +300,16 @@ export function BudgetDrafter({
     return Number.isFinite(n) ? n : null
   }
 
+  /** A first plan's seed: lines already saved (e.g. suggestion costs) first,
+   * then itinerary items not already among them, so the save keeps both. */
   function seedFromItinerary(): Record<string, Partial<ItemRow>[]> {
-    const out: Record<string, Partial<ItemRow>[]> = {}
+    const out = savedRows()
     for (const [bucket, subjects] of Object.entries(itinerarySeeds)) {
-      out[bucket] = subjects.map((subject) => ({ subject }))
+      const rows = (out[bucket] ??= [])
+      const have = new Set(rows.map((r) => (r.subject ?? "").trim().toLowerCase()))
+      for (const subject of subjects) {
+        if (!have.has(subject.toLowerCase())) rows.push({ subject })
+      }
     }
     return out
   }
