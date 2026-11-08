@@ -24,10 +24,12 @@ import {
   EventDraftList,
   draftToEvent,
   newEventDraft,
+  normalizeTime,
   sortEvents,
   toEventDrafts,
   type EventDraft,
 } from "./event-draft-rows"
+import { AddEventBox } from "./add-event-box"
 import { BlockEditor } from "./block-editor"
 import {
   SelectionBox,
@@ -48,13 +50,6 @@ import type { ProfileAnswers } from "@/lib/ai/itinerary-planner"
 import type { BudgetItem } from "@/lib/trips/budget-item-types"
 import type { ExpenseCategoryRow } from "@/lib/trips/expense-types"
 import type { MemberToneEntry } from "./packing-tab"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
 import { createClient } from "@/lib/supabase/client"
 import {
   addItineraryDay,
@@ -70,7 +65,6 @@ import {
   updateItineraryDay,
 } from "@/lib/trips/actions"
 import {
-  ITINERARY_TONES,
   dayIndexOf,
   formatEventTime,
   reassignDayIndex,
@@ -82,6 +76,7 @@ import {
   withOrdinals,
   type DayZone,
   type ItineraryDay,
+  ITINERARY_TONES,
   type ItineraryTone,
   type UnplacedDay,
 } from "@/lib/trips/itinerary-types"
@@ -1696,7 +1691,6 @@ function DayCard({
         day={day}
         tripSlug={tripSlug}
         tripStartDate={tripStartDate}
-        locations={locations}
         onDone={onStopEdit}
       />
     )
@@ -1980,7 +1974,6 @@ function DayEditor({
   day,
   tripSlug,
   tripStartDate,
-  locations,
   onDone,
   prefill,
   onSaved,
@@ -1988,7 +1981,6 @@ function DayEditor({
   day: ItineraryDay
   tripSlug: string
   tripStartDate: string | null
-  locations: ItineraryLocation[]
   onDone: () => void
   prefill?: EventDraft
   onSaved?: () => void
@@ -1996,23 +1988,18 @@ function DayEditor({
   const [dayIndex, setDayIndex] = React.useState<number | null>(day.dayIndex)
   const [title, setTitle] = React.useState(day.title)
   const [sub, setSub] = React.useState(day.sub)
-  // A free day opens on a blank event: adding one is what editing it is for.
   const [events, setEvents] = React.useState<EventDraft[]>(() => {
     const existing = toEventDrafts(day.events)
-    if (prefill) return [...existing, prefill]
-    return existing.length > 0 ? existing : [newEventDraft()]
+    return prefill ? [...existing, prefill] : existing
   })
+  // A free day opens with the cursor in the Add event box.
   const [focusFirst] = React.useState(day.events.length === 0)
   const [tone, setTone] = React.useState<ItineraryTone>(day.tone)
-  const [locationId, setLocationId] = React.useState<string | null>(
-    day.locationId,
-  )
   const [error, setError] = React.useState<string | null>(null)
   const [isPending, startTransition] = React.useTransition()
 
-  function save(e: React.FormEvent) {
-    e.preventDefault()
-    if (isPending || !draftHasContent(title, sub, events) || dayIndex === null) return
+  function save(finalEvents: EventDraft[]) {
+    if (isPending || !draftHasContent(title, sub, finalEvents) || dayIndex === null) return
     setError(null)
     startTransition(async () => {
       const result = await updateItineraryDay({
@@ -2021,9 +2008,9 @@ function DayEditor({
         dayIndex,
         title,
         sub,
-        events: events.map(draftToEvent),
+        events: finalEvents.map(draftToEvent),
         tone,
-        locationId,
+        locationId: day.locationId,
       })
       if (result.error) {
         setError(result.error)
@@ -2049,9 +2036,6 @@ function DayEditor({
       setEvents={setEvents}
       tone={tone}
       setTone={setTone}
-      locations={locations}
-      locationId={locationId}
-      setLocationId={setLocationId}
       error={error}
       isPending={isPending}
       submitLabel="save"
@@ -2083,7 +2067,7 @@ function AddDayRow({
   const [groupName, setGroupName] = React.useState("")
   const [title, setTitle] = React.useState("")
   const [sub, setSub] = React.useState("")
-  const [events, setEvents] = React.useState<EventDraft[]>(() => [newEventDraft()])
+  const [events, setEvents] = React.useState<EventDraft[]>([])
   const [tone, setTone] = React.useState<ItineraryTone>("sea")
   const [error, setError] = React.useState<string | null>(null)
   const [isPending, startTransition] = React.useTransition()
@@ -2095,14 +2079,13 @@ function AddDayRow({
     setGroupName("")
     setTitle("")
     setSub("")
-    setEvents([newEventDraft()])
+    setEvents([])
     setTone("sea")
     setError(null)
   }
 
-  function submit(e: React.FormEvent) {
-    e.preventDefault()
-    if (isPending || !draftHasContent(title, sub, events) || dayIndex === null) return
+  function submit(finalEvents: EventDraft[]) {
+    if (isPending || !draftHasContent(title, sub, finalEvents) || dayIndex === null) return
     setError(null)
     startTransition(async () => {
       const payload = {
@@ -2113,7 +2096,7 @@ function AddDayRow({
         groupName,
         title,
         sub,
-        events: events.map(draftToEvent),
+        events: finalEvents.map(draftToEvent),
         tone,
         locationId,
       }
@@ -2194,9 +2177,6 @@ function DayForm({
   setEvents,
   tone,
   setTone,
-  locations,
-  locationId,
-  setLocationId,
   error,
   isPending,
   submitLabel,
@@ -2204,7 +2184,7 @@ function DayForm({
   onCancel,
 }: {
   heading: string
-  /** Put the cursor in the first event's text when the form opens. */
+  /** Put the cursor in the Add event box when the form opens. */
   focusFirstEvent?: boolean
   tripStartDate: string | null
   dayIndex: number | null
@@ -2223,20 +2203,43 @@ function DayForm({
   setEvents: (e: EventDraft[]) => void
   tone: ItineraryTone
   setTone: (t: ItineraryTone) => void
-  /** When provided (Edit mode), a Location select moves the day. */
-  locations?: ItineraryLocation[]
-  locationId?: string | null
-  setLocationId?: (v: string | null) => void
   error: string | null
   isPending: boolean
   submitLabel: string
-  onSubmit: (e: React.FormEvent) => void
+  /** Receives the event list including anything still typed in the Add event box. */
+  onSubmit: (events: EventDraft[]) => void
   onCancel: () => void
 }) {
+  const [addTime, setAddTime] = React.useState("")
+  const [addEndTime, setAddEndTime] = React.useState("")
+  const [addText, setAddText] = React.useState("")
+
+  function withTypedEvent(): EventDraft[] {
+    if (!addText.trim()) return events
+    const typed = newEventDraft(
+      normalizeTime(addTime),
+      normalizeTime(addEndTime),
+      addText.trim(),
+    )
+    return sortEvents([...events, typed])
+  }
+
+  function addEvent() {
+    if (!addText.trim()) return
+    setEvents(withTypedEvent())
+    setAddTime("")
+    setAddEndTime("")
+    setAddText("")
+  }
+
+  function submit(e: React.FormEvent) {
+    e.preventDefault()
+    onSubmit(withTypedEvent())
+  }
 
   return (
     <form
-      onSubmit={onSubmit}
+      onSubmit={submit}
       className="rounded-lg border border-clay bg-card p-3.5"
     >
       <div className="mb-3 font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
@@ -2292,7 +2295,7 @@ function DayForm({
 
       <label className="mt-3 block">
         <span className="block font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
-          Title
+          Day title
         </span>
         <input
           type="text"
@@ -2317,25 +2320,40 @@ function DayForm({
         />
       </label>
 
-      <div className="mt-3">
-        <span className="block font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
-          Events
-        </span>
-        <div className="mt-1.5 space-y-2">
-          <EventDraftList
-            events={events}
-            setEvents={setEvents}
-            isPending={isPending}
-            focusFirst={focusFirstEvent}
-          />
+      {events.length > 0 ? (
+        <div className="mt-3">
+          <span className="block font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
+            Events
+          </span>
+          <div className="mt-1.5 space-y-2">
+            <EventDraftList
+              events={events}
+              setEvents={setEvents}
+              isPending={isPending}
+            />
+          </div>
         </div>
+      ) : null}
+
+      <div className="mt-4">
+        <AddEventBox
+          time={addTime}
+          setTime={setAddTime}
+          endTime={addEndTime}
+          setEndTime={setAddEndTime}
+          text={addText}
+          setText={setAddText}
+          onAdd={addEvent}
+          isPending={isPending}
+          autoFocus={focusFirstEvent}
+        />
       </div>
 
       <div className="mt-4">
         <span className="block font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
-          Tone
+          Color
         </span>
-        <div className="mt-1.5 flex gap-1.5">
+        <div className="mt-1.5 flex flex-wrap gap-1.5">
           {ITINERARY_TONES.map((t) => (
             <button
               key={t}
@@ -2356,51 +2374,11 @@ function DayForm({
         </div>
       </div>
 
-      {locations && setLocationId ? (
-        <label className="mt-3 block">
-          <span className="block font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
-            Location
-          </span>
-          <Select
-            value={locationId}
-            onValueChange={(value: string | null) => setLocationId(value)}
-            disabled={isPending}
-          >
-            <SelectTrigger className="py-1.5">
-              <SelectValue>
-                {(value: string | null) =>
-                  value === null
-                    ? "In transit (no location)"
-                    : (locations.find((l) => l.id === value)?.name ??
-                      "In transit (no location)")
-                }
-              </SelectValue>
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value={null}>In transit (no location)</SelectItem>
-              {locations.map((l) => (
-                <SelectItem key={l.id} value={l.id}>
-                  {l.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </label>
-      ) : null}
-
       {error ? (
         <div className="mt-3 font-mono text-[10px] text-clay">{error}</div>
       ) : null}
 
-      <div className="mt-4 flex items-center justify-between">
-        <button
-          type="button"
-          onClick={() => setEvents([...events, newEventDraft()])}
-          disabled={isPending}
-          className="border-0 bg-transparent px-1 py-1.5 font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground hover:text-foreground disabled:opacity-50"
-        >
-          + add event
-        </button>
+      <div className="mt-4 flex items-center justify-end">
         <div className="flex gap-2">
           <button
             type="button"
@@ -2412,7 +2390,7 @@ function DayForm({
           </button>
           <button
             type="submit"
-            disabled={isPending || !draftHasContent(title, sub, events)}
+            disabled={isPending || !draftHasContent(title, sub, withTypedEvent())}
             className="rounded-full border-0 bg-foreground px-3.5 py-1.5 font-mono text-[10px] uppercase tracking-[0.2em] text-background disabled:opacity-40"
           >
             {isPending ? "…" : submitLabel}

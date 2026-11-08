@@ -75,8 +75,9 @@ export function ManualContent() {
             </Step>
             <Step>
               Under a location, add days. Each day has a one-line summary and a list
-              of mini-events — tap <em>+ add event</em> for each, with an optional
-              time and a short description. Events sort themselves by time.
+              of mini-events — fill in the <em>Add event</em> box (optional time and
+              a short description) and tap <em>add</em>, or press Enter. Events sort
+              themselves by time.
             </Step>
             <Step>
               Tap a day to expand its full list of events; tap again to collapse back
