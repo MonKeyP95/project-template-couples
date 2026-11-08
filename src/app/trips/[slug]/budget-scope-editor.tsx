@@ -3,13 +3,6 @@
 import * as React from "react"
 
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
-import {
   addExpenseCategory,
   deleteBudgetItem,
   payBudgetItem,
@@ -23,6 +16,7 @@ import { deviceToday } from "@/lib/time/today"
 import { moneyRounded } from "@/lib/money"
 import { useCurrency } from "@/components/currency-context"
 
+import { AddCostBox, type CostDraft } from "./add-cost-box"
 import { PRE_TRIP_CATEGORY } from "./budget-drafter-pretrip"
 
 const CATEGORIES = [
@@ -107,8 +101,6 @@ export function BudgetScopeEditor({
   const [open, setOpen] = React.useState(false)
   const [pending, startTransition] = React.useTransition()
   const [error, setError] = React.useState<string | null>(null)
-  // null = not adding a custom category; a string = the name being typed.
-  const [newCat, setNewCat] = React.useState<string | null>(null)
 
   const totalCents = rows.reduce((s, r) => s + asCents(r.value), 0)
   const spent = spentByCategory ?? {}
@@ -139,8 +131,10 @@ export function BudgetScopeEditor({
       spentCents: spent[cat] ?? 0,
     }
   })
-  const shown = new Set(groupCats)
-  const availableCats = catOrder.filter((c) => !shown.has(c))
+  const categoryOptions = [
+    ...catOrder,
+    ...groupCats.filter((c) => !catOrder.includes(c)),
+  ]
 
   function patch(id: string, p: Partial<Row>) {
     setRows((rs) => rs.map((r) => (r.id === id ? { ...r, ...p } : r)))
@@ -149,7 +143,7 @@ export function BudgetScopeEditor({
   function patchValue(id: string, value: string) {
     patch(id, { value, estimated: false, sourceUrl: null, priceUnknown: false })
   }
-  function addInCategory(category: string) {
+  function addRow(draft: CostDraft) {
     setRows((rs) => [
       ...rs,
       {
@@ -158,11 +152,11 @@ export function BudgetScopeEditor({
         // inserts with this id); no reload needed for the pay pill to appear.
         serverId: crypto.randomUUID(),
         paidExpenseId: null,
-        category,
-        subject: "",
-        value: "",
-        whenStart: "",
-        whenEnd: "",
+        category: draft.category,
+        subject: draft.subject,
+        value: draft.value,
+        whenStart: draft.whenStart,
+        whenEnd: draft.whenEnd,
         estimated: false,
         sourceUrl: null,
         priceUnknown: false,
@@ -180,34 +174,19 @@ export function BudgetScopeEditor({
       if (res.error) setError(res.error)
     })
   }
-  function pickCategory(v: string | null) {
-    if (!v) return
-    if (v === "__new__") setNewCat("")
-    else addInCategory(v)
-  }
-  function confirmNewCat(e: React.FormEvent) {
-    e.preventDefault()
-    const name = (newCat ?? "").trim()
-    if (!name) {
-      setNewCat(null)
-      return
+  /** A new category persists trip-wide when the trip has a category list (so it
+   * shows in the expense picker too); otherwise it's just a local group label. */
+  async function addFromBox(draft: CostDraft): Promise<boolean> {
+    setError(null)
+    if (draft.isNewCategory && categories) {
+      const res = await addExpenseCategory(tripId, tripSlug, draft.category)
+      if (res.error) {
+        setError(res.error)
+        return false
+      }
     }
-    // With a trip category list, a new name persists trip-wide (so it shows in
-    // the expense picker too); otherwise it's just a local group label.
-    if (categories) {
-      startTransition(async () => {
-        const res = await addExpenseCategory(tripId, tripSlug, name)
-        if (res.error) {
-          setError(res.error)
-          return
-        }
-        addInCategory(name)
-        setNewCat(null)
-      })
-    } else {
-      addInCategory(name)
-      setNewCat(null)
-    }
+    addRow(draft)
+    return true
   }
 
   function buildPayload() {
@@ -317,6 +296,15 @@ export function BudgetScopeEditor({
 
       {open ? (
         <div className="mt-1.5 space-y-3">
+          <AddCostBox
+            categoryOptions={categoryOptions}
+            defaultCategory={defaultCategory}
+            showCategory={!preTrip}
+            withDates={withDates}
+            isPending={pending}
+            onAdd={addFromBox}
+          />
+
           {groups.map((g) => (
             <div key={g.cat}>
               <div className="flex items-baseline justify-between border-b border-rule pb-1">
@@ -425,60 +413,11 @@ export function BudgetScopeEditor({
                     </button>
                   </div>
                 ))}
-                <button
-                  type="button"
-                  onClick={() => addInCategory(g.cat)}
-                  className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground hover:text-foreground"
-                >
-                  + add
-                </button>
               </div>
             </div>
           ))}
 
-          <div className="flex items-center justify-between gap-2 pt-1">
-            {preTrip ? (
-              <span />
-            ) : newCat !== null ? (
-              <form onSubmit={confirmNewCat} className="flex items-center gap-1.5">
-                <input
-                  value={newCat}
-                  onChange={(e) => setNewCat(e.target.value)}
-                  autoFocus
-                  maxLength={40}
-                  placeholder="New category"
-                  className="w-40 rounded-lg border border-clay bg-transparent px-2.5 py-1.5 text-[12px] text-foreground placeholder:text-muted-foreground/60 focus:outline-none"
-                />
-                <button
-                  type="submit"
-                  className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground hover:text-foreground"
-                >
-                  add
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setNewCat(null)}
-                  aria-label="Cancel"
-                  className="px-1 font-mono text-[13px] text-muted-foreground hover:text-foreground"
-                >
-                  ×
-                </button>
-              </form>
-            ) : (
-              <Select value="" onValueChange={pickCategory}>
-                <SelectTrigger className="w-40 font-mono text-[10px] uppercase tracking-[0.14em]">
-                  <SelectValue>+ add category</SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                  {availableCats.map((c) => (
-                    <SelectItem key={c} value={c}>
-                      {c}
-                    </SelectItem>
-                  ))}
-                  <SelectItem value="__new__">+ New category…</SelectItem>
-                </SelectContent>
-              </Select>
-            )}
+          <div className="flex justify-end pt-1">
             <button
               type="button"
               onClick={save}

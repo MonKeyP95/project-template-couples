@@ -4,6 +4,15 @@
 
 **Next up: work on the AI itinerary planner** (`itinerary-planner` agent, `src/lib/ai/agents/`). Noted 2026-11-03.
 
+**Add cost box in the planned budget: implemented 2026-11-08; lint + `tsc` clean; verified in-app 2026-11-08; no migration.** Each budget scope editor (trip-wide, per location, pre-trip, and the itinerary's location editors) replaces the per-group `+ add` and the bottom `+ add category` dropdown with one always-open "Add cost" box modelled on Add event: what, amount, add; below them a category picker (with `+ New category…`, which persists trip-wide when the trip has a category list) and From/To dates where the scope has dates. Add or Enter drops the line into its category group; the scope's `save` still persists. Pre-trip hides the category. Files: `trips/[slug]/{add-cost-box,budget-scope-editor}.tsx`. In-app checks:
+  1. Opening a scope shows the Add cost box at the top, above the groups; no `+ add` under each group and no `+ add category` dropdown.
+  2. Typing a name and amount and pressing Enter adds the line to the picked category's group and clears the name/amount; the category stays picked.
+  3. Picking a category with no lines yet makes a new group appear once a cost is added to it.
+  4. `+ New category…` swaps to a text field; adding a cost creates the group, and the category then shows in the expense form's picker.
+  5. The trip-wide scope shows From/To; location scopes don't. Pre-trip shows no category.
+  6. `save` persists the added lines (reload keeps them); `to pay` works on a freshly added line.
+  7. Fits a phone viewport, light and dark.
+
 **Whole day card opens the editor: implemented 2026-11-08; lint + `tsc` clean; verified in-app 2026-11-08; no migration.** Pressing anywhere on a day card (planned or free) opens Edit day, not just the ✎ button. Clicks on the card's own buttons, links and forms (title/summary expand, events, source, rating, delete, drag handle) keep their behaviour. Desktop drag-select outside the card is unchanged.
 
 **Event chips in the on-the-road expense form: implemented 2026-11-08; lint + `tsc` clean; verified in-app 2026-11-08; no migration.** The Money card's quick expense shows today's events as chips; tapping one fills the title with the event's text and sets the category when the event carries one that exists on the trip. Expenses still have no event link (events have no id); the day link stays `day_date`. Files: `on-the-road/{page,quick-expense}.tsx`. In-app checks:
