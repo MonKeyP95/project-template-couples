@@ -44,13 +44,9 @@ import { useAiMode } from "@/components/ai-mode"
 import { EventRating } from "@/components/event-rating"
 import { PlanningPlaceDoor } from "./find-a-place-planning"
 import { BudgetScopeEditor } from "./budget-scope-editor"
-import { EventExpense } from "./event-expense"
-import { RepeatEvent } from "./repeat-event"
 import { PlanItinerary, toolbarPill } from "./plan-itinerary"
 import type { ProfileAnswers } from "@/lib/ai/itinerary-planner"
 import type { BudgetItem } from "@/lib/trips/budget-item-types"
-import type { ExpenseCategoryRow } from "@/lib/trips/expense-types"
-import type { MemberToneEntry } from "./packing-tab"
 import { createClient } from "@/lib/supabase/client"
 import {
   addItineraryDay,
@@ -309,9 +305,6 @@ export function ItineraryTab({
   initialUnplaced,
   initialLocations,
   budgetItems,
-  categories,
-  members,
-  currentPersonId,
   suggestions,
 }: {
   tripId: string
@@ -332,9 +325,6 @@ export function ItineraryTab({
   initialUnplaced: UnplacedDay[]
   initialLocations: ItineraryLocation[]
   budgetItems: BudgetItem[]
-  categories: ExpenseCategoryRow[]
-  members: Record<string, MemberToneEntry>
-  currentPersonId: string
   suggestions: TripSuggestion[]
 }) {
   const { currency } = useCurrency()
@@ -1036,15 +1026,11 @@ export function ItineraryTab({
                     lastDayId={item.seg.days[item.seg.days.length - 1].id}
                     editingId={editingId}
                     setEditingId={setEditingId}
-                    locations={locations}
                     collapsedDays={collapsedDays}
                     toggleDay={toggleDay}
                     dimBefore={active ? todayIndex : null}
                     todayIndex={todayIndex}
                     tripStartDate={tripStartDate}
-                    categories={categories}
-                    members={members}
-                    currentPersonId={currentPersonId}
                     sortable={!(active && itemIsPast(item))}
                     onEditBlock={openBlock}
                     selection={selection}
@@ -1227,15 +1213,11 @@ export function ItineraryTab({
                           lastDayId={last.id}
                           editingId={editingId}
                           setEditingId={setEditingId}
-                          locations={locations}
                           collapsedDays={collapsedDays}
                           toggleDay={toggleDay}
                           dimBefore={active ? todayIndex : null}
                           todayIndex={todayIndex}
                           tripStartDate={tripStartDate}
-                          categories={categories}
-                          members={members}
-                          currentPersonId={currentPersonId}
                           sortable={sortable}
                           onEditBlock={openBlock}
                           selection={selection}
@@ -1480,15 +1462,11 @@ function DaySegmentView({
   lastDayId,
   editingId,
   setEditingId,
-  locations,
   collapsedDays,
   toggleDay,
   dimBefore,
   todayIndex,
   tripStartDate,
-  categories,
-  members,
-  currentPersonId,
   sortable,
   onEditBlock,
   selection,
@@ -1503,15 +1481,11 @@ function DaySegmentView({
   lastDayId: string
   editingId: string | null
   setEditingId: (id: string | null) => void
-  locations: ItineraryLocation[]
   collapsedDays: Set<string>
   toggleDay: (id: string) => void
   dimBefore: number | null
   todayIndex: number
   tripStartDate: string | null
-  categories: ExpenseCategoryRow[]
-  members: Record<string, MemberToneEntry>
-  currentPersonId: string
   sortable: boolean
   onEditBlock: (dayIds: string[], groupId: string) => void
   selection: DaySelection
@@ -1540,10 +1514,6 @@ function DaySegmentView({
         setEditingId(null)
         suggest.onStopEdit()
       },
-      locations,
-      categories,
-      members,
-      currentPersonId,
       selected: selection.selected.has(day.id),
       onSelectStart: (shift: boolean, x: number, y: number) =>
         selection.begin(scopeKey, orderedIds, day.id, shift, x, y),
@@ -1652,10 +1622,6 @@ interface DayCardProps {
   onStartEdit: () => void
   onStopEdit: () => void
   dragHandle?: React.ReactNode
-  locations: ItineraryLocation[]
-  categories: ExpenseCategoryRow[]
-  members: Record<string, MemberToneEntry>
-  currentPersonId: string
   selected: boolean
   onSelectStart: (shift: boolean, x: number, y: number) => void
   daySuggestions: TripSuggestion[]
@@ -1700,10 +1666,6 @@ function DayCard({
   onStartEdit,
   onStopEdit,
   dragHandle,
-  locations,
-  categories,
-  members,
-  currentPersonId,
   selected,
   onSelectStart,
   daySuggestions,
@@ -1730,7 +1692,6 @@ function DayCard({
     <DayView
       day={day}
       tripDays={tripDays}
-      tripId={tripId}
       tripSlug={tripSlug}
       isLast={isLast}
       expanded={expanded}
@@ -1739,10 +1700,6 @@ function DayCard({
       todayIndex={todayIndex}
       onStartEdit={onStartEdit}
       dragHandle={dragHandle}
-      locations={locations}
-      categories={categories}
-      members={members}
-      currentPersonId={currentPersonId}
       selected={selected}
       onSelectStart={onSelectStart}
       daySuggestions={daySuggestions}
@@ -1751,13 +1708,9 @@ function DayCard({
   )
 }
 
-const eventPillClass =
-  "rounded-full border border-dashed border-border bg-transparent px-2.5 py-1 font-mono text-[9.5px] uppercase tracking-[0.12em] text-muted-foreground hover:text-foreground"
-
 function DayView({
   day,
   tripDays,
-  tripId,
   tripSlug,
   isLast,
   expanded,
@@ -1766,10 +1719,6 @@ function DayView({
   todayIndex,
   onStartEdit,
   dragHandle,
-  locations,
-  categories,
-  members,
-  currentPersonId,
   selected,
   onSelectStart,
   daySuggestions,
@@ -1777,7 +1726,6 @@ function DayView({
 }: {
   day: ItineraryDay
   tripDays: ItineraryDay[]
-  tripId: string
   tripSlug: string
   isLast: boolean
   expanded: boolean
@@ -1786,19 +1734,13 @@ function DayView({
   todayIndex: number
   onStartEdit: () => void
   dragHandle?: React.ReactNode
-  locations: ItineraryLocation[]
-  categories: ExpenseCategoryRow[]
-  members: Record<string, MemberToneEntry>
-  currentPersonId: string
   selected: boolean
   onSelectStart: (shift: boolean, x: number, y: number) => void
   daySuggestions: TripSuggestion[]
   onOpenSuggestion: (s: TripSuggestion) => void
 }) {
-  // Which event's panel is open (press the event), and which form inside it.
-  // Only one event is open at a time.
+  // Which event's details are open (press the event); one at a time.
   const [openEvent, setOpenEvent] = React.useState<number | null>(null)
-  const [openForm, setOpenForm] = React.useState<"expense" | "repeat" | null>(null)
   const empty = !isPlannedRow(day)
   const stay = stayFor(tripDays, day.dayIndex)
   return (
@@ -1891,10 +1833,7 @@ function DayView({
                   <div className="flex gap-1.5 text-[12.5px] leading-snug text-muted-foreground">
                     <button
                       type="button"
-                      onClick={() => {
-                        setOpenEvent(openEvent === i ? null : i)
-                        setOpenForm(null)
-                      }}
+                      onClick={() => setOpenEvent(openEvent === i ? null : i)}
                       aria-expanded={openEvent === i}
                       className="flex gap-1.5 border-0 bg-transparent p-0 text-left text-[12.5px] leading-snug text-muted-foreground"
                     >
@@ -1916,59 +1855,10 @@ function DayView({
                       </a>
                     ) : null}
                   </div>
-                  {openEvent === i ? (
-                    <div className="mt-0.5 mb-1">
-                      {ev.details ? (
-                        <p className="whitespace-pre-line text-[12px] leading-snug text-muted-foreground/80">
-                          {ev.details}
-                        </p>
-                      ) : null}
-                      {openForm === "expense" ? (
-                        <EventExpense
-                          tripId={tripId}
-                          tripSlug={tripSlug}
-                          eventText={ev.text}
-                          eventCategory={ev.category}
-                          dayDate={day.dayDate}
-                          locationId={day.locationId}
-                          locationCurrency={
-                            locations.find((l) => l.id === day.locationId)
-                              ?.currency ?? null
-                          }
-                          currentPersonId={currentPersonId}
-                          categories={categories}
-                          members={members}
-                          onClose={() => setOpenForm(null)}
-                        />
-                      ) : openForm === "repeat" ? (
-                        <RepeatEvent
-                          tripId={tripId}
-                          tripSlug={tripSlug}
-                          day={day}
-                          event={ev}
-                          days={tripDays}
-                          todayIndex={todayIndex}
-                          onClose={() => setOpenForm(null)}
-                        />
-                      ) : (
-                        <div className="mt-1 flex gap-1.5">
-                          <button
-                            type="button"
-                            onClick={() => setOpenForm("expense")}
-                            className={eventPillClass}
-                          >
-                            + expense
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setOpenForm("repeat")}
-                            className={eventPillClass}
-                          >
-                            + repeat
-                          </button>
-                        </div>
-                      )}
-                    </div>
+                  {openEvent === i && ev.details ? (
+                    <p className="mt-0.5 mb-1 whitespace-pre-line text-[12px] leading-snug text-muted-foreground/80">
+                      {ev.details}
+                    </p>
                   ) : null}
                   {day.dayIndex < todayIndex ? (
                     <EventRating
