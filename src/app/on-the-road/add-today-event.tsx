@@ -78,7 +78,7 @@ export function AddTodayEvent({
           onChange={(e) => setTime(e.target.value)}
           onBlur={() => setTime((t) => normalizeTime(t))}
           inputMode="numeric"
-          placeholder="21:00"
+          placeholder="00:00"
           disabled={isPending}
           className="w-20 rounded-lg border border-border bg-background px-3 py-2 font-mono text-[13px] text-foreground"
         />

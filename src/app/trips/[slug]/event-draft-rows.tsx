@@ -115,7 +115,7 @@ export function EventRow({
           value={ev.time}
           onChange={(e) => onPatch({ time: e.target.value })}
           onBlur={onNormalizeTime}
-          placeholder="09:00"
+          placeholder="00:00"
           disabled={isPending}
           className="t-num w-16 shrink-0 border-0 border-b border-rule bg-transparent py-1.5 text-[13px] text-foreground placeholder:text-muted-foreground focus:border-clay focus:outline-none disabled:opacity-50"
         />
@@ -124,7 +124,7 @@ export function EventRow({
           value={ev.endTime}
           onChange={(e) => onPatch({ endTime: e.target.value })}
           onBlur={onNormalizeEndTime}
-          placeholder="end"
+          placeholder="00:00"
           disabled={isPending}
           className="t-num w-16 shrink-0 border-0 border-b border-rule bg-transparent py-1.5 text-[13px] text-foreground placeholder:text-muted-foreground focus:border-clay focus:outline-none disabled:opacity-50"
         />
