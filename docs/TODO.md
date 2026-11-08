@@ -4,6 +4,14 @@
 
 **Next up: work on the AI itinerary planner** (`itinerary-planner` agent, `src/lib/ai/agents/`). Noted 2026-11-03.
 
+**Repeat an event onto later days: implemented 2026-11-08; lint + typecheck + `pnpm build` clean; pure helpers checked by script; unverified in-app; no migration.** Pressing a saved event shows `+ expense` and `+ repeat`. Repeat offers "every day" or "every {weekday}" (dated trips only; it is every 7 days) and an "until" list of the matching later days (defaults to the last), with an "adds to N days" line. Each copy is an independent event (time, end, text, link, details, category; not rating/note); no grouping. Days that already have the same time + end + text are skipped. Files: `src/lib/trips/repeat-event.ts`, `repeatItineraryEvent` in `actions.ts`, `repeat-event.tsx`, `itinerary-tab.tsx`. In-app checks:
+  1. Surf school 09:00 on day 1, repeat every day until day 5: days 2-5 have it, nothing is grouped.
+  2. Pizza night on a Wednesday, repeat every Wed until the last option: only Wednesdays get it.
+  3. Repeating the same event again adds no duplicates.
+  4. Changing the time on one copy leaves the others alone.
+  5. On a dream, only "every day" shows and the list reads "day N".
+  6. The panel fits on a phone viewport.
+
 **Placeholder cleanup: implemented 2026-11-08 (PRs #102, #103); lint + Vercel build clean; verified in-app 2026-11-08; no migration.** Every time placeholder is `00:00`. Removed placeholders that read as saved data (add-event "Dinner at the harbour", workspace names, slug, coordinates); on-the-road event box now says "what's happening?". Open-ended examples always start with "e.g.". All placeholders render at `muted-foreground/60` so none pass for real text. Short "e.g." names (block/day names, checklist categories) left as is.
 
 **Day form "Add event" box: implemented 2026-11-08; lint + `pnpm build` clean; unverified in-app; no migration.** Edit day and Add day (shared `DayForm`) now have an always-open bordered box headed "Add event": time, end, what happens, with an `add` button (placeholders `00:00`). The day color picker (was "Tone") sits below the box, labelled Color. "Title" is now "Day title". The Location select is removed from Edit day; saving keeps the day's current location (moving days between locations is by drag). Enter in the box adds instead of saving the day. Existing events stay as editable rows above; the footer `+ add event` link is gone and a free day no longer opens on a blank row. Text left typed in the box is saved with the day. File: `add-event-box.tsx`, `itinerary-tab.tsx`, manual wording. In-app checks:

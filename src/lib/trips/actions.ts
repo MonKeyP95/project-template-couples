@@ -19,6 +19,11 @@ import type { PackingCategory, PackingItem } from "@/lib/trips/packing-types"
 import { rowToNote, type TripNote } from "@/lib/trips/note-queries"
 import { getTripStartDate } from "@/lib/trips/itinerary-queries"
 import {
+  hasSameEvent,
+  repeatableCopy,
+  repeatDayIndexes,
+} from "@/lib/trips/repeat-event"
+import {
   ITINERARY_TONES,
   dateOfIndex,
   dayIndexOf,
@@ -1857,6 +1862,58 @@ export async function addTodayEvent(
 
   revalidatePath(`/trips/${input.tripSlug}`)
   return {}
+}
+
+export interface RepeatEventInput {
+  tripSlug: string
+  /** The day the event is on; copies go to later days only. */
+  dayId: string
+  event: ItineraryEvent
+  /** Last day number to copy to, inclusive. */
+  untilIndex: number
+  /** 1 = every day, 7 = same weekday. */
+  step: 1 | 7
+}
+
+/** Copies one event onto later days as independent events. Days that already
+ * have it are skipped. Returns how many days got the copy. */
+export async function repeatItineraryEvent(
+  input: RepeatEventInput,
+): Promise<{ error?: string; added?: number }> {
+  const supabase = await createClient()
+  const { data: source, error: sourceError } = await supabase
+    .from("itinerary_days")
+    .select("trip_id, day_index")
+    .eq("id", input.dayId)
+    .maybeSingle()
+  if (sourceError) return { error: sourceError.message }
+  if (!source) return { error: "Day not found." }
+
+  const indexes = repeatDayIndexes(source.day_index, input.untilIndex, input.step)
+  const { data: rows, error: loadError } = await supabase
+    .from("itinerary_days")
+    .select("id, events")
+    .eq("trip_id", source.trip_id)
+    .in("day_index", indexes)
+  if (loadError) return { error: loadError.message }
+
+  const copy = repeatableCopy(input.event)
+  const writes = rows
+    .map((r) => ({ id: r.id, events: parseEvents(r.events) }))
+    .filter((r) => !hasSameEvent(r.events, copy))
+  const results = await Promise.all(
+    writes.map((r) =>
+      supabase
+        .from("itinerary_days")
+        .update({ events: normalizeDayEvents([...r.events, copy]).sort(sortDayEvents) })
+        .eq("id", r.id),
+    ),
+  )
+  const failed = results.find((r) => r.error)
+  if (failed?.error) return { error: failed.error.message }
+
+  revalidatePath(`/trips/${input.tripSlug}`)
+  return { added: writes.length }
 }
 
 export interface RateEventInput {
