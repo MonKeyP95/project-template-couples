@@ -320,9 +320,6 @@ export default async function TripPage({
       suggestions={suggestions}
       initialLocations={locations ?? []}
       budgetItems={budgetItems ?? []}
-      categories={expenseCategories ?? []}
-      members={memberTones}
-      currentPersonId={workspace.myPersonId ?? ""}
     />
   )
   const packing = (layout: "tab" | "boxes" | "checklist", between?: ReactNode) => (
