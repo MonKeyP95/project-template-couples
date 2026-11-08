@@ -109,6 +109,7 @@ import { OptionsDialog, PaidDialog } from "./suggestion-dialogs"
 import { moneyRounded } from "@/lib/money"
 import { useCurrency } from "@/components/currency-context"
 import { currencyOptions } from "@/lib/fx/currency-list"
+import { stayFor } from "@/lib/trips/stays"
 
 const itineraryBorder: Record<ItineraryTone, string> = {
   sea: "border-l-sea",
@@ -1790,6 +1791,7 @@ function DayView({
   const [openEvent, setOpenEvent] = React.useState<number | null>(null)
   const [openForm, setOpenForm] = React.useState<"expense" | "repeat" | null>(null)
   const empty = !isPlannedRow(day)
+  const stay = stayFor(tripDays, day.dayIndex)
   return (
     // A mouse press anywhere in the row but the card selects days (desktop
     // only; a touch tap is ignored). -ml-10 pl-10 stretches the row over the
@@ -1850,6 +1852,7 @@ function DayView({
               onOpen={() => onOpenSuggestion(s)}
             />
           ))}
+          {stay ? <StayLine stay={stay} className="mt-1" /> : null}
           </>
         ) : (
         <>
@@ -1979,6 +1982,7 @@ function DayView({
           </button>
         ) : null}
         <div className="mt-2 flex items-center justify-end gap-1">
+          {stay ? <StayLine stay={stay} className="mr-auto" /> : null}
           <button
             type="button"
             onClick={onStartEdit}
@@ -2010,6 +2014,16 @@ function DayView({
         </>
         )}
       </div>
+    </div>
+  )
+}
+
+/** The small "staying at" footer on a day, derived from Accommodation events. */
+function StayLine({ stay, className }: { stay: string; className: string }) {
+  return (
+    <div className={`min-w-0 truncate text-[11.5px] text-muted-foreground ${className}`}>
+      <span className="font-mono text-[9.5px] uppercase tracking-[0.14em]">Staying · </span>
+      {stay}
     </div>
   )
 }

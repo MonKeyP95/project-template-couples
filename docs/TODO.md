@@ -12,6 +12,12 @@
   5. On a dream, only "every day" shows and the list reads "day N".
   6. The panel fits on a phone viewport.
 
+**Staying line on each day: implemented 2026-11-08; lint + `tsc` clean; verified in-app 2026-11-08; no migration.** Every day card (planned or empty) shows a small `Staying · <place>` footer, derived by pure `stayFor` (`src/lib/trips/stays.ts`) from events tagged `Accommodation`: a check-in (or an unlabelled stay) holds until its matching `(check out)`; on a swap day the new place shows. Hand-typed events carry no category, so they don't count. In-app checks:
+  1. A walk-planned hotel (check in day 2, check out day 5) shows `Staying · <hotel>` on days 2-4, including empty days, and not on day 5.
+  2. A day with one check-out and another check-in shows the new place.
+  3. Days with no Accommodation event before them show no line.
+  4. On a phone viewport the line sits left of the ✎ / × buttons and truncates rather than wrapping.
+
 **Ungroup a block: implemented 2026-11-08 (PR #107); lint + `pnpm build` clean; verified in-app 2026-11-08; no migration.** A multi-day block's header has an `ungroup` button beside `edit all` / `×`. It clears `group_id` and `group_name` for that block (`ungroupItineraryDays`); the days and their content stay. No confirm, since nothing is deleted. In-app checks:
   1. Group 3 days, tap `ungroup`: the frame and label go, all 3 days keep their content.
   2. Grouping them again still works.
