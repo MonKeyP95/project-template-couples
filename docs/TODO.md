@@ -4,6 +4,14 @@
 
 **Next up: work on the AI itinerary planner** (`itinerary-planner` agent, `src/lib/ai/agents/`). Noted 2026-11-03.
 
+**Budget by category: implemented 2026-11-16; lint + `tsc` clean; unverified in app; no migration.** The Budget tab's Spent card now lists each category as spent / planned with a bar (clay when over plan or unplanned, "paid in advance" note before the trip). Tapping a line opens its planned items (place, paid / not yet) and its newest 5 expenses. From the start date on, Pre-trip becomes a "+ paid before the trip" footnote. The on-the-road page and the desktop right column are unchanged. Spec: `docs/superpowers/specs/2026-11-16-budget-by-category-design.md`. Files: `lib/trips/budget-by-category-types.ts`, `trips/[slug]/{budget-by-category,budget-tab}.tsx`. In-app checks:
+  1. Phone: opening the Budget box shows "By category" under the Spent bar with one line per category.
+  2. A category over its plan shows a full clay bar and an "over" note.
+  3. An expense in a category with no plan shows as "unplanned".
+  4. Tapping a line opens its planned and spent lists; tapping another closes the first.
+  5. Before the trip, "Before you go" is a line; during the trip it is the grey footnote.
+  6. Desktop Budget tab shows the same block; the right column is unchanged.
+
 **Itinerary walk: trip answers are a hint, not a row: implemented 2026-11-08; lint + `tsc` clean; unverified in app; no migration.** Proved by trace + the user's report (one day-1 event holding the whole "doing" text): `beginWalk` pre-filled each Stay/Food/Activities/Transport step with an undated row holding the trip's answer from the new-trip note, and Generate/apply dropped it on the place's first day. Steps now open on an empty row and show "From your trip: ..." above it; the planner still receives the answers via `prefsLine`. See DECISIONS 2026-11-08. File: `trips/[slug]/plan-itinerary.tsx`. In-app checks:
   1. On a trip whose note named activities, open Plan your itinerary: the Activities step shows "From your trip: ..." and an empty row, not a filled one.
   2. Generate without typing anything: no event holding the whole answer appears on day 1; ideas still reflect the answers.
