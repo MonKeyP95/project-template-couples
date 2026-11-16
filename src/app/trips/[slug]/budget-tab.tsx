@@ -27,6 +27,7 @@ import { useCurrency } from "@/components/currency-context"
 import { LocalEquivalent } from "@/components/local-equivalent"
 
 
+import { BudgetByCategory } from "./budget-by-category"
 import { BudgetDrafter } from "./budget-drafter"
 import { BudgetToolbar, type BudgetPanel } from "./budget-toolbar"
 import { BudgetScopeEditor } from "./budget-scope-editor"
@@ -236,6 +237,14 @@ export function BudgetTab({
             plannedBudgetCents={plannedBudgetCents}
             hasUnconfirmed={hasUnconfirmed}
             pace={pace}
+          />
+          <BudgetByCategory
+            expenses={expenses}
+            budgetItems={budgetItems}
+            categories={expenseCategories}
+            locations={locations}
+            members={members}
+            tripStarted={startDate !== null && today >= startDate}
           />
         </div>
       </div>
