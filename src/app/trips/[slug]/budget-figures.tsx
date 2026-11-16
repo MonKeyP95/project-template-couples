@@ -158,7 +158,7 @@ export function SpentFigure({
 
   return (
     <>
-      <div className="mt-2 flex items-baseline gap-1">
+      <div className="mt-2 flex flex-wrap items-baseline gap-x-1">
         <span className="t-display text-[22px] text-muted-foreground">
           {hasUnconfirmed ? "~" : null}
           {currencySymbol(currency)}
