@@ -4,7 +4,7 @@
 
 **Next up: work on the AI itinerary planner** (`itinerary-planner` agent, `src/lib/ai/agents/`). Noted 2026-11-03.
 
-**Budget by category: implemented 2026-11-16; lint + `tsc` clean; unverified in app; no migration.** The Budget tab's Spent card now lists each category as spent / planned with a bar (clay when over plan or unplanned, "paid in advance" note before the trip). Tapping a line opens its planned items (place, paid / not yet) and its newest 5 expenses. From the start date on, Pre-trip becomes a "+ paid before the trip" footnote. The on-the-road page and the desktop right column are unchanged. Spec: `docs/superpowers/specs/2026-11-16-budget-by-category-design.md`. Files: `lib/trips/budget-by-category-types.ts`, `trips/[slug]/{budget-by-category,budget-tab}.tsx`. In-app checks:
+**Budget by category: implemented 2026-11-16 (PR #120); lint + `tsc` clean; verified in-app 2026-11-16; no migration.** The Budget tab's Spent card now lists each category as spent / planned with a bar (clay when over plan or unplanned, "paid in advance" note before the trip). Tapping a line opens its planned items (place, paid / not yet) and its newest 5 expenses. From the start date on, Pre-trip becomes a "+ paid before the trip" footnote. The on-the-road page and the desktop right column are unchanged. Spec: `docs/superpowers/specs/2026-11-16-budget-by-category-design.md`. Files: `lib/trips/budget-by-category-types.ts`, `trips/[slug]/{budget-by-category,budget-tab}.tsx`. In-app checks:
   1. Phone: opening the Budget box shows "By category" under the Spent bar with one line per category.
   2. A category over its plan shows a full clay bar and an "over" note.
   3. An expense in a category with no plan shows as "unplanned".
