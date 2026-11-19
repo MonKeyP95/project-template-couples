@@ -4,7 +4,7 @@
 
 **Next up: work on the AI itinerary planner** (`itinerary-planner` agent, `src/lib/ai/agents/`). Noted 2026-11-03.
 
-**Tab titles + pills on every desktop tab: implemented 2026-11-19; lint + `tsc` clean; unverified in app; no migration.** Same treatment as the Budget tab. Desktop Itinerary, Packing and Trip folder now open with a serif title (no "The": Budget, Itinerary, Packing list, Trip folder), with each tab's pills on the right. Packing drops its clay band on desktop; My list / Shared / partner's list are pills, filled when selected. "Import items" moved out of the pill row/band (desktop and phone) to a dashed "Import packing list" button under "Add an item...". Files: `trips/[slug]/{budget-tab,itinerary-tab,packing-tab,trip-folder}.tsx`. In-app checks:
+**Tab titles + pills on every desktop tab: implemented 2026-11-19 (PR #126); lint + `tsc` clean; verified in-app 2026-11-19; no migration.** Same treatment as the Budget tab. Desktop Itinerary, Packing and Trip folder now open with a serif title (no "The": Budget, Itinerary, Packing list, Trip folder), with each tab's pills on the right. Packing drops its clay band on desktop; My list / Shared / partner's list are pills, filled when selected. "Import items" moved out of the pill row/band (desktop and phone) to a dashed "Import packing list" button under "Add an item...". Files: `trips/[slug]/{budget-tab,itinerary-tab,packing-tab,trip-folder}.tsx`. In-app checks:
   1. Desktop Itinerary: "Itinerary" title left; assistant / + day / + location pills right.
   2. Desktop Packing: no band; "Packing list" + days-out left; list pills right, the selected one filled.
   3. Desktop Trip folder: "Trip folder" title above Documents.
