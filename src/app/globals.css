@@ -343,6 +343,14 @@
     --flip-f: 56px;
     --flip-gap: 6px;
   }
+  @media (min-width: 768px) {
+    .flip-lg {
+      --flip-w: 96px;
+      --flip-h: 76px;
+      --flip-f: 73px;
+      --flip-gap: 8px;
+    }
+  }
   /* Clearly smaller than the trip name it sits beside: the tile is under the
      name's cap height even on the 28px Trips-band cards. The shadow comes off
      at this size — border plus shadow plus hinge on an 18px tile reads as grey
@@ -373,19 +381,6 @@
   }
   to {
     transform: rotateX(0deg);
-  }
-}
-
-/* In the components layer so utility classes (the desktop header's smaller
-   tiles) can still override these sizes. */
-@layer components {
-  @media (min-width: 768px) {
-    .flip-lg {
-      --flip-w: 96px;
-      --flip-h: 76px;
-      --flip-f: 73px;
-      --flip-gap: 8px;
-    }
   }
 }
 

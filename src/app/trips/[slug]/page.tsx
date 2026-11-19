@@ -442,12 +442,6 @@ export default async function TripPage({
           header={header}
           destinations={navDestinations}
           shareState={shareState}
-          aside={
-            <HeaderMap
-              slug={header.slug}
-              locations={(locations ?? []).map((l) => l.name)}
-            />
-          }
         />
         <DesktopTabs slug={header.slug} active={activeTab} />
         {/* Header and pills span the page; the right rail starts below them. */}
@@ -476,6 +470,12 @@ export default async function TripPage({
       <DesktopRightRail
         active={activeTab}
         forecast={weekForecast}
+        map={
+          <RailMap
+            slug={header.slug}
+            locations={(locations ?? []).map((l) => l.name)}
+          />
+        }
         cards={{
           budget: (
             <SideCard id="budget" title="Budget" href={tabHref(header.slug, "budget")}>
@@ -520,13 +520,10 @@ function TripHeaderView({
   header,
   destinations,
   shareState,
-  aside,
 }: {
   header: TripHeader
   destinations: NavDestination[]
   shareState: { isPublic: boolean; shareToken: string | null }
-  /** Desktop-only content at the end of the title line (the route map). */
-  aside: ReactNode
 }) {
   const coord = formatCoord(header.lat, header.lng)
   const dateRange = formatDateRange(header.startDate, header.endDate)
@@ -565,16 +562,16 @@ function TripHeaderView({
           </Link>
         </div>
       </div>
-      {/* Desktop: left block (name; country + dates; countdown at the bottom), route
-          map on the right; share and edit float top right. Below lg the parts stack. */}
-      <div className="relative lg:flex lg:items-start lg:gap-8">
-      <div className="relative flex items-end justify-between gap-6 lg:min-w-0 lg:flex-1">
-        <div className="min-w-0">
+      {/* Desktop: name, country + dates, countdown beside them; share and edit
+          float top right. */}
+      <div className="relative flex items-end justify-between gap-6">
+        <div className="min-w-0 lg:flex lg:items-center lg:gap-10">
+          <div className="min-w-0">
           {coord ? <Coord>{coord}</Coord> : null}
           <h1 className="t-display mt-0.5 text-[64px] text-foreground lg:text-[48px] lg:leading-[0.95]">
             <em>{header.name}</em>
           </h1>
-          <div className="flex flex-wrap gap-x-4 font-mono text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
+          <div className="flex flex-wrap gap-x-4 font-mono text-[10px] uppercase tracking-[0.22em] text-muted-foreground lg:mt-2">
             {header.country ? <span>{header.country}</span> : null}
             <span className="hidden lg:inline">{isDream ? fuzzyLabel : dateRange}</span>
           </div>
@@ -587,29 +584,28 @@ function TripHeaderView({
               <div className="font-mono text-[12px] text-foreground">{dateRange}</div>
             ) : null}
           </div>
+          </div>
           {!isDream && header.startDate ? (
             <FlipCountdown
               startDate={header.startDate}
               size="lg"
-              className="mt-4 lg:[--flip-f:32px] lg:[--flip-gap:4px] lg:[--flip-h:34px] lg:[--flip-w:42px]"
+              className="mt-4 lg:mt-0 lg:[--flip-f:37px] lg:[--flip-gap:4px] lg:[--flip-h:38px] lg:[--flip-w:48px]"
             />
           ) : null}
         </div>
         <WaveGlyph color="var(--sea)" w={56} h={14} className="lg:hidden" />
       </div>
-      {aside}
-      </div>
     </header>
   )
 }
 
-/** Route map at the right of the desktop header; it opens the itinerary. */
-function HeaderMap({ slug, locations }: { slug: string; locations: string[] }) {
+/** Route map at the bottom of the desktop right rail; it opens the itinerary. */
+function RailMap({ slug, locations }: { slug: string; locations: string[] }) {
   return (
     <Link
       href={tabHref(slug, "itinerary")}
       aria-label="Route map. Opens the itinerary"
-      className="hidden h-[100px] w-[170px] shrink-0 rounded-[14px] transition-opacity hover:opacity-90 lg:mt-7 lg:block"
+      className="block h-[180px] shrink-0 rounded-[14px] transition-opacity hover:opacity-90"
     >
       <TripRoutePanel slug={slug} locations={locations} />
     </Link>
@@ -663,10 +659,12 @@ function DesktopTabs({ slug, active }: { slug: string; active: TabId }) {
 function DesktopRightRail({
   active,
   forecast,
+  map,
   cards,
 }: {
   active: TabId
   forecast: { label: string; days: DayForecast[] } | null
+  map: ReactNode
   cards: Record<TabId, ReactNode>
 }) {
   return (
@@ -679,6 +677,7 @@ function DesktopRightRail({
       {TABS.filter((t) => t.id !== active).map((t) => (
         <Fragment key={t.id}>{cards[t.id]}</Fragment>
       ))}
+      {map}
     </aside>
   )
 }
