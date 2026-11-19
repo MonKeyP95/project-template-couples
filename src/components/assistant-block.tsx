@@ -28,14 +28,19 @@ export function AssistantBlock({
   door,
   nudge,
   className,
+  bar = true,
 }: {
   surface: SurfaceKey
   tripSlug?: string
   door?: React.ReactNode
   nudge?: Nudge | null
   className?: string
+  /** False drops the header toggle: the panel shows only while AI is on,
+   * switched from elsewhere (the trip page's tab-row pill). */
+  bar?: boolean
 }) {
   const { enabled, setEnabled } = useAiMode()
+  if (!bar && !enabled) return null
   return (
     <div
       className={cn(
@@ -43,19 +48,21 @@ export function AssistantBlock({
         className,
       )}
     >
-      <button
-        type="button"
-        onClick={() => setEnabled(!enabled)}
-        aria-expanded={enabled}
-        className="flex w-full items-center justify-between px-4 py-3 text-left"
-      >
-        <span className="font-mono text-[11px] uppercase tracking-[0.2em] text-moss">
-          assistant
-        </span>
-        <span aria-hidden className="font-mono text-[12px] text-muted-foreground">
-          {enabled ? "▾" : "▸"}
-        </span>
-      </button>
+      {bar ? (
+        <button
+          type="button"
+          onClick={() => setEnabled(!enabled)}
+          aria-expanded={enabled}
+          className="flex w-full items-center justify-between px-4 py-3 text-left"
+        >
+          <span className="font-mono text-[11px] uppercase tracking-[0.2em] text-moss">
+            assistant
+          </span>
+          <span aria-hidden className="font-mono text-[12px] text-muted-foreground">
+            {enabled ? "▾" : "▸"}
+          </span>
+        </button>
+      ) : null}
 
       {enabled ? (
         <AssistantPanel surface={surface} tripSlug={tripSlug} door={door} nudge={nudge} />

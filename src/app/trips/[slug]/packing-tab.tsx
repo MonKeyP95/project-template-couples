@@ -61,6 +61,8 @@ export interface PackingTabProps {
   members: Record<string, MemberToneEntry>
   daysOut: number | null
   packingNudge?: Nudge | null
+  /** Phones only; wider screens switch the assistant from the tab-row pill. */
+  assistantBar: boolean
   /**
    * The shared "Documents" category is the Checklist and never shows inside
    * Packing. "tab": packing only (desktop Packing tab). "boxes" (phone): the
@@ -113,6 +115,7 @@ export function PackingTab({
   members,
   daysOut,
   packingNudge,
+  assistantBar,
   layout = "tab",
   between,
 }: PackingTabProps) {
@@ -416,6 +419,7 @@ export function PackingTab({
           onRemoveCategory={removeCategory}
           onReorder={reorder}
           packingNudge={packingNudge}
+          assistantBar={assistantBar}
         />
       </div>
     </section>
@@ -518,6 +522,7 @@ interface PackingListProps {
   ) => void
   onReorder: (owner: string | null, orderedIds: string[]) => void
   packingNudge?: Nudge | null
+  assistantBar: boolean
 }
 
 function PackingList({
@@ -542,6 +547,7 @@ function PackingList({
   onRemoveCategory,
   onReorder,
   packingNudge,
+  assistantBar,
 }: PackingListProps) {
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
@@ -669,6 +675,7 @@ function PackingList({
           surface="packing"
           tripSlug={tripSlug}
           nudge={packingNudge}
+          bar={assistantBar}
           door={
             <PlanningPlaceDoor
               tripId={tripId}
