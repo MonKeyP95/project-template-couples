@@ -4,7 +4,6 @@ import { notFound, redirect } from "next/navigation"
 import { userAgent } from "next/server"
 
 import {
-  Bar,
   Coord,
   DayChip,
   Label,
@@ -20,7 +19,6 @@ import { WeekForecast } from "@/components/week-forecast"
 import { createClient } from "@/lib/supabase/server"
 import { isDarkTheme } from "@/lib/theme"
 import { localToday } from "@/lib/time/local-today"
-import { moneyRounded } from "@/lib/money"
 import {
   getTripExpenses,
   getTripExpenseCategories,
@@ -34,7 +32,7 @@ import { getTripSuggestions } from "@/lib/trips/suggestion-queries"
 import { budgetBucketFor } from "@/lib/ai/budget-planner"
 import { getProfileBudgetData } from "@/lib/trips/budget-history-queries"
 import { recommendBufferPct } from "@/lib/trips/budget-history-types"
-import { summarizeBudget } from "@/lib/trips/expense-types"
+import { homeCents, summarizeBudget, type Expense } from "@/lib/trips/expense-types"
 import { getTripDetailBySlug, type TripDetail } from "@/lib/trips/fixtures"
 import { getItineraryDays, getUnplacedDays } from "@/lib/trips/itinerary-queries"
 import { isDated } from "@/lib/trips/itinerary-types"
@@ -73,9 +71,11 @@ import { BudgetTab } from "./budget-tab"
 import { ItineraryTab } from "./itinerary-tab"
 import { NotesTab } from "./notes-tab"
 import { TripFolder } from "./trip-folder"
-import type { ReactNode } from "react"
+import { Fragment, type ReactNode } from "react"
 import { MobileTrip } from "./mobile-trip"
 import { TripRoutePanel } from "./trip-route-panel"
+import { PackingMini } from "./packing-mini"
+import { BudgetMini, FolderMini, ItineraryMini, SideCard } from "./trip-side-cards"
 import {
   PackingTab,
   type MemberToneEntry,
@@ -90,6 +90,10 @@ const TABS: { id: TabId; label: string }[] = [
   // Id stays "notes" so existing ?tab=notes links land here.
   { id: "notes", label: "Trip folder" },
 ]
+
+function tabHref(slug: string, tab: TabId): string {
+  return tab === "budget" ? `/trips/${slug}` : `/trips/${slug}?tab=${tab}`
+}
 
 function isTab(value: string | undefined): value is TabId {
   return (
@@ -223,11 +227,10 @@ export default async function TripPage({
   const isDream = header.startDate === null
   const [itineraryDays, locations, notes, packingItems, packingCategories, expenses, expenseCategories, savings, budgetMoves, budgetItems, receipts, documents, unplacedDays, suggestions] =
     await Promise.all([
-      showItinerary || wants("budget")
-        ? getItineraryDays(header.id)
-        : Promise.resolve(null),
+      // Days, notes and documents load on every tab: the right-rail cards show them.
+      getItineraryDays(header.id),
       getItineraryLocations(header.id),
-      wants("notes") ? getTripNotes(header.id) : Promise.resolve(null),
+      getTripNotes(header.id),
       getPackingItems(header.id),
       getPackingCategories(header.id),
       getTripExpenses(header.id),
@@ -240,7 +243,7 @@ export default async function TripPage({
         ? getBudgetItems(header.id)
         : Promise.resolve(null),
       wants("budget") ? getTripReceipts(header.id) : Promise.resolve([]),
-      wants("notes") ? getTripDocuments(header.id) : Promise.resolve([]),
+      getTripDocuments(header.id),
       showItinerary ? getUnplacedDays(header.id) : Promise.resolve([]),
       showItinerary ? getTripSuggestions(header.id) : Promise.resolve([]),
     ])
@@ -252,8 +255,6 @@ export default async function TripPage({
       (i.ownerId === null || i.ownerId === userData.user!.id) &&
       i.category !== CHECKLIST_CATEGORY,
   )
-  const packingTotal = myPackingItems.length
-  const packingDone = myPackingItems.filter((i) => i.done).length
   const today = await localToday()
   const weatherPlace = {
     ...header,
@@ -439,8 +440,18 @@ export default async function TripPage({
           workspace={workspace}
           destinations={navDestinations}
           shareState={shareState}
+          aside={
+            <HeaderAside
+              slug={header.slug}
+              locations={(locations ?? []).map((l) => l.name)}
+              forecast={weekForecast}
+            />
+          }
         />
         <DesktopTabs slug={header.slug} active={activeTab} />
+        {/* Header and pills span the page; the right rail starts below them. */}
+        <div className="lg:flex lg:items-stretch">
+        <div className="lg:min-w-0 lg:flex-1">
         {activeTab === "itinerary" && detail && header.startDate ? (
           <div className="lg:hidden">
             <WeatherStrip detail={detail} />
@@ -459,23 +470,45 @@ export default async function TripPage({
                   checklist={packing("checklist")}
                 />
               )}
-      </div>
+        </div>
 
       <DesktopRightRail
-        slug={header.slug}
-        locations={(locations ?? []).map((l) => l.name)}
-        forecast={weekForecast}
-        packing={{ done: packingDone, total: packingTotal }}
-        budget={{
-          spentCents: budgetSummary.expenseTotalCents,
-          plannedCents: header.plannedBudgetCents,
+        active={activeTab}
+        cards={{
+          budget: (
+            <SideCard id="budget" title="Budget" href={tabHref(header.slug, "budget")}>
+              <BudgetMini
+                spentCents={budgetSummary.expenseTotalCents}
+                savedCents={savings.totalCents}
+                plannedCents={header.plannedBudgetCents}
+                topCategories={topCategories(expenses)}
+                currency={header.homeCurrency}
+              />
+            </SideCard>
+          ),
+          itinerary: (
+            <SideCard id="itinerary" title="Itinerary" href={tabHref(header.slug, "itinerary")}>
+              <ItineraryMini
+                locations={locations.map((l) => l.name)}
+                days={itineraryDays}
+                today={today}
+              />
+            </SideCard>
+          ),
+          packing: (
+            <SideCard id="packing" title="Packing" href={tabHref(header.slug, "packing")}>
+              <PackingMini items={myPackingItems} owners={memberTones} />
+            </SideCard>
+          ),
+          notes: (
+            <SideCard id="notes" title="Trip folder" href={tabHref(header.slug, "notes")}>
+              <FolderMini documents={documents} notes={notes} />
+            </SideCard>
+          ),
         }}
-        saved={{
-          savedCents: savings.totalCents,
-          plannedCents: header.plannedBudgetCents,
-        }}
-        currency={header.homeCurrency}
       />
+        </div>
+      </div>
     </main>
     </CurrencyProvider>
   )
@@ -486,11 +519,14 @@ function TripHeaderView({
   workspace,
   destinations,
   shareState,
+  aside,
 }: {
   header: TripHeader
   workspace: NonNullable<Awaited<ReturnType<typeof getCurrentWorkspace>>>
   destinations: NavDestination[]
   shareState: { isPublic: boolean; shareToken: string | null }
+  /** Desktop-only content on the right of the title row (forecast + map). */
+  aside: ReactNode
 }) {
   const coord = formatCoord(header.lat, header.lng)
   const dateRange = formatDateRange(header.startDate, header.endDate)
@@ -532,8 +568,8 @@ function TripHeaderView({
           </Link>
         </div>
       </div>
-      <div className="relative flex items-end justify-between">
-        <div>
+      <div className="relative flex items-end justify-between gap-6 lg:flex-wrap lg:gap-y-4">
+        <div className="min-w-0">
           {coord ? <Coord>{coord}</Coord> : null}
           <div className="flex items-baseline gap-4">
             <h1 className="t-display mt-0.5 text-[64px] text-foreground lg:text-[88px] lg:leading-[0.9]">
@@ -553,6 +589,7 @@ function TripHeaderView({
           ) : null}
         </div>
         <WaveGlyph color="var(--sea)" w={56} h={14} className="lg:hidden" />
+        {aside}
       </div>
       <div className="relative mt-4 flex items-center justify-between lg:mt-5">
         {isDream ? (
@@ -583,6 +620,34 @@ function TripHeaderView({
   )
 }
 
+/** Forecast then route map, right of the trip name on desktop. The map opens the itinerary. */
+function HeaderAside({
+  slug,
+  locations,
+  forecast,
+}: {
+  slug: string
+  locations: string[]
+  forecast: { label: string; days: DayForecast[] } | null
+}) {
+  return (
+    <div className="hidden lg:flex lg:shrink-0 lg:items-end lg:gap-4">
+      {forecast ? (
+        <div className="w-[300px] rounded-[12px] bg-card/60 p-2.5">
+          <WeekForecast forecast={forecast.days} label={forecast.label} />
+        </div>
+      ) : null}
+      <Link
+        href={`/trips/${slug}?tab=itinerary`}
+        aria-label="Route map. Opens the itinerary"
+        className="block h-[132px] w-[220px] rounded-[14px] transition-opacity hover:opacity-90"
+      >
+        <TripRoutePanel slug={slug} locations={locations} />
+      </Link>
+    </div>
+  )
+}
+
 function WeatherStrip({ detail }: { detail: TripDetail }) {
   return (
     <div className="flex border-b border-border bg-card">
@@ -603,25 +668,21 @@ function WeatherStrip({ detail }: { detail: TripDetail }) {
  * windows and tablets keep a way between tabs; phones use MobileTrip instead. */
 function DesktopTabs({ slug, active }: { slug: string; active: TabId }) {
   return (
-    <div className="flex gap-5 overflow-x-auto border-b border-border px-5 lg:gap-7 lg:px-10 lg:pt-3">
+    <div className="flex flex-wrap gap-2 border-b border-border px-5 py-3.5 lg:px-10">
       {TABS.map((t) => {
         const isActive = t.id === active
-        const href =
-          t.id === "budget" ? `/trips/${slug}` : `/trips/${slug}?tab=${t.id}`
         return (
           <Link
             key={t.id}
-            href={href}
+            href={tabHref(slug, t.id)}
             aria-current={isActive ? "page" : undefined}
-            className={`flex items-center gap-2 border-b-2 py-3 transition-colors ${
+            className={`rounded-full border px-3.5 py-1.5 font-mono text-[11px] uppercase tracking-[0.18em] transition-colors ${
               isActive
-                ? "border-foreground text-foreground"
-                : "border-transparent text-muted-foreground hover:text-foreground"
+                ? "border-foreground bg-foreground text-background"
+                : "border-border text-muted-foreground hover:border-muted-foreground hover:text-foreground"
             }`}
           >
-            <span className="font-mono text-[11px] uppercase tracking-[0.22em]">
-              {t.label}
-            </span>
+            {t.label}
           </Link>
         )
       })}
@@ -629,90 +690,33 @@ function DesktopTabs({ slug, active }: { slug: string; active: TabId }) {
   )
 }
 
+/** Desktop right rail: a small card for every section except the one in the main column. */
 function DesktopRightRail({
-  slug,
-  locations,
-  forecast,
-  packing,
-  budget,
-  saved,
-  currency,
+  active,
+  cards,
 }: {
-  slug: string
-  locations: string[]
-  forecast: { label: string; days: DayForecast[] } | null
-  packing: { done: number; total: number }
-  budget: { spentCents: number; plannedCents: number }
-  saved: { savedCents: number; plannedCents: number }
-  currency: string
+  active: TabId
+  cards: Record<TabId, ReactNode>
 }) {
-  const packingPct =
-    packing.total === 0 ? 0 : Math.round((packing.done / packing.total) * 100)
-  const budgetPct =
-    budget.plannedCents === 0
-      ? 0
-      : Math.min(100, Math.round((budget.spentCents / budget.plannedCents) * 100))
-  const savedPct =
-    saved.plannedCents === 0
-      ? 0
-      : Math.min(100, Math.round((saved.savedCents / saved.plannedCents) * 100))
   return (
-    <aside className="hidden lg:flex lg:w-[280px] lg:flex-shrink-0 lg:flex-col lg:gap-8 lg:border-l lg:border-border lg:bg-card lg:px-6 lg:py-8">
-      <div className="h-[200px]">
-        <TripRoutePanel slug={slug} locations={locations} />
-      </div>
-
-      <div>
-        <Label>Pre-trip</Label>
-        <div className="mt-3 flex flex-col gap-3.5">
-          <ProgressRow
-            label="Packing"
-            value={`${packing.done} / ${packing.total}`}
-            pct={packingPct}
-            tone="clay"
-          />
-          <ProgressRow
-            label="Budget"
-            value={`${moneyRounded(budget.spentCents, currency)} / ${moneyRounded(budget.plannedCents, currency)}`}
-            pct={budgetPct}
-            tone="sea"
-          />
-          <ProgressRow
-            label="Saved"
-            value={`${moneyRounded(saved.savedCents, currency)} / ${moneyRounded(saved.plannedCents, currency)}`}
-            pct={savedPct}
-            tone="moss"
-          />
-        </div>
-      </div>
-
-      {forecast ? (
-        <WeekForecast forecast={forecast.days} label={forecast.label} />
-      ) : null}
+    <aside className="hidden lg:flex lg:w-[340px] lg:flex-shrink-0 lg:flex-col lg:gap-4 lg:border-l lg:border-border lg:bg-card lg:px-5 lg:py-6">
+      <Label>Also on this trip</Label>
+      {TABS.filter((t) => t.id !== active).map((t) => (
+        <Fragment key={t.id}>{cards[t.id]}</Fragment>
+      ))}
     </aside>
   )
 }
 
-function ProgressRow({
-  label,
-  value,
-  pct,
-  tone,
-}: {
-  label: string
-  value: string
-  pct: number
-  tone: "sea" | "clay" | "moss"
-}) {
-  return (
-    <div>
-      <div className="mb-1.5 flex items-baseline justify-between">
-        <span className="font-serif text-[13px] italic text-foreground">
-          {label}
-        </span>
-        <span className="t-num text-[11px] text-muted-foreground">{value}</span>
-      </div>
-      <Bar pct={pct} tone={tone} />
-    </div>
-  )
+/** The two categories with the most real spend (settlements excluded). */
+function topCategories(expenses: Expense[]): { name: string; cents: number }[] {
+  const byName = new Map<string, number>()
+  for (const e of expenses) {
+    if (e.isSettlement) continue
+    byName.set(e.category, (byName.get(e.category) ?? 0) + homeCents(e))
+  }
+  return [...byName]
+    .map(([name, cents]) => ({ name, cents }))
+    .sort((a, b) => b.cents - a.cents)
+    .slice(0, 2)
 }
