@@ -4,6 +4,14 @@
 
 **Next up: work on the AI itinerary planner** (`itinerary-planner` agent, `src/lib/ai/agents/`). Noted 2026-11-03.
 
+**Tab titles + pills on every desktop tab: implemented 2026-11-19; lint + `tsc` clean; unverified in app; no migration.** Same treatment as the Budget tab. Desktop Itinerary, Packing and Trip folder now open with a serif title (no "The": Budget, Itinerary, Packing list, Trip folder), with each tab's pills on the right. Packing drops its clay band on desktop; My list / Shared / partner's list are pills, filled when selected. "Import items" moved out of the pill row/band (desktop and phone) to a dashed "Import packing list" button under "Add an item...". Files: `trips/[slug]/{budget-tab,itinerary-tab,packing-tab,trip-folder}.tsx`. In-app checks:
+  1. Desktop Itinerary: "Itinerary" title left; assistant / + day / + location pills right.
+  2. Desktop Packing: no band; "Packing list" + days-out left; list pills right, the selected one filled.
+  3. Desktop Trip folder: "Trip folder" title above Documents.
+  4. Budget title reads "Budget" (no "The").
+  5. Packing (My list, Shared): "Import packing list" under the add-item row opens the import dialog; not shown on the partner's list.
+  6. Phone: titles unchanged; the packing band has no import button; import sits under add item.
+
 **Desktop trip page: one main section + three small cards: implemented 2026-11-19 (PR #124); lint + `tsc` clean; `pnpm build` passes; verified in-app 2026-11-19; no migration.** Built from the preview the user approved. Tabs are pills. The right column ("Also on this trip") shows small Budget / Itinerary / Packing / Trip folder cards for every section except the active one; each card header opens that section. The forecast and route map moved into the header, right of the trip name (map opens the itinerary). Pre-trip progress is folded into the cards. Itinerary days, notes and documents now load on every desktop tab. Files: `trips/[slug]/{page,trip-side-cards,packing-mini}.tsx`. In-app checks:
   1. Desktop Budget tab: header shows name, then forecast, then map, left to right; the tabs are pills with Budget filled.
   2. Right column lists Itinerary, Packing, Trip folder cards (no Budget card); clicking "open" on one makes it the main section and Budget appears as a card.

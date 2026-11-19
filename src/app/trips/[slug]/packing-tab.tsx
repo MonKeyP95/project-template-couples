@@ -3,6 +3,7 @@
 import * as React from "react"
 
 import { CheckRow, Coord, Label, SegBtn, TopoBg } from "@/components/together"
+import { toolbarPill } from "./plan-itinerary"
 import { AssistantBlock } from "@/components/assistant-block"
 import { BoxCard, BoxSection } from "@/components/collapsible-box"
 import { PlanningPlaceDoor } from "./find-a-place-planning"
@@ -325,7 +326,43 @@ export function PackingTab({
 
   const section = (
     <section>
-      <div className="relative overflow-hidden bg-clay-tint px-5 pt-6 pb-4">
+      {/* Desktop: title left, list switch + import as pills right. Phone: the band below. */}
+      <div className="hidden flex-wrap items-center gap-2 px-5 pt-7 pb-4 lg:flex">
+        <div className="mr-auto flex items-baseline gap-4">
+          <h2 className="font-serif text-[40px] leading-none text-foreground">
+            <em className="text-sea">Packing</em> list
+          </h2>
+          {daysOutLabel ? <Coord>{daysOutLabel}</Coord> : null}
+        </div>
+        <button
+          type="button"
+          aria-pressed={view === "mine"}
+          onClick={() => setView("mine")}
+          className={toolbarPill(view === "mine")}
+        >
+          My list
+        </button>
+        <button
+          type="button"
+          aria-pressed={view === "shared"}
+          onClick={() => setView("shared")}
+          className={toolbarPill(view === "shared")}
+        >
+          Shared
+        </button>
+        {partnerName ? (
+          <button
+            type="button"
+            aria-pressed={view === "partner"}
+            onClick={openPartner}
+            className={toolbarPill(view === "partner")}
+          >
+            {partnerName}&rsquo;s list
+          </button>
+        ) : null}
+      </div>
+
+      <div className="relative overflow-hidden bg-clay-tint px-5 pt-6 pb-4 lg:hidden">
         <TopoBg tone="clay" opacity={0.1} />
         <div className="relative flex items-start justify-between">
           <Label>Packing</Label>
@@ -343,14 +380,6 @@ export function PackingTab({
               {partnerName}&rsquo;s list
             </SegBtn>
           ) : null}
-          <button
-            type="button"
-            onClick={() => setImportOpen(true)}
-            className="ml-auto flex items-center gap-1 rounded-full border border-rule px-3 py-1 font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground hover:border-foreground hover:text-foreground"
-          >
-            <Download className="h-3 w-3" />
-            Import items
-          </button>
         </div>
       </div>
 
@@ -382,6 +411,7 @@ export function PackingTab({
           onDelete={remove}
           onAddItem={addItem}
           onAddLooseItem={(label) => addToCategory(LOOSE_CATEGORY, active.owner, label)}
+          onImport={() => setImportOpen(true)}
           onAddCategory={addCategory}
           onRemoveCategory={removeCategory}
           onReorder={reorder}
@@ -477,6 +507,8 @@ interface PackingListProps {
     label: string,
   ) => Promise<{ error?: string }>
   onAddLooseItem: (label: string) => Promise<{ error?: string }>
+  /** Opens the import dialog; offered under the add-item row. */
+  onImport: () => void
   onAddCategory: (name: string, owner: string | null) => Promise<{ error?: string }>
   onRemoveCategory: (
     id: string,
@@ -505,6 +537,7 @@ function PackingList({
   onDelete,
   onAddItem,
   onAddLooseItem,
+  onImport,
   onAddCategory,
   onRemoveCategory,
   onReorder,
@@ -619,6 +652,14 @@ function PackingList({
 
       <div className="px-5 pt-4">
         <AddItemRow alwaysOpen placeholder="Add an item…" onAdd={onAddLooseItem} />
+        <button
+          type="button"
+          onClick={onImport}
+          className="my-2 flex w-full items-center justify-center gap-1.5 rounded-lg border border-dashed border-rule py-3 font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground hover:border-foreground hover:text-foreground"
+        >
+          <Download className="h-3 w-3" />
+          import packing list
+        </button>
         <AddCategoryRow onAdd={(name) => onAddCategory(name, owner)} />
       </div>
 
