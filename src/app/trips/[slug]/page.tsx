@@ -11,6 +11,7 @@ import {
 } from "@/components/together"
 import { RefreshOnVisible } from "@/components/refresh-on-visible"
 import { CurrencyProvider } from "@/components/currency-context"
+import { AssistantPill } from "@/components/ai-mode"
 import { getRates } from "@/lib/fx/get-rates"
 import { FlipCountdown } from "@/components/flip-countdown"
 import { WeekForecast } from "@/components/week-forecast"
@@ -319,6 +320,7 @@ export default async function TripPage({
       suggestions={suggestions}
       initialLocations={locations ?? []}
       budgetItems={budgetItems ?? []}
+      showAssistantPill={isMobile}
     />
   )
   const packing = (layout: "tab" | "boxes" | "checklist", between?: ReactNode) => (
@@ -333,6 +335,7 @@ export default async function TripPage({
       members={memberTones}
       daysOut={computeDaysOut(header.startDate)}
       packingNudge={packingNudge}
+      assistantBar={isMobile}
       layout={layout}
       between={between}
     />
@@ -364,6 +367,7 @@ export default async function TripPage({
       currentPersonId={workspace.myPersonId ?? ""}
       receipts={receipts}
       nowMs={receiptClockMs()}
+      showAssistantPill={isMobile}
     />
   )
   const documentsSection = (
@@ -382,6 +386,7 @@ export default async function TripPage({
       initialNotes={notes ?? []}
       locations={locations ?? []}
       members={memberTones}
+      assistantBar={isMobile}
     />
   )
 
@@ -632,6 +637,7 @@ function WeatherStrip({ detail }: { detail: TripDetail }) {
 function DesktopTabs({ slug, active }: { slug: string; active: TabId }) {
   return (
     <div className="flex flex-wrap gap-2 border-b border-border px-5 py-3.5 lg:px-10">
+      <AssistantPill className="order-last ml-auto" />
       {TABS.map((t) => {
         const isActive = t.id === active
         return (

@@ -4,6 +4,8 @@
 
 **Next up: work on the AI itinerary planner** (`itinerary-planner` agent, `src/lib/ai/agents/`). Noted 2026-11-03.
 
+**Assistant pill in the tab row + itinerary header tweaks: implemented 2026-11-19; lint + `tsc` clean; verified in-app 2026-11-19; no migration.** Desktop: the assistant on/off pill (shared `AssistantPill` in `components/ai-mode.tsx`) sits at the right of the Budget / Itinerary / Packing / Trip folder tab row; the Itinerary and Budget toolbar pills and the Packing / Notes `AssistantBlock` bar (`bar={false}`) show on phones only (`isMobile`). Itinerary title and pills share one line (title is `flex-1 min-w-0`); "Edit your itinerary" is now "Edit itinerary"; planned day cards lost their bottom padding so the "Staying" footer sits on the card's bottom edge.
+
 **Itinerary + rail trims: implemented 2026-11-19; lint + `tsc` clean; no migration.** Day cards drop the "day N" label line (verified in-app 2026-11-19); the unused `dragHandle` prop went with it. A trip with one location hides its location header row (it repeats the trip header) and keeps the group open. The desktop right rail drops the "Also on this trip" label. Files: `trips/[slug]/{itinerary-tab,page}.tsx`. In-app checks pending:
   1. One-location trip: no "01 <location>" row; days listed directly; still open on the road.
   2. 2+ locations: every location row shows with ordinal, edit, delete and collapse.

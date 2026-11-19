@@ -40,7 +40,7 @@ import {
 } from "./day-selection"
 import { Label } from "@/components/together"
 import { AssistantPanel } from "@/components/assistant-block"
-import { useAiMode } from "@/components/ai-mode"
+import { AssistantPill, useAiMode } from "@/components/ai-mode"
 import { EventRating } from "@/components/event-rating"
 import { PlanningPlaceDoor } from "./find-a-place-planning"
 import { BudgetScopeEditor } from "./budget-scope-editor"
@@ -306,6 +306,7 @@ export function ItineraryTab({
   initialLocations,
   budgetItems,
   suggestions,
+  showAssistantPill,
 }: {
   tripId: string
   tripSlug: string
@@ -326,6 +327,8 @@ export function ItineraryTab({
   initialLocations: ItineraryLocation[]
   budgetItems: BudgetItem[]
   suggestions: TripSuggestion[]
+  /** Phones only; wider screens have the assistant pill in the tab row. */
+  showAssistantPill: boolean
 }) {
   const { currency } = useCurrency()
   const [days, setDays] = React.useState<ItineraryDay[]>(initialItems)
@@ -796,7 +799,7 @@ export function ItineraryTab({
       )
     : 0
 
-  const { enabled: aiEnabled, setEnabled: setAiEnabled } = useAiMode()
+  const { enabled: aiEnabled } = useAiMode()
   const [addDayFor, setAddDayFor] = React.useState<string | null>(null)
   const [addingLocation, setAddingLocation] = React.useState(false)
   const [newLocName, setNewLocName] = React.useState("")
@@ -893,21 +896,10 @@ export function ItineraryTab({
    * flex item, so it drops onto its own line below the pills. */
   const planningBlock = (
     <div className="flex flex-wrap items-center gap-2 pb-4">
-      <h2 className="hidden font-serif text-[40px] leading-none text-foreground lg:mr-auto lg:block">
+      <h2 className="hidden min-w-0 flex-1 truncate font-serif text-[40px] leading-none text-foreground lg:block">
         <em className="text-sea">Itinerary</em>
       </h2>
-      <button
-        type="button"
-        onClick={() => setAiEnabled(!aiEnabled)}
-        aria-expanded={aiEnabled}
-        className={`rounded-full border px-3.5 py-1.5 font-mono text-[11px] uppercase tracking-[0.18em] transition-colors ${
-          aiEnabled
-            ? "border-moss bg-moss text-background"
-            : "border-border bg-transparent text-moss hover:border-moss"
-        }`}
-      >
-        assistant
-      </button>
+      {showAssistantPill ? <AssistantPill /> : null}
       <button
         type="button"
         onClick={() => setAddDayFor(addDayOpen ? null : LOOSE_KEY)}
@@ -1787,7 +1779,7 @@ function DayView({
         className={`flex-1 cursor-pointer rounded-lg border ${
           empty
             ? `border-dashed px-3.5 py-2 ${selected ? "border-sea bg-sea/10" : "border-rule"}`
-            : `px-3.5 py-3 border-l-[3px] ${
+            : `px-3.5 pt-3 pb-0.5 border-l-[3px] ${
                 selected ? "border-sea bg-sea/10" : "border-border bg-card"
               } ${itineraryBorder[day.tone]}`
         } ${dimBefore !== null && day.dayIndex < dimBefore ? "opacity-60" : ""}`}

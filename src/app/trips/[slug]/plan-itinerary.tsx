@@ -162,7 +162,7 @@ export function PlanItinerary({
     [locations, days],
   )
   const hasDays = days.length > 0
-  const title = hasDays ? "Edit your itinerary" : "Plan your itinerary"
+  const title = hasDays ? "Edit itinerary" : "Plan your itinerary"
   /** A trip with no length yet (an older dream) asks for one on the Places step. */
   const asksDays = tripDayCount === null
   const [daysAsked, setDaysAsked] = React.useState("")

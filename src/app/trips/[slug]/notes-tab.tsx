@@ -100,6 +100,7 @@ export function NotesTab({
   initialNotes,
   locations,
   members,
+  assistantBar,
 }: {
   tripId: string
   tripSlug: string
@@ -107,6 +108,8 @@ export function NotesTab({
   initialNotes: TripNote[]
   locations: ItineraryLocation[]
   members: Record<string, MemberToneEntry>
+  /** Phones only; wider screens switch the assistant from the tab-row pill. */
+  assistantBar: boolean
 }) {
   const [editingId, setEditingId] = React.useState<string | null>(null)
   const [open, setOpen] = React.useState<Set<string>>(new Set())
@@ -128,6 +131,7 @@ export function NotesTab({
         surface="notes"
         tripSlug={tripSlug}
         className="mb-4 block"
+        bar={assistantBar}
         door={
           <PlanningPlaceDoor
             tripId={tripId}

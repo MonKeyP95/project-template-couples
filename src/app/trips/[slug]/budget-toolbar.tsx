@@ -2,7 +2,7 @@
 
 import * as React from "react"
 
-import { useAiMode } from "@/components/ai-mode"
+import { AssistantPill, useAiMode } from "@/components/ai-mode"
 import { AssistantPanel } from "@/components/assistant-block"
 
 import { toolbarPill } from "./plan-itinerary"
@@ -21,18 +21,21 @@ const PILLS: { key: BudgetPanel; label: string; phoneOnly?: boolean }[] = [
  * pill is the AI on/off switch, as on the itinerary, so it opens independently. */
 export function BudgetToolbar({
   tripSlug,
+  showAssistantPill,
   title,
   door,
   renderPanel,
 }: {
   tripSlug: string
+  /** Phones only; wider screens have the assistant pill in the tab row. */
+  showAssistantPill: boolean
   /** Wide screens only: shown left of the pills. */
   title: React.ReactNode
   door: React.ReactNode
   renderPanel: (panel: BudgetPanel, close: () => void) => React.ReactNode
 }) {
   const [open, setOpen] = React.useState<BudgetPanel | null>(null)
-  const { enabled: aiEnabled, setEnabled: setAiEnabled } = useAiMode()
+  const { enabled: aiEnabled } = useAiMode()
   const close = () => setOpen(null)
 
   function pill(key: BudgetPanel, label: string, phoneOnly = false) {
@@ -53,18 +56,7 @@ export function BudgetToolbar({
     <div className="flex flex-wrap items-center gap-2 px-5 pt-4 lg:pt-7">
       <div className="hidden lg:mr-auto lg:block">{title}</div>
       {pill("expense", "+ expense")}
-      <button
-        type="button"
-        onClick={() => setAiEnabled(!aiEnabled)}
-        aria-expanded={aiEnabled}
-        className={`rounded-full border px-3.5 py-1.5 font-mono text-[11px] uppercase tracking-[0.18em] transition-colors ${
-          aiEnabled
-            ? "border-moss bg-moss text-background"
-            : "border-border bg-transparent text-moss hover:border-moss"
-        }`}
-      >
-        assistant
-      </button>
+      {showAssistantPill ? <AssistantPill /> : null}
       {PILLS.map((p) => pill(p.key, p.label, p.phoneOnly))}
       {aiEnabled ? (
         <div className="order-last w-full rounded-[14px] border border-l-2 border-border border-l-moss bg-card">

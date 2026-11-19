@@ -39,3 +39,22 @@ export function AiModeProvider({
 export function useAiMode(): AiModeValue {
   return React.useContext(AiModeContext)
 }
+
+/** The AI on/off switch, styled as a moss toolbar pill. */
+export function AssistantPill({ className = "" }: { className?: string }) {
+  const { enabled, setEnabled } = useAiMode()
+  return (
+    <button
+      type="button"
+      onClick={() => setEnabled(!enabled)}
+      aria-expanded={enabled}
+      className={`rounded-full border px-3.5 py-1.5 font-mono text-[11px] uppercase tracking-[0.18em] transition-colors ${
+        enabled
+          ? "border-moss bg-moss text-background"
+          : "border-border bg-transparent text-moss hover:border-moss"
+      } ${className}`}
+    >
+      assistant
+    </button>
+  )
+}
