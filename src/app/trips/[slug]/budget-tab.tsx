@@ -185,29 +185,30 @@ export function BudgetTab({
       )
     }
     if (panel === "saved") return saved
-    if (panel === "settle") return settle
-    return (
-      <>
+    return settle
+  }
+
+  const drafter = (
+    <BudgetDrafter
+      tripId={tripId}
+      tripSlug={tripSlug}
+      tripName={tripName}
+      tripDays={tripDays}
+      plannedBudgetCents={plannedBudgetCents}
+      locations={locations}
+      itineraryDays={itineraryDays}
+      memberCount={Object.keys(members).length}
+      initialItems={budgetItems}
+      itinerarySeeds={itinerarySeeds}
+      bufferRec={bufferRec}
+      header={
         <AllocatedFigure
           allocatedCents={budgetItems.reduce((s, it) => s + it.amountCents, 0)}
           plannedBudgetCents={plannedBudgetCents}
         />
-        <BudgetDrafter
-          tripId={tripId}
-          tripSlug={tripSlug}
-          tripName={tripName}
-          tripDays={tripDays}
-          plannedBudgetCents={plannedBudgetCents}
-          locations={locations}
-          itineraryDays={itineraryDays}
-          memberCount={Object.keys(members).length}
-          initialItems={budgetItems}
-          itinerarySeeds={itinerarySeeds}
-          bufferRec={bufferRec}
-        />
-      </>
-    )
-  }
+      }
+    />
+  )
 
   return (
     <section>
@@ -233,6 +234,7 @@ export function BudgetTab({
             destination={destination}
           />
         }
+        drafter={drafter}
         renderPanel={renderPanel}
       />
 

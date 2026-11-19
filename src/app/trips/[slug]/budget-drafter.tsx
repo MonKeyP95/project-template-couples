@@ -30,6 +30,7 @@ import {
   PRE_TRIP_STEPS,
 } from "./budget-drafter-pretrip"
 import { BudgetDrafterList, type ListGroup } from "./budget-drafter-list"
+import { toolbarPill } from "./plan-itinerary"
 
 /** stepIndex value for edit mode's heading list. */
 const LIST = -1
@@ -125,6 +126,8 @@ export interface BudgetDrafterProps {
   itinerarySeeds: Record<string, string[]>
   /** Recommended buffer % + one-line reason, from the couple's history. */
   bufferRec: { pct: number; reason: string }
+  /** Shown at the top of the open drafter's box. */
+  header: React.ReactNode
 }
 
 export function BudgetDrafter({
@@ -139,6 +142,7 @@ export function BudgetDrafter({
   initialItems,
   itinerarySeeds,
   bufferRec,
+  header,
 }: BudgetDrafterProps) {
   const { currency } = useCurrency()
   const fmt = (cents: number) => moneyRounded(cents, currency)
@@ -622,34 +626,41 @@ export function BudgetDrafter({
     })
   }
 
-  if (!session) {
-    return (
-      <div className="flex items-center justify-between border-t border-border px-5 pt-4 pb-2">
-        <button
-          type="button"
-          onClick={open}
-          className="rounded-full border border-border bg-transparent px-3 py-1.5 font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground hover:text-foreground"
-        >
-          {plannedBudgetCents > 0 ? "Edit budget" : "Plan a budget"}
-        </button>
-      </div>
-    )
-  }
+  // A pill plus, when open, a full-width box: both are flex children of the
+  // budget toolbar's pill row.
+  const pill = (
+    <button
+      type="button"
+      onClick={session ? () => setSession(null) : open}
+      aria-expanded={session !== null}
+      className={toolbarPill(session !== null)}
+    >
+      {plannedBudgetCents > 0 ? "edit budget" : "plan a budget"}
+    </button>
+  )
+
+  if (!session) return pill
 
   return (
-    <div className="border-t border-border px-5 pt-4 pb-2">
-      <div className="rounded-lg border border-border bg-card px-3.5 py-3">
-        {stepIndex === LIST
-          ? renderList()
-          : stepIndex < preCount
-          ? renderPreTripStep(stepIndex)
-          : stepIndex < bufferIndex
-            ? renderStep(session.steps[stepIndex - preCount])
-            : stepIndex === bufferIndex
-              ? renderBuffer()
-              : renderReview()}
+    <>
+      {pill}
+      <div className="order-last w-full overflow-hidden rounded-xl border border-border bg-card">
+        {header}
+        <div className="px-5 pt-4 pb-4">
+          <div className="rounded-lg border border-border bg-card px-3.5 py-3">
+            {stepIndex === LIST
+              ? renderList()
+              : stepIndex < preCount
+              ? renderPreTripStep(stepIndex)
+              : stepIndex < bufferIndex
+                ? renderStep(session.steps[stepIndex - preCount])
+                : stepIndex === bufferIndex
+                  ? renderBuffer()
+                  : renderReview()}
+          </div>
+        </div>
       </div>
-    </div>
+    </>
   )
 
   /** The review step's write, offered from every step: editing one line
