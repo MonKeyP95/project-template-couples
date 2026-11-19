@@ -6,7 +6,6 @@ import { userAgent } from "next/server"
 import {
   Coord,
   DayChip,
-  Label,
   TopoBg,
   WaveGlyph,
 } from "@/components/together"
@@ -671,7 +670,6 @@ function DesktopRightRail({
           <WeekForecast forecast={forecast.days} label={forecast.label} />
         </div>
       ) : null}
-      <Label>Also on this trip</Label>
       {TABS.filter((t) => t.id !== active).map((t) => (
         <Fragment key={t.id}>{cards[t.id]}</Fragment>
       ))}

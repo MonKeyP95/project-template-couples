@@ -4,6 +4,11 @@
 
 **Next up: work on the AI itinerary planner** (`itinerary-planner` agent, `src/lib/ai/agents/`). Noted 2026-11-03.
 
+**Itinerary + rail trims: implemented 2026-11-19; lint + `tsc` clean; no migration.** Day cards drop the "day N" label line (verified in-app 2026-11-19); the unused `dragHandle` prop went with it. A trip with one location hides its location header row (it repeats the trip header) and keeps the group open. The desktop right rail drops the "Also on this trip" label. Files: `trips/[slug]/{itinerary-tab,page}.tsx`. In-app checks pending:
+  1. One-location trip: no "01 <location>" row; days listed directly; still open on the road.
+  2. 2+ locations: every location row shows with ordinal, edit, delete and collapse.
+  3. Desktop rail goes straight from weather to the first card.
+
 **Compact desktop trip header: implemented 2026-11-19 (PR #128); lint + `tsc` clean; verified in-app 2026-11-19; no migration.** The header was too big. The weather moved back to the top of the right rail, above the cards. The header is now a top-left block: coordinates, name (48px), country + dates in one small mono line, then the countdown (smaller desktop tiles). The route map sits on the right. Share / edit float top right. Removed from the header: the two avatars, the trip description, and "Trip · 04 of 08". `globals.css`: the large-screen `.flip-lg` size block moved into `@layer components` so utility classes can override the tile size (it was unlayered and beat them). Files: `trips/[slug]/page.tsx`, `app/globals.css`. In-app checks:
   1. Desktop: name top left; country + dates on one small line under it; countdown below that; map on the right; nothing overlaps Share / edit.
   2. Weather sits at the top of the right column on every tab.

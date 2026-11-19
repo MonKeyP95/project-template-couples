@@ -775,6 +775,8 @@ export function ItineraryTab({
     ? plannedDays.filter((d) => d.dayIndex >= todayIndex)
     : plannedDays
   const timeline = buildTimeline(locations, days)
+  // One location just repeats the trip header, so its row is hidden.
+  const soleLocation = locations.length === 1
   const itemIsPast = (it: TimelineItem) =>
     it.kind === "location"
       ? groupZone(it.group, todayIndex) === "past"
@@ -1050,7 +1052,7 @@ export function ItineraryTab({
             const group = item.group
             const groupPast = active && groupZone(group, todayIndex) === "past"
             if (groupPast && !pastBarOpen) return null
-            const open = !collapsed.has(group.key)
+            const open = soleLocation || !collapsed.has(group.key)
             const isLoc = true
             const count = group.days.length
             const last = group.days[count - 1]
@@ -1071,6 +1073,7 @@ export function ItineraryTab({
                   groupPast ? "opacity-60" : ""
                 }`}
               >
+                {soleLocation ? null : (
                 <div className="flex items-center gap-3 py-3">
                   <span className="w-7 flex-shrink-0 font-mono text-[18px] leading-none text-muted-foreground">
                     {group.ord !== null
@@ -1198,6 +1201,7 @@ export function ItineraryTab({
                     {open ? "⌄" : "›"}
                   </button>
                 </div>
+                )}
 
                 {open ? (
                   <div className="pb-3 pl-10">
@@ -1626,7 +1630,6 @@ interface DayCardProps {
   tripStartDate: string | null
   onStartEdit: () => void
   onStopEdit: () => void
-  dragHandle?: React.ReactNode
   selected: boolean
   onSelectStart: (shift: boolean, x: number, y: number) => void
   daySuggestions: TripSuggestion[]
@@ -1670,7 +1673,6 @@ function DayCard({
   tripStartDate,
   onStartEdit,
   onStopEdit,
-  dragHandle,
   selected,
   onSelectStart,
   daySuggestions,
@@ -1704,7 +1706,6 @@ function DayCard({
       dimBefore={dimBefore}
       todayIndex={todayIndex}
       onStartEdit={onStartEdit}
-      dragHandle={dragHandle}
       selected={selected}
       onSelectStart={onSelectStart}
       daySuggestions={daySuggestions}
@@ -1723,7 +1724,6 @@ function DayView({
   dimBefore,
   todayIndex,
   onStartEdit,
-  dragHandle,
   selected,
   onSelectStart,
   daySuggestions,
@@ -1738,7 +1738,6 @@ function DayView({
   dimBefore: number | null
   todayIndex: number
   onStartEdit: () => void
-  dragHandle?: React.ReactNode
   selected: boolean
   onSelectStart: (shift: boolean, x: number, y: number) => void
   daySuggestions: TripSuggestion[]
@@ -1801,7 +1800,6 @@ function DayView({
             className="flex w-full items-center justify-between border-0 bg-transparent p-0 text-left font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground hover:text-foreground"
           >
             <span>free · plan this day</span>
-            <span className="tracking-[0.06em] normal-case">day {Number(day.d)}</span>
           </button>
           {daySuggestions.map((s) => (
             <SuggestionLine
@@ -1815,14 +1813,6 @@ function DayView({
           </>
         ) : (
         <>
-        <div className="mb-1.5 flex items-center justify-between">
-          <div className="flex items-center gap-1.5">
-            {dragHandle}
-          </div>
-          <span className="font-mono text-[10px] tracking-[0.06em] text-muted-foreground">
-            day {Number(day.d)}
-          </span>
-        </div>
         {day.title ? (
           <button
             type="button"
