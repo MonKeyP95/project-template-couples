@@ -376,12 +376,16 @@
   }
 }
 
-@media (min-width: 768px) {
-  .flip-lg {
-    --flip-w: 96px;
-    --flip-h: 76px;
-    --flip-f: 73px;
-    --flip-gap: 8px;
+/* In the components layer so utility classes (the desktop header's smaller
+   tiles) can still override these sizes. */
+@layer components {
+  @media (min-width: 768px) {
+    .flip-lg {
+      --flip-w: 96px;
+      --flip-h: 76px;
+      --flip-f: 73px;
+      --flip-gap: 8px;
+    }
   }
 }
 
