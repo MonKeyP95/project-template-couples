@@ -133,6 +133,35 @@ export function BudgetTab({
     locationDays,
   })
 
+  const settle = (
+    <CompactSettle
+      summary={summary}
+      currentPersonId={currentPersonId}
+      tripId={tripId}
+      tripSlug={tripSlug}
+    >
+      <SplitBreakdown
+        members={members}
+        paidByUser={summary.expensePaidByUser}
+        settlementsByUser={summary.settlementsByUser}
+      />
+      <SettlementHistory expenses={expenses} members={members} />
+    </CompactSettle>
+  )
+
+  const saved = (
+    <SavedFigure
+      tripId={tripId}
+      tripSlug={tripSlug}
+      plannedBudgetCents={plannedBudgetCents}
+      savedCents={savedCents}
+      contributions={savingsContributions}
+      perUser={savedPerUser}
+      members={members}
+      currentPersonId={currentPersonId}
+    />
+  )
+
   function renderPanel(panel: BudgetPanel, close: () => void) {
     if (panel === "expense") {
       return (
@@ -152,37 +181,8 @@ export function BudgetTab({
         </>
       )
     }
-    if (panel === "saved") {
-      return (
-        <SavedFigure
-          tripId={tripId}
-          tripSlug={tripSlug}
-          plannedBudgetCents={plannedBudgetCents}
-          savedCents={savedCents}
-          contributions={savingsContributions}
-          perUser={savedPerUser}
-          members={members}
-          currentPersonId={currentPersonId}
-        />
-      )
-    }
-    if (panel === "settle") {
-      return (
-        <CompactSettle
-          summary={summary}
-          currentPersonId={currentPersonId}
-          tripId={tripId}
-          tripSlug={tripSlug}
-        >
-          <SplitBreakdown
-            members={members}
-            paidByUser={summary.expensePaidByUser}
-            settlementsByUser={summary.settlementsByUser}
-          />
-          <SettlementHistory expenses={expenses} members={members} />
-        </CompactSettle>
-      )
-    }
+    if (panel === "saved") return saved
+    if (panel === "settle") return settle
     return (
       <>
         <AllocatedFigure
@@ -208,7 +208,7 @@ export function BudgetTab({
 
   return (
     <section>
-      <div className="relative overflow-hidden bg-dusk-tint px-5 pt-6 pb-4">
+      <div className="relative overflow-hidden bg-dusk-tint px-5 pt-6 pb-4 lg:hidden">
         <TopoBg tone="sea" opacity={0.1} />
         <div className="relative">
           <Label>Budget · {tripName}</Label>
@@ -217,6 +217,11 @@ export function BudgetTab({
 
       <BudgetToolbar
         tripSlug={tripSlug}
+        title={
+          <h2 className="font-serif text-[40px] leading-none text-foreground">
+            The <em className="text-sea">budget</em>
+          </h2>
+        }
         door={
           <PlanningPlaceDoor
             tripId={tripId}
@@ -275,18 +280,39 @@ export function BudgetTab({
           nowMs={nowMs}
         />
       </div>
-      <Ledger
-        expenses={expenses}
-        moves={moves}
-        members={members}
-        tripSlug={tripSlug}
-        locations={locations}
-        itineraryDays={itineraryDays}
-        categories={expenseCategories}
-        contributions={savingsContributions}
-        receipts={receipts}
-      />
+      {/* Desktop: ledger and settle-up side by side in boxes. Phone: ledger only. */}
+      <div className="lg:mx-5 lg:my-4 lg:grid lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)] lg:items-start lg:gap-4">
+        <div className="lg:overflow-hidden lg:rounded-xl lg:border lg:border-border lg:[&>div:first-child]:border-t-0">
+          <Ledger
+            expenses={expenses}
+            moves={moves}
+            members={members}
+            tripSlug={tripSlug}
+            locations={locations}
+            itineraryDays={itineraryDays}
+            categories={expenseCategories}
+            contributions={savingsContributions}
+            receipts={receipts}
+          />
+        </div>
+        <div className="hidden lg:flex lg:flex-col lg:gap-4">
+          <SideBox label="Settle up">{settle}</SideBox>
+          <SideBox label="Savings">{saved}</SideBox>
+        </div>
+      </div>
     </section>
+  )
+}
+
+/** A labelled box in the desktop column beside the ledger. */
+function SideBox({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="overflow-hidden rounded-xl border border-border bg-card">
+      <div className="px-5 pt-4 pb-1">
+        <Label>{label}</Label>
+      </div>
+      {children}
+    </div>
   )
 }
 

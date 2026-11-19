@@ -92,10 +92,10 @@ function DaySelect({
 
 /** A pill in the itinerary's top toolbar row; `active` marks its panel open. */
 export function toolbarPill(active: boolean): string {
-  return `rounded-full border bg-transparent px-3 py-1.5 font-mono text-[10px] uppercase tracking-[0.18em] ${
+  return `rounded-full border px-3.5 py-1.5 font-mono text-[11px] uppercase tracking-[0.18em] transition-colors ${
     active
-      ? "border-foreground text-foreground"
-      : "border-border text-muted-foreground hover:text-foreground"
+      ? "border-foreground bg-foreground text-background"
+      : "border-border bg-transparent text-muted-foreground hover:border-muted-foreground hover:text-foreground"
   }`
 }
 

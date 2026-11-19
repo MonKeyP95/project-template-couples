@@ -4,6 +4,20 @@
 
 **Next up: work on the AI itinerary planner** (`itinerary-planner` agent, `src/lib/ai/agents/`). Noted 2026-11-03.
 
+**Desktop trip page: one main section + three small cards: implemented 2026-11-19; lint + `tsc` clean; `pnpm build` passes; unverified in app; no migration.** Built from the preview the user approved. Tabs are pills. The right column ("Also on this trip") shows small Budget / Itinerary / Packing / Trip folder cards for every section except the active one; each card header opens that section. The forecast and route map moved into the header, right of the trip name (map opens the itinerary). Pre-trip progress is folded into the cards. Itinerary days, notes and documents now load on every desktop tab. Files: `trips/[slug]/{page,trip-side-cards,packing-mini}.tsx`. In-app checks:
+  1. Desktop Budget tab: header shows name, then forecast, then map, left to right; the tabs are pills with Budget filled.
+  2. Right column lists Itinerary, Packing, Trip folder cards (no Budget card); clicking "open" on one makes it the main section and Budget appears as a card.
+  3. Clicking the header map opens the Itinerary tab.
+  4. Budget card: spent and saved against the plan with bars, and the two biggest categories.
+  5. Itinerary card: route strip of locations, the next three days (European dates), and a free-days count.
+  6. Packing card: ticking an item moves it out of "Still to pack", bumps the count, and stays ticked after a reload.
+  7. Trip folder card: first three documents, the newest note, the counts.
+  8. A narrower desktop window: the forecast and map wrap below the trip name instead of overflowing.
+  9. Dark mode reads well; the phone layout is unchanged.
+  Follow-ups in the same slice: header + pills span the page with the rail below them; desktop Budget opens with a "The budget" title and its pills to the right; Ledger beside Settle up and Savings boxes (saved/settle pills hidden on desktop); toolbar pills restyled to match the tab pills (pressed = filled; also itinerary + phone). Further checks:
+  10. Desktop Budget: Ledger left, Settle up and Savings stacked on the right, all boxed.
+  11. Pressed toolbar pills fill solid (assistant fills green), on Budget and Itinerary.
+
 **Budget headline wraps on phones: implemented 2026-11-16 (PR #122); lint + `tsc` clean; verified in-app 2026-11-16; no migration.** The Spent card's "spent / budget edit" row was a non-wrapping flex inside an `overflow-hidden` card, so on a phone the end was clipped. The row now wraps. File: `trips/[slug]/budget-figures.tsx`.
 
 **Budget by category: implemented 2026-11-16 (PR #120); lint + `tsc` clean; verified in-app 2026-11-16; no migration.** The Budget tab's Spent card now lists each category as spent / planned with a bar (clay when over plan or unplanned, "paid in advance" note before the trip). Tapping a line opens its planned items (place, paid / not yet) and its newest 5 expenses. From the start date on, Pre-trip becomes a "+ paid before the trip" footnote. The on-the-road page and the desktop right column are unchanged. Spec: `docs/superpowers/specs/2026-11-16-budget-by-category-design.md`. Files: `lib/trips/budget-by-category-types.ts`, `trips/[slug]/{budget-by-category,budget-tab}.tsx`. In-app checks:

@@ -895,8 +895,10 @@ export function ItineraryTab({
         type="button"
         onClick={() => setAiEnabled(!aiEnabled)}
         aria-expanded={aiEnabled}
-        className={`rounded-full border bg-transparent px-3 py-1.5 font-mono text-[10px] uppercase tracking-[0.18em] text-moss ${
-          aiEnabled ? "border-moss" : "border-border hover:border-moss"
+        className={`rounded-full border px-3.5 py-1.5 font-mono text-[11px] uppercase tracking-[0.18em] transition-colors ${
+          aiEnabled
+            ? "border-moss bg-moss text-background"
+            : "border-border bg-transparent text-moss hover:border-moss"
         }`}
       >
         assistant
