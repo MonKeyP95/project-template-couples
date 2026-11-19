@@ -4,6 +4,13 @@
 
 **Next up: work on the AI itinerary planner** (`itinerary-planner` agent, `src/lib/ai/agents/`). Noted 2026-11-03.
 
+**Compact desktop trip header: implemented 2026-11-19; lint + `tsc` clean; unverified in app; no migration.** The header was too big. The weather moved back to the top of the right rail, above the cards. The header is now a top-left block: coordinates, name (48px), country + dates in one small mono line, then the countdown (smaller desktop tiles). The route map sits on the right. Share / edit float top right. Removed from the header: the two avatars, the trip description, and "Trip · 04 of 08". `globals.css`: the large-screen `.flip-lg` size block moved into `@layer components` so utility classes can override the tile size (it was unlayered and beat them). Files: `trips/[slug]/page.tsx`, `app/globals.css`. In-app checks:
+  1. Desktop: name top left; country + dates on one small line under it; countdown below that; map on the right; nothing overlaps Share / edit.
+  2. Weather sits at the top of the right column on every tab.
+  3. A dream trip shows its fuzzy label next to the country and has no countdown.
+  4. No avatars, description or trip count in the header.
+  5. Phone trip header and home-page countdowns unchanged.
+
 **Tab titles + pills on every desktop tab: implemented 2026-11-19; lint + `tsc` clean; unverified in app; no migration.** Same treatment as the Budget tab. Desktop Itinerary, Packing and Trip folder now open with a serif title (no "The": Budget, Itinerary, Packing list, Trip folder), with each tab's pills on the right. Packing drops its clay band on desktop; My list / Shared / partner's list are pills, filled when selected. "Import items" moved out of the pill row/band (desktop and phone) to a dashed "Import packing list" button under "Add an item...". Files: `trips/[slug]/{budget-tab,itinerary-tab,packing-tab,trip-folder}.tsx`. In-app checks:
   1. Desktop Itinerary: "Itinerary" title left; assistant / + day / + location pills right.
   2. Desktop Packing: no band; "Packing list" + days-out left; list pills right, the selected one filled.

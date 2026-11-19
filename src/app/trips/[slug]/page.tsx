@@ -7,7 +7,6 @@ import {
   Coord,
   DayChip,
   Label,
-  PairAvatar,
   TopoBg,
   WaveGlyph,
 } from "@/components/together"
@@ -437,14 +436,12 @@ export default async function TripPage({
       <div className="lg:min-w-0 lg:flex-1">
         <TripHeaderView
           header={header}
-          workspace={workspace}
           destinations={navDestinations}
           shareState={shareState}
           aside={
-            <HeaderAside
+            <HeaderMap
               slug={header.slug}
               locations={(locations ?? []).map((l) => l.name)}
-              forecast={weekForecast}
             />
           }
         />
@@ -474,6 +471,7 @@ export default async function TripPage({
 
       <DesktopRightRail
         active={activeTab}
+        forecast={weekForecast}
         cards={{
           budget: (
             <SideCard id="budget" title="Budget" href={tabHref(header.slug, "budget")}>
@@ -516,27 +514,23 @@ export default async function TripPage({
 
 function TripHeaderView({
   header,
-  workspace,
   destinations,
   shareState,
   aside,
 }: {
   header: TripHeader
-  workspace: NonNullable<Awaited<ReturnType<typeof getCurrentWorkspace>>>
   destinations: NavDestination[]
   shareState: { isPublic: boolean; shareToken: string | null }
-  /** Desktop-only content on the right of the title row (forecast + map). */
+  /** Desktop-only content at the end of the title line (the route map). */
   aside: ReactNode
 }) {
   const coord = formatCoord(header.lat, header.lng)
   const dateRange = formatDateRange(header.startDate, header.endDate)
-  const members = workspace.members
-  const tripCount = `${String(header.index).padStart(2, "0")} of ${String(header.total).padStart(2, "0")}`
   const isDream = header.startDate === null
   const fuzzyLabel = (header.fuzzyWhen ?? "someday").toUpperCase()
 
   return (
-    <header className="relative overflow-hidden bg-sea-tint px-5 pt-14 pb-5 lg:px-10 lg:pt-10 lg:pb-7">
+    <header className="relative overflow-hidden bg-sea-tint px-5 pt-14 pb-5 lg:px-10 lg:pt-6 lg:pb-6">
       <TopoBg tone="sea" opacity={0.18} />
       <MobileHeaderNav
         destinations={destinations}
@@ -551,8 +545,7 @@ function TripHeaderView({
           </Link>
         }
       />
-      <div className="relative hidden lg:mb-2 lg:flex lg:items-center lg:justify-between">
-        <Label>{isDream ? "Dream" : `Trip · ${tripCount}`}</Label>
+      <div className="hidden lg:absolute lg:top-4 lg:right-10 lg:z-10 lg:flex">
         <div className="flex items-center gap-4">
           <ShareTripDialog
             tripId={header.id}
@@ -568,57 +561,37 @@ function TripHeaderView({
           </Link>
         </div>
       </div>
-      {/* Left: name, dates, countdown. Right (desktop): forecast + map, bottom-aligned.
-          A fixed basis, not the content width, decides when the right side wraps. */}
-      <div className="relative lg:flex lg:flex-wrap lg:items-end lg:gap-x-8 lg:gap-y-5">
-      <div className="min-w-0 lg:flex-1 lg:basis-[420px]">
-      <div className="relative flex items-end justify-between gap-6">
+      {/* Desktop: left block (name; country + dates; countdown at the bottom), route
+          map on the right; share and edit float top right. Below lg the parts stack. */}
+      <div className="relative lg:flex lg:items-start lg:gap-8">
+      <div className="relative flex items-end justify-between gap-6 lg:min-w-0 lg:flex-1">
         <div className="min-w-0">
           {coord ? <Coord>{coord}</Coord> : null}
-          <div className="flex items-baseline gap-4">
-            <h1 className="t-display mt-0.5 text-[64px] text-foreground lg:text-[88px] lg:leading-[0.9]">
-              <em>{header.name}</em>
-            </h1>
-            <WaveGlyph color="var(--sea)" w={56} h={14} className="hidden lg:block" />
+          <h1 className="t-display mt-0.5 text-[64px] text-foreground lg:text-[48px] lg:leading-[0.95]">
+            <em>{header.name}</em>
+          </h1>
+          <div className="flex flex-wrap gap-x-4 font-mono text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
+            {header.country ? <span>{header.country}</span> : null}
+            <span className="hidden lg:inline">{isDream ? fuzzyLabel : dateRange}</span>
           </div>
-          {header.country ? (
-            <div className="font-mono text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
-              {header.country}
-            </div>
-          ) : null}
-          {header.tripProfile.idea ? (
-            <div className="mt-1.5 truncate font-mono text-[11px] tracking-[0.06em] text-muted-foreground">
-              {header.tripProfile.idea}
-            </div>
+          <div className="relative mt-4 lg:hidden">
+            {isDream ? (
+              <div className="font-mono text-[12px] uppercase tracking-[0.18em] text-foreground">
+                {fuzzyLabel}
+              </div>
+            ) : dateRange ? (
+              <div className="font-mono text-[12px] text-foreground">{dateRange}</div>
+            ) : null}
+          </div>
+          {!isDream && header.startDate ? (
+            <FlipCountdown
+              startDate={header.startDate}
+              size="lg"
+              className="mt-4 lg:[--flip-f:32px] lg:[--flip-gap:4px] lg:[--flip-h:34px] lg:[--flip-w:42px]"
+            />
           ) : null}
         </div>
         <WaveGlyph color="var(--sea)" w={56} h={14} className="lg:hidden" />
-      </div>
-      <div className="relative mt-4 flex items-center justify-between lg:mt-5">
-        {isDream ? (
-          <div className="font-mono text-[12px] uppercase tracking-[0.18em] text-foreground">
-            {fuzzyLabel}
-          </div>
-        ) : dateRange ? (
-          <div className="font-mono text-[12px] text-foreground">{dateRange}</div>
-        ) : (
-          <span />
-        )}
-        {members.length >= 2 ? (
-          <PairAvatar
-            a={members[0].display_name}
-            b={members[1].display_name}
-            size={22}
-          />
-        ) : null}
-      </div>
-      {!isDream && header.startDate ? (
-        <FlipCountdown
-          startDate={header.startDate}
-          size="lg"
-          className="mt-4 lg:mt-5"
-        />
-      ) : null}
       </div>
       {aside}
       </div>
@@ -626,31 +599,16 @@ function TripHeaderView({
   )
 }
 
-/** Forecast then route map, right of the trip name on desktop. The map opens the itinerary. */
-function HeaderAside({
-  slug,
-  locations,
-  forecast,
-}: {
-  slug: string
-  locations: string[]
-  forecast: { label: string; days: DayForecast[] } | null
-}) {
+/** Route map at the right of the desktop header; it opens the itinerary. */
+function HeaderMap({ slug, locations }: { slug: string; locations: string[] }) {
   return (
-    <div className="hidden lg:flex lg:shrink-0 lg:items-end lg:gap-4">
-      {forecast ? (
-        <div className="w-[300px] rounded-[12px] bg-card/60 p-2.5">
-          <WeekForecast forecast={forecast.days} label={forecast.label} />
-        </div>
-      ) : null}
-      <Link
-        href={`/trips/${slug}?tab=itinerary`}
-        aria-label="Route map. Opens the itinerary"
-        className="block h-[132px] w-[220px] rounded-[14px] transition-opacity hover:opacity-90"
-      >
-        <TripRoutePanel slug={slug} locations={locations} />
-      </Link>
-    </div>
+    <Link
+      href={tabHref(slug, "itinerary")}
+      aria-label="Route map. Opens the itinerary"
+      className="hidden h-[100px] w-[170px] shrink-0 rounded-[14px] transition-opacity hover:opacity-90 lg:mt-7 lg:block"
+    >
+      <TripRoutePanel slug={slug} locations={locations} />
+    </Link>
   )
 }
 
@@ -699,13 +657,20 @@ function DesktopTabs({ slug, active }: { slug: string; active: TabId }) {
 /** Desktop right rail: a small card for every section except the one in the main column. */
 function DesktopRightRail({
   active,
+  forecast,
   cards,
 }: {
   active: TabId
+  forecast: { label: string; days: DayForecast[] } | null
   cards: Record<TabId, ReactNode>
 }) {
   return (
     <aside className="hidden lg:flex lg:w-[340px] lg:flex-shrink-0 lg:flex-col lg:gap-4 lg:border-l lg:border-border lg:bg-card lg:px-5 lg:py-6">
+      {forecast ? (
+        <div className="mb-2">
+          <WeekForecast forecast={forecast.days} label={forecast.label} />
+        </div>
+      ) : null}
       <Label>Also on this trip</Label>
       {TABS.filter((t) => t.id !== active).map((t) => (
         <Fragment key={t.id}>{cards[t.id]}</Fragment>
