@@ -4,7 +4,7 @@
 
 **Next up: work on the AI itinerary planner** (`itinerary-planner` agent, `src/lib/ai/agents/`). Noted 2026-11-03.
 
-**Desktop trip page: one main section + three small cards: implemented 2026-11-19; lint + `tsc` clean; `pnpm build` passes; unverified in app; no migration.** Built from the preview the user approved. Tabs are pills. The right column ("Also on this trip") shows small Budget / Itinerary / Packing / Trip folder cards for every section except the active one; each card header opens that section. The forecast and route map moved into the header, right of the trip name (map opens the itinerary). Pre-trip progress is folded into the cards. Itinerary days, notes and documents now load on every desktop tab. Files: `trips/[slug]/{page,trip-side-cards,packing-mini}.tsx`. In-app checks:
+**Desktop trip page: one main section + three small cards: implemented 2026-11-19 (PR #124); lint + `tsc` clean; `pnpm build` passes; verified in-app 2026-11-19; no migration.** Built from the preview the user approved. Tabs are pills. The right column ("Also on this trip") shows small Budget / Itinerary / Packing / Trip folder cards for every section except the active one; each card header opens that section. The forecast and route map moved into the header, right of the trip name (map opens the itinerary). Pre-trip progress is folded into the cards. Itinerary days, notes and documents now load on every desktop tab. Files: `trips/[slug]/{page,trip-side-cards,packing-mini}.tsx`. In-app checks:
   1. Desktop Budget tab: header shows name, then forecast, then map, left to right; the tabs are pills with Budget filled.
   2. Right column lists Itinerary, Packing, Trip folder cards (no Budget card); clicking "open" on one makes it the main section and Budget appears as a card.
   3. Clicking the header map opens the Itinerary tab.
@@ -17,6 +17,7 @@
   Follow-ups in the same slice: header + pills span the page with the rail below them; desktop Budget opens with a "The budget" title and its pills to the right; Ledger beside Settle up and Savings boxes (saved/settle pills hidden on desktop); toolbar pills restyled to match the tab pills (pressed = filled; also itinerary + phone). Further checks:
   10. Desktop Budget: Ledger left, Settle up and Savings stacked on the right, all boxed.
   11. Pressed toolbar pills fill solid (assistant fills green), on Budget and Itinerary.
+  Fix 2026-11-19: on Lanzarote the forecast + map wrapped under the name. The trip-name row sized itself to the full untruncated description line. The header is now a left block (name, dates, countdown) with a 420px basis and the forecast + map bottom-right beside the countdown.
 
 **Budget headline wraps on phones: implemented 2026-11-16 (PR #122); lint + `tsc` clean; verified in-app 2026-11-16; no migration.** The Spent card's "spent / budget edit" row was a non-wrapping flex inside an `overflow-hidden` card, so on a phone the end was clipped. The row now wraps. File: `trips/[slug]/budget-figures.tsx`.
 

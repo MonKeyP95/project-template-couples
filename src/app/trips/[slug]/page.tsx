@@ -568,7 +568,11 @@ function TripHeaderView({
           </Link>
         </div>
       </div>
-      <div className="relative flex items-end justify-between gap-6 lg:flex-wrap lg:gap-y-4">
+      {/* Left: name, dates, countdown. Right (desktop): forecast + map, bottom-aligned.
+          A fixed basis, not the content width, decides when the right side wraps. */}
+      <div className="relative lg:flex lg:flex-wrap lg:items-end lg:gap-x-8 lg:gap-y-5">
+      <div className="min-w-0 lg:flex-1 lg:basis-[420px]">
+      <div className="relative flex items-end justify-between gap-6">
         <div className="min-w-0">
           {coord ? <Coord>{coord}</Coord> : null}
           <div className="flex items-baseline gap-4">
@@ -589,7 +593,6 @@ function TripHeaderView({
           ) : null}
         </div>
         <WaveGlyph color="var(--sea)" w={56} h={14} className="lg:hidden" />
-        {aside}
       </div>
       <div className="relative mt-4 flex items-center justify-between lg:mt-5">
         {isDream ? (
@@ -616,6 +619,9 @@ function TripHeaderView({
           className="mt-4 lg:mt-5"
         />
       ) : null}
+      </div>
+      {aside}
+      </div>
     </header>
   )
 }
