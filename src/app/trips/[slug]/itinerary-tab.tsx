@@ -891,6 +891,9 @@ export function ItineraryTab({
    * flex item, so it drops onto its own line below the pills. */
   const planningBlock = (
     <div className="flex flex-wrap items-center gap-2 pb-4">
+      <h2 className="hidden font-serif text-[40px] leading-none text-foreground lg:mr-auto lg:block">
+        <em className="text-sea">Itinerary</em>
+      </h2>
       <button
         type="button"
         onClick={() => setAiEnabled(!aiEnabled)}
@@ -981,14 +984,14 @@ export function ItineraryTab({
 
   return (
     <section>
-      <div className="flex items-baseline justify-between px-5 pt-5 lg:px-10 lg:pt-6">
+      <div className="flex items-baseline justify-between px-5 pt-5 lg:hidden">
         <Label>Itinerary</Label>
         <span className="font-mono text-[10px] tracking-[0.06em] text-muted-foreground">
           drafted by <span className="text-sea">● M+G</span>
         </span>
       </div>
 
-      <div className="px-5 pt-4 pb-6 lg:px-10">
+      <div className="px-5 pt-4 pb-6 lg:px-10 lg:pt-7">
         {planningBlock}
 
         {timeline.length === 0 ? (

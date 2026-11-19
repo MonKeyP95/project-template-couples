@@ -219,7 +219,7 @@ export function BudgetTab({
         tripSlug={tripSlug}
         title={
           <h2 className="font-serif text-[40px] leading-none text-foreground">
-            The <em className="text-sea">budget</em>
+            <em className="text-sea">Budget</em>
           </h2>
         }
         door={

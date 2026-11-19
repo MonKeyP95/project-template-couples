@@ -14,6 +14,9 @@ export function TripFolder({
 }) {
   return (
     <div className="flex flex-col">
+      <h2 className="px-5 pt-7 pb-2 font-serif text-[40px] leading-none text-foreground lg:px-10">
+        Trip <em className="text-sea">folder</em>
+      </h2>
       <FolderPart label="Documents">{documents}</FolderPart>
       <FolderPart label="Notes">{notes}</FolderPart>
       <FolderPart label="Checklist">{checklist}</FolderPart>
