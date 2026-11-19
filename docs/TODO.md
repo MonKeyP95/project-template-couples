@@ -17,6 +17,7 @@
   Follow-ups in the same slice: header + pills span the page with the rail below them; desktop Budget opens with a "The budget" title and its pills to the right; Ledger beside Settle up and Savings boxes (saved/settle pills hidden on desktop); toolbar pills restyled to match the tab pills (pressed = filled; also itinerary + phone). Further checks:
   10. Desktop Budget: Ledger left, Settle up and Savings stacked on the right, all boxed.
   11. Pressed toolbar pills fill solid (assistant fills green), on Budget and Itinerary.
+  Fix 2026-11-19: on Lanzarote the forecast + map wrapped under the name. The trip-name row sized itself to the full untruncated description line. The header is now a left block (name, dates, countdown) with a 420px basis and the forecast + map bottom-right beside the countdown.
 
 **Budget headline wraps on phones: implemented 2026-11-16 (PR #122); lint + `tsc` clean; verified in-app 2026-11-16; no migration.** The Spent card's "spent / budget edit" row was a non-wrapping flex inside an `overflow-hidden` card, so on a phone the end was clipped. The row now wraps. File: `trips/[slug]/budget-figures.tsx`.
 
