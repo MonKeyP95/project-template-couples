@@ -4,6 +4,8 @@
 
 **Next up: work on the AI itinerary planner** (`itinerary-planner` agent, `src/lib/ai/agents/`). Noted 2026-11-03.
 
+**Budget bars show a %: implemented 2026-11-20; lint + `tsc` clean; verified in-app 2026-11-20; no migration.** The budget tab's main spent bar and the side card's Spent and Saved bars show the real percent at their right (can exceed 100%; the bar stays capped at full).
+
 **Trip spend currency: implemented 2026-11-20; lint clean; `pnpm build` passes; unverified in app; no migration.** The new-trip first page asks "Which currency will you pay in there?" (defaults to home); it is saved as `trips.currency`, while `home_currency` stays the workspace currency. Expense forms (trip page + on-the-road quick expense) open in home currency before/after the trip and for dreams, and in the spend currency while today is within the dates (`entryCurrency` in `src/lib/fx/entry-currency.ts`). Spec: `docs/superpowers/specs/2026-11-20-trip-spend-currency-design.md`.
   1. New trip, pick EUR, create: Edit trip shows spend EUR, home DKK.
   2. On that future trip, Log expense opens in DKK; switching to EUR shows "~ kr".

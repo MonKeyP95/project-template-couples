@@ -51,7 +51,16 @@ export function SideCard({
 }
 
 function pctOf(part: number, whole: number): number {
-  return whole === 0 ? 0 : Math.min(100, Math.round((part / whole) * 100))
+  return whole === 0 ? 0 : Math.round((part / whole) * 100)
+}
+
+function PctBar({ pct, tone }: { pct: number; tone: "sea" | "moss" }) {
+  return (
+    <div className="flex items-center gap-2">
+      <Bar pct={pct} tone={tone} className="flex-1" />
+      <span className="t-num font-mono text-[10px] text-muted-foreground">{pct}%</span>
+    </div>
+  )
 }
 
 export function MiniRow({ label, value }: { label: string; value: string }) {
@@ -82,9 +91,9 @@ export function BudgetMini({
   return (
     <>
       <MiniRow label="Spent" value={of(spentCents)} />
-      <Bar pct={pctOf(spentCents, plannedCents)} tone="sea" />
+      <PctBar pct={pctOf(spentCents, plannedCents)} tone="sea" />
       <MiniRow label="Saved" value={of(savedCents)} />
-      <Bar pct={pctOf(savedCents, plannedCents)} tone="moss" />
+      <PctBar pct={pctOf(savedCents, plannedCents)} tone="moss" />
       {topCategories.length > 0 ? (
         <p className="text-[12px] text-muted-foreground">
           Biggest:{" "}
