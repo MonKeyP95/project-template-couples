@@ -9,8 +9,11 @@ import {
   type EnteredLine,
   type FilledBudgetLine,
 } from "@/lib/ai/budget-actions"
+import { deviceToday } from "@/lib/time/today"
 import {
   addExpenseCategory,
+  payBudgetItem,
+  unpayBudgetItem,
   saveBudgetItems,
   savePreTripItems,
   type SaveBudgetItemInput,
@@ -33,6 +36,7 @@ import {
 } from "./budget-drafter-pretrip"
 import { BudgetDrafterList, type ListGroup } from "./budget-drafter-list"
 import { AddCategoryForm } from "./budget-drafter-add-category"
+import { PaidChip } from "./paid-chip"
 import {
   CATEGORY_BY_STEP,
   extraStep,
@@ -79,6 +83,10 @@ interface ItemRow {
   serverId?: string
   /** The line's own place; null = trip-wide. A step only sets it for new rows. */
   locationId: string | null
+  /** The expense logged when this line was paid, as saved; null while unpaid. */
+  paidExpenseId: string | null
+  /** Whether the couple wants it paid; Apply pays or unpays to match. */
+  paid: boolean
 }
 
 /** A saved line, with what the drafter needs to find its step. */
@@ -185,6 +193,8 @@ export function BudgetDrafter({
       freq: "once",
       count: 1,
       locationId,
+      paidExpenseId: null,
+      paid: false,
       ...fields,
     }
   }
@@ -273,6 +283,8 @@ export function BudgetDrafter({
         whenStart: it.whenStart ?? "",
         whenEnd: it.whenEnd ?? "",
         locationId: it.locationId,
+        paidExpenseId: it.paidExpenseId,
+        paid: it.paidExpenseId != null,
       }
       // A stored line holds the total; divide back to the per-unit value.
       const qty = resolveQty(it.category, rowLike)
@@ -280,6 +292,8 @@ export function BudgetDrafter({
       out.push({ category: it.category, locationId: it.locationId, row: {
         serverId: it.id,
         locationId: it.locationId,
+        paidExpenseId: it.paidExpenseId,
+        paid: it.paidExpenseId != null,
         subject: it.subject,
         when: it.whenLabel,
         value: it.priceUnknown ? "" : per ? moneyInput(per) : "",
@@ -304,6 +318,8 @@ export function BudgetDrafter({
       const bucket = preTripBucketFor(it.subject)
       ;(out[bucket] ??= []).push({
         serverId: it.id,
+        paidExpenseId: it.paidExpenseId,
+        paid: it.paidExpenseId != null,
         subject: it.subject,
         when: it.whenLabel,
         value: it.amountCents > 0 ? moneyInput(it.amountCents) : "",
@@ -415,6 +431,23 @@ export function BudgetDrafter({
               ...s.items,
               [bucketId]: (s.items[bucketId] ?? []).map((r) =>
                 r.id === id ? { ...r, ...patch } : r,
+              ),
+            },
+          }
+        : s,
+    )
+  }
+
+  /** Flips the wanted paid state only; Apply settles it with the server. */
+  function togglePaid(bucketId: string, id: string) {
+    setSession((s) =>
+      s
+        ? {
+            ...s,
+            items: {
+              ...s.items,
+              [bucketId]: (s.items[bucketId] ?? []).map((r) =>
+                r.id === id ? { ...r, paid: !r.paid } : r,
               ),
             },
           }
@@ -617,6 +650,14 @@ export function BudgetDrafter({
 
     const keptIds = new Set(items.map((it) => it.id))
     const removedIds = session.loadedIds.filter((id) => !keptIds.has(id))
+    // Saved lines whose paid mark changed; settled after the saves so a paid
+    // expense carries the amount just written.
+    const savedIds = new Set([...keptIds, ...preItems.map((it) => it.id)])
+    const toggles = Object.values(session.items)
+      .flat()
+      .filter(
+        (r) => r.serverId && savedIds.has(r.serverId) && r.paid !== (r.paidExpenseId != null),
+      )
 
     startTransition(async () => {
       // Pre-trip first so the estimate seed, which runs on the second save,
@@ -630,6 +671,16 @@ export function BudgetDrafter({
       if (r.error) {
         setError(r.error)
         return
+      }
+      for (const row of toggles) {
+        const id = row.serverId!
+        const res = row.paid
+          ? await payBudgetItem(id, tripSlug, deviceToday())
+          : await unpayBudgetItem(id, tripSlug)
+        if (res.error) {
+          setError(res.error)
+          return
+        }
       }
       setSession(null)
     })
@@ -912,6 +963,13 @@ export function BudgetDrafter({
               <span className="font-mono text-[9px] text-muted-foreground">{rowUnitSuffix(row)}</span>
             ) : null}
           </span>
+          {row.serverId && asCents(row.value) > 0 ? (
+            <PaidChip
+              paid={row.paid}
+              disabled={isPending}
+              onToggle={() => togglePaid(bucketId, row.id)}
+            />
+          ) : null}
         </div>
       </div>
     )
@@ -935,6 +993,7 @@ export function BudgetDrafter({
           onPatch={(id, patch) => patchItem(step.key, id, patch)}
           onAdd={() => addItem(step.key, { subject: step.fixedSubject ?? "" })}
           onRemove={(id) => removeItem(step.key, id)}
+          onTogglePaid={(id) => togglePaid(step.key, id)}
         />
 
         <div className="mt-4 flex items-center justify-between">
