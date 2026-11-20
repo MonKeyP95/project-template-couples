@@ -2729,6 +2729,29 @@ async function seedEstimateIfUnset(tripId: string): Promise<{ error?: string }> 
   return error ? { error: error.message } : {}
 }
 
+/** Deletes budget lines and the expense each paid one logged, like
+ * deleteBudgetItem: a removed cost takes its payment with it. */
+async function deleteItemsWithExpenses(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  ids: string[],
+): Promise<{ error?: string }> {
+  if (ids.length === 0) return {}
+  const { data: rows, error: selErr } = await supabase
+    .from("trip_budget_items")
+    .select("paid_expense_id")
+    .in("id", ids)
+  if (selErr) return { error: selErr.message }
+  const expenseIds = (rows ?? []).flatMap((r) =>
+    r.paid_expense_id ? [r.paid_expense_id as string] : [],
+  )
+  if (expenseIds.length > 0) {
+    const { error } = await supabase.from("expenses").delete().in("id", expenseIds)
+    if (error) return { error: error.message }
+  }
+  const { error } = await supabase.from("trip_budget_items").delete().in("id", ids)
+  return error ? { error: error.message } : {}
+}
+
 /**
  * The guided drafter's save. Updates its lines in place by id (so paid links
  * survive), inserts new ones, and deletes only `removedIds`; lines it never
@@ -2788,14 +2811,11 @@ export async function saveBudgetItems(
     if (error) return { error: error.message }
   }
 
-  const toDelete = input.removedIds.filter((id) => existingIds.has(id))
-  if (toDelete.length > 0) {
-    const { error: delErr } = await supabase
-      .from("trip_budget_items")
-      .delete()
-      .in("id", toDelete)
-    if (delErr) return { error: delErr.message }
-  }
+  const removed = await deleteItemsWithExpenses(
+    supabase,
+    input.removedIds.filter((id) => existingIds.has(id)),
+  )
+  if (removed.error) return removed
 
   const seeded = await seedEstimateIfUnset(input.tripId)
   if (seeded.error) return seeded
@@ -2983,14 +3003,11 @@ export async function savePreTripItems(
     }
   }
 
-  const toDelete = [...existingIds].filter((id) => !keptIds.has(id))
-  if (toDelete.length > 0) {
-    const { error: delErr } = await supabase
-      .from("trip_budget_items")
-      .delete()
-      .in("id", toDelete)
-    if (delErr) return { error: delErr.message }
-  }
+  const removed = await deleteItemsWithExpenses(
+    supabase,
+    [...existingIds].filter((id) => !keptIds.has(id)),
+  )
+  if (removed.error) return removed
 
   const seeded = await seedEstimateIfUnset(input.tripId)
   if (seeded.error) return seeded

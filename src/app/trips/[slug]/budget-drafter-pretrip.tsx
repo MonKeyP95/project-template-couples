@@ -3,6 +3,8 @@
 import { currencySymbol } from "@/lib/money"
 import { useCurrency } from "@/components/currency-context"
 
+import { PaidChip } from "./paid-chip"
+
 export const PRE_TRIP_CATEGORY = "Pre-trip"
 
 export interface PreTripStep {
@@ -69,6 +71,8 @@ export interface PreTripRowLike {
   subject: string
   when: string
   value: string
+  serverId?: string
+  paid: boolean
 }
 
 export function PreTripStepBody({
@@ -78,6 +82,7 @@ export function PreTripStepBody({
   onPatch,
   onAdd,
   onRemove,
+  onTogglePaid,
 }: {
   step: PreTripStep
   rows: PreTripRowLike[]
@@ -85,6 +90,7 @@ export function PreTripStepBody({
   onPatch: (id: string, patch: { subject?: string; when?: string; value?: string }) => void
   onAdd: () => void
   onRemove: (id: string) => void
+  onTogglePaid: (id: string) => void
 }) {
   const { currency } = useCurrency()
   return (
@@ -141,6 +147,13 @@ export function PreTripStepBody({
                   className="t-num w-16 border-0 border-b border-border bg-transparent text-right text-[14px] text-foreground outline-none focus:border-foreground"
                 />
               </span>
+              {row.serverId && Number(row.value) > 0 ? (
+                <PaidChip
+                  paid={row.paid}
+                  disabled={disabled}
+                  onToggle={() => onTogglePaid(row.id)}
+                />
+              ) : null}
               {step.fixedSubject !== null ? (
                 <button
                   type="button"

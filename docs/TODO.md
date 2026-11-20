@@ -4,6 +4,17 @@
 
 **Next up: work on the AI itinerary planner** (`itinerary-planner` agent, `src/lib/ai/agents/`). Noted 2026-11-03.
 
+**Drafter shows every line, paid chip, add a category: implemented 2026-11-20; lint + `tsc` clean; `pnpm build` passes; unverified in app; no migration.** Step 2 of the budget-boxes merge. Drafter steps now come from the lines: the fixed walk plus one step per (category, place) that saved lines use, so custom categories, place-tagged Transportation/Other and trip-wide Accommodation lines all show and none moves to the first place. A 0-1 place trip is one scope (no place prefix, no place groups). The edit list groups by place on a 2+ place trip and ends with "+ add a category". Saved priced lines show "to pay / paid ✓"; the mark applies on Apply. Generate patches only the rows it priced, so typed lines keep their how-often and dates. Removing a paid line also removes its expense. Spec/plan: `docs/superpowers/{specs,plans}/2026-11-20-drafter-steps-from-lines*`. In-app checks:
+  1. A custom-category line shows in the edit list under its place, opens, and edits save.
+  2. A Transportation line tagged to a place shows under that place as "Transportation" and stays there after Apply.
+  3. "+ add a category" with a new name: the step opens, a line saves, and the category appears in the expense picker.
+  4. Mark a line paid in the drafter and Apply: it shows paid; the expense appears in the ledger.
+  5. Mark paid then Cancel: nothing changes.
+  6. Unmark a paid line and Apply: the expense is gone.
+  7. Generate with a custom-category line present: it is still there after Apply.
+  8. A fresh trip's walk looks the same as before, except a 1-place trip's steps drop the place prefix.
+  9. Delete a paid line in the drafter and Apply: its expense is gone from the ledger too.
+
 **Drafter Apply keeps lines it didn't touch: implemented 2026-11-20; lint + `tsc` clean; `pnpm build` passes; unverified in app; no migration.** Apply used to delete every non-Pre-trip line and re-insert only what the drafter held. Custom-category lines were lost, place-tagged Transportation/Other lines became trip-wide, and paid links were dropped. Now `saveBudgetItems` updates by id, inserts new lines and deletes only what the couple removed; ids survive Generate. Step 1 of the budget-boxes merge (next: paid toggle + custom categories in the drafter, then a "planned · unplanned room" line under the headline, then merge the boxes). Files: `lib/trips/actions.ts`, `lib/ai/budget-actions.ts`, `trips/[slug]/{budget-drafter,budget-tab}.tsx`. In-app checks:
   1. In a place's editor, add a line in a custom category, then Apply in the drafter: the line is still there.
   2. Mark a planned line paid, then Apply: it still shows "paid".
@@ -571,6 +582,8 @@
 **Phase 4 — Dream-Trip Pipeline + Edit Trip: shipped 2026-05-28.** Dreams and trips live in one `trips` table distinguished by whether dates are set. `/home` is a real query (Hero / Trips / Dreams / Past bands). `+ new trip` form has a "this is a dream" toggle with a free-text `When?` field. `/trips/[slug]` renders a dream variant when dates are NULL. `/trips/[slug]/edit` lets a workspace member rename, edit, promote/demote, or delete a trip. Six slices, eight commits.
 
 ## Open — pick up later
+
+**Trips first, places secondary: follow-ups (DECISIONS 2026-11-20), one at a time.** Apply the rule beyond the budget drafter: (1) itinerary planner stops inventing a place named after the trip when Places is empty; (2) notes' "General" block reads as the trip, and place groups show only with 2+ places; (3) budget tab place groups (`PlannedBudget`) only with 2+ places, folded into the boxes merge; (4) audit weather/conditions/suggestions read the trip's destination when there are 0-1 places; (5) decide how a dated trip with no destination is handled (offer to save it as a dream?).
 
 **Dispatch box keeps its headers when empty: implemented 2026-11-05; lint + `tsc --noEmit` clean; verified in-app 2026-11-05.** The box no longer vanishes on a no-data day: weather, budget and news each always hold a card, and an empty one shows its header (`Weather` / `Budget` / `News`) plus one muted line. News text says why it is empty: `Checking today's news...` (generating), `Off while the assistant is collapsed.` (AI off, nothing fetched), or `Nothing notable today.` (a zero-item row). Files: `dispatch-box.tsx` (`EmptyCard`, `NewsState`), `on-the-road/page.tsx` (one prop). In-app checks: (1) a trip with no estimate shows a `Budget` card reading "No budget set for this trip."; (2) [superseded by news-always-on] (3) [superseded]; (4) the box rotates through all three and dots show; (5) phone viewport, light and dark.
 

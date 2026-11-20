@@ -1,5 +1,7 @@
 "use client"
 
+import type * as React from "react"
+
 import { Label } from "@/components/together"
 
 export interface ListRow {
@@ -25,6 +27,7 @@ export function BudgetDrafterList({
   onOpen,
   onSave,
   onCancel,
+  footer,
 }: {
   groups: ListGroup[]
   total: string
@@ -33,6 +36,8 @@ export function BudgetDrafterList({
   onOpen: (index: number) => void
   onSave: () => void
   onCancel: () => void
+  /** Rendered after the groups, before the total. */
+  footer?: React.ReactNode
 }) {
   return (
     <>
@@ -61,6 +66,8 @@ export function BudgetDrafterList({
           </div>
         </div>
       ))}
+
+      {footer ? <div className="mt-1">{footer}</div> : null}
 
       <div className="mt-3 flex items-center justify-between border-t border-border pt-3">
         <span className="font-serif text-[15px] italic text-foreground">Total</span>
