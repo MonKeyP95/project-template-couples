@@ -26,7 +26,7 @@ export function TripFolder({
 
 function FolderPart({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <section className="border-t border-border first:border-t-0">
+    <section className="border-t border-border first:border-t-0 lg:px-5">
       <div className="px-5 pt-5">
         <Label>{label}</Label>
       </div>

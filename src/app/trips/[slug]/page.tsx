@@ -458,9 +458,9 @@ export default async function TripPage({
         {activeTab === "itinerary"
           ? itinerary
           : activeTab === "packing"
-            ? packing("tab")
+            ? <div className="lg:px-5">{packing("tab")}</div>
             : activeTab === "budget"
-              ? budget
+              ? <div className="lg:px-5">{budget}</div>
               : (
                 <TripFolder
                   documents={documentsSection}

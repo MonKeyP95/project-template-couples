@@ -126,7 +126,7 @@ export function NotesTab({
   const groups = buildGroups(initialNotes, locations)
 
   return (
-    <section className="px-5 pt-5 lg:px-10 lg:pt-6">
+    <section className="px-5 pt-5 lg:pt-6">
       <AssistantBlock
         surface="notes"
         tripSlug={tripSlug}
