@@ -2,8 +2,9 @@ import type { ReactNode } from "react"
 
 import { Label } from "@/components/together"
 
-/** Desktop "Trip folder" tab: `toolbar` right of the title, then documents and
- * notes side by side on wide screens (stacked below xl), then the checklist. */
+/** Desktop "Trip folder" tab: `toolbar` right of the title, then two boxes side
+ * by side on wide screens (stacked below xl): documents with the things-to-bring
+ * checklist under them, and notes. */
 export function TripFolder({
   toolbar,
   documents,
@@ -27,26 +28,25 @@ export function TripFolder({
         </h2>
         {toolbar}
       </div>
-      <div className="grid gap-8 px-5 pt-4 pb-2 lg:px-10 xl:grid-cols-2">
-        <FolderColumn label={`Documents · ${documentsCount}`}>{documents}</FolderColumn>
-        <FolderColumn label={`Notes · ${notesCount}`}>{notes}</FolderColumn>
+      <div className="grid items-start gap-4 px-5 pt-4 pb-8 lg:px-10 xl:grid-cols-2">
+        <FolderBox>
+          <Label>{`Documents · ${documentsCount}`}</Label>
+          <div className="-mx-5">{documents}</div>
+          <div className="mt-2 border-t border-border pt-5">
+            <Label>Checklist</Label>
+          </div>
+          <div className="-mx-5">{checklist}</div>
+        </FolderBox>
+        <FolderBox>
+          <Label>{`Notes · ${notesCount}`}</Label>
+          <div className="-mx-5">{notes}</div>
+        </FolderBox>
       </div>
-      <section className="border-t border-border lg:px-5">
-        <div className="px-5 pt-5">
-          <Label>Checklist</Label>
-        </div>
-        {checklist}
-      </section>
     </div>
   )
 }
 
-/** One folder column; `-mx-5` cancels the section's own phone padding so rows align with the label. */
-function FolderColumn({ label, children }: { label: string; children: ReactNode }) {
-  return (
-    <section className="min-w-0">
-      <Label>{label}</Label>
-      <div className="-mx-5">{children}</div>
-    </section>
-  )
+/** A boxed folder column; `-mx-5` on its parts cancels their own phone padding so rows align with the label. */
+function FolderBox({ children }: { children: ReactNode }) {
+  return <section className="min-w-0 rounded-2xl border border-border bg-card p-5">{children}</section>
 }

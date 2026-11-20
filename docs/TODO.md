@@ -4,13 +4,14 @@
 
 **Next up: work on the AI itinerary planner** (`itinerary-planner` agent, `src/lib/ai/agents/`). Noted 2026-11-03.
 
-**Trip folder slice 1: implemented 2026-11-20; lint clean; `pnpm build` passes; unverified in app; no migration.** Spec/plan: `docs/superpowers/{specs,plans}/2026-11-20-trip-folder-*`. Desktop folder title row: take a photo, add documents, + note, import (sand pills; + note and import open a panel under the row). Documents (compact rows, PDF/IMG icon) and notes side by side from `xl`, stacked below. Notes are one newest-first list with a place tag (Trip-wide when none), on the phone too; the folder drops the notes assistant box and the "drafted by" line. Slice 2 (import documents) pending. In-app checks:
+**Trip folder slice 1: implemented 2026-11-20; checks 1-6 verified in-app 2026-11-20; boxes + checklist-under-documents (check 7) unverified; no migration.** Spec/plan: `docs/superpowers/{specs,plans}/2026-11-20-trip-folder-*`. Desktop folder title row: take a photo, add documents, + note, import (sand pills; + note and import open a panel under the row). Documents (compact rows, PDF/IMG icon) and notes side by side from `xl`, stacked below. Notes are one newest-first list with a place tag (Trip-wide when none), on the phone too; the folder drops the notes assistant box and the "drafted by" line. Slice 2 (import documents) pending. In-app checks:
   1. Desktop folder: four sand pills right of the title; nothing else above the content.
   2. `+ note` opens a box; saving with no place shows the note at the top tagged "Trip-wide"; picking a place tags it with that place.
   3. `import` -> "Copy notes from another trip" copies notes; "Import a checklist" opens the existing import dialog.
   4. Wide window: documents left, notes right; narrow window: stacked, documents first.
   5. Documents show as compact rows with a PDF/IMG icon; clicking opens the document.
   6. Phone notes: one newest-first list with place tags and an add box at the top; editing a note shows a "Place" picker with Trip-wide.
+  7. Documents and notes each sit in a box; the checklist is inside the documents box under the documents, with no full-width line at the bottom.
 
 **Trip page polish (padding + save buttons): implemented 2026-11-20; lint clean; `pnpm build` passes; unverified in app; no migration.** From the Trip Page Focus Layout preview. Budget, packing and the trip folder now share the 40px desktop side padding that itinerary and the pills already had (one `lg:px-5` wrapper each; notes dropped its own `lg:px-10`). Every solid save/add/next button app-wide (46, previously dark round, dark square or clay) is now sea-blue `rounded-full border-0 bg-sea`; tab pills are unchanged. The toolbar buttons inside each tab (`toolbarPill`) are now squarer (10px corners) and take the tab's side-card colour: budget dusk, itinerary sea, packing clay; tinted when closed, solid when their panel is open. In-app checks:
   1. Desktop, budget / packing / trip folder: content lines up with the pills row (40px from the left), same as itinerary.
