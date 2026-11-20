@@ -75,15 +75,19 @@ export async function LeftRail({
   initialDark,
   destinations,
   current,
+  narrow = false,
 }: {
   workspace: CurrentWorkspace
   initialDark: boolean
   destinations: NavDestination[]
   current: NavKey
+  /** Slimmer rail for pages that give the space to a right column. */
+  narrow?: boolean
 }) {
   const estYear = new Date(workspace.createdAt).getFullYear()
+  const width = narrow ? "lg:w-[180px] lg:px-5" : "lg:w-[220px] lg:px-6"
   return (
-    <aside className="hidden lg:flex lg:w-[220px] lg:flex-shrink-0 lg:flex-col lg:gap-9 lg:border-r lg:border-border lg:bg-card lg:px-6 lg:py-8">
+    <aside className={`hidden lg:flex ${width} lg:flex-shrink-0 lg:flex-col lg:gap-9 lg:border-r lg:border-border lg:bg-card lg:py-8`}>
       <div>
         <Label>Together</Label>
         <div className="t-display mt-2 text-[28px] leading-[0.95] text-foreground">

@@ -440,6 +440,7 @@ export default async function TripPage({
         initialDark={dark}
         destinations={navDestinations}
         current="trip"
+        narrow
       />
 
       <div className="lg:min-w-0 lg:flex-1">
@@ -683,7 +684,7 @@ function DesktopRightRail({
   cards: Record<TabId, ReactNode>
 }) {
   return (
-    <aside className="hidden lg:flex lg:w-[340px] lg:flex-shrink-0 lg:flex-col lg:gap-4 lg:border-l lg:border-border lg:bg-card lg:px-5 lg:py-6">
+    <aside className="hidden lg:flex lg:w-[400px] xl:w-[460px] lg:flex-shrink-0 lg:flex-col lg:gap-4 lg:border-l lg:border-border lg:bg-card lg:px-5 lg:py-6">
       {forecast ? (
         <div className="mb-2">
           <WeekForecast forecast={forecast.days} label={forecast.label} />
