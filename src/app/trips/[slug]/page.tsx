@@ -54,8 +54,7 @@ import {
   getTripBySlug,
   type TripHeader,
 } from "@/lib/trips/queries"
-import { getTripShareState } from "@/lib/trips/shared-trip-queries"
-import { ShareTripDialog } from "@/components/share-trip-dialog"
+import { buttonVariants } from "@/components/ui/button"
 import {
   getCurrentWorkspace,
   type CurrentWorkspace,
@@ -202,8 +201,6 @@ export default async function TripPage({
     }
     notFound()
   }
-
-  const shareState = await getTripShareState(header.id)
 
   // Fetched once per trip render and handed to the whole subtree, so the
   // expense form's live preview is arithmetic rather than a request.
@@ -447,7 +444,6 @@ export default async function TripPage({
         <TripHeaderView
           header={header}
           destinations={navDestinations}
-          shareState={shareState}
         />
         <DesktopTabs slug={header.slug} active={activeTab} />
         {/* Header and pills span the page; the right rail starts below them. */}
@@ -535,11 +531,9 @@ export default async function TripPage({
 function TripHeaderView({
   header,
   destinations,
-  shareState,
 }: {
   header: TripHeader
   destinations: NavDestination[]
-  shareState: { isPublic: boolean; shareToken: string | null }
 }) {
   const coord = formatCoord(header.lat, header.lng)
   const dateRange = formatDateRange(header.startDate, header.endDate)
@@ -556,30 +550,22 @@ function TripHeaderView({
         center={
           <Link
             href={`/trips/${header.slug}/edit`}
-            className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground hover:text-foreground"
+            className={buttonVariants({ variant: "outline", size: "sm" })}
           >
-            {"// edit trip"}
+            Edit trip
           </Link>
         }
       />
       <div className="hidden lg:absolute lg:top-4 lg:right-10 lg:z-10 lg:flex">
-        <div className="flex items-center gap-4">
-          <ShareTripDialog
-            tripId={header.id}
-            tripSlug={header.slug}
-            initialPublic={shareState.isPublic}
-            initialToken={shareState.shareToken}
-          />
-          <Link
-            href={`/trips/${header.slug}/edit`}
-            className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground hover:text-foreground"
-          >
-            {"// edit trip"}
-          </Link>
-        </div>
+        <Link
+          href={`/trips/${header.slug}/edit`}
+          className={buttonVariants({ variant: "outline", size: "sm" })}
+        >
+          Edit trip
+        </Link>
       </div>
-      {/* Desktop: name, country + dates, countdown beside them; share and edit
-          float top right. */}
+      {/* Desktop: name, country + dates, countdown beside them; edit floats
+          top right. */}
       <div className="relative flex items-end justify-between gap-6">
         <div className="min-w-0 lg:flex lg:items-center lg:gap-10">
           <div className="min-w-0">

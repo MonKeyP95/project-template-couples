@@ -4,6 +4,11 @@
 
 **Next up: work on the AI itinerary planner** (`itinerary-planner` agent, `src/lib/ai/agents/`). Noted 2026-11-03.
 
+**Edit trip button, share on profile, 24 MB PDFs: implemented 2026-11-20; lint + `tsc` clean; verified in-app 2026-11-20; merged #145; no migration.** "Edit trip" is an outlined button (phone + desktop); share moved off the trip header to the profile's By trip rows; PDF cap 10 MB -> 24 MB (Claude's readable limit). In-app checks:
+  1. Profile, By trip: each trip shows "// share" right of its name; sharing gives a link that opens `/t/...`; Stop sharing works.
+  2. Uploading a 15 MB PDF succeeds and gets read; a 30 MB one shows "PDF is over 24 MB."
+  3. Desktop right rail, Trip folder card: clicking a document opens its file in a new tab (rows were plain text before). Verified in-app 2026-11-20.
+
 **Trip page column widths: implemented 2026-11-20; build + lint clean; verified in-app 2026-11-20; no migration.** Desktop trip page only: right rail 340px -> 400px (`xl` 460px); left nav 180px via `LeftRail narrow` (other pages keep 220px).
 
 **Trip folder slice 1: implemented 2026-11-20; checks 1-7 verified in-app 2026-11-20; no migration.** Spec/plan: `docs/superpowers/{specs,plans}/2026-11-20-trip-folder-*`. Desktop folder title row: take a photo, add documents, + note, import (sand pills; + note and import open a panel under the row). Documents (compact rows, PDF/IMG icon) and notes side by side from `xl`, stacked below. Notes are one newest-first list with a place tag (Trip-wide when none), on the phone too; the folder drops the notes assistant box and the "drafted by" line. Slice 2 (import documents) pending. In-app checks:

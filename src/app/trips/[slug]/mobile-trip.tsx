@@ -2,6 +2,7 @@ import type { ReactNode } from "react"
 import Link from "next/link"
 import { MapPin } from "lucide-react"
 
+import { buttonVariants } from "@/components/ui/button"
 import { Bar, Label } from "@/components/together"
 import { BoxCard, BoxSection } from "@/components/collapsible-box"
 import { FlipCountdown } from "@/components/flip-countdown"
@@ -36,9 +37,9 @@ export function MobileTrip(props: MobileTripProps) {
         center={
           <Link
             href={`/trips/${header.slug}/edit`}
-            className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground hover:text-foreground"
+            className={buttonVariants({ variant: "outline", size: "sm" })}
           >
-            {"// edit trip"}
+            Edit trip
           </Link>
         }
       />
