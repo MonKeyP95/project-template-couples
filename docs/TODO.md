@@ -4,7 +4,7 @@
 
 **Next up: work on the AI itinerary planner** (`itinerary-planner` agent, `src/lib/ai/agents/`). Noted 2026-11-03.
 
-**Trip folder slice 1: implemented 2026-11-20; checks 1-6 verified in-app 2026-11-20; boxes + checklist-under-documents (check 7) unverified; no migration.** Spec/plan: `docs/superpowers/{specs,plans}/2026-11-20-trip-folder-*`. Desktop folder title row: take a photo, add documents, + note, import (sand pills; + note and import open a panel under the row). Documents (compact rows, PDF/IMG icon) and notes side by side from `xl`, stacked below. Notes are one newest-first list with a place tag (Trip-wide when none), on the phone too; the folder drops the notes assistant box and the "drafted by" line. Slice 2 (import documents) pending. In-app checks:
+**Trip folder slice 1: implemented 2026-11-20; checks 1-7 verified in-app 2026-11-20; no migration.** Spec/plan: `docs/superpowers/{specs,plans}/2026-11-20-trip-folder-*`. Desktop folder title row: take a photo, add documents, + note, import (sand pills; + note and import open a panel under the row). Documents (compact rows, PDF/IMG icon) and notes side by side from `xl`, stacked below. Notes are one newest-first list with a place tag (Trip-wide when none), on the phone too; the folder drops the notes assistant box and the "drafted by" line. Slice 2 (import documents) pending. In-app checks:
   1. Desktop folder: four sand pills right of the title; nothing else above the content.
   2. `+ note` opens a box; saving with no place shows the note at the top tagged "Trip-wide"; picking a place tags it with that place.
   3. `import` -> "Copy notes from another trip" copies notes; "Import a checklist" opens the existing import dialog.
