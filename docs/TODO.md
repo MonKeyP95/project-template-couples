@@ -4,6 +4,12 @@
 
 **Next up: work on the AI itinerary planner** (`itinerary-planner` agent, `src/lib/ai/agents/`). Noted 2026-11-03.
 
+**Couple description ("About us"): implemented 2026-11-20; lint + `tsc` clean; unverified in app; MIGRATION `20261120000001_workspace_description.sql` must be pasted first.** One shared free-text `workspaces.description` (max 300), editable by any member at the top of /profile. `buildProfileBlock` puts it first as background, so chat, suggestion, budget-planner, itinerary-planner and dispatch all read it (discover does not use the profile block). In-app checks:
+  1. /profile shows an "About us" box under the heading; typing and saving keeps the text after a reload.
+  2. Your partner, signed in on their own account, sees the same text and can change it.
+  3. Typing more than 300 characters isn't possible.
+  4. With a description like "we hate early flights", ask the chat assistant to plan a travel day: the answer reflects it.
+
 **Edit trip button, share on profile, 24 MB PDFs: implemented 2026-11-20; lint + `tsc` clean; verified in-app 2026-11-20; merged #145; no migration.** "Edit trip" is an outlined button (phone + desktop); share moved off the trip header to the profile's By trip rows; PDF cap 10 MB -> 24 MB (Claude's readable limit). In-app checks:
   1. Profile, By trip: each trip shows "// share" right of its name; sharing gives a link that opens `/t/...`; Stop sharing works.
   2. Uploading a 15 MB PDF succeeds and gets read; a 30 MB one shows "PDF is over 24 MB."

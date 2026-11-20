@@ -10,7 +10,12 @@ export const ACTIVE_WORKSPACE_COOKIE_MAX_AGE = 31536000
 export interface ActiveMembership {
   workspaceId: string
   role: "owner" | "member"
-  workspace: { name: string; created_at: string; currency: string }
+  workspace: {
+    name: string
+    created_at: string
+    currency: string
+    description: string
+  }
 }
 
 /**
@@ -26,7 +31,7 @@ export async function resolveActiveMembership(): Promise<ActiveMembership | null
 
   const { data: memberships } = await supabase
     .from("workspace_members")
-    .select("workspace_id, role, workspaces(name, created_at, currency)")
+    .select("workspace_id, role, workspaces(name, created_at, currency, description)")
     .eq("user_id", userData.user.id)
     .order("joined_at", { ascending: true })
 

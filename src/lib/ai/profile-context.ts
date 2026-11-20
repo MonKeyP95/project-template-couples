@@ -2,10 +2,11 @@ import { getCoupleSummary } from "@/lib/preferences/couple-summary-queries"
 import { getDiningPreferences } from "@/lib/preferences/dining-queries"
 import { getTripExpenseCategories } from "@/lib/trips/expense-queries"
 import { getTripProfile } from "@/lib/trips/queries"
+import { createClient } from "@/lib/supabase/server"
 
 /** A compact "who this couple is" block for suggestion prompts. Reads the trip
- * profile + trip category detail tags (trip-scoped) and the couple's dining taste
- * + learned summaries (workspace-scoped). Every piece is omitted when empty, so a
+ * profile + trip category detail tags (trip-scoped) and the couple's own
+ * description, dining taste + learned summaries (workspace-scoped). Every piece is omitted when empty, so a
  * bare trip yields a short string and a profile-less workspace yields "".
  * Suggest-only: reads, never writes. */
 export async function buildProfileBlock(
@@ -13,6 +14,12 @@ export async function buildProfileBlock(
   tripId?: string,
 ): Promise<string> {
   const parts: string[] = []
+
+  const description = await getWorkspaceDescription(workspaceId)
+  if (description)
+    parts.push(
+      `In their own words (general background; weigh below what they rated and planned): ${description}`,
+    )
 
   if (tripId) {
     const profile = await getTripProfile(tripId)
@@ -49,4 +56,14 @@ export async function buildProfileBlock(
     parts.push(`Learned about their activity taste: ${activity.summaryMd.trim()}`)
 
   return parts.join(" ")
+}
+
+async function getWorkspaceDescription(workspaceId: string): Promise<string> {
+  const supabase = await createClient()
+  const { data } = await supabase
+    .from("workspaces")
+    .select("description")
+    .eq("id", workspaceId)
+    .single()
+  return data?.description.trim() ?? ""
 }

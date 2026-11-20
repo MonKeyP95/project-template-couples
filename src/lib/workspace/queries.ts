@@ -21,6 +21,8 @@ export interface CurrentWorkspace {
   role: "owner" | "member"
   /** The workspace's home currency; the default a new trip is created with. */
   currency: string
+  /** The couple in their own words, written on /profile. "" when unset. */
+  description: string
   members: WorkspaceMember[]
   /** Everyone who can hold money on a trip: members plus avatars. */
   people: WorkspacePerson[]
@@ -78,6 +80,7 @@ export async function getCurrentWorkspace(): Promise<CurrentWorkspace | null> {
     createdAt: membership.workspace.created_at,
     role: membership.role,
     currency: membership.workspace.currency,
+    description: membership.workspace.description,
     members: rawMembers.map((m) => ({
       user_id: m.user_id,
       role: m.role as "owner" | "member",

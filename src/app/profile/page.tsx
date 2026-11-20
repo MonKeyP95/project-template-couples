@@ -12,7 +12,10 @@ import {
 } from "@/components/app-nav"
 import { isDarkTheme } from "@/lib/theme"
 import { getCurrentWorkspace } from "@/lib/workspace/queries"
-import { setWorkspaceCurrency } from "@/lib/workspace/actions"
+import {
+  setWorkspaceCurrency,
+  setWorkspaceDescription,
+} from "@/lib/workspace/actions"
 import { currencyOptions } from "@/lib/fx/currency-list"
 import { listTripsForWorkspace } from "@/lib/trips/list-queries"
 import { getDiningPreferences } from "@/lib/preferences/dining-queries"
@@ -153,6 +156,31 @@ export default async function ProfilePage() {
         />
         <div className="mx-auto w-full max-w-sm">
           <h1 className="font-serif text-4xl tracking-tight">Couple profile</h1>
+
+          <form
+            key={workspace.description}
+            action={setWorkspaceDescription}
+            className="mt-6"
+          >
+            <label className="block text-xs text-muted-foreground">
+              About us
+              <textarea
+                name="description"
+                defaultValue={workspace.description}
+                maxLength={300}
+                rows={3}
+                placeholder="A few words about the two of you as travellers."
+                className="mt-1 block w-full rounded-md border border-border bg-transparent px-3 py-2 text-sm text-foreground"
+              />
+            </label>
+            <p className="mt-2 text-xs text-muted-foreground">
+              Up to 300 characters. Either of you can edit it, and the AI
+              reads it as background.
+            </p>
+            <Button type="submit" size="lg" className="mt-3">
+              Save
+            </Button>
+          </form>
 
           {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
           <form action={updateProfile as any} className="mt-8 flex flex-col gap-3">
