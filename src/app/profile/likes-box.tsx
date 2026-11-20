@@ -36,8 +36,21 @@ export async function LikesBox({ workspaceId }: { workspaceId: string }) {
     dining.cuisines.join(","),
   ].join("|")
 
+  const filled = [
+    dining.budgetBand !== "any" ||
+      dining.vibeTags.length > 0 ||
+      dining.dietary.length > 0 ||
+      dining.cuisines.length > 0,
+    dining.activities.length > 0,
+    accommodationSignals >= signalFloor("accommodation"),
+    transportSignals >= signalFloor("transport"),
+  ].filter(Boolean).length
+
   return (
-    <ProfileBox title="What we like">
+    <ProfileBox
+      title="What we like"
+      status={{ label: `${filled} of 4`, done: filled === 4 }}
+    >
       <p className="text-xs text-muted-foreground">
         The AI uses this to suggest places.
       </p>

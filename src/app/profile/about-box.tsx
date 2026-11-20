@@ -7,7 +7,14 @@ import { ProfileBox } from "./profile-box"
 /** Who the couple is: their own description, the people, and inviting more. */
 export function AboutBox({ workspace }: { workspace: CurrentWorkspace }) {
   return (
-    <ProfileBox title="About us">
+    <ProfileBox
+      title="About us"
+      status={
+        workspace.description
+          ? { label: "done", done: true }
+          : { label: "empty", done: false }
+      }
+    >
       <p className="text-sm">
         {workspace.people.map((p) => p.display_name).join(" & ")}
       </p>

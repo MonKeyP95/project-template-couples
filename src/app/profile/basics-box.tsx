@@ -21,7 +21,14 @@ export async function BasicsBox({ workspace }: { workspace: CurrentWorkspace }) 
     .single()
 
   return (
-    <ProfileBox title="Basics">
+    <ProfileBox
+      title="Basics"
+      status={
+        workspace.homeCountry
+          ? { label: "done", done: true }
+          : { label: "add home country", done: false }
+      }
+    >
       {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
       <form action={updateProfile as any} className="flex flex-col gap-3">
         <Input
