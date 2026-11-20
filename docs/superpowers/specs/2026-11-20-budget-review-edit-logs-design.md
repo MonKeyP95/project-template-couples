@@ -17,8 +17,7 @@ comes later.
 - "+ N more" becomes a tappable "show all N", so a multi-day review sees every
   expense.
 
-**Non-goals.** Editing
-planned lines (slice 2). Editing a category total (no clean mapping to lines).
+**Non-goals.** Editing planned lines (slice 2). Editing a category total (no clean mapping to lines).
 
 **Approaches.** (A) The full ledger row inside the detail: too big nested on a
 phone and repeats the category badge. (B) Compact lines that open the ledger's
@@ -42,7 +41,7 @@ category-filtered ledger: leaves the review and needs a new filter.
 4. On a 2+ place trip, by place: change a line's place, it moves rows.
 5. A category with more than 5 expenses shows "show all N"; tapping lists all.
 6. Escape or × closes the form without saving.
-8. Open Food, "+ add expense": the form opens with Food picked; save adds it
+7. Open Food, "+ add expense": the form opens with Food picked; save adds it
    to Food and the form stays open for the next one.
-9. By place, open a place, "+ add expense": the form has that place picked.
-7. Phone: the form fits inside the detail without horizontal scroll.
+8. By place, open a place, "+ add expense": the form has that place picked.
+9. Phone: the forms fit inside the detail without horizontal scroll.
