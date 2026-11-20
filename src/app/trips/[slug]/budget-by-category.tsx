@@ -17,6 +17,8 @@ import {
   type ExpenseCategoryRow,
 } from "@/lib/trips/expense-types"
 import type { ItineraryLocation } from "@/lib/trips/location-types"
+import { LedgerRowEditor } from "./ledger-row"
+import { LogExpenseRow } from "./log-expense-row"
 import type { MemberToneEntry } from "./packing-tab"
 
 const SPENT_SHOWN = 5
@@ -27,11 +29,14 @@ const SHORT_DATE = new Intl.DateTimeFormat("en-GB", {
   timeZone: "UTC",
 })
 
-function displayName(category: string): string {
+export function displayName(category: string): string {
   return category === PRE_TRIP ? "Before you go" : category
 }
 
 interface Props {
+  tripId: string
+  tripSlug: string
+  currentPersonId: string
   expenses: Expense[]
   budgetItems: BudgetItem[]
   categories: ExpenseCategoryRow[]
@@ -45,8 +50,6 @@ interface Props {
 export function BudgetByCategory(props: Props) {
   const { currency } = useCurrency()
   const [open, setOpen] = React.useState<string | null>(null)
-  if (props.budgetItems.length === 0) return null
-
   const fmt = (cents: number) => money(cents, currency)
   const { lines, preTripFootCents } = byCategoryLines(
     props.expenses.map((e) => ({
@@ -60,12 +63,12 @@ export function BudgetByCategory(props: Props) {
   )
 
   return (
-    <div className="mt-4 border-t border-rule pt-3">
-      <Label>By category</Label>
+    <>
       <div className="mt-1">
         {lines.map((line) => (
-          <CategoryRow
+          <BudgetRow
             key={line.category}
+            name={displayName(line.category)}
             line={line}
             isOpen={open === line.category}
             onToggle={() =>
@@ -74,7 +77,7 @@ export function BudgetByCategory(props: Props) {
             fmt={fmt}
           >
             <CategoryDetail category={line.category} fmt={fmt} {...props} />
-          </CategoryRow>
+          </BudgetRow>
         ))}
       </div>
       {preTripFootCents > 0 ? (
@@ -83,9 +86,12 @@ export function BudgetByCategory(props: Props) {
           <span className="t-num">{fmt(preTripFootCents)}</span>
         </div>
       ) : null}
-    </div>
+    </>
   )
 }
+
+/** The figures a row shows: spent against plan, its status and bar fill. */
+type RowLine = Pick<CategoryLine, "status" | "pct" | "actualCents" | "plannedCents">
 
 const NOTE_CLASS = "font-mono text-[9px] uppercase tracking-[0.14em]"
 
@@ -93,7 +99,7 @@ function StatusNote({
   line,
   fmt,
 }: {
-  line: CategoryLine
+  line: RowLine
   fmt: (cents: number) => string
 }) {
   if (line.status === "over") {
@@ -112,14 +118,17 @@ function StatusNote({
   return null
 }
 
-function CategoryRow({
+/** One tappable spent-vs-plan row; `children` is its detail, shown when open. */
+export function BudgetRow({
+  name,
   line,
   isOpen,
   onToggle,
   fmt,
   children,
 }: {
-  line: CategoryLine
+  name: string
+  line: RowLine
   isOpen: boolean
   onToggle: () => void
   fmt: (cents: number) => string
@@ -140,7 +149,7 @@ function CategoryRow({
           {"▶"}
         </span>
         <span className="truncate text-[13px] text-foreground">
-          {displayName(line.category)}
+          {name}
         </span>
         <Bar pct={line.pct} tone={warn ? "clay" : "sea"} />
         <span className="t-num whitespace-nowrap text-right font-mono text-[11px] text-foreground">
@@ -163,13 +172,56 @@ function CategoryDetail({
   fmt,
   expenses,
   budgetItems,
+  tripId,
+  tripSlug,
+  currentPersonId,
   locations,
+  categories,
   members,
 }: Props & { category: string; fmt: (cents: number) => string }) {
   const placeName = new Map(locations.map((l) => [l.id, l.name]))
-  const planned = budgetItems.filter((it) => it.category === category)
-  const spent = expenses
-    .filter((e) => !e.isSettlement && e.category === category)
+  return (
+    <RowDetail
+      planned={budgetItems.filter((it) => it.category === category)}
+      spent={expenses.filter((e) => e.category === category)}
+      plannedWhere={(it) =>
+        it.locationId ? (placeName.get(it.locationId) ?? "") : "Trip-wide"
+      }
+      addDefaults={category === PRE_TRIP ? null : { category }}
+      tripId={tripId}
+      currentPersonId={currentPersonId}
+      tripSlug={tripSlug}
+      locations={locations}
+      categories={categories}
+      members={members}
+      fmt={fmt}
+    />
+  )
+}
+
+/** A row's opened detail: its planned lines (paid or not yet) and its latest
+ * spending. `plannedWhere` is the grey note after each planned line. */
+export function RowDetail({
+  planned,
+  spent,
+  plannedWhere,
+  addDefaults,
+  tripId,
+  currentPersonId,
+  ...rest
+}: {
+  planned: BudgetItem[]
+  spent: Expense[]
+  plannedWhere: (item: BudgetItem) => string
+  /** What a new expense from this row starts with; null hides "+ add expense". */
+  addDefaults: { category?: string; locationId?: string | null } | null
+  tripId: string
+  currentPersonId: string
+} & SpentListProps) {
+  const { fmt, tripSlug, locations, categories, members } = rest
+  const [adding, setAdding] = React.useState(false)
+  const latest = spent
+    .filter((e) => !e.isSettlement)
     .sort((a, b) =>
       (b.dayDate ?? b.createdAt).localeCompare(a.dayDate ?? a.createdAt),
     )
@@ -180,10 +232,10 @@ function CategoryDetail({
         <DetailList title="Planned">
           {planned.map((it) => (
             <DetailLine key={it.id} amount={fmt(it.amountCents)}>
-              {it.subject || displayName(category)}
+              {it.subject || displayName(it.category)}
               <span className="text-muted-foreground">
                 {" · "}
-                {it.locationId ? placeName.get(it.locationId) : "Trip-wide"}
+                {plannedWhere(it)}
               </span>
               <span
                 className={`ml-1.5 ${NOTE_CLASS} ${it.paidExpenseId ? "text-moss" : "text-muted-foreground"}`}
@@ -194,10 +246,73 @@ function CategoryDetail({
           ))}
         </DetailList>
       ) : null}
-      {spent.length > 0 ? (
-        <DetailList title="Spent">
-          {spent.slice(0, SPENT_SHOWN).map((e) => (
-            <DetailLine key={e.id} amount={fmt(homeCents(e))}>
+      {latest.length > 0 ? <SpentList expenses={latest} {...rest} /> : null}
+      {addDefaults === null ? null : adding ? (
+        <LogExpenseRow
+          tripId={tripId}
+          tripSlug={tripSlug}
+          currentPersonId={currentPersonId}
+          members={members}
+          locations={locations}
+          categories={categories}
+          initialCategory={addDefaults.category}
+          initialLocationId={addDefaults.locationId}
+          onClose={() => setAdding(false)}
+          className="rounded-lg bg-card px-3 py-3"
+        />
+      ) : (
+        <button
+          type="button"
+          onClick={() => setAdding(true)}
+          className="self-start font-mono text-[10px] uppercase tracking-[0.14em] text-sea hover:text-foreground"
+        >
+          + add expense
+        </button>
+      )}
+    </div>
+  )
+}
+
+interface SpentListProps {
+  tripSlug: string
+  locations: ItineraryLocation[]
+  categories: ExpenseCategoryRow[]
+  members: Record<string, MemberToneEntry>
+  fmt: (cents: number) => string
+}
+
+/** Spent lines, newest first. Tapping one opens the ledger's editor in its
+ * place, so a review can fix amounts, categories and places where it reads. */
+function SpentList({
+  expenses,
+  members,
+  fmt,
+  ...editor
+}: SpentListProps & { expenses: Expense[] }) {
+  const [editingId, setEditingId] = React.useState<string | null>(null)
+  const [showAll, setShowAll] = React.useState(false)
+  const shown = showAll ? expenses : expenses.slice(0, SPENT_SHOWN)
+
+  return (
+    <DetailList title="Spent">
+      {shown.map((e) =>
+        e.id === editingId ? (
+          <LedgerRowEditor
+            key={e.id}
+            expense={e}
+            members={members}
+            onDone={() => setEditingId(null)}
+            className="my-1.5 rounded-lg bg-card px-3 py-3"
+            {...editor}
+          />
+        ) : (
+          <button
+            key={e.id}
+            type="button"
+            onClick={() => setEditingId(e.id)}
+            className="block w-full border-t border-border text-left first:border-t-0"
+          >
+            <DetailLine amount={fmt(homeCents(e))}>
               {e.title}
               <span className="text-muted-foreground">
                 {" · "}
@@ -206,15 +321,19 @@ function CategoryDetail({
                 {members[e.paidBy]?.displayName ?? "Someone"}
               </span>
             </DetailLine>
-          ))}
-          {spent.length > SPENT_SHOWN ? (
-            <div className="border-t border-border pt-1.5 text-[12px] text-muted-foreground">
-              + {spent.length - SPENT_SHOWN} more
-            </div>
-          ) : null}
-        </DetailList>
+          </button>
+        ),
+      )}
+      {!showAll && expenses.length > SPENT_SHOWN ? (
+        <button
+          type="button"
+          onClick={() => setShowAll(true)}
+          className="w-full border-t border-border pt-1.5 text-left text-[12px] text-muted-foreground hover:text-foreground"
+        >
+          show all {expenses.length}
+        </button>
       ) : null}
-    </div>
+    </DetailList>
   )
 }
 
