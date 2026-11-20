@@ -9,6 +9,7 @@ import {
   expensePlaceKey,
   itemPlaceKey,
 } from "@/lib/trips/budget-by-place-types"
+import { PRE_TRIP } from "@/lib/trips/budget-by-category-types"
 import type { BudgetItem } from "@/lib/trips/budget-item-types"
 import {
   homeCents,
@@ -20,7 +21,9 @@ import {
   type DayLocation,
 } from "@/lib/trips/location-budget-types"
 import type { ItineraryLocation } from "@/lib/trips/location-types"
-import { BudgetRow, displayName, RowDetail } from "./budget-by-category"
+import { BudgetRow, RowDetail } from "./budget-by-category"
+import { displayName } from "./budget-detail-parts"
+import type { PlanDefaults } from "./budget-planned-list"
 import type { MemberToneEntry } from "./packing-tab"
 
 interface Props {
@@ -43,8 +46,15 @@ function addDefaults(key: string): { locationId: string | null } | null {
   return { locationId: key === "trip" ? null : key }
 }
 
+/** Where a planned line added from a place row goes: Before you go is the
+ * Pre-trip category; a place or Trip-wide picks its category in the form. */
+function planDefaults(key: string): PlanDefaults {
+  if (key === "pretrip") return { category: PRE_TRIP, locationId: null }
+  return { locationId: key === "trip" ? null : key }
+}
+
 /** Spent-vs-plan per place: Before you go, each place, Trip-wide.
- * Editing lives in the drafter; tap a row for its lines and spending. */
+ * Tap a row to fix its planned lines and spending in place. */
 export function BudgetByPlace(props: Props) {
   const { currency } = useCurrency()
   const [open, setOpen] = React.useState<string | null>(null)
@@ -80,6 +90,7 @@ export function BudgetByPlace(props: Props) {
             planned={props.budgetItems.filter((it) => itemPlaceKey(it) === line.key)}
             spent={props.expenses.filter((e) => expensePlaceKey(e, dayMap) === line.key)}
             plannedWhere={(it) => displayName(it.category)}
+            planDefaults={planDefaults(line.key)}
             addDefaults={addDefaults(line.key)}
             tripId={props.tripId}
             currentPersonId={props.currentPersonId}
