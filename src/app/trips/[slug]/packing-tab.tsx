@@ -341,7 +341,7 @@ export function PackingTab({
           type="button"
           aria-pressed={view === "mine"}
           onClick={() => setView("mine")}
-          className={toolbarPill(view === "mine")}
+          className={toolbarPill(view === "mine", "clay")}
         >
           My list
         </button>
@@ -349,7 +349,7 @@ export function PackingTab({
           type="button"
           aria-pressed={view === "shared"}
           onClick={() => setView("shared")}
-          className={toolbarPill(view === "shared")}
+          className={toolbarPill(view === "shared", "clay")}
         >
           Shared
         </button>
@@ -358,7 +358,7 @@ export function PackingTab({
             type="button"
             aria-pressed={view === "partner"}
             onClick={openPartner}
-            className={toolbarPill(view === "partner")}
+            className={toolbarPill(view === "partner", "clay")}
           >
             {partnerName}&rsquo;s list
           </button>

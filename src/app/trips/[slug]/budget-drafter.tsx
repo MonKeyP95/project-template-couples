@@ -693,7 +693,7 @@ export function BudgetDrafter({
       type="button"
       onClick={session ? () => setSession(null) : open}
       aria-expanded={session !== null}
-      className={toolbarPill(session !== null)}
+      className={toolbarPill(session !== null, "dusk")}
     >
       {plannedBudgetCents > 0 ? "edit budget" : "plan a budget"}
     </button>

@@ -90,12 +90,19 @@ function DaySelect({
   )
 }
 
-/** A pill in the itinerary's top toolbar row; `active` marks its panel open. */
-export function toolbarPill(active: boolean): string {
-  return `rounded-full border px-3.5 py-1.5 font-mono text-[11px] uppercase tracking-[0.18em] transition-colors ${
-    active
-      ? "border-foreground bg-foreground text-background"
-      : "border-border bg-transparent text-muted-foreground hover:border-muted-foreground hover:text-foreground"
+export type PillTone = "sea" | "dusk" | "clay"
+
+const PILL_TONE: Record<PillTone, { on: string; off: string }> = {
+  sea: { on: "border-sea bg-sea", off: "border-sea/40 bg-sea-tint hover:border-sea" },
+  dusk: { on: "border-dusk bg-dusk", off: "border-dusk/40 bg-dusk-tint hover:border-dusk" },
+  clay: { on: "border-clay bg-clay", off: "border-clay/40 bg-clay-tint hover:border-clay" },
+}
+
+/** A button in a tab's top toolbar row, tinted with the tab's side-card colour;
+ * `active` marks its panel open (solid). */
+export function toolbarPill(active: boolean, tone: PillTone = "sea"): string {
+  return `rounded-[10px] border px-3.5 py-2 font-mono text-[11px] uppercase tracking-[0.14em] transition-colors ${
+    active ? `${PILL_TONE[tone].on} text-background` : `${PILL_TONE[tone].off} text-foreground`
   }`
 }
 

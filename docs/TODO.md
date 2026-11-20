@@ -4,11 +4,12 @@
 
 **Next up: work on the AI itinerary planner** (`itinerary-planner` agent, `src/lib/ai/agents/`). Noted 2026-11-03.
 
-**Trip page polish (padding + save buttons): implemented 2026-11-20; lint clean; `pnpm build` passes; unverified in app; no migration.** From the Trip Page Focus Layout preview. Budget, packing and the trip folder now share the 40px desktop side padding that itinerary and the pills already had (one `lg:px-5` wrapper each; notes dropped its own `lg:px-10`). Every solid save/add/next button app-wide (46, previously dark round, dark square or clay) is now sea-blue `rounded-full border-0 bg-sea`; toolbar and tab pills are unchanged. In-app checks:
+**Trip page polish (padding + save buttons): implemented 2026-11-20; lint clean; `pnpm build` passes; unverified in app; no migration.** From the Trip Page Focus Layout preview. Budget, packing and the trip folder now share the 40px desktop side padding that itinerary and the pills already had (one `lg:px-5` wrapper each; notes dropped its own `lg:px-10`). Every solid save/add/next button app-wide (46, previously dark round, dark square or clay) is now sea-blue `rounded-full border-0 bg-sea`; tab pills are unchanged. The toolbar buttons inside each tab (`toolbarPill`) are now squarer (10px corners) and take the tab's side-card colour: budget dusk, itinerary sea, packing clay; tinted when closed, solid when their panel is open. In-app checks:
   1. Desktop, budget / packing / trip folder: content lines up with the pills row (40px from the left), same as itinerary.
   2. Phone: side padding unchanged (20px).
   3. Save buttons on budget, packing, itinerary, notes, on-the-road and sign-in are sea-blue round pills.
   4. Dark mode: save buttons stay readable (light sea on dark text).
+  5. Budget `+ expense` / `edit budget` are dusk, itinerary `+ day` / `+ location` sea, packing `My list` / `Shared` clay; the open or selected one is solid.
 
 **Budget bars show a %: implemented 2026-11-20; lint + `tsc` clean; verified in-app 2026-11-20; no migration.** The budget tab's main spent bar, the side card's Spent and Saved bars, and the on-the-road "Spent today" bar show the real percent at their right (can exceed 100%; the bar stays capped at full).
 

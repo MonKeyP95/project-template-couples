@@ -47,7 +47,7 @@ export function BudgetToolbar({
         type="button"
         onClick={() => setOpen(open === key ? null : key)}
         aria-expanded={open === key}
-        className={`${toolbarPill(open === key)} ${phoneOnly ? "lg:hidden" : ""}`}
+        className={`${toolbarPill(open === key, "dusk")} ${phoneOnly ? "lg:hidden" : ""}`}
       >
         {label}
       </button>
