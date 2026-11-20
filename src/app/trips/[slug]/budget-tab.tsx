@@ -250,17 +250,19 @@ export function BudgetTab({
             plannedBudgetCents={plannedBudgetCents}
             className="mt-1"
           />
-          <BudgetBreakdown
-            expenses={expenses}
-            budgetItems={budgetItems}
-            categories={expenseCategories}
-            locations={locations}
-            itineraryDays={itineraryDays}
-            members={members}
-            tripStarted={startDate !== null && today >= startDate}
-          />
         </div>
       </div>
+
+      {/* Spent against plan, by category or place */}
+      <BudgetBreakdown
+        expenses={expenses}
+        budgetItems={budgetItems}
+        categories={expenseCategories}
+        locations={locations}
+        itineraryDays={itineraryDays}
+        members={members}
+        tripStarted={startDate !== null && today >= startDate}
+      />
 
       {/* What you spent */}
       <div className="px-5 pt-4">

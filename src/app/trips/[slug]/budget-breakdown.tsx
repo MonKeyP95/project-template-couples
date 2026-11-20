@@ -23,7 +23,7 @@ interface Props {
   tripStarted: boolean
 }
 
-/** The headline box's breakdown: by category, plus a by-place switch once the
+/** Its own box under the headline: by category, plus a by-place switch once the
  * trip has 2+ places. Hidden until the trip has a plan. */
 export function BudgetBreakdown(props: Props) {
   const [picked, setPicked] = React.useState<View>("category")
@@ -33,7 +33,7 @@ export function BudgetBreakdown(props: Props) {
   const view = hasPlaces ? picked : "category"
 
   return (
-    <div className="mt-4 border-t border-rule pt-3">
+    <div className="mx-5 my-4 rounded-xl border border-border bg-card px-5 pt-4 pb-4">
       {hasPlaces ? (
         <div className="flex gap-2">
           <SegBtn tone="sea" active={view === "category"} onClick={() => setPicked("category")}>
