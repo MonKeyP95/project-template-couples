@@ -3456,3 +3456,58 @@ export async function deleteSavingsContribution(
   revalidatePath(`/trips/${tripSlug}`)
   return {}
 }
+
+/**
+ * Edits one planned line's subject and amount from the budget box. Only the
+ * plan changes: a paid line's expense keeps its own amount.
+ */
+export async function updateBudgetItem(input: {
+  itemId: string
+  tripSlug: string
+  subject: string
+  amountCents: number
+}): Promise<{ error?: string }> {
+  if (!validCents(input.amountCents)) return { error: "Budget amount out of range." }
+  const supabase = await createClient()
+  const { error } = await supabase
+    .from("trip_budget_items")
+    .update({ subject: input.subject.trim(), amount_cents: input.amountCents })
+    .eq("id", input.itemId)
+  if (error) return { error: error.message }
+  revalidatePath(`/trips/${input.tripSlug}`)
+  return {}
+}
+
+/** Adds one planned line from the budget box, after its category's last line. */
+export async function addBudgetItem(input: {
+  tripId: string
+  tripSlug: string
+  category: string
+  locationId: string | null
+  subject: string
+  amountCents: number
+}): Promise<{ error?: string }> {
+  if (input.category.trim() === "" || input.category.length > 40) {
+    return { error: "Invalid budget category." }
+  }
+  if (!validCents(input.amountCents)) return { error: "Budget amount out of range." }
+  const supabase = await createClient()
+  const { count, error: countErr } = await supabase
+    .from("trip_budget_items")
+    .select("id", { count: "exact", head: true })
+    .eq("trip_id", input.tripId)
+    .eq("category", input.category)
+  if (countErr) return { error: countErr.message }
+  const { error } = await supabase.from("trip_budget_items").insert({
+    trip_id: input.tripId,
+    category: input.category,
+    subject: input.subject.trim(),
+    when_label: "",
+    amount_cents: input.amountCents,
+    location_id: input.locationId,
+    sort_order: count ?? 0,
+  })
+  if (error) return { error: error.message }
+  revalidatePath(`/trips/${input.tripSlug}`)
+  return {}
+}

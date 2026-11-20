@@ -2,7 +2,7 @@
 
 import * as React from "react"
 
-import { Bar, Label } from "@/components/together"
+import { Bar } from "@/components/together"
 import { useCurrency } from "@/components/currency-context"
 import { money } from "@/lib/money"
 import {
@@ -17,6 +17,8 @@ import {
   type ExpenseCategoryRow,
 } from "@/lib/trips/expense-types"
 import type { ItineraryLocation } from "@/lib/trips/location-types"
+import { DetailLine, DetailList, NOTE_CLASS, displayName } from "./budget-detail-parts"
+import { PlannedList, type PlanDefaults } from "./budget-planned-list"
 import { LedgerRowEditor } from "./ledger-row"
 import { LogExpenseRow } from "./log-expense-row"
 import type { MemberToneEntry } from "./packing-tab"
@@ -28,10 +30,6 @@ const SHORT_DATE = new Intl.DateTimeFormat("en-GB", {
   month: "short",
   timeZone: "UTC",
 })
-
-export function displayName(category: string): string {
-  return category === PRE_TRIP ? "Before you go" : category
-}
 
 interface Props {
   tripId: string
@@ -45,8 +43,8 @@ interface Props {
   tripStarted: boolean
 }
 
-/** Read-only spent-vs-plan per category, under the Spent figure. Tap a line
- * to see the planned items and expenses behind it. */
+/** Spent-vs-plan per category, under the Spent figure. Tap a line
+ * to see, and fix, the planned items and expenses behind it. */
 export function BudgetByCategory(props: Props) {
   const { currency } = useCurrency()
   const [open, setOpen] = React.useState<string | null>(null)
@@ -92,8 +90,6 @@ export function BudgetByCategory(props: Props) {
 
 /** The figures a row shows: spent against plan, its status and bar fill. */
 type RowLine = Pick<CategoryLine, "status" | "pct" | "actualCents" | "plannedCents">
-
-const NOTE_CLASS = "font-mono text-[9px] uppercase tracking-[0.14em]"
 
 function StatusNote({
   line,
@@ -187,6 +183,7 @@ function CategoryDetail({
       plannedWhere={(it) =>
         it.locationId ? (placeName.get(it.locationId) ?? "") : "Trip-wide"
       }
+      planDefaults={{ category, locationId: null }}
       addDefaults={category === PRE_TRIP ? null : { category }}
       tripId={tripId}
       currentPersonId={currentPersonId}
@@ -205,6 +202,7 @@ export function RowDetail({
   planned,
   spent,
   plannedWhere,
+  planDefaults,
   addDefaults,
   tripId,
   currentPersonId,
@@ -213,6 +211,8 @@ export function RowDetail({
   planned: BudgetItem[]
   spent: Expense[]
   plannedWhere: (item: BudgetItem) => string
+  /** Where a planned line added from this row goes. */
+  planDefaults: PlanDefaults
   /** What a new expense from this row starts with; null hides "+ add expense". */
   addDefaults: { category?: string; locationId?: string | null } | null
   tripId: string
@@ -228,24 +228,15 @@ export function RowDetail({
 
   return (
     <div className="mb-2 ml-5 flex flex-col gap-3 rounded-lg bg-sea-tint px-3 py-2.5">
-      {planned.length > 0 ? (
-        <DetailList title="Planned">
-          {planned.map((it) => (
-            <DetailLine key={it.id} amount={fmt(it.amountCents)}>
-              {it.subject || displayName(it.category)}
-              <span className="text-muted-foreground">
-                {" · "}
-                {plannedWhere(it)}
-              </span>
-              <span
-                className={`ml-1.5 ${NOTE_CLASS} ${it.paidExpenseId ? "text-moss" : "text-muted-foreground"}`}
-              >
-                {it.paidExpenseId ? "paid" : "not yet"}
-              </span>
-            </DetailLine>
-          ))}
-        </DetailList>
-      ) : null}
+      <PlannedList
+        items={planned}
+        plannedWhere={plannedWhere}
+        planDefaults={planDefaults}
+        tripId={tripId}
+        tripSlug={tripSlug}
+        categories={categories}
+        fmt={fmt}
+      />
       {latest.length > 0 ? <SpentList expenses={latest} {...rest} /> : null}
       {addDefaults === null ? null : adding ? (
         <LogExpenseRow
@@ -337,32 +328,3 @@ function SpentList({
   )
 }
 
-function DetailList({
-  title,
-  children,
-}: {
-  title: string
-  children: React.ReactNode
-}) {
-  return (
-    <div>
-      <Label>{title}</Label>
-      <div className="mt-1">{children}</div>
-    </div>
-  )
-}
-
-function DetailLine({
-  amount,
-  children,
-}: {
-  amount: string
-  children: React.ReactNode
-}) {
-  return (
-    <div className="flex justify-between gap-3 border-t border-border py-1.5 text-[12px] text-foreground first:border-t-0">
-      <span className="min-w-0">{children}</span>
-      <span className="t-num whitespace-nowrap font-mono text-[11px]">{amount}</span>
-    </div>
-  )
-}
