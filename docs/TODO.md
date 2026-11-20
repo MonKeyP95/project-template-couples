@@ -4,6 +4,17 @@
 
 **Next up: work on the AI itinerary planner** (`itinerary-planner` agent, `src/lib/ai/agents/`). Noted 2026-11-03.
 
+**Drafter shows every line, paid chip, add a category: implemented 2026-11-20; lint + `tsc` clean; `pnpm build` passes; unverified in app; no migration.** Step 2 of the budget-boxes merge. Drafter steps now come from the lines: the fixed walk plus one step per (category, place) that saved lines use, so custom categories, place-tagged Transportation/Other and trip-wide Accommodation lines all show and none moves to the first place. A 0-1 place trip is one scope (no place prefix, no place groups). The edit list groups by place on a 2+ place trip and ends with "+ add a category". Saved priced lines show "to pay / paid ✓"; the mark applies on Apply. Generate patches only the rows it priced, so typed lines keep their how-often and dates. Removing a paid line also removes its expense. Spec/plan: `docs/superpowers/{specs,plans}/2026-11-20-drafter-steps-from-lines*`. In-app checks:
+  1. A custom-category line shows in the edit list under its place, opens, and edits save.
+  2. A Transportation line tagged to a place shows under that place as "Transportation" and stays there after Apply.
+  3. "+ add a category" with a new name: the step opens, a line saves, and the category appears in the expense picker.
+  4. Mark a line paid in the drafter and Apply: it shows paid; the expense appears in the ledger.
+  5. Mark paid then Cancel: nothing changes.
+  6. Unmark a paid line and Apply: the expense is gone.
+  7. Generate with a custom-category line present: it is still there after Apply.
+  8. A fresh trip's walk looks the same as before, except a 1-place trip's steps drop the place prefix.
+  9. Delete a paid line in the drafter and Apply: its expense is gone from the ledger too.
+
 **Drafter Apply keeps lines it didn't touch: implemented 2026-11-20; lint + `tsc` clean; `pnpm build` passes; unverified in app; no migration.** Apply used to delete every non-Pre-trip line and re-insert only what the drafter held. Custom-category lines were lost, place-tagged Transportation/Other lines became trip-wide, and paid links were dropped. Now `saveBudgetItems` updates by id, inserts new lines and deletes only what the couple removed; ids survive Generate. Step 1 of the budget-boxes merge (next: paid toggle + custom categories in the drafter, then a "planned · unplanned room" line under the headline, then merge the boxes). Files: `lib/trips/actions.ts`, `lib/ai/budget-actions.ts`, `trips/[slug]/{budget-drafter,budget-tab}.tsx`. In-app checks:
   1. In a place's editor, add a line in a custom category, then Apply in the drafter: the line is still there.
   2. Mark a planned line paid, then Apply: it still shows "paid".
