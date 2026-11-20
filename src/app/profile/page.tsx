@@ -14,8 +14,8 @@ import { LikesBox } from "./likes-box"
 import { HistoryBox } from "./history-box"
 import { BasicsBox } from "./basics-box"
 
-/** The couple profile: four boxes. One column on the phone (in reading order),
- * two columns on desktop with the same order read column by column. */
+/** The couple profile: four boxes. One column on the phone; on desktop About,
+ * Likes and Basics stack on the left and History has the right column. */
 export default async function ProfilePage() {
   const supabase = await createClient()
   const { data: userData } = await supabase.auth.getUser()
@@ -53,10 +53,10 @@ export default async function ProfilePage() {
             <div className="flex flex-col gap-5">
               <AboutBox workspace={workspace} />
               <LikesBox workspaceId={workspace.id} />
+              <BasicsBox workspace={workspace} />
             </div>
             <div className="flex flex-col gap-5">
               <HistoryBox workspace={workspace} buckets={buckets} />
-              <BasicsBox workspace={workspace} />
             </div>
           </div>
         </div>
