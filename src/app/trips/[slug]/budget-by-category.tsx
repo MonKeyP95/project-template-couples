@@ -18,6 +18,7 @@ import {
 } from "@/lib/trips/expense-types"
 import type { ItineraryLocation } from "@/lib/trips/location-types"
 import { LedgerRowEditor } from "./ledger-row"
+import { LogExpenseRow } from "./log-expense-row"
 import type { MemberToneEntry } from "./packing-tab"
 
 const SPENT_SHOWN = 5
@@ -33,7 +34,9 @@ export function displayName(category: string): string {
 }
 
 interface Props {
+  tripId: string
   tripSlug: string
+  currentPersonId: string
   expenses: Expense[]
   budgetItems: BudgetItem[]
   categories: ExpenseCategoryRow[]
@@ -169,7 +172,9 @@ function CategoryDetail({
   fmt,
   expenses,
   budgetItems,
+  tripId,
   tripSlug,
+  currentPersonId,
   locations,
   categories,
   members,
@@ -182,6 +187,9 @@ function CategoryDetail({
       plannedWhere={(it) =>
         it.locationId ? (placeName.get(it.locationId) ?? "") : "Trip-wide"
       }
+      addDefaults={category === PRE_TRIP ? null : { category }}
+      tripId={tripId}
+      currentPersonId={currentPersonId}
       tripSlug={tripSlug}
       locations={locations}
       categories={categories}
@@ -197,13 +205,21 @@ export function RowDetail({
   planned,
   spent,
   plannedWhere,
+  addDefaults,
+  tripId,
+  currentPersonId,
   ...rest
 }: {
   planned: BudgetItem[]
   spent: Expense[]
   plannedWhere: (item: BudgetItem) => string
+  /** What a new expense from this row starts with; null hides "+ add expense". */
+  addDefaults: { category?: string; locationId?: string | null } | null
+  tripId: string
+  currentPersonId: string
 } & SpentListProps) {
-  const fmt = rest.fmt
+  const { fmt, tripSlug, locations, categories, members } = rest
+  const [adding, setAdding] = React.useState(false)
   const latest = spent
     .filter((e) => !e.isSettlement)
     .sort((a, b) =>
@@ -231,6 +247,28 @@ export function RowDetail({
         </DetailList>
       ) : null}
       {latest.length > 0 ? <SpentList expenses={latest} {...rest} /> : null}
+      {addDefaults === null ? null : adding ? (
+        <LogExpenseRow
+          tripId={tripId}
+          tripSlug={tripSlug}
+          currentPersonId={currentPersonId}
+          members={members}
+          locations={locations}
+          categories={categories}
+          initialCategory={addDefaults.category}
+          initialLocationId={addDefaults.locationId}
+          onClose={() => setAdding(false)}
+          className="rounded-lg bg-card px-3 py-3"
+        />
+      ) : (
+        <button
+          type="button"
+          onClick={() => setAdding(true)}
+          className="self-start font-mono text-[10px] uppercase tracking-[0.14em] text-sea hover:text-foreground"
+        >
+          + add expense
+        </button>
+      )}
     </div>
   )
 }

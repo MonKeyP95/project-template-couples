@@ -27,6 +27,11 @@ export interface LogExpenseRowProps {
   categories: ExpenseCategoryRow[]
   /** Cancel and the close button call this; saving keeps the form open for the next one. */
   onClose: () => void
+  /** Prefills, used when adding from a budget breakdown row. A category not in
+   * `categories` falls back to the default. */
+  initialCategory?: string
+  initialLocationId?: string | null
+  className?: string
 }
 
 export function LogExpenseRow({
@@ -37,10 +42,14 @@ export function LogExpenseRow({
   locations,
   categories,
   onClose,
+  initialCategory,
+  initialLocationId = null,
+  className = "bg-card px-5 py-4",
 }: LogExpenseRowProps) {
   const { spendCurrency: tripCurrency } = useCurrency()
   const initialDay = React.useMemo(() => deviceToday(), [])
   const defaultCategory =
+    categories.find((c) => c.name === initialCategory)?.name ??
     categories.find((c) => c.name === EXPENSE_CATEGORY_DEFAULT)?.name ??
     categories[0]?.name ??
     ""
@@ -50,8 +59,12 @@ export function LogExpenseRow({
   const [category, setCategory] = React.useState<string>(defaultCategory)
   const [paidBy, setPaidBy] = React.useState<string>(currentPersonId)
   const [dayDate, setDayDate] = React.useState<string | null>(initialDay)
-  const [locationId, setLocationId] = React.useState<string | null>(null)
-  const [expenseCurrency, setExpenseCurrency] = React.useState(tripCurrency)
+  const [locationId, setLocationId] = React.useState<string | null>(
+    initialLocationId,
+  )
+  const [expenseCurrency, setExpenseCurrency] = React.useState(
+    locations.find((l) => l.id === initialLocationId)?.currency ?? tripCurrency,
+  )
 
   /** Picking a location re-prefills the currency from it -- that is the whole
    * point of the location carrying one. Handled here rather than in an effect
@@ -133,7 +146,7 @@ export function LogExpenseRow({
       onKeyDown={(e) => {
         if (e.key === "Escape") collapse()
       }}
-      className="bg-card px-5 py-4"
+      className={className}
     >
       <div className="mb-3 flex items-center justify-between">
         <span className="font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground">

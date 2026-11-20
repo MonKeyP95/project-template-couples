@@ -24,7 +24,9 @@ import { BudgetRow, displayName, RowDetail } from "./budget-by-category"
 import type { MemberToneEntry } from "./packing-tab"
 
 interface Props {
+  tripId: string
   tripSlug: string
+  currentPersonId: string
   expenses: Expense[]
   budgetItems: BudgetItem[]
   locations: ItineraryLocation[]
@@ -34,7 +36,14 @@ interface Props {
   tripStarted: boolean
 }
 
-/** Read-only spent-vs-plan per place: Before you go, each place, Trip-wide.
+/** A new expense from a place row starts tagged to that place; Trip-wide
+ * starts untagged; Before you go has no add (Pre-trip isn't a log category). */
+function addDefaults(key: string): { locationId: string | null } | null {
+  if (key === "pretrip") return null
+  return { locationId: key === "trip" ? null : key }
+}
+
+/** Spent-vs-plan per place: Before you go, each place, Trip-wide.
  * Editing lives in the drafter; tap a row for its lines and spending. */
 export function BudgetByPlace(props: Props) {
   const { currency } = useCurrency()
@@ -71,6 +80,9 @@ export function BudgetByPlace(props: Props) {
             planned={props.budgetItems.filter((it) => itemPlaceKey(it) === line.key)}
             spent={props.expenses.filter((e) => expensePlaceKey(e, dayMap) === line.key)}
             plannedWhere={(it) => displayName(it.category)}
+            addDefaults={addDefaults(line.key)}
+            tripId={props.tripId}
+            currentPersonId={props.currentPersonId}
             tripSlug={props.tripSlug}
             locations={props.locations}
             categories={props.categories}

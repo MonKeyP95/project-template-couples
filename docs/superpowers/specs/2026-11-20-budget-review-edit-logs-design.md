@@ -10,10 +10,14 @@ comes later.
 - In an opened category (or place) row, tapping a spent line opens the ledger's
   own expense editor in place. Saving revalidates the trip, so a line whose
   category or place changed moves to its new row.
+- "+ add expense" in an opened row opens the add form prefilled with that
+  category (by category) or place (by place; Trip-wide = untagged). Not on
+  Before you go: Pre-trip isn't a log category. Added by the user after trying
+  slice 1: "more important to add".
 - "+ N more" becomes a tappable "show all N", so a multi-day review sees every
   expense.
 
-**Non-goals.** Adding expenses (stays "+ expense" / on-the-road mode). Editing
+**Non-goals.** Editing
 planned lines (slice 2). Editing a category total (no clean mapping to lines).
 
 **Approaches.** (A) The full ledger row inside the detail: too big nested on a
@@ -38,4 +42,7 @@ category-filtered ledger: leaves the review and needs a new filter.
 4. On a 2+ place trip, by place: change a line's place, it moves rows.
 5. A category with more than 5 expenses shows "show all N"; tapping lists all.
 6. Escape or × closes the form without saving.
+8. Open Food, "+ add expense": the form opens with Food picked; save adds it
+   to Food and the form stays open for the next one.
+9. By place, open a place, "+ add expense": the form has that place picked.
 7. Phone: the form fits inside the detail without horizontal scroll.
