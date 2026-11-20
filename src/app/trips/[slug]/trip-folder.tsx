@@ -2,18 +2,23 @@ import type { ReactNode } from "react"
 
 import { Label } from "@/components/together"
 
-/** Desktop "Trip folder" tab: documents, notes and the things-to-bring checklist;
- * `actions` sit right of the title, like the other tabs' toolbars. */
+/** Desktop "Trip folder" tab: `toolbar` right of the title, then two boxes side
+ * by side on wide screens (stacked below xl): documents with the things-to-bring
+ * checklist under them, and notes. */
 export function TripFolder({
+  toolbar,
   documents,
+  documentsCount,
   notes,
+  notesCount,
   checklist,
-  actions,
 }: {
+  toolbar: ReactNode
   documents: ReactNode
+  documentsCount: number
   notes: ReactNode
+  notesCount: number
   checklist: ReactNode
-  actions: ReactNode
 }) {
   return (
     <div className="flex flex-col">
@@ -21,25 +26,27 @@ export function TripFolder({
         <h2 className="mr-auto font-serif text-[40px] leading-none text-foreground">
           Trip <em className="text-sea">folder</em>
         </h2>
-        {actions}
+        {toolbar}
       </div>
-      <section className="lg:px-5">{documents}</section>
-      <FolderPart>{notes}</FolderPart>
-      <FolderPart label="Checklist">{checklist}</FolderPart>
+      <div className="grid items-start gap-4 px-5 pt-4 pb-8 lg:px-10 xl:grid-cols-2">
+        <FolderBox>
+          <Label>{`Documents · ${documentsCount}`}</Label>
+          <div className="-mx-5">{documents}</div>
+          <div className="mt-2 border-t border-border pt-5">
+            <Label>Checklist</Label>
+          </div>
+          <div className="-mx-5">{checklist}</div>
+        </FolderBox>
+        <FolderBox>
+          <Label>{`Notes · ${notesCount}`}</Label>
+          <div className="-mx-5">{notes}</div>
+        </FolderBox>
+      </div>
     </div>
   )
 }
 
-/** A divided part of the folder; `label` only when the part has no heading of its own. */
-function FolderPart({ label, children }: { label?: string; children: ReactNode }) {
-  return (
-    <section className="border-t border-border lg:px-5">
-      {label ? (
-        <div className="px-5 pt-5">
-          <Label>{label}</Label>
-        </div>
-      ) : null}
-      {children}
-    </section>
-  )
+/** A boxed folder column; `-mx-5` on its parts cancels their own phone padding so rows align with the label. */
+function FolderBox({ children }: { children: ReactNode }) {
+  return <section className="min-w-0 rounded-2xl border border-border bg-card p-5">{children}</section>
 }

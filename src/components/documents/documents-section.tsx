@@ -35,9 +35,13 @@ export function DocumentsSection({
   return (
     <div className="flex flex-col gap-2 px-5 pt-3 pb-4">
       {documents.length >= SEARCH_FROM ? <DocumentSearch query={query} onQueryChange={setQuery} /> : null}
-      {shown.map((doc) => (
-        <DocumentCard key={doc.id} doc={doc} tripSlug={tripSlug} nowMs={nowMs} />
-      ))}
+      {shown.length > 0 ? (
+        <div className="flex flex-col">
+          {shown.map((doc) => (
+            <DocumentCard key={doc.id} doc={doc} tripSlug={tripSlug} nowMs={nowMs} />
+          ))}
+        </div>
+      ) : null}
       {query && shown.length === 0 ? <NoMatch /> : null}
       {withAdd ? <AddDocumentButtons tripId={tripId} tripSlug={tripSlug} /> : null}
     </div>
@@ -71,7 +75,10 @@ function DocumentCard({
   }
 
   return (
-    <div className="flex items-center gap-3 rounded-[14px] border border-border bg-card p-3">
+    <div className="flex items-center gap-3 border-t border-rule py-2.5 first:border-t-0">
+      <span className="flex h-8 w-[26px] shrink-0 items-end justify-center rounded-[4px] border border-border bg-sand-tint pb-[3px] font-mono text-[8px] text-muted-foreground">
+        {doc.mimeType === "application/pdf" ? "PDF" : "IMG"}
+      </span>
       <button type="button" onClick={() => setOpen(true)} className="min-w-0 flex-1 text-left">
         <span className="block truncate text-[14px]">{documentTitle(doc)}</span>
         <span className="t-num block text-[13px] text-muted-foreground">
