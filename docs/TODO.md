@@ -11,6 +11,7 @@
   4. Dark mode: save buttons stay readable (light sea on dark text).
   5. Budget `+ expense` / `edit budget` are dusk, itinerary `+ day` / `+ location` sea, packing `My list` / `Shared` clay; the open or selected one is solid.
   6. Desktop trip folder: `take a photo` / `add documents` sit right of the "Trip folder" title in sand; none under Documents. Phone and on-the-road keep them under the list.
+  7. Desktop trip folder: no line and no "Documents" label between the title and the documents; one "Notes" heading (not two); Checklist keeps its label.
 
 **Budget bars show a %: implemented 2026-11-20; lint + `tsc` clean; verified in-app 2026-11-20; no migration.** The budget tab's main spent bar, the side card's Spent and Saved bars, and the on-the-road "Spent today" bar show the real percent at their right (can exceed 100%; the bar stays capped at full).
 
