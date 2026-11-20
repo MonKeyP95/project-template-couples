@@ -10,6 +10,7 @@ import {
   type FilledBudgetLine,
 } from "@/lib/ai/budget-actions"
 import {
+  addExpenseCategory,
   saveBudgetItems,
   savePreTripItems,
   type SaveBudgetItemInput,
@@ -20,6 +21,7 @@ import {
   type DayLocation,
 } from "@/lib/trips/location-budget-types"
 import type { ItineraryLocation } from "@/lib/trips/location-types"
+import type { ExpenseCategoryRow } from "@/lib/trips/expense-types"
 import { moneyInput, moneyRounded, currencySymbol } from "@/lib/money"
 import { useCurrency } from "@/components/currency-context"
 
@@ -30,8 +32,14 @@ import {
   PRE_TRIP_STEPS,
 } from "./budget-drafter-pretrip"
 import { BudgetDrafterList, type ListGroup } from "./budget-drafter-list"
+import { AddCategoryForm } from "./budget-drafter-add-category"
 import {
+  CATEGORY_BY_STEP,
+  extraStep,
   fromPlannedStep,
+  insertStep,
+  isMultiPlace,
+  scopeOf,
   stepFor,
   withLineSteps,
   type DraftStep,
@@ -127,6 +135,8 @@ export interface BudgetDrafterProps {
   itinerarySeeds: Record<string, string[]>
   /** Recommended buffer % + one-line reason, from the couple's history. */
   bufferRec: { pct: number; reason: string }
+  /** The trip's own categories, offered by "+ add a category". */
+  expenseCategories: ExpenseCategoryRow[]
   /** Shown at the top of the open drafter's box. */
   header: React.ReactNode
 }
@@ -143,6 +153,7 @@ export function BudgetDrafter({
   initialItems,
   itinerarySeeds,
   bufferRec,
+  expenseCategories,
   header,
 }: BudgetDrafterProps) {
   const { currency } = useCurrency()
@@ -693,6 +704,61 @@ export function BudgetDrafter({
     )
   }
 
+  /** The trip steps as list groups: one per place then Trip on a multi-place
+   * trip, else a single Trip group. The group names the place, so rows don't. */
+  function tripGroups(s: Session, amount: (cents: number) => string): ListGroup[] {
+    const row = (step: DraftStep) => ({
+      index: preCount + s.steps.indexOf(step),
+      label: step.title,
+      amount: amount(
+        (s.items[step.key] ?? []).reduce((n, r) => n + rowTotalCents(step.category, r), 0),
+      ),
+    })
+    const inScope = (scope: string | null) =>
+      s.steps.filter((st) => scopeOf(st.locationId, places) === scope).map(row)
+    if (!isMultiPlace(places)) return [{ title: "Trip", rows: s.steps.map(row) }]
+    return [
+      ...places.map((p) => ({ title: p.name, rows: inScope(p.id) })),
+      { title: "Trip", rows: inScope(null) },
+    ]
+  }
+
+  /** Opens the step for a category in a scope, creating it (and, for a new
+   * name, the trip category) first. Names match existing ones ignoring case. */
+  function addCategory(name: string, locationId: string | null) {
+    if (!session || isPending) return
+    const known = categoryNames()
+    const category = known.find((c) => c.toLowerCase() === name.toLowerCase()) ?? name
+    const isNew = !known.includes(category)
+    setError(null)
+    startTransition(async () => {
+      if (isNew) {
+        const r = await addExpenseCategory(tripId, tripSlug, category)
+        if (r.error) {
+          setError(r.error)
+          return
+        }
+      }
+      const existing = stepFor(session.steps, category, locationId, places)
+      const step = existing ?? extraStep(category, locationId, places)
+      const steps = existing ? session.steps : insertStep(session.steps, step, places)
+      const items = existing
+        ? session.items
+        : { ...session.items, [step.key]: [newRow(locationId)] }
+      setSession({ ...session, steps, items })
+      setStepIndex(preCount + steps.indexOf(step))
+    })
+  }
+
+  /** The fixed six plus the trip's own categories, without Pre-trip. */
+  function categoryNames(): string[] {
+    const names = [...Object.values(CATEGORY_BY_STEP)]
+    for (const c of expenseCategories) {
+      if (c.name !== PRE_TRIP_CATEGORY && !names.includes(c.name)) names.push(c.name)
+    }
+    return names
+  }
+
   function renderList() {
     const s = session!
     const amount = (cents: number) => (cents > 0 ? fmt(cents) : "")
@@ -708,16 +774,7 @@ export function BudgetDrafter({
           amount: amount((s.items[step.key] ?? []).reduce((n, r) => n + asCents(r.value), 0)),
         })),
       },
-      {
-        title: "Trip",
-        rows: s.steps.map((step, i) => ({
-          index: preCount + i,
-          label: step.place ? `${step.place} · ${step.title}` : step.title,
-          amount: amount(
-            (s.items[step.key] ?? []).reduce((n, r) => n + rowTotalCents(step.category, r), 0),
-          ),
-        })),
-      },
+      ...tripGroups(s, amount),
       {
         title: "Finish",
         rows: [
@@ -739,6 +796,14 @@ export function BudgetDrafter({
         onOpen={setStepIndex}
         onSave={apply}
         onCancel={() => setSession(null)}
+        footer={
+          <AddCategoryForm
+            categories={categoryNames()}
+            places={isMultiPlace(places) ? places : []}
+            disabled={isPending}
+            onAdd={addCategory}
+          />
+        }
       />
     )
   }

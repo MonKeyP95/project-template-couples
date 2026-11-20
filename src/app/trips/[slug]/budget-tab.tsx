@@ -201,6 +201,7 @@ export function BudgetTab({
       initialItems={budgetItems}
       itinerarySeeds={itinerarySeeds}
       bufferRec={bufferRec}
+      expenseCategories={expenseCategories}
       header={
         <AllocatedFigure
           allocatedCents={budgetItems.reduce((s, it) => s + it.amountCents, 0)}
