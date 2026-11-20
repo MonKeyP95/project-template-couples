@@ -129,17 +129,24 @@ export async function generateInvite(personId?: string): Promise<InviteResult> {
   return { url: `${PUBLIC_SITE_URL}/join/${token}` }
 }
 
+/** Mirrors the workspaces_home_country_length check in the migration. */
+const HOME_COUNTRY_MAX = 60
+
 /**
- * Sets the workspace's home currency. Existing trips keep the currency they
- * were created with -- only the next trip inherits this.
+ * Sets the workspace's home country and home currency. Existing trips keep the
+ * currency they were created with -- only the next trip inherits this.
  *
  * Wired straight to `<form action={...}>`, so it throws rather than returning
  * an error shape.
  */
-export async function setWorkspaceCurrency(formData: FormData): Promise<void> {
+export async function setWorkspaceHome(formData: FormData): Promise<void> {
   const currency = String(formData.get("currency") ?? "")
   if (!currencyOptions().some((o) => o.code === currency)) {
     throw new Error("Unknown currency")
+  }
+  const homeCountry = String(formData.get("home_country") ?? "").trim()
+  if (homeCountry.length > HOME_COUNTRY_MAX) {
+    throw new Error(`Keep it under ${HOME_COUNTRY_MAX} characters`)
   }
 
   const supabase = await createClient()
@@ -151,7 +158,31 @@ export async function setWorkspaceCurrency(formData: FormData): Promise<void> {
 
   const { error } = await supabase
     .from("workspaces")
-    .update({ currency })
+    .update({ currency, home_country: homeCountry })
+    .eq("id", membership.workspaceId)
+  if (error) throw new Error(error.message)
+
+  revalidatePath("/profile")
+}
+
+/** Mirrors the workspaces_description_length check in the migration. */
+const DESCRIPTION_MAX = 300
+
+/** Saves the couple's free-text description. Any member may edit it; the last
+ * save wins. Wired straight to `<form action={...}>`, so it throws. */
+export async function setWorkspaceDescription(formData: FormData): Promise<void> {
+  const description = String(formData.get("description") ?? "").trim()
+  if (description.length > DESCRIPTION_MAX) {
+    throw new Error(`Keep it under ${DESCRIPTION_MAX} characters`)
+  }
+
+  const membership = await resolveActiveMembership()
+  if (!membership) throw new Error("No workspace")
+
+  const supabase = await createClient()
+  const { error } = await supabase
+    .from("workspaces")
+    .update({ description })
     .eq("id", membership.workspaceId)
   if (error) throw new Error(error.message)
 

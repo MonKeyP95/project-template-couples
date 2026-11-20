@@ -4,6 +4,16 @@
 
 **Next up: work on the AI itinerary planner** (`itinerary-planner` agent, `src/lib/ai/agents/`). Noted 2026-11-03.
 
+**Profile in boxes + couple description + home country: implemented 2026-11-20; lint + `tsc` clean; `pnpm build` passes; unverified in app; MIGRATION `20261120000001_workspace_about.sql` must be pasted first (the branch breaks every page without it).** /profile is four boxes: About us (names, description, invite), What we like (the 4 categories), History (by trip + budget history), Basics (name, email, home country + currency). One column on the phone in that order; two columns on desktop (About + Likes + Basics left, History right). Header markers: About "empty"/"done", Likes "n of 4", Basics "add home country"/"done", in clay while incomplete. New `workspaces.description` (max 300) and `workspaces.home_country` (free text, max 60), editable by any member; `buildProfileBlock` feeds both to chat, suggestion, budget-planner, itinerary-planner and dispatch (not discover). In-app checks:
+  1. Phone: four boxes in order About us, What we like, Basics, History; no horizontal scroll.
+  2. Desktop: two columns, About us + What we like + Basics left, History right.
+  3. About us: write a description, save, reload: it stays, and the marker changes from clay "empty" to "done".
+  4. Your partner, on their own account, sees the same description and can change it.
+  5. Basics: set home country "Denmark" + currency, "Save home": both stay after reload; marker becomes "done".
+  6. What we like shows "n of 4"; filling Activities raises it by one.
+  7. History still shows by-trip rows (share, taste, journal, budget) and budget history; with no started trips it says "Your trips show up here once they start."
+  8. With "we hate early flights" in the description, ask the chat assistant to plan a travel day: the answer reflects it.
+
 **Edit trip button, share on profile, 24 MB PDFs: implemented 2026-11-20; lint + `tsc` clean; verified in-app 2026-11-20; merged #145; no migration.** "Edit trip" is an outlined button (phone + desktop); share moved off the trip header to the profile's By trip rows; PDF cap 10 MB -> 24 MB (Claude's readable limit). In-app checks:
   1. Profile, By trip: each trip shows "// share" right of its name; sharing gives a link that opens `/t/...`; Stop sharing works.
   2. Uploading a 15 MB PDF succeeds and gets read; a 30 MB one shows "PDF is over 24 MB."

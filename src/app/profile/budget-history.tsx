@@ -32,9 +32,10 @@ export function BudgetHistory({
 }) {
   if (categories.length === 0) return null
   return (
-    <div className="mt-10 border-t border-border pt-8">
-      <p className="text-sm text-muted-foreground">
-        Budget history (what our trips actually cost)
+    <div className="mt-6 border-t border-border pt-5">
+      <h3 className="font-serif text-lg tracking-tight">Across trips</h3>
+      <p className="mt-1 text-sm text-muted-foreground">
+        What each category costs us, averaged over our trips.
       </p>
       <p className="mt-1 font-mono text-[10px] text-muted-foreground">
         All figures in {currency}
