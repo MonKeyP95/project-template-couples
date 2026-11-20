@@ -72,7 +72,10 @@ export function MoneyCard({
             </div>
             {planned > 0 ? (
               <>
-                <Bar pct={pct} tone={over ? "clay" : "sea"} className="mt-3" />
+                <div className="mt-3 flex items-center gap-2">
+                  <Bar pct={pct} tone={over ? "clay" : "sea"} className="flex-1" />
+                  <span className="t-num font-mono text-[10px] text-muted-foreground">{pct}%</span>
+                </div>
                 <div className="mt-1.5 text-right font-mono text-[11px] text-muted-foreground">
                   {moneyRounded(Math.abs(planned - spentTodayCents), currency)}{" "}
                   {over ? "over today" : "left today"}
