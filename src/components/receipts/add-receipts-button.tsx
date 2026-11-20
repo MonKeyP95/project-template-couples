@@ -15,7 +15,12 @@ export interface AddReceiptsButtonProps {
   kind?: "receipt" | "document"
   /** Open the rear camera for one photo instead of the file picker. */
   camera?: boolean
+  /** Replaces the default button look, e.g. a tab's toolbar style. */
+  buttonClassName?: string
 }
+
+const BUTTON_CLASS =
+  "rounded-full border border-border bg-background px-4 py-2 font-mono text-[10px] uppercase tracking-[0.2em] text-foreground"
 
 /** Pick one or more photos/PDFs (or take one photo) and upload them one by one. */
 export function AddReceiptsButton({
@@ -25,6 +30,7 @@ export function AddReceiptsButton({
   label = "add receipts",
   kind = "receipt",
   camera = false,
+  buttonClassName = BUTTON_CLASS,
 }: AddReceiptsButtonProps) {
   const router = useRouter()
   const inputRef = React.useRef<HTMLInputElement>(null)
@@ -66,7 +72,7 @@ export function AddReceiptsButton({
         type="button"
         disabled={progress !== null}
         onClick={() => inputRef.current?.click()}
-        className="self-start rounded-full border border-border bg-background px-4 py-2 font-mono text-[10px] uppercase tracking-[0.2em] text-foreground disabled:opacity-40"
+        className={`self-start disabled:opacity-40 ${buttonClassName}`}
       >
         {progress ?? label}
       </button>

@@ -49,7 +49,7 @@ import {
   type DraftStep,
   type StepPlace,
 } from "./budget-drafter-steps"
-import { toolbarPill } from "./plan-itinerary"
+import { toolbarPill } from "./toolbar-pill"
 
 /** stepIndex value for edit mode's heading list. */
 const LIST = -1

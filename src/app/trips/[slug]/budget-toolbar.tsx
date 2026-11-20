@@ -5,7 +5,7 @@ import * as React from "react"
 import { AssistantPill, useAiMode } from "@/components/ai-mode"
 import { AssistantPanel } from "@/components/assistant-block"
 
-import { toolbarPill } from "./plan-itinerary"
+import { toolbarPill } from "./toolbar-pill"
 
 export type BudgetPanel = "expense" | "saved" | "settle"
 

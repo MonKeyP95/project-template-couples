@@ -3,7 +3,7 @@
 import * as React from "react"
 
 import { CheckRow, Coord, Label, SegBtn, TopoBg } from "@/components/together"
-import { toolbarPill } from "./plan-itinerary"
+import { toolbarPill } from "./toolbar-pill"
 import { AssistantBlock } from "@/components/assistant-block"
 import { BoxCard, BoxSection } from "@/components/collapsible-box"
 import { PlanningPlaceDoor } from "./find-a-place-planning"
