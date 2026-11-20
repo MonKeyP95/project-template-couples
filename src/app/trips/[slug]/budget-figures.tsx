@@ -149,8 +149,8 @@ export function SpentFigure({
   const fmt = (cents: number) => money(cents, currency)
   const hasPlanned = plannedBudgetCents > 0
   const leftCents = Math.max(0, plannedBudgetCents - spentCents)
-  const spentPct = hasPlanned
-    ? Math.min(100, Math.round((spentCents / plannedBudgetCents) * 100))
+  const usedPct = hasPlanned
+    ? Math.round((spentCents / plannedBudgetCents) * 100)
     : 0
 
   const savePlanned = (cents: number) =>
@@ -187,8 +187,11 @@ export function SpentFigure({
 
       {hasPlanned ? (
         <>
-          <div className="mt-3">
-            <Bar pct={spentPct} tone="sea" />
+          <div className="mt-3 flex items-center gap-2">
+            <Bar pct={usedPct} tone="sea" className="flex-1" />
+            <span className="t-num font-mono text-[10px] tracking-[0.06em] text-muted-foreground">
+              {usedPct}%
+            </span>
           </div>
           <div className="mt-1.5 font-mono text-[10px] tracking-[0.06em] text-muted-foreground">
             {fmt(leftCents)} left
