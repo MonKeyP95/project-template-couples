@@ -461,7 +461,7 @@ export function BudgetDrafter({
         const cents = rowTotalCents(bucketId, r)
         const whenLabel = [rangeLabel(r), r.when.trim()].filter(Boolean).join(" · ")
         lines.push({
-          serverId: r.serverId,
+          rowId: r.id,
           category,
           place,
           subject: r.subject.trim(),
@@ -473,30 +473,30 @@ export function BudgetDrafter({
     return lines
   }
 
-  /** Filled review lines -> bucket-keyed rows, matching by place name. */
-  function filledToItems(
+  /** Generate's results patched onto the rows they came from. Only the lines
+   * the assistant priced (or couldn't) change; typed prices stay as typed. */
+  function applyFills(
+    items: Record<string, ItemRow[]>,
     lines: FilledBudgetLine[],
   ): Record<string, ItemRow[]> {
-    const idByName = new Map(locations.map((l) => [l.name.trim().toLowerCase(), l.id]))
-    const fallback = locations[0]?.id ?? "trip"
+    const fills = new Map(
+      lines.filter((l) => l.estimated || l.priceUnknown).map((l) => [l.rowId, l]),
+    )
     const out: Record<string, ItemRow[]> = {}
-    for (const line of lines) {
-      const catKey = STEP_BY_CATEGORY[line.category]
-      if (!catKey) continue
-      const bucket = PER_LOCATION.has(catKey)
-        ? `${catKey}:${(line.place && idByName.get(line.place.trim().toLowerCase())) || fallback}`
-        : `${catKey}:trip`
-      ;(out[bucket] ??= []).push(
-        newRow({
-          serverId: line.serverId,
-          subject: line.subject,
-          when: line.whenLabel,
-          value: line.priceUnknown ? "" : moneyInput(line.amountCents),
-          estimated: line.estimated,
-          sourceUrl: line.sourceUrl,
-          priceUnknown: line.priceUnknown,
-        }),
-      )
+    for (const [key, rows] of Object.entries(items)) {
+      out[key] = rows.map((r) => {
+        const f = fills.get(r.id)
+        if (!f) return r
+        return {
+          ...r,
+          value: f.priceUnknown ? "" : moneyInput(f.amountCents),
+          estimated: f.estimated,
+          sourceUrl: f.sourceUrl,
+          priceUnknown: f.priceUnknown,
+          freq: "once",
+          count: 1,
+        }
+      })
     }
     return out
   }
@@ -518,14 +518,7 @@ export function BudgetDrafter({
         setError(r.error)
         return
       }
-      // The pre-trip buckets never went to the assistant, so they carry over as
-      // they are; filledToItems only ever emits category buckets.
-      setSession((s) => {
-        if (!s) return s
-        const kept: Record<string, ItemRow[]> = {}
-        for (const [k, v] of Object.entries(s.items)) if (isPreTripKey(k)) kept[k] = v
-        return { ...s, items: { ...kept, ...filledToItems(r.lines ?? []) } }
-      })
+      setSession((s) => (s ? { ...s, items: applyFills(s.items, r.lines ?? []) } : s))
       setGenerated(true)
     })
   }
