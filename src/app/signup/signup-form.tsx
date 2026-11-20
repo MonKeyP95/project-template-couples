@@ -64,7 +64,7 @@ export function SignUpForm({
       <button
         type="submit"
         disabled={isPending}
-        className="mt-8 w-full rounded-full border-0 bg-foreground py-3 font-mono text-[11px] uppercase tracking-[0.2em] text-background disabled:opacity-40"
+        className="mt-8 w-full rounded-full border-0 bg-sea py-3 font-mono text-[11px] uppercase tracking-[0.2em] text-background disabled:opacity-40"
       >
         {isPending ? "joining…" : submitLabel}
       </button>

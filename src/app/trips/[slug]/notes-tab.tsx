@@ -269,7 +269,7 @@ function AddNoteRow({
         <button
           type="submit"
           disabled={!body.trim() || isPending}
-          className="rounded-full border-0 bg-foreground px-3.5 py-1.5 font-mono text-[10px] uppercase tracking-[0.2em] text-background disabled:opacity-40"
+          className="rounded-full border-0 bg-sea px-3.5 py-1.5 font-mono text-[10px] uppercase tracking-[0.2em] text-background disabled:opacity-40"
         >
           {isPending ? "…" : "+ save"}
         </button>
@@ -463,7 +463,7 @@ function NoteEditor({
         <button
           type="submit"
           disabled={!body.trim() || isPending}
-          className="rounded-full border-0 bg-foreground px-3.5 py-1.5 font-mono text-[10px] uppercase tracking-[0.2em] text-background disabled:opacity-40"
+          className="rounded-full border-0 bg-sea px-3.5 py-1.5 font-mono text-[10px] uppercase tracking-[0.2em] text-background disabled:opacity-40"
         >
           {isPending ? "…" : "save"}
         </button>

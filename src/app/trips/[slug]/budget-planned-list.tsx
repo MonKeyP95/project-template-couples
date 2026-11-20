@@ -38,7 +38,7 @@ const INPUT_CLASS =
 const QUIET_BUTTON =
   "border-0 bg-transparent px-2 py-1.5 font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground hover:text-foreground disabled:opacity-40"
 const SAVE_BUTTON =
-  "rounded-full border-0 bg-foreground px-3.5 py-1.5 font-mono text-[10px] uppercase tracking-[0.2em] text-background disabled:opacity-40"
+  "rounded-full border-0 bg-sea px-3.5 py-1.5 font-mono text-[10px] uppercase tracking-[0.2em] text-background disabled:opacity-40"
 
 /** Cents from an amount field, or null when it isn't a non-negative number. */
 function parseCents(value: string): number | null {

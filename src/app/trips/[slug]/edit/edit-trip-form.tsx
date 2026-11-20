@@ -498,7 +498,7 @@ export function EditTripForm({
                 type="button"
                 onClick={() => save({ start: "move" })}
                 disabled={isPending}
-                className="rounded-full border-0 bg-foreground px-3.5 py-1.5 font-mono text-[10px] uppercase tracking-[0.18em] text-background disabled:opacity-40"
+                className="rounded-full border-0 bg-sea px-3.5 py-1.5 font-mono text-[10px] uppercase tracking-[0.18em] text-background disabled:opacity-40"
               >
                 move the plan
               </button>
@@ -534,7 +534,7 @@ export function EditTripForm({
                 type="button"
                 onClick={() => save({ start: askOutside.start, outside: "unplace" })}
                 disabled={isPending}
-                className="rounded-full border-0 bg-foreground px-3.5 py-1.5 font-mono text-[10px] uppercase tracking-[0.18em] text-background disabled:opacity-40"
+                className="rounded-full border-0 bg-sea px-3.5 py-1.5 font-mono text-[10px] uppercase tracking-[0.18em] text-background disabled:opacity-40"
               >
                 keep as unplaced
               </button>
@@ -570,7 +570,7 @@ export function EditTripForm({
           <button
             type="submit"
             disabled={!canSubmit}
-            className="rounded-full border-0 bg-foreground px-3.5 py-1.5 font-mono text-[10px] uppercase tracking-[0.2em] text-background disabled:opacity-40"
+            className="rounded-full border-0 bg-sea px-3.5 py-1.5 font-mono text-[10px] uppercase tracking-[0.2em] text-background disabled:opacity-40"
           >
             {isPending ? "…" : "save changes"}
           </button>

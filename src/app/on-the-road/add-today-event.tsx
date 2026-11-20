@@ -109,7 +109,7 @@ export function AddTodayEvent({
         <button
           type="submit"
           disabled={isPending || !text.trim()}
-          className="rounded-full border-0 bg-foreground px-3.5 py-1.5 font-mono text-[10px] uppercase tracking-[0.2em] text-background disabled:opacity-40"
+          className="rounded-full border-0 bg-sea px-3.5 py-1.5 font-mono text-[10px] uppercase tracking-[0.2em] text-background disabled:opacity-40"
         >
           {isPending ? "…" : "add event"}
         </button>

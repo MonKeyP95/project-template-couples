@@ -160,7 +160,7 @@ export function QuickExpense({
           <button
             type="submit"
             disabled={isPending || readingReceipt || !canSubmit}
-            className="rounded-full border-0 bg-foreground px-4 py-2 font-mono text-[10px] uppercase tracking-[0.2em] text-background disabled:opacity-40"
+            className="rounded-full border-0 bg-sea px-4 py-2 font-mono text-[10px] uppercase tracking-[0.2em] text-background disabled:opacity-40"
           >
             {isPending || readingReceipt ? "…" : "add"}
           </button>

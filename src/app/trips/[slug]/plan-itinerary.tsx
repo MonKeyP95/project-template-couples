@@ -455,7 +455,7 @@ export function PlanItinerary({
               type="button"
               onClick={startWalk}
               disabled={trimmedPlaces.length === 0 || !daysValid}
-              className="rounded-md border-0 bg-foreground px-3 py-1.5 font-mono text-[9.5px] uppercase tracking-[0.2em] text-background disabled:opacity-40"
+              className="rounded-full border-0 bg-sea px-3 py-1.5 font-mono text-[9.5px] uppercase tracking-[0.2em] text-background disabled:opacity-40"
             >
               next
             </button>
@@ -515,7 +515,7 @@ export function PlanItinerary({
               <button
                 type="button"
                 onClick={walkNext}
-                className="rounded-md border-0 bg-foreground px-3 py-1.5 font-mono text-[9.5px] uppercase tracking-[0.2em] text-background"
+                className="rounded-full border-0 bg-sea px-3 py-1.5 font-mono text-[9.5px] uppercase tracking-[0.2em] text-background"
               >
                 {isLast ? "review" : "next"}
               </button>
@@ -647,7 +647,7 @@ export function PlanItinerary({
             <button
               type="button"
               onClick={walkNext}
-              className="rounded-md border-0 bg-foreground px-3 py-1.5 font-mono text-[9.5px] uppercase tracking-[0.2em] text-background"
+              className="rounded-full border-0 bg-sea px-3 py-1.5 font-mono text-[9.5px] uppercase tracking-[0.2em] text-background"
             >
               {isLast ? "review" : "next"}
             </button>
@@ -719,7 +719,7 @@ export function PlanItinerary({
             type="button"
             onClick={generate}
             disabled={isPending}
-            className="rounded-md border-0 bg-foreground px-3 py-1.5 font-mono text-[9.5px] uppercase tracking-[0.2em] text-background disabled:opacity-40"
+            className="rounded-full border-0 bg-sea px-3 py-1.5 font-mono text-[9.5px] uppercase tracking-[0.2em] text-background disabled:opacity-40"
           >
             {isPending ? "Generating…" : "Generate"}
           </button>

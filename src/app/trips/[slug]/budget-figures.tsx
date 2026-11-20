@@ -114,7 +114,7 @@ function AmountField({
       <button
         type="submit"
         disabled={isPending}
-        className="rounded-full border-0 bg-foreground px-2.5 py-1 font-mono text-[9px] uppercase tracking-[0.2em] text-background disabled:opacity-40"
+        className="rounded-full border-0 bg-sea px-2.5 py-1 font-mono text-[9px] uppercase tracking-[0.2em] text-background disabled:opacity-40"
       >
         {isPending ? "…" : additive ? "add" : "save"}
       </button>
@@ -485,7 +485,7 @@ function MemberSavedBox({
             type="button"
             onClick={() => commit(Math.round(Number(value) * 100))}
             disabled={isPending}
-            className="rounded-full border-0 bg-foreground px-2.5 py-1 font-mono text-[9px] uppercase tracking-[0.2em] text-background disabled:opacity-40"
+            className="rounded-full border-0 bg-sea px-2.5 py-1 font-mono text-[9px] uppercase tracking-[0.2em] text-background disabled:opacity-40"
           >
             {isPending ? "…" : "confirm"}
           </button>
@@ -535,7 +535,7 @@ function MemberSavedBox({
           <button
             type="submit"
             disabled={isPending}
-            className="rounded-full border-0 bg-foreground px-2.5 py-1 font-mono text-[9px] uppercase tracking-[0.2em] text-background disabled:opacity-40"
+            className="rounded-full border-0 bg-sea px-2.5 py-1 font-mono text-[9px] uppercase tracking-[0.2em] text-background disabled:opacity-40"
           >
             {isPending ? "…" : "add"}
           </button>

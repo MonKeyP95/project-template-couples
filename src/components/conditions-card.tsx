@@ -199,7 +199,7 @@ function AddToPlan({
           <button
             type="button"
             onClick={() => setStep("form")}
-            className="rounded-full border-0 bg-foreground px-3 py-1 font-mono text-[10px] uppercase tracking-[0.2em] text-background"
+            className="rounded-full border-0 bg-sea px-3 py-1 font-mono text-[10px] uppercase tracking-[0.2em] text-background"
           >
             yes
           </button>

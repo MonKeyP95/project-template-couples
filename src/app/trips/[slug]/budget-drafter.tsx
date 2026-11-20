@@ -1022,7 +1022,7 @@ export function BudgetDrafter({
               <button
                 type="button"
                 onClick={() => setStepIndex((s) => s + 1)}
-                className="rounded-md border-0 bg-foreground px-3 py-1.5 font-mono text-[9.5px] uppercase tracking-[0.2em] text-background"
+                className="rounded-full border-0 bg-sea px-3 py-1.5 font-mono text-[9.5px] uppercase tracking-[0.2em] text-background"
               >
                 next
               </button>
@@ -1100,7 +1100,7 @@ export function BudgetDrafter({
               <button
                 type="button"
                 onClick={goNext}
-                className="rounded-md border-0 bg-foreground px-3 py-1.5 font-mono text-[9.5px] uppercase tracking-[0.2em] text-background"
+                className="rounded-full border-0 bg-sea px-3 py-1.5 font-mono text-[9.5px] uppercase tracking-[0.2em] text-background"
               >
                 next
               </button>
@@ -1172,7 +1172,7 @@ export function BudgetDrafter({
               <button
                 type="button"
                 onClick={() => setStepIndex(reviewIndex)}
-                className="rounded-md border-0 bg-foreground px-3 py-1.5 font-mono text-[9.5px] uppercase tracking-[0.2em] text-background"
+                className="rounded-full border-0 bg-sea px-3 py-1.5 font-mono text-[9.5px] uppercase tracking-[0.2em] text-background"
               >
                 review
               </button>
@@ -1415,7 +1415,7 @@ export function BudgetDrafter({
             type="button"
             onClick={apply}
             disabled={isPending}
-            className="rounded-md border-0 bg-foreground px-3 py-1.5 font-mono text-[9.5px] uppercase tracking-[0.2em] text-background disabled:opacity-40"
+            className="rounded-full border-0 bg-sea px-3 py-1.5 font-mono text-[9.5px] uppercase tracking-[0.2em] text-background disabled:opacity-40"
           >
             apply
           </button>
