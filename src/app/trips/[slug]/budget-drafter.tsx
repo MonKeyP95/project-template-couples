@@ -3,7 +3,7 @@
 import * as React from "react"
 
 import { Label } from "@/components/together"
-import { planBudgetSteps, type BudgetStep } from "@/lib/ai/budget-planner"
+import { planBudgetSteps } from "@/lib/ai/budget-planner"
 import {
   draftAndFillBudget,
   type EnteredLine,
@@ -24,13 +24,19 @@ import { moneyInput, moneyRounded, currencySymbol } from "@/lib/money"
 import { useCurrency } from "@/components/currency-context"
 
 import {
-  isPreTripKey,
   preTripBucketFor,
   PreTripStepBody,
   PRE_TRIP_CATEGORY,
   PRE_TRIP_STEPS,
 } from "./budget-drafter-pretrip"
 import { BudgetDrafterList, type ListGroup } from "./budget-drafter-list"
+import {
+  fromPlannedStep,
+  stepFor,
+  withLineSteps,
+  type DraftStep,
+  type StepPlace,
+} from "./budget-drafter-steps"
 import { toolbarPill } from "./plan-itinerary"
 
 /** stepIndex value for edit mode's heading list. */
@@ -61,18 +67,27 @@ interface ItemRow {
   sourceUrl?: string | null
   /** The assistant couldn't price this; value stays "". */
   priceUnknown?: boolean
-  /** Persisted item id, for pre-trip rows that round-tripped from the budget. */
+  /** Persisted item id, for rows that round-tripped from the budget. */
   serverId?: string
+  /** The line's own place; null = trip-wide. A step only sets it for new rows. */
+  locationId: string | null
+}
+
+/** A saved line, with what the drafter needs to find its step. */
+interface SavedLine {
+  category: string
+  locationId: string | null
+  row: Partial<ItemRow>
 }
 
 /** Units a dated range spans: nights for accommodation (12->14 = 2), inclusive
  * days for everything else (day 1->5 = 5). Min 1; 1 for a bad/single range. */
-function spanCount(catKey: string, start: string, end: string): number {
+function spanCount(category: string, start: string, end: string): number {
   const s = Date.parse(`${start}T00:00:00Z`)
   const e = Date.parse(`${end}T00:00:00Z`)
   if (!Number.isFinite(s) || !Number.isFinite(e) || e < s) return 1
   const nights = Math.round((e - s) / 86_400_000)
-  return catKey === "accommodation" ? Math.max(1, nights) : Math.max(1, nights + 1)
+  return category === "Accommodation" ? Math.max(1, nights) : Math.max(1, nights + 1)
 }
 
 function fmtDate(d: string): string {
@@ -89,31 +104,13 @@ function rangeLabel(row: ItemRow): string {
 }
 
 interface Session {
-  steps: BudgetStep[]
+  steps: DraftStep[]
   /** bucket id (`${stepKey}:${locId|trip}`) -> rows. */
   items: Record<string, ItemRow[]>
   /** Saved category lines this session loaded (buffer included): the only
    * lines Apply may delete. */
   loadedIds: string[]
 }
-
-const CATEGORY_BY_STEP: Record<string, string> = {
-  accommodation: "Accommodation",
-  transport: "Transportation",
-  food: "Food",
-  groceries: "Groceries",
-  activities: "Activities",
-  other: "Other",
-}
-const STEP_BY_CATEGORY: Record<string, string> = {
-  Accommodation: "accommodation",
-  Transportation: "transport",
-  Food: "food",
-  Groceries: "groceries",
-  Activities: "activities",
-  Other: "other",
-}
-const PER_LOCATION = new Set(["accommodation", "food", "groceries", "activities"])
 
 export interface BudgetDrafterProps {
   tripId: string
@@ -161,45 +158,57 @@ export function BudgetDrafter({
   const itemSeq = React.useRef(0)
 
   const totalDays = tripDays > 0 ? tripDays : itineraryDays.length
+  const places: StepPlace[] = locations.map((l) => ({ id: l.id, name: l.name }))
   if (totalDays === 0 && locations.length === 0) return null
 
   const preCount = PRE_TRIP_STEPS.length
   const bufferIndex = session ? preCount + session.steps.length : 0
   const reviewIndex = bufferIndex + 1
 
-  function newRow(fields: Partial<ItemRow> = {}): ItemRow {
-    return { id: `it-${itemSeq.current++}`, subject: "", when: "", value: "", freq: "once", count: 1, ...fields }
+  function newRow(locationId: string | null, fields: Partial<ItemRow> = {}): ItemRow {
+    return {
+      id: `it-${itemSeq.current++}`,
+      subject: "",
+      when: "",
+      value: "",
+      freq: "once",
+      count: 1,
+      locationId,
+      ...fields,
+    }
   }
 
-  /** Day-slots for a bucket: the location's dated days, or the whole trip for a
-   * trip-wide bucket; falls back to the whole trip when a location has none. */
-  function bucketDays(bucketId: string): number {
-    const locKey = bucketId.split(":")[1]
-    if (!locKey || locKey === "trip") return totalDays
+  function stepByKey(key: string): DraftStep | undefined {
+    return session?.steps.find((s) => s.key === key)
+  }
+
+  /** Day-slots for a line: its place's dated days, or the whole trip for a
+   * trip-wide line; falls back to the whole trip when a place has none. */
+  function placeDays(locationId: string | null): number {
+    if (!locationId) return totalDays
     let n = 0
-    for (const d of itineraryDays) if (d.locationId === locKey) n++
+    for (const d of itineraryDays) if (d.locationId === locationId) n++
     return n || totalDays
   }
 
   /** The multiplier for a row: once -> 1, times -> a dated span or the count,
    * daily -> day-slots (nights for accommodation, inclusive days otherwise). */
-  function resolveQty(bucketId: string, row: ItemRow): number {
-    const catKey = bucketId.split(":")[0]
+  function resolveQty(category: string, row: ItemRow): number {
     const freq = row.freq ?? "once"
     if (freq === "daily") {
-      const days = bucketDays(bucketId)
-      return catKey === "accommodation" ? Math.max(1, days - 1) : Math.max(1, days)
+      const days = placeDays(row.locationId)
+      return category === "Accommodation" ? Math.max(1, days - 1) : Math.max(1, days)
     }
     if (freq === "times") {
-      if (row.whenStart && row.whenEnd) return spanCount(catKey, row.whenStart, row.whenEnd)
+      if (row.whenStart && row.whenEnd) return spanCount(category, row.whenStart, row.whenEnd)
       return Math.max(1, row.count ?? 1)
     }
     return 1
   }
 
   /** A row's total in cents: per-unit value times its resolved quantity. */
-  function rowTotalCents(bucketId: string, row: ItemRow): number {
-    return asCents(row.value) * resolveQty(bucketId, row)
+  function rowTotalCents(category: string, row: ItemRow): number {
+    return asCents(row.value) * resolveQty(category, row)
   }
 
   /** Unit hint shown after the price input. */
@@ -230,25 +239,12 @@ export function BudgetDrafter({
     return { locInput, nameById }
   }
 
-  /** Existing budget items -> saved rows per bucket (drops the derived buffer
-   * line; keeps marks and ids). Per-location items on a missing place fall to
-   * the first. Lines the steps can't hold are skipped, so Apply leaves them be:
-   * custom categories, and a place-tagged line in a trip-wide step. */
-  function savedRows(): Record<string, Partial<ItemRow>[]> {
-    const ids = new Set(locations.map((l) => l.id))
-    const fallback = locations[0]?.id ?? "trip"
-    const out: Record<string, Partial<ItemRow>[]> = {}
+  /** Every saved trip line (not the derived buffer, not Pre-trip), keeping its
+   * own category, place, marks and id. Each gets a step; none is moved. */
+  function savedRows(): SavedLine[] {
+    const out: SavedLine[] = []
     for (const it of initialItems) {
-      if (isBufferSubject(it.subject)) continue
-      const catKey = STEP_BY_CATEGORY[it.category]
-      if (!catKey) continue
-      if (it.locationId && !PER_LOCATION.has(catKey)) continue
-      const locKey = PER_LOCATION.has(catKey)
-        ? it.locationId && ids.has(it.locationId)
-          ? it.locationId
-          : fallback
-        : "trip"
-      const bucketId = `${catKey}:${locKey}`
+      if (isBufferSubject(it.subject) || it.category === PRE_TRIP_CATEGORY) continue
       // Pre-how-often rows stored a dated range under the default freq; treat them as times.
       const freq: ItemRow["freq"] =
         it.freq === "times" || it.freq === "daily"
@@ -265,12 +261,14 @@ export function BudgetDrafter({
         count: it.count || 1,
         whenStart: it.whenStart ?? "",
         whenEnd: it.whenEnd ?? "",
+        locationId: it.locationId,
       }
       // A stored line holds the total; divide back to the per-unit value.
-      const qty = resolveQty(bucketId, rowLike)
+      const qty = resolveQty(it.category, rowLike)
       const per = qty > 1 ? Math.round(it.amountCents / qty) : it.amountCents
-      ;(out[bucketId] ??= []).push({
+      out.push({ category: it.category, locationId: it.locationId, row: {
         serverId: it.id,
+        locationId: it.locationId,
         subject: it.subject,
         when: it.whenLabel,
         value: it.priceUnknown ? "" : per ? moneyInput(per) : "",
@@ -281,7 +279,7 @@ export function BudgetDrafter({
         estimated: it.estimated,
         sourceUrl: it.sourceUrl,
         priceUnknown: it.priceUnknown,
-      })
+      } })
     }
     return out
   }
@@ -312,22 +310,15 @@ export function BudgetDrafter({
     return Number.isFinite(n) ? n : null
   }
 
-  /** A first plan's seed: lines already saved (e.g. suggestion costs) first,
-   * then itinerary items not already among them, so the save keeps both. */
-  function seedFromItinerary(): Record<string, Partial<ItemRow>[]> {
-    const out = savedRows()
-    for (const [bucket, subjects] of Object.entries(itinerarySeeds)) {
-      const rows = (out[bucket] ??= [])
-      const have = new Set(rows.map((r) => (r.subject ?? "").trim().toLowerCase()))
-      for (const subject of subjects) {
-        if (!have.has(subject.toLowerCase())) rows.push({ subject })
-      }
-    }
-    return out
-  }
-
-  function seedSession(seed: Record<string, Partial<ItemRow>[]>, pct: number, startIndex: number) {
-    const steps = planBudgetSteps({
+  /** Saved lines each go to their step; on a first plan, itinerary items not
+   * already among a step's lines follow, so the save keeps both. */
+  function seedSession(
+    saved: SavedLine[],
+    seeds: Record<string, string[]>,
+    pct: number,
+    startIndex: number,
+  ) {
+    const planned = planBudgetSteps({
       tripName,
       totalDays,
       memberCount,
@@ -338,32 +329,47 @@ export function BudgetDrafter({
         dateLabel: l.dateLabel,
       })),
     })
+    const steps = withLineSteps(
+      planned.map((s) => fromPlannedStep(s, places)),
+      saved,
+      places,
+    )
     const items: Record<string, ItemRow[]> = {}
+    for (const l of saved) {
+      const step = stepFor(steps, l.category, l.locationId, places)!
+      ;(items[step.key] ??= []).push(newRow(l.locationId, l.row))
+    }
+    for (const [key, subjects] of Object.entries(seeds)) {
+      const step = steps.find((s) => s.key === key)
+      if (!step) continue
+      const rows = (items[key] ??= [])
+      const have = new Set(rows.map((r) => r.subject.trim().toLowerCase()))
+      for (const subject of subjects) {
+        if (!have.has(subject.toLowerCase())) rows.push(newRow(step.locationId, { subject }))
+      }
+    }
     for (const step of steps) {
-      const rows = (seed[step.key] ?? []).map((r) => newRow(r))
-      items[step.key] = rows.length > 0 ? rows : [newRow()]
+      if (!items[step.key]?.length) items[step.key] = [newRow(step.locationId)]
     }
     // Pre-trip buckets always come from what's saved: there is nothing in the
     // itinerary to seed them from.
     const pre = savedPreTripRows()
     for (const step of PRE_TRIP_STEPS) {
       const rows = (pre[step.key] ?? []).map((r) =>
-        newRow({ subject: step.fixedSubject ?? "", ...r }),
+        newRow(null, { subject: step.fixedSubject ?? "", ...r }),
       )
       items[step.key] =
         rows.length > 0
           ? rows
           : step.fixedSubject === null
             ? []
-            : [newRow({ subject: step.fixedSubject })]
+            : [newRow(null, { subject: step.fixedSubject })]
     }
     setError(null)
     setGenerated(false)
     setBufferPct(pct)
     setStepIndex(startIndex)
-    const loadedIds = Object.values(seed)
-      .flat()
-      .flatMap((r) => (r.serverId ? [r.serverId] : []))
+    const loadedIds = saved.flatMap((l) => (l.row.serverId ? [l.row.serverId] : []))
     const buffer = initialItems.find((i) => isBufferSubject(i.subject))
     if (buffer) loadedIds.push(buffer.id)
     setSession({ steps, items, loadedIds })
@@ -373,16 +379,17 @@ export function BudgetDrafter({
   function open() {
     const restore = plannedBudgetCents > 0
     setFromList(restore)
-    if (restore) seedSession(savedRows(), savedBufferPct() ?? 0, LIST)
-    else seedSession(seedFromItinerary(), bufferRec.pct, 0)
+    if (restore) seedSession(savedRows(), {}, savedBufferPct() ?? 0, LIST)
+    else seedSession(savedRows(), itinerarySeeds, bufferRec.pct, 0)
   }
 
   function addItem(bucketId: string, fields: Partial<ItemRow> = {}) {
+    const row = newRow(stepByKey(bucketId)?.locationId ?? null, fields)
     setSession((s) =>
       s
         ? {
             ...s,
-            items: { ...s.items, [bucketId]: [...(s.items[bucketId] ?? []), newRow(fields)] },
+            items: { ...s.items, [bucketId]: [...(s.items[bucketId] ?? []), row] },
           }
         : s,
     )
@@ -424,7 +431,7 @@ export function BudgetDrafter({
   }
 
   /** Leaving a category step: drop rows that are entirely empty. */
-  function normalizeStep(step: BudgetStep) {
+  function normalizeStep(step: DraftStep) {
     setSession((s) => {
       if (!s) return s
       const rows = (s.items[step.key] ?? []).filter(
@@ -450,20 +457,15 @@ export function BudgetDrafter({
   function collectLines(s: Session): EnteredLine[] {
     const { nameById } = locContext()
     const lines: EnteredLine[] = []
-    for (const [bucketId, rows] of Object.entries(s.items)) {
-      if (isPreTripKey(bucketId)) continue
-      const [stepKey, locKey] = bucketId.split(":")
-      const category = CATEGORY_BY_STEP[stepKey]
-      if (!category) continue
-      const place = locKey && locKey !== "trip" ? nameById[locKey] ?? "" : ""
-      for (const r of rows) {
+    for (const step of s.steps) {
+      for (const r of s.items[step.key] ?? []) {
         if (r.subject.trim() === "" && r.value.trim() === "") continue
-        const cents = rowTotalCents(bucketId, r)
+        const cents = rowTotalCents(step.category, r)
         const whenLabel = [rangeLabel(r), r.when.trim()].filter(Boolean).join(" · ")
         lines.push({
           rowId: r.id,
-          category,
-          place,
+          category: step.category,
+          place: r.locationId ? (nameById[r.locationId] ?? "") : "",
           subject: r.subject.trim(),
           whenLabel,
           amountEuros: cents > 0 ? cents / 100 : null,
@@ -526,9 +528,8 @@ export function BudgetDrafter({
   /** The trip-category subtotal — the base the buffer is a percentage of. */
   function subtotalCents(s: Session): number {
     let sum = 0
-    for (const [bucketId, rows] of Object.entries(s.items)) {
-      if (isPreTripKey(bucketId)) continue
-      for (const r of rows) sum += rowTotalCents(bucketId, r)
+    for (const step of s.steps) {
+      for (const r of s.items[step.key] ?? []) sum += rowTotalCents(step.category, r)
     }
     return sum
   }
@@ -554,22 +555,17 @@ export function BudgetDrafter({
   function apply() {
     if (!session || isPending) return
     const items: SaveBudgetItemInput[] = []
-    for (const [bucketId, rows] of Object.entries(session.items)) {
-      if (isPreTripKey(bucketId)) continue
-      const [stepKey, locKey] = bucketId.split(":")
-      const category = CATEGORY_BY_STEP[stepKey]
-      if (!category) continue
-      const locationId = locKey && locKey !== "trip" ? locKey : null
-      for (const r of rows) {
-        const cents = rowTotalCents(bucketId, r)
+    for (const step of session.steps) {
+      for (const r of session.items[step.key] ?? []) {
+        const cents = rowTotalCents(step.category, r)
         if (r.subject.trim() === "" && cents === 0 && !r.priceUnknown) continue
         items.push({
           id: r.serverId,
-          category,
+          category: step.category,
           subject: r.subject,
           whenLabel: r.when,
           amountCents: cents,
-          locationId,
+          locationId: r.locationId,
           whenStart: r.whenStart || null,
           whenEnd: r.whenEnd || null,
           estimated: r.estimated ?? false,
@@ -718,7 +714,7 @@ export function BudgetDrafter({
           index: preCount + i,
           label: step.place ? `${step.place} · ${step.title}` : step.title,
           amount: amount(
-            (s.items[step.key] ?? []).reduce((n, r) => n + rowTotalCents(step.key, r), 0),
+            (s.items[step.key] ?? []).reduce((n, r) => n + rowTotalCents(step.category, r), 0),
           ),
         })),
       },
@@ -913,7 +909,7 @@ export function BudgetDrafter({
     )
   }
 
-  function renderStep(step: BudgetStep) {
+  function renderStep(step: DraftStep) {
     return (
       <>
         <div className="flex items-center justify-between">
@@ -1064,7 +1060,7 @@ export function BudgetDrafter({
   }
 
   function renderReview() {
-    const lines: { bucketId: string; row: ItemRow; primary: string }[] = []
+    const lines: { bucketId: string; category: string; row: ItemRow; primary: string }[] = []
     for (const step of session!.steps) {
       for (const row of session!.items[step.key] ?? []) {
         const subject = row.subject.trim()
@@ -1073,7 +1069,7 @@ export function BudgetDrafter({
             ? `${step.place} · ${subject}`
             : `${step.place} · ${step.title}`
           : subject || step.title
-        lines.push({ bucketId: step.key, row, primary })
+        lines.push({ bucketId: step.key, category: step.category, row, primary })
       }
     }
     const subtotal = subtotalCents(session!)
@@ -1164,8 +1160,8 @@ export function BudgetDrafter({
               Nothing added yet
             </div>
           ) : (
-            lines.map(({ bucketId, row, primary }) => {
-              const qty = resolveQty(bucketId, row)
+            lines.map(({ bucketId, category, row, primary }) => {
+              const qty = resolveQty(category, row)
               const freq = row.freq ?? "once"
               const qtyLabel =
                 freq === "daily"
@@ -1236,7 +1232,7 @@ export function BudgetDrafter({
                     />
                     {multi ? (
                       <span className="font-mono text-[9px] text-muted-foreground">
-                        × {qty} = {fmt(rowTotalCents(bucketId, row))}
+                        × {qty} = {fmt(rowTotalCents(category, row))}
                       </span>
                     ) : null}
                   </span>
