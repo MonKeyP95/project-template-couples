@@ -32,8 +32,8 @@ import { BudgetDrafter } from "./budget-drafter"
 import { BudgetToolbar, type BudgetPanel } from "./budget-toolbar"
 import { BudgetScopeEditor } from "./budget-scope-editor"
 import { PlanningPlaceDoor } from "./find-a-place-planning"
-import type { BudgetItem } from "@/lib/trips/budget-item-types"
-import { AllocatedFigure, SavedFigure, SpentFigure } from "./budget-figures"
+import { isBufferSubject, type BudgetItem } from "@/lib/trips/budget-item-types"
+import { PlannedRoom, SavedFigure, SpentFigure } from "./budget-figures"
 import { Ledger } from "./budget-ledger"
 import { LogExpenseRow } from "./log-expense-row"
 import type { MemberToneEntry } from "./packing-tab"
@@ -188,6 +188,11 @@ export function BudgetTab({
     return settle
   }
 
+  // The buffer is unplanned room by design, so it is not "planned".
+  const plannedLinesCents = budgetItems
+    .filter((it) => !isBufferSubject(it.subject))
+    .reduce((s, it) => s + it.amountCents, 0)
+
   const drafter = (
     <BudgetDrafter
       tripId={tripId}
@@ -203,9 +208,10 @@ export function BudgetTab({
       bufferRec={bufferRec}
       expenseCategories={expenseCategories}
       header={
-        <AllocatedFigure
-          allocatedCents={budgetItems.reduce((s, it) => s + it.amountCents, 0)}
+        <PlannedRoom
+          plannedCents={plannedLinesCents}
           plannedBudgetCents={plannedBudgetCents}
+          className="px-5 pt-3"
         />
       }
     />
@@ -249,6 +255,11 @@ export function BudgetTab({
             plannedBudgetCents={plannedBudgetCents}
             hasUnconfirmed={hasUnconfirmed}
             pace={pace}
+          />
+          <PlannedRoom
+            plannedCents={plannedLinesCents}
+            plannedBudgetCents={plannedBudgetCents}
+            className="mt-1"
           />
           <BudgetByCategory
             expenses={expenses}

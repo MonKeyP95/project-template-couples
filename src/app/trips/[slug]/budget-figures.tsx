@@ -208,31 +208,32 @@ export function SpentFigure({
   )
 }
 
-/** How much of the couple's estimate the budget lines take up. Renders nothing
- * without an estimate or without lines. */
-export function AllocatedFigure({
-  allocatedCents,
+/** The planned lines against the budget, and the room no line covers yet.
+ * `plannedCents` leaves out the buffer, which is unplanned room by design.
+ * Renders nothing without a budget or without lines. */
+export function PlannedRoom({
+  plannedCents,
   plannedBudgetCents,
+  className = "",
 }: {
-  allocatedCents: number
+  plannedCents: number
   plannedBudgetCents: number
+  className?: string
 }) {
   const { currency } = useCurrency()
-  if (plannedBudgetCents <= 0 || allocatedCents <= 0) return null
+  if (plannedBudgetCents <= 0 || plannedCents <= 0) return null
   const fmt = (cents: number) => money(cents, currency)
-  const overCents = allocatedCents - plannedBudgetCents
-  const pct = Math.round((allocatedCents / plannedBudgetCents) * 100)
+  const roomCents = plannedBudgetCents - plannedCents
   return (
-    <div className="px-5 pt-2 pb-1">
-      <Bar pct={pct} tone={overCents > 0 ? "clay" : "sea"} />
-      <div className="mt-1.5 flex justify-between font-mono text-[10px] tracking-[0.06em] text-muted-foreground">
-        <span>
-          {fmt(allocatedCents)} of {fmt(plannedBudgetCents)} allocated · {pct}%
-        </span>
-        {overCents > 0 ? (
-          <span className="text-clay">{fmt(overCents)} over your estimate</span>
-        ) : null}
-      </div>
+    <div
+      className={`font-mono text-[10px] tracking-[0.06em] ${
+        roomCents < 0 ? "text-clay" : "text-muted-foreground"
+      } ${className}`}
+    >
+      planned {fmt(plannedCents)} ·{" "}
+      {roomCents < 0
+        ? `${fmt(-roomCents)} over your budget`
+        : `${fmt(roomCents)} unplanned room`}
     </div>
   )
 }
