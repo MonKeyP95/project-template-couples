@@ -179,12 +179,18 @@ export function FolderMini({
   return (
     <>
       {documents.slice(0, 3).map((doc) => (
-        <div key={doc.id} className="flex items-center gap-2.5 text-[12px]">
+        <a
+          key={doc.id}
+          href={doc.url}
+          target="_blank"
+          rel="noreferrer"
+          className="flex items-center gap-2.5 text-[12px] hover:text-sea"
+        >
           <span className="flex h-8 w-[26px] shrink-0 items-end justify-center rounded-[4px] border border-border bg-sand-tint pb-[3px] font-mono text-[8px] text-muted-foreground">
             {doc.mimeType === "application/pdf" ? "PDF" : "IMG"}
           </span>
-          <span className="min-w-0 truncate text-foreground">{documentTitle(doc)}</span>
-        </div>
+          <span className="min-w-0 truncate">{documentTitle(doc)}</span>
+        </a>
       ))}
       {notes[0] ? (
         <p className="line-clamp-3 rounded-[12px] border border-border bg-sand-tint p-2.5 text-[12px] leading-snug text-foreground">

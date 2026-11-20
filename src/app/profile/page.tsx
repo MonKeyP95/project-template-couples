@@ -36,6 +36,8 @@ import { TripBudget } from "./trip-budget"
 import { getTripJournal } from "@/lib/journal/journal-queries"
 import { TripJournal } from "./trip-journal"
 import { InviteTraveller } from "./invite-traveller"
+import { getTripShareState } from "@/lib/trips/shared-trip-queries"
+import { ShareTripDialog } from "@/components/share-trip-dialog"
 
 const CATEGORY_LABEL: Record<LearnedCategory, string> = {
   food: "Food",
@@ -111,19 +113,22 @@ export default async function ProfilePage() {
       .filter((s) => pastTripIds.has(s.tripId))
       .map((s) => [s.tripId, s]),
   )
-  const byTripRows = startedTrips
-    .filter(
-      (t) =>
-        tasteByTrip.has(t.id) ||
-        budgetByTrip.has(t.id) ||
-        journalByTrip.has(t.id),
-    )
-    .map((t) => ({
-      trip: t,
-      blocks: tasteByTrip.get(t.id) ?? [],
-      budget: budgetByTrip.get(t.id) ?? null,
-      journal: journalByTrip.get(t.id) ?? null,
-    }))
+  const byTripRows = await Promise.all(
+    startedTrips
+      .filter(
+        (t) =>
+          tasteByTrip.has(t.id) ||
+          budgetByTrip.has(t.id) ||
+          journalByTrip.has(t.id),
+      )
+      .map(async (t) => ({
+        trip: t,
+        blocks: tasteByTrip.get(t.id) ?? [],
+        budget: budgetByTrip.get(t.id) ?? null,
+        journal: journalByTrip.get(t.id) ?? null,
+        share: await getTripShareState(t.id),
+      })),
+  )
 
   const foodKey = [
     dining.budgetBand,
@@ -335,11 +340,19 @@ export default async function ProfilePage() {
             <div className="mt-10 border-t border-border pt-8">
               <p className="text-sm text-muted-foreground">By trip</p>
               <div className="mt-4 flex flex-col gap-8">
-                {byTripRows.map(({ trip, blocks, budget, journal }) => (
+                {byTripRows.map(({ trip, blocks, budget, journal, share }) => (
                   <div key={trip.id}>
-                    <h3 className="font-serif text-lg tracking-tight">
-                      {trip.name}
-                    </h3>
+                    <div className="flex items-baseline justify-between gap-3">
+                      <h3 className="font-serif text-lg tracking-tight">
+                        {trip.name}
+                      </h3>
+                      <ShareTripDialog
+                        tripId={trip.id}
+                        tripSlug={trip.slug}
+                        initialPublic={share.isPublic}
+                        initialToken={share.shareToken}
+                      />
+                    </div>
                     {blocks.map((b) => (
                       <div key={b.category}>
                         <p className="mt-4 font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">

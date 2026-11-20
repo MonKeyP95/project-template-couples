@@ -41,7 +41,8 @@ export const RECEIPT_MIMES: readonly ReceiptMime[] = [
   "application/pdf",
 ]
 
-export const RECEIPT_PDF_MAX_BYTES = 10 * 1024 * 1024
+/** Claude caps a request at 32 MB and base64 adds a third, so ~24 MB is the largest PDF it can read. */
+export const RECEIPT_PDF_MAX_BYTES = 24 * 1024 * 1024
 
 /**
  * Model output as stored: a date that isn't a real yyyy-mm-dd and a currency
@@ -88,7 +89,7 @@ export function checkReceiptFile(file: File): string | null {
     return "Use a photo (JPEG, PNG, WebP) or a PDF."
   }
   if (file.type === "application/pdf" && file.size > RECEIPT_PDF_MAX_BYTES) {
-    return "PDF is over 10 MB."
+    return "PDF is over 24 MB."
   }
   return null
 }
