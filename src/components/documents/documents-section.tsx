@@ -18,10 +18,18 @@ export interface DocumentsSectionProps {
   documents: TripDocument[]
   /** Server render time, for "reading…" vs "couldn't read". */
   nowMs: number
+  /** False when the add buttons live in the page header instead. */
+  withAdd?: boolean
 }
 
 /** The trip's documents with search and add buttons: bookings, confirmations, tickets. */
-export function DocumentsSection({ tripId, tripSlug, documents, nowMs }: DocumentsSectionProps) {
+export function DocumentsSection({
+  tripId,
+  tripSlug,
+  documents,
+  nowMs,
+  withAdd = true,
+}: DocumentsSectionProps) {
   const [query, setQuery] = React.useState("")
   const shown = searchDocuments(documents, query)
   return (
@@ -31,7 +39,7 @@ export function DocumentsSection({ tripId, tripSlug, documents, nowMs }: Documen
         <DocumentCard key={doc.id} doc={doc} tripSlug={tripSlug} nowMs={nowMs} />
       ))}
       {query && shown.length === 0 ? <NoMatch /> : null}
-      <AddDocumentButtons tripId={tripId} tripSlug={tripSlug} />
+      {withAdd ? <AddDocumentButtons tripId={tripId} tripSlug={tripSlug} /> : null}
     </div>
   )
 }

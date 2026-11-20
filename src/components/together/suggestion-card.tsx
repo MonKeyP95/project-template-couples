@@ -51,7 +51,7 @@ export function SuggestionCard({
             <button
               type="button"
               onClick={onApply}
-              className="rounded-md border-0 bg-foreground px-3 py-1.5 font-mono text-[9.5px] uppercase tracking-[0.2em] text-background"
+              className="rounded-full border-0 bg-sea px-3 py-1.5 font-mono text-[9.5px] uppercase tracking-[0.2em] text-background"
             >
               {applyLabel}
             </button>

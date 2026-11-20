@@ -5,7 +5,7 @@ import * as React from "react"
 import { AssistantPill, useAiMode } from "@/components/ai-mode"
 import { AssistantPanel } from "@/components/assistant-block"
 
-import { toolbarPill } from "./plan-itinerary"
+import { toolbarPill } from "./toolbar-pill"
 
 export type BudgetPanel = "expense" | "saved" | "settle"
 
@@ -47,7 +47,7 @@ export function BudgetToolbar({
         type="button"
         onClick={() => setOpen(open === key ? null : key)}
         aria-expanded={open === key}
-        className={`${toolbarPill(open === key)} ${phoneOnly ? "lg:hidden" : ""}`}
+        className={`${toolbarPill(open === key, "dusk")} ${phoneOnly ? "lg:hidden" : ""}`}
       >
         {label}
       </button>

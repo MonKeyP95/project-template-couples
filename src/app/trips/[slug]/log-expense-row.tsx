@@ -215,7 +215,7 @@ export function LogExpenseRow({
         <button
           type="submit"
           disabled={isPending || readingReceipt || !canSubmit}
-          className="rounded-full border-0 bg-foreground px-3.5 py-1.5 font-mono text-[10px] uppercase tracking-[0.2em] text-background disabled:opacity-40"
+          className="rounded-full border-0 bg-sea px-3.5 py-1.5 font-mono text-[10px] uppercase tracking-[0.2em] text-background disabled:opacity-40"
         >
           {isPending ? "…" : readingReceipt ? "reading receipt…" : "add expense"}
         </button>

@@ -25,6 +25,7 @@ import {
 } from "@/lib/trips/expense-queries"
 import { getTripDocuments, getTripReceipts, receiptClockMs } from "@/lib/trips/receipt-queries"
 import { DocumentsSection } from "@/components/documents/documents-section"
+import { AddDocumentButtons } from "@/components/documents/document-search"
 import { getTripSavings } from "@/lib/trips/savings-queries"
 import { getTripBudgetMoves } from "@/lib/trips/budget-move-queries"
 import { getBudgetItems } from "@/lib/trips/budget-item-queries"
@@ -67,6 +68,7 @@ import {
   type NavDestination,
 } from "@/components/app-nav"
 
+import { toolbarPill } from "./toolbar-pill"
 import { BudgetTab } from "./budget-tab"
 import { ItineraryTab } from "./itinerary-tab"
 import { NotesTab } from "./notes-tab"
@@ -377,6 +379,7 @@ export default async function TripPage({
       tripSlug={header.slug}
       documents={documents}
       nowMs={receiptClockMs()}
+      withAdd={isMobile}
     />
   )
   const notesSection = (
@@ -458,14 +461,21 @@ export default async function TripPage({
         {activeTab === "itinerary"
           ? itinerary
           : activeTab === "packing"
-            ? packing("tab")
+            ? <div className="lg:px-5">{packing("tab")}</div>
             : activeTab === "budget"
-              ? budget
+              ? <div className="lg:px-5">{budget}</div>
               : (
                 <TripFolder
                   documents={documentsSection}
                   notes={notesSection}
                   checklist={packing("checklist")}
+                  actions={
+                    <AddDocumentButtons
+                      tripId={header.id}
+                      tripSlug={header.slug}
+                      buttonClassName={toolbarPill(false, "sand")}
+                    />
+                  }
                 />
               )}
         </div>

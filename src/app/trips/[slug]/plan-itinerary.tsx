@@ -17,6 +17,7 @@ import {
 import { positionLabel, type ItineraryDay } from "@/lib/trips/itinerary-types"
 import type { ItineraryLocation } from "@/lib/trips/location-types"
 import { applyPlanEntries, draftAndApplyItinerary } from "@/lib/ai/itinerary-actions"
+import { toolbarPill } from "./toolbar-pill"
 
 export interface PlanItineraryProps {
   tripId: string
@@ -88,15 +89,6 @@ function DaySelect({
       ))}
     </select>
   )
-}
-
-/** A pill in the itinerary's top toolbar row; `active` marks its panel open. */
-export function toolbarPill(active: boolean): string {
-  return `rounded-full border px-3.5 py-1.5 font-mono text-[11px] uppercase tracking-[0.18em] transition-colors ${
-    active
-      ? "border-foreground bg-foreground text-background"
-      : "border-border bg-transparent text-muted-foreground hover:border-muted-foreground hover:text-foreground"
-  }`
 }
 
 /** The picked day or range as a hint string: "12 Jan – 14 Jan" on a dated
@@ -455,7 +447,7 @@ export function PlanItinerary({
               type="button"
               onClick={startWalk}
               disabled={trimmedPlaces.length === 0 || !daysValid}
-              className="rounded-md border-0 bg-foreground px-3 py-1.5 font-mono text-[9.5px] uppercase tracking-[0.2em] text-background disabled:opacity-40"
+              className="rounded-full border-0 bg-sea px-3 py-1.5 font-mono text-[9.5px] uppercase tracking-[0.2em] text-background disabled:opacity-40"
             >
               next
             </button>
@@ -515,7 +507,7 @@ export function PlanItinerary({
               <button
                 type="button"
                 onClick={walkNext}
-                className="rounded-md border-0 bg-foreground px-3 py-1.5 font-mono text-[9.5px] uppercase tracking-[0.2em] text-background"
+                className="rounded-full border-0 bg-sea px-3 py-1.5 font-mono text-[9.5px] uppercase tracking-[0.2em] text-background"
               >
                 {isLast ? "review" : "next"}
               </button>
@@ -647,7 +639,7 @@ export function PlanItinerary({
             <button
               type="button"
               onClick={walkNext}
-              className="rounded-md border-0 bg-foreground px-3 py-1.5 font-mono text-[9.5px] uppercase tracking-[0.2em] text-background"
+              className="rounded-full border-0 bg-sea px-3 py-1.5 font-mono text-[9.5px] uppercase tracking-[0.2em] text-background"
             >
               {isLast ? "review" : "next"}
             </button>
@@ -719,7 +711,7 @@ export function PlanItinerary({
             type="button"
             onClick={generate}
             disabled={isPending}
-            className="rounded-md border-0 bg-foreground px-3 py-1.5 font-mono text-[9.5px] uppercase tracking-[0.2em] text-background disabled:opacity-40"
+            className="rounded-full border-0 bg-sea px-3 py-1.5 font-mono text-[9.5px] uppercase tracking-[0.2em] text-background disabled:opacity-40"
           >
             {isPending ? "Generating…" : "Generate"}
           </button>

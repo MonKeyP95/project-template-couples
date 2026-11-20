@@ -49,7 +49,7 @@ import {
   type DraftStep,
   type StepPlace,
 } from "./budget-drafter-steps"
-import { toolbarPill } from "./plan-itinerary"
+import { toolbarPill } from "./toolbar-pill"
 
 /** stepIndex value for edit mode's heading list. */
 const LIST = -1
@@ -693,7 +693,7 @@ export function BudgetDrafter({
       type="button"
       onClick={session ? () => setSession(null) : open}
       aria-expanded={session !== null}
-      className={toolbarPill(session !== null)}
+      className={toolbarPill(session !== null, "dusk")}
     >
       {plannedBudgetCents > 0 ? "edit budget" : "plan a budget"}
     </button>
@@ -1022,7 +1022,7 @@ export function BudgetDrafter({
               <button
                 type="button"
                 onClick={() => setStepIndex((s) => s + 1)}
-                className="rounded-md border-0 bg-foreground px-3 py-1.5 font-mono text-[9.5px] uppercase tracking-[0.2em] text-background"
+                className="rounded-full border-0 bg-sea px-3 py-1.5 font-mono text-[9.5px] uppercase tracking-[0.2em] text-background"
               >
                 next
               </button>
@@ -1100,7 +1100,7 @@ export function BudgetDrafter({
               <button
                 type="button"
                 onClick={goNext}
-                className="rounded-md border-0 bg-foreground px-3 py-1.5 font-mono text-[9.5px] uppercase tracking-[0.2em] text-background"
+                className="rounded-full border-0 bg-sea px-3 py-1.5 font-mono text-[9.5px] uppercase tracking-[0.2em] text-background"
               >
                 next
               </button>
@@ -1172,7 +1172,7 @@ export function BudgetDrafter({
               <button
                 type="button"
                 onClick={() => setStepIndex(reviewIndex)}
-                className="rounded-md border-0 bg-foreground px-3 py-1.5 font-mono text-[9.5px] uppercase tracking-[0.2em] text-background"
+                className="rounded-full border-0 bg-sea px-3 py-1.5 font-mono text-[9.5px] uppercase tracking-[0.2em] text-background"
               >
                 review
               </button>
@@ -1415,7 +1415,7 @@ export function BudgetDrafter({
             type="button"
             onClick={apply}
             disabled={isPending}
-            className="rounded-md border-0 bg-foreground px-3 py-1.5 font-mono text-[9.5px] uppercase tracking-[0.2em] text-background disabled:opacity-40"
+            className="rounded-full border-0 bg-sea px-3 py-1.5 font-mono text-[9.5px] uppercase tracking-[0.2em] text-background disabled:opacity-40"
           >
             apply
           </button>

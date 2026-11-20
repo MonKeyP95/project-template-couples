@@ -23,11 +23,20 @@ export function DocumentSearch({
 }
 
 /** Take a photo of a document, or pick files; both upload and read the same way. */
-export function AddDocumentButtons({ tripId, tripSlug }: { tripId: string; tripSlug: string }) {
+export function AddDocumentButtons({
+  tripId,
+  tripSlug,
+  buttonClassName,
+}: {
+  tripId: string
+  tripSlug: string
+  buttonClassName?: string
+}) {
+  const shared = { tripId, tripSlug, kind: "document" as const, buttonClassName }
   return (
     <div className="flex flex-wrap gap-2">
-      <AddReceiptsButton tripId={tripId} tripSlug={tripSlug} kind="document" camera label="take a photo" />
-      <AddReceiptsButton tripId={tripId} tripSlug={tripSlug} kind="document" label="add documents" />
+      <AddReceiptsButton {...shared} camera label="take a photo" />
+      <AddReceiptsButton {...shared} label="add documents" />
     </div>
   )
 }

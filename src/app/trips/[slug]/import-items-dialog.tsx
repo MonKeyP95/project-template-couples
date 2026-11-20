@@ -215,7 +215,7 @@ function ImportItemsBody({
           type="button"
           onClick={runImport}
           disabled={isPending || !selected}
-          className="rounded-md border-0 bg-clay px-3 py-1.5 font-mono text-[10px] uppercase tracking-[0.18em] text-background disabled:opacity-40"
+          className="rounded-full border-0 bg-sea px-3 py-1.5 font-mono text-[10px] uppercase tracking-[0.18em] text-background disabled:opacity-40"
         >
           {isPending ? "…" : "import"}
         </button>

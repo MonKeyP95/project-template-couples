@@ -275,7 +275,7 @@ export function DiscoverySection({
                   <button
                     type="button"
                     onClick={() => commit(s)}
-                    className="rounded-full border-0 bg-foreground px-3.5 py-1.5 font-mono text-[10px] uppercase tracking-[0.2em] text-background"
+                    className="rounded-full border-0 bg-sea px-3.5 py-1.5 font-mono text-[10px] uppercase tracking-[0.2em] text-background"
                   >
                     add
                   </button>
@@ -303,7 +303,7 @@ export function DiscoverySection({
                     }
                     setTime("")
                   }}
-                  className="mt-1 self-start rounded-full border-0 bg-foreground px-3.5 py-1.5 font-mono text-[10px] uppercase tracking-[0.2em] text-background"
+                  className="mt-1 self-start rounded-full border-0 bg-sea px-3.5 py-1.5 font-mono text-[10px] uppercase tracking-[0.2em] text-background"
                 >
                   {ctaLabel}
                 </button>

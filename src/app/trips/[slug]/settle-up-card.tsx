@@ -46,7 +46,7 @@ export function SettleUpButtons({
         <form action={settleUp.bind(null, tripId, tripSlug)}>
           <button
             type="submit"
-            className="rounded-full border-0 bg-foreground px-3.5 py-2 font-mono text-[10px] uppercase tracking-[0.15em] text-background"
+            className="rounded-full border-0 bg-sea px-3.5 py-2 font-mono text-[10px] uppercase tracking-[0.15em] text-background"
           >
             settle up
           </button>
@@ -67,7 +67,7 @@ export function SettleUpButtons({
             <button
               type="submit"
               disabled={isPending}
-              className="rounded-full border-0 bg-foreground px-3 py-2 font-mono text-[10px] uppercase tracking-[0.2em] text-background disabled:opacity-40"
+              className="rounded-full border-0 bg-sea px-3 py-2 font-mono text-[10px] uppercase tracking-[0.2em] text-background disabled:opacity-40"
             >
               ok
             </button>

@@ -126,7 +126,7 @@ export function NotesTab({
   const groups = buildGroups(initialNotes, locations)
 
   return (
-    <section className="px-5 pt-5 lg:px-10 lg:pt-6">
+    <section className="px-5 pt-5 lg:pt-6">
       <AssistantBlock
         surface="notes"
         tripSlug={tripSlug}
@@ -269,7 +269,7 @@ function AddNoteRow({
         <button
           type="submit"
           disabled={!body.trim() || isPending}
-          className="rounded-full border-0 bg-foreground px-3.5 py-1.5 font-mono text-[10px] uppercase tracking-[0.2em] text-background disabled:opacity-40"
+          className="rounded-full border-0 bg-sea px-3.5 py-1.5 font-mono text-[10px] uppercase tracking-[0.2em] text-background disabled:opacity-40"
         >
           {isPending ? "…" : "+ save"}
         </button>
@@ -463,7 +463,7 @@ function NoteEditor({
         <button
           type="submit"
           disabled={!body.trim() || isPending}
-          className="rounded-full border-0 bg-foreground px-3.5 py-1.5 font-mono text-[10px] uppercase tracking-[0.2em] text-background disabled:opacity-40"
+          className="rounded-full border-0 bg-sea px-3.5 py-1.5 font-mono text-[10px] uppercase tracking-[0.2em] text-background disabled:opacity-40"
         >
           {isPending ? "…" : "save"}
         </button>

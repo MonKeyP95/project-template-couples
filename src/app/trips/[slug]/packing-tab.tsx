@@ -3,7 +3,7 @@
 import * as React from "react"
 
 import { CheckRow, Coord, Label, SegBtn, TopoBg } from "@/components/together"
-import { toolbarPill } from "./plan-itinerary"
+import { toolbarPill } from "./toolbar-pill"
 import { AssistantBlock } from "@/components/assistant-block"
 import { BoxCard, BoxSection } from "@/components/collapsible-box"
 import { PlanningPlaceDoor } from "./find-a-place-planning"
@@ -341,7 +341,7 @@ export function PackingTab({
           type="button"
           aria-pressed={view === "mine"}
           onClick={() => setView("mine")}
-          className={toolbarPill(view === "mine")}
+          className={toolbarPill(view === "mine", "clay")}
         >
           My list
         </button>
@@ -349,7 +349,7 @@ export function PackingTab({
           type="button"
           aria-pressed={view === "shared"}
           onClick={() => setView("shared")}
-          className={toolbarPill(view === "shared")}
+          className={toolbarPill(view === "shared", "clay")}
         >
           Shared
         </button>
@@ -358,7 +358,7 @@ export function PackingTab({
             type="button"
             aria-pressed={view === "partner"}
             onClick={openPartner}
-            className={toolbarPill(view === "partner")}
+            className={toolbarPill(view === "partner", "clay")}
           >
             {partnerName}&rsquo;s list
           </button>
@@ -931,7 +931,7 @@ function ItemEditor({
         <button
           type="submit"
           disabled={pending || !value.trim()}
-          className="rounded-md border-0 bg-clay px-2.5 py-1 font-mono text-[10px] uppercase tracking-[0.18em] text-background disabled:opacity-40"
+          className="rounded-full border-0 bg-sea px-2.5 py-1 font-mono text-[10px] uppercase tracking-[0.18em] text-background disabled:opacity-40"
         >
           save
         </button>
@@ -1023,7 +1023,7 @@ function AddItemRow({
         <button
           type="submit"
           disabled={pending || !value.trim()}
-          className="rounded-md border-0 bg-clay px-2.5 py-1 font-mono text-[10px] uppercase tracking-[0.18em] text-background disabled:opacity-40"
+          className="rounded-full border-0 bg-sea px-2.5 py-1 font-mono text-[10px] uppercase tracking-[0.18em] text-background disabled:opacity-40"
         >
           add
         </button>
@@ -1112,7 +1112,7 @@ function AddCategoryRow({
         <button
           type="submit"
           disabled={pending || !value.trim()}
-          className="rounded-md border-0 bg-clay px-2.5 py-1 font-mono text-[10px] uppercase tracking-[0.18em] text-background disabled:opacity-40"
+          className="rounded-full border-0 bg-sea px-2.5 py-1 font-mono text-[10px] uppercase tracking-[0.18em] text-background disabled:opacity-40"
         >
           add
         </button>

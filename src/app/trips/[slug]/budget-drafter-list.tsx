@@ -79,7 +79,7 @@ export function BudgetDrafterList({
           type="button"
           onClick={onSave}
           disabled={isPending}
-          className="rounded-md border-0 bg-foreground px-3 py-1.5 font-mono text-[9.5px] uppercase tracking-[0.2em] text-background disabled:opacity-40"
+          className="rounded-full border-0 bg-sea px-3 py-1.5 font-mono text-[9.5px] uppercase tracking-[0.2em] text-background disabled:opacity-40"
         >
           {isPending ? "…" : "save"}
         </button>

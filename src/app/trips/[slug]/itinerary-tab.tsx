@@ -44,7 +44,8 @@ import { AssistantPill, useAiMode } from "@/components/ai-mode"
 import { EventRating } from "@/components/event-rating"
 import { PlanningPlaceDoor } from "./find-a-place-planning"
 import { BudgetScopeEditor } from "./budget-scope-editor"
-import { PlanItinerary, toolbarPill } from "./plan-itinerary"
+import { PlanItinerary } from "./plan-itinerary"
+import { toolbarPill } from "./toolbar-pill"
 import type { ProfileAnswers } from "@/lib/ai/itinerary-planner"
 import type { BudgetItem } from "@/lib/trips/budget-item-types"
 import { createClient } from "@/lib/supabase/client"
@@ -2410,7 +2411,7 @@ function DayForm({
           <button
             type="submit"
             disabled={isPending || !draftHasContent(title, sub, withTypedEvent())}
-            className="rounded-full border-0 bg-foreground px-3.5 py-1.5 font-mono text-[10px] uppercase tracking-[0.2em] text-background disabled:opacity-40"
+            className="rounded-full border-0 bg-sea px-3.5 py-1.5 font-mono text-[10px] uppercase tracking-[0.2em] text-background disabled:opacity-40"
           >
             {isPending ? "…" : submitLabel}
           </button>

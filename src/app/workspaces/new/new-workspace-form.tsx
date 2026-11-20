@@ -15,7 +15,7 @@ const pillButton =
   "rounded-full border border-rule px-3.5 py-1.5 font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground hover:text-foreground disabled:opacity-40"
 
 const solidButton =
-  "rounded-full border-0 bg-foreground px-4 py-1.5 font-mono text-[10px] uppercase tracking-[0.2em] text-background disabled:opacity-40"
+  "rounded-full border-0 bg-sea px-4 py-1.5 font-mono text-[10px] uppercase tracking-[0.2em] text-background disabled:opacity-40"
 
 export function NewWorkspaceForm() {
   const router = useRouter()

@@ -105,7 +105,7 @@ export function AddToDayForm({
         <button
           type="button"
           onClick={add}
-          className="rounded-full border-0 bg-foreground px-3.5 py-1.5 font-mono text-[10px] uppercase tracking-[0.2em] text-background"
+          className="rounded-full border-0 bg-sea px-3.5 py-1.5 font-mono text-[10px] uppercase tracking-[0.2em] text-background"
         >
           add
         </button>

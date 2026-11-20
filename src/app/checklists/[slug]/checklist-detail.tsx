@@ -534,7 +534,7 @@ function ItemEditor({
         <button
           type="submit"
           disabled={pending || !value.trim()}
-          className="rounded-md border-0 bg-foreground px-2.5 py-1 font-mono text-[10px] uppercase tracking-[0.18em] text-background disabled:opacity-40"
+          className="rounded-full border-0 bg-sea px-2.5 py-1 font-mono text-[10px] uppercase tracking-[0.18em] text-background disabled:opacity-40"
         >
           save
         </button>
@@ -626,7 +626,7 @@ function AddItemRow({
         <button
           type="submit"
           disabled={pending || !value.trim()}
-          className="rounded-md border-0 bg-foreground px-2.5 py-1 font-mono text-[10px] uppercase tracking-[0.18em] text-background disabled:opacity-40"
+          className="rounded-full border-0 bg-sea px-2.5 py-1 font-mono text-[10px] uppercase tracking-[0.18em] text-background disabled:opacity-40"
         >
           add
         </button>
@@ -713,7 +713,7 @@ function AddCategoryRow({
         <button
           type="submit"
           disabled={pending || !value.trim()}
-          className="rounded-md border-0 bg-foreground px-2.5 py-1 font-mono text-[10px] uppercase tracking-[0.18em] text-background disabled:opacity-40"
+          className="rounded-full border-0 bg-sea px-2.5 py-1 font-mono text-[10px] uppercase tracking-[0.18em] text-background disabled:opacity-40"
         >
           add
         </button>
