@@ -2,18 +2,22 @@ import type { ReactNode } from "react"
 
 import { Label } from "@/components/together"
 
-/** Desktop "Trip folder" tab: documents, notes and the things-to-bring checklist;
- * `actions` sit right of the title, like the other tabs' toolbars. */
+/** Desktop "Trip folder" tab: `toolbar` right of the title, then documents and
+ * notes side by side on wide screens (stacked below xl), then the checklist. */
 export function TripFolder({
+  toolbar,
   documents,
+  documentsCount,
   notes,
+  notesCount,
   checklist,
-  actions,
 }: {
+  toolbar: ReactNode
   documents: ReactNode
+  documentsCount: number
   notes: ReactNode
+  notesCount: number
   checklist: ReactNode
-  actions: ReactNode
 }) {
   return (
     <div className="flex flex-col">
@@ -21,25 +25,28 @@ export function TripFolder({
         <h2 className="mr-auto font-serif text-[40px] leading-none text-foreground">
           Trip <em className="text-sea">folder</em>
         </h2>
-        {actions}
+        {toolbar}
       </div>
-      <section className="lg:px-5">{documents}</section>
-      <FolderPart>{notes}</FolderPart>
-      <FolderPart label="Checklist">{checklist}</FolderPart>
+      <div className="grid gap-8 px-5 pt-4 pb-2 lg:px-10 xl:grid-cols-2">
+        <FolderColumn label={`Documents · ${documentsCount}`}>{documents}</FolderColumn>
+        <FolderColumn label={`Notes · ${notesCount}`}>{notes}</FolderColumn>
+      </div>
+      <section className="border-t border-border lg:px-5">
+        <div className="px-5 pt-5">
+          <Label>Checklist</Label>
+        </div>
+        {checklist}
+      </section>
     </div>
   )
 }
 
-/** A divided part of the folder; `label` only when the part has no heading of its own. */
-function FolderPart({ label, children }: { label?: string; children: ReactNode }) {
+/** One folder column; `-mx-5` cancels the section's own phone padding so rows align with the label. */
+function FolderColumn({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <section className="border-t border-border lg:px-5">
-      {label ? (
-        <div className="px-5 pt-5">
-          <Label>{label}</Label>
-        </div>
-      ) : null}
-      {children}
+    <section className="min-w-0">
+      <Label>{label}</Label>
+      <div className="-mx-5">{children}</div>
     </section>
   )
 }

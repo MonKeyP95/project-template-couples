@@ -25,7 +25,6 @@ import {
 } from "@/lib/trips/expense-queries"
 import { getTripDocuments, getTripReceipts, receiptClockMs } from "@/lib/trips/receipt-queries"
 import { DocumentsSection } from "@/components/documents/documents-section"
-import { AddDocumentButtons } from "@/components/documents/document-search"
 import { getTripSavings } from "@/lib/trips/savings-queries"
 import { getTripBudgetMoves } from "@/lib/trips/budget-move-queries"
 import { getBudgetItems } from "@/lib/trips/budget-item-queries"
@@ -68,7 +67,7 @@ import {
   type NavDestination,
 } from "@/components/app-nav"
 
-import { toolbarPill } from "./toolbar-pill"
+import { FolderToolbar } from "./folder-toolbar"
 import { BudgetTab } from "./budget-tab"
 import { ItineraryTab } from "./itinerary-tab"
 import { NotesTab } from "./notes-tab"
@@ -466,16 +465,19 @@ export default async function TripPage({
               ? <div className="lg:px-5">{budget}</div>
               : (
                 <TripFolder
-                  documents={documentsSection}
-                  notes={notesSection}
-                  checklist={packing("checklist")}
-                  actions={
-                    <AddDocumentButtons
+                  toolbar={
+                    <FolderToolbar
                       tripId={header.id}
                       tripSlug={header.slug}
-                      buttonClassName={toolbarPill(false, "sand")}
+                      locations={locations ?? []}
+                      currentUserId={userData.user!.id}
                     />
                   }
+                  documents={documentsSection}
+                  documentsCount={documents.length}
+                  notes={notesSection}
+                  notesCount={(notes ?? []).length}
+                  checklist={packing("checklist")}
                 />
               )}
         </div>
