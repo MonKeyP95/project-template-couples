@@ -14,10 +14,13 @@ export interface EnteredLine {
   subject: string
   whenLabel: string
   amountEuros: number | null
+  /** The saved line this row came from; passed back untouched. */
+  serverId?: string
 }
 
 /** An assembled budget line for the review, marked for what it is. */
 export interface FilledBudgetLine {
+  serverId?: string
   category: string
   place: string
   subject: string
@@ -53,6 +56,7 @@ export async function draftAndFillBudget(input: {
 
   // Typed prices pass through untouched.
   const out: FilledBudgetLine[] = priced.map((l) => ({
+    serverId: l.serverId,
     category: l.category,
     place: l.place,
     subject: l.subject,
@@ -64,6 +68,7 @@ export async function draftAndFillBudget(input: {
   }))
 
   const unknown = (l: EnteredLine): FilledBudgetLine => ({
+    serverId: l.serverId,
     category: l.category,
     place: l.place,
     subject: l.subject,
@@ -119,6 +124,7 @@ export async function draftAndFillBudget(input: {
         return
       }
       out.push({
+        serverId: u.serverId,
         category: u.category,
         place: u.place,
         subject: u.subject,

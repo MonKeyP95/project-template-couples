@@ -39,10 +39,10 @@ import { LogExpenseRow } from "./log-expense-row"
 import type { MemberToneEntry } from "./packing-tab"
 import { SettleUpButtons } from "./settle-up-card"
 
-/** A key that changes when a scope's item set changes. The guided drafter's
- * Apply (saveBudgetItems) replaces every row with a fresh id, so this remounts
- * the editor and re-seeds it from the new items; inline amount edits keep ids
- * and don't remount, so they stay smooth. */
+/** A key that changes when a scope's item set changes. When the guided
+ * drafter's Apply adds or removes lines, this remounts the editor and re-seeds
+ * it from the new items; inline amount edits keep ids and don't remount, so
+ * they stay smooth. */
 function scopeKey(prefix: string, items: BudgetItem[]): string {
   return `${prefix}:${items.map((i) => i.id).join(",")}`
 }

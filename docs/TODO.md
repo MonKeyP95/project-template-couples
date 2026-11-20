@@ -4,6 +4,14 @@
 
 **Next up: work on the AI itinerary planner** (`itinerary-planner` agent, `src/lib/ai/agents/`). Noted 2026-11-03.
 
+**Drafter Apply keeps lines it didn't touch: implemented 2026-11-20; lint + `tsc` clean; `pnpm build` passes; unverified in app; no migration.** Apply used to delete every non-Pre-trip line and re-insert only what the drafter held. Custom-category lines were lost, place-tagged Transportation/Other lines became trip-wide, and paid links were dropped. Now `saveBudgetItems` updates by id, inserts new lines and deletes only what the couple removed; ids survive Generate. Step 1 of the budget-boxes merge (next: paid toggle + custom categories in the drafter, then a "planned · unplanned room" line under the headline, then merge the boxes). Files: `lib/trips/actions.ts`, `lib/ai/budget-actions.ts`, `trips/[slug]/{budget-drafter,budget-tab}.tsx`. In-app checks:
+  1. In a place's editor, add a line in a custom category, then Apply in the drafter: the line is still there.
+  2. Mark a planned line paid, then Apply: it still shows "paid".
+  3. In a place's editor, add a Transportation line to that place, then Apply: it is still under that place, not Trip-wide.
+  4. Delete a line in the drafter and Apply: it's gone; the rest are unchanged.
+  5. Add a new line in the drafter and Apply: it appears once.
+  6. Generate, then Apply: a line that was paid before is still paid.
+
 **Budget pill opens the drafter directly: implemented 2026-11-19; lint + `tsc` clean; verified in-app 2026-11-19; no migration.** The toolbar pill reads "edit budget" once a budget exists ("plan a budget" before) and opens the drafter straight away; the in-between box with a lone Edit budget button is gone. `BudgetDrafter` now renders its own pill plus its box as flex children of the toolbar row; the allocated bar moved into the box as `header`. Files: `trips/[slug]/{budget-drafter,budget-toolbar,budget-tab}.tsx`.
 
 **Assistant pill in the tab row + itinerary header tweaks: implemented 2026-11-19; lint + `tsc` clean; verified in-app 2026-11-19; no migration.** Desktop: the assistant on/off pill (shared `AssistantPill` in `components/ai-mode.tsx`) sits at the right of the Budget / Itinerary / Packing / Trip folder tab row; the Itinerary and Budget toolbar pills and the Packing / Notes `AssistantBlock` bar (`bar={false}`) show on phones only (`isMobile`). Itinerary title and pills share one line (title is `flex-1 min-w-0`); "Edit your itinerary" is now "Edit itinerary"; planned day cards lost their bottom padding so the "Staying" footer sits on the card's bottom edge.
