@@ -15,7 +15,7 @@ export interface CategoryLine extends CategoryRollup {
   pct: number
 }
 
-function lineStatus(r: CategoryRollup, tripStarted: boolean): CategoryStatus {
+export function lineStatus(r: CategoryRollup, tripStarted: boolean): CategoryStatus {
   if (r.plannedCents === 0 && r.actualCents > 0) return "unplanned"
   if (r.actualCents > r.plannedCents) return "over"
   if (!tripStarted && r.plannedCents > 0 && r.actualCents >= r.plannedCents) {
@@ -24,7 +24,7 @@ function lineStatus(r: CategoryRollup, tripStarted: boolean): CategoryStatus {
   return "ok"
 }
 
-function linePct(r: CategoryRollup): number {
+export function linePct(r: CategoryRollup): number {
   if (r.plannedCents === 0) return r.actualCents > 0 ? 100 : 0
   return Math.min(100, Math.round((r.actualCents / r.plannedCents) * 100))
 }
