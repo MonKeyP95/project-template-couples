@@ -255,6 +255,7 @@ export function BudgetTab({
 
       {/* Spent against plan, by category or place */}
       <BudgetBreakdown
+        tripSlug={tripSlug}
         expenses={expenses}
         budgetItems={budgetItems}
         categories={expenseCategories}

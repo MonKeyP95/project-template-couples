@@ -264,13 +264,16 @@ function LedgerRowView({
   )
 }
 
-function LedgerRowEditor({
+/** The expense edit form. The ledger shows it in a row; the budget box's
+ * review detail shows it in place of a spent line. */
+export function LedgerRowEditor({
   expense,
   members,
   tripSlug,
   locations,
   categories,
   onDone,
+  className = "border-t border-border bg-card px-5 py-4",
 }: {
   expense: Expense
   members: Record<string, MemberToneEntry>
@@ -278,6 +281,7 @@ function LedgerRowEditor({
   locations: ItineraryLocation[]
   categories: ExpenseCategoryRow[]
   onDone: () => void
+  className?: string
 }) {
   const { currency } = useCurrency()
   const validCategory = categories.some((c) => c.name === expense.category)
@@ -347,7 +351,7 @@ function LedgerRowEditor({
       onKeyDown={(e) => {
         if (e.key === "Escape") onDone()
       }}
-      className="border-t border-border bg-card px-5 py-4"
+      className={className}
     >
       <div className="mb-3 flex items-center justify-between">
         <span className="font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground">

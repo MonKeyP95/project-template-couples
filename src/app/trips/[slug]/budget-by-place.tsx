@@ -10,7 +10,11 @@ import {
   itemPlaceKey,
 } from "@/lib/trips/budget-by-place-types"
 import type { BudgetItem } from "@/lib/trips/budget-item-types"
-import { homeCents, type Expense } from "@/lib/trips/expense-types"
+import {
+  homeCents,
+  type Expense,
+  type ExpenseCategoryRow,
+} from "@/lib/trips/expense-types"
 import {
   dayLocationMap,
   type DayLocation,
@@ -20,9 +24,11 @@ import { BudgetRow, displayName, RowDetail } from "./budget-by-category"
 import type { MemberToneEntry } from "./packing-tab"
 
 interface Props {
+  tripSlug: string
   expenses: Expense[]
   budgetItems: BudgetItem[]
   locations: ItineraryLocation[]
+  categories: ExpenseCategoryRow[]
   itineraryDays: DayLocation[]
   members: Record<string, MemberToneEntry>
   tripStarted: boolean
@@ -65,6 +71,9 @@ export function BudgetByPlace(props: Props) {
             planned={props.budgetItems.filter((it) => itemPlaceKey(it) === line.key)}
             spent={props.expenses.filter((e) => expensePlaceKey(e, dayMap) === line.key)}
             plannedWhere={(it) => displayName(it.category)}
+            tripSlug={props.tripSlug}
+            locations={props.locations}
+            categories={props.categories}
             members={props.members}
             fmt={fmt}
           />

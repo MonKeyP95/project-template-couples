@@ -14,6 +14,7 @@ import type { MemberToneEntry } from "./packing-tab"
 type View = "category" | "place"
 
 interface Props {
+  tripSlug: string
   expenses: Expense[]
   budgetItems: BudgetItem[]
   categories: ExpenseCategoryRow[]

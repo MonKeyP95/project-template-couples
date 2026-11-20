@@ -17,6 +17,7 @@ import {
   type ExpenseCategoryRow,
 } from "@/lib/trips/expense-types"
 import type { ItineraryLocation } from "@/lib/trips/location-types"
+import { LedgerRowEditor } from "./ledger-row"
 import type { MemberToneEntry } from "./packing-tab"
 
 const SPENT_SHOWN = 5
@@ -32,6 +33,7 @@ export function displayName(category: string): string {
 }
 
 interface Props {
+  tripSlug: string
   expenses: Expense[]
   budgetItems: BudgetItem[]
   categories: ExpenseCategoryRow[]
@@ -167,7 +169,9 @@ function CategoryDetail({
   fmt,
   expenses,
   budgetItems,
+  tripSlug,
   locations,
+  categories,
   members,
 }: Props & { category: string; fmt: (cents: number) => string }) {
   const placeName = new Map(locations.map((l) => [l.id, l.name]))
@@ -178,6 +182,9 @@ function CategoryDetail({
       plannedWhere={(it) =>
         it.locationId ? (placeName.get(it.locationId) ?? "") : "Trip-wide"
       }
+      tripSlug={tripSlug}
+      locations={locations}
+      categories={categories}
       members={members}
       fmt={fmt}
     />
@@ -190,15 +197,13 @@ export function RowDetail({
   planned,
   spent,
   plannedWhere,
-  members,
-  fmt,
+  ...rest
 }: {
   planned: BudgetItem[]
   spent: Expense[]
   plannedWhere: (item: BudgetItem) => string
-  members: Record<string, MemberToneEntry>
-  fmt: (cents: number) => string
-}) {
+} & SpentListProps) {
+  const fmt = rest.fmt
   const latest = spent
     .filter((e) => !e.isSettlement)
     .sort((a, b) =>
@@ -225,10 +230,51 @@ export function RowDetail({
           ))}
         </DetailList>
       ) : null}
-      {latest.length > 0 ? (
-        <DetailList title="Spent">
-          {latest.slice(0, SPENT_SHOWN).map((e) => (
-            <DetailLine key={e.id} amount={fmt(homeCents(e))}>
+      {latest.length > 0 ? <SpentList expenses={latest} {...rest} /> : null}
+    </div>
+  )
+}
+
+interface SpentListProps {
+  tripSlug: string
+  locations: ItineraryLocation[]
+  categories: ExpenseCategoryRow[]
+  members: Record<string, MemberToneEntry>
+  fmt: (cents: number) => string
+}
+
+/** Spent lines, newest first. Tapping one opens the ledger's editor in its
+ * place, so a review can fix amounts, categories and places where it reads. */
+function SpentList({
+  expenses,
+  members,
+  fmt,
+  ...editor
+}: SpentListProps & { expenses: Expense[] }) {
+  const [editingId, setEditingId] = React.useState<string | null>(null)
+  const [showAll, setShowAll] = React.useState(false)
+  const shown = showAll ? expenses : expenses.slice(0, SPENT_SHOWN)
+
+  return (
+    <DetailList title="Spent">
+      {shown.map((e) =>
+        e.id === editingId ? (
+          <LedgerRowEditor
+            key={e.id}
+            expense={e}
+            members={members}
+            onDone={() => setEditingId(null)}
+            className="my-1.5 rounded-lg bg-card px-3 py-3"
+            {...editor}
+          />
+        ) : (
+          <button
+            key={e.id}
+            type="button"
+            onClick={() => setEditingId(e.id)}
+            className="block w-full border-t border-border text-left first:border-t-0"
+          >
+            <DetailLine amount={fmt(homeCents(e))}>
               {e.title}
               <span className="text-muted-foreground">
                 {" · "}
@@ -237,15 +283,19 @@ export function RowDetail({
                 {members[e.paidBy]?.displayName ?? "Someone"}
               </span>
             </DetailLine>
-          ))}
-          {latest.length > SPENT_SHOWN ? (
-            <div className="border-t border-border pt-1.5 text-[12px] text-muted-foreground">
-              + {latest.length - SPENT_SHOWN} more
-            </div>
-          ) : null}
-        </DetailList>
+          </button>
+        ),
+      )}
+      {!showAll && expenses.length > SPENT_SHOWN ? (
+        <button
+          type="button"
+          onClick={() => setShowAll(true)}
+          className="w-full border-t border-border pt-1.5 text-left text-[12px] text-muted-foreground hover:text-foreground"
+        >
+          show all {expenses.length}
+        </button>
       ) : null}
-    </div>
+    </DetailList>
   )
 }
 
