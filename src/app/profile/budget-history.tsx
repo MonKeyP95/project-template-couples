@@ -32,7 +32,7 @@ export function BudgetHistory({
 }) {
   if (categories.length === 0) return null
   return (
-    <div className="mt-10 border-t border-border pt-8">
+    <div className="mt-6 border-t border-border pt-5">
       <p className="text-sm text-muted-foreground">
         Budget history (what our trips actually cost)
       </p>

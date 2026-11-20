@@ -39,7 +39,7 @@ export function InviteTraveller({ people }: { people: InvitableTraveller[] }) {
   }
 
   return (
-    <div className="mt-10 border-t border-border pt-8">
+    <div className="mt-6 border-t border-border pt-5">
       <p className="text-sm text-muted-foreground">
         Travellers without a login
       </p>
