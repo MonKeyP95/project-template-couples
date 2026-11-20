@@ -6,8 +6,9 @@ import { createClient } from "@/lib/supabase/server"
 
 /** A compact "who this couple is" block for suggestion prompts. Reads the trip
  * profile + trip category detail tags (trip-scoped) and the couple's own
- * description, dining taste + learned summaries (workspace-scoped). Every piece is omitted when empty, so a
- * bare trip yields a short string and a profile-less workspace yields "".
+ * description and home country, dining taste + learned summaries
+ * (workspace-scoped). Every piece is omitted when empty, so a bare trip yields
+ * a short string and a profile-less workspace yields "".
  * Suggest-only: reads, never writes. */
 export async function buildProfileBlock(
   workspaceId: string,
@@ -15,10 +16,14 @@ export async function buildProfileBlock(
 ): Promise<string> {
   const parts: string[] = []
 
-  const description = await getWorkspaceDescription(workspaceId)
-  if (description)
+  const about = await getWorkspaceAbout(workspaceId)
+  if (about.homeCountry)
     parts.push(
-      `In their own words (general background; weigh below what they rated and planned): ${description}`,
+      `They live in ${about.homeCountry}; trips usually start from there (do not assume what is reachable from it).`,
+    )
+  if (about.description)
+    parts.push(
+      `In their own words (general background; weigh below what they rated and planned): ${about.description}`,
     )
 
   if (tripId) {
@@ -58,12 +63,17 @@ export async function buildProfileBlock(
   return parts.join(" ")
 }
 
-async function getWorkspaceDescription(workspaceId: string): Promise<string> {
+async function getWorkspaceAbout(
+  workspaceId: string,
+): Promise<{ description: string; homeCountry: string }> {
   const supabase = await createClient()
   const { data } = await supabase
     .from("workspaces")
-    .select("description")
+    .select("description, home_country")
     .eq("id", workspaceId)
     .single()
-  return data?.description.trim() ?? ""
+  return {
+    description: data?.description.trim() ?? "",
+    homeCountry: data?.home_country.trim() ?? "",
+  }
 }

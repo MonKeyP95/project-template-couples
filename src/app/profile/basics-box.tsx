@@ -4,12 +4,13 @@ import { updateProfile } from "@/lib/auth/actions"
 import { createClient } from "@/lib/supabase/server"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { setWorkspaceCurrency } from "@/lib/workspace/actions"
+import { setWorkspaceHome } from "@/lib/workspace/actions"
 import { currencyOptions } from "@/lib/fx/currency-list"
 import type { CurrentWorkspace } from "@/lib/workspace/queries"
 import { ProfileBox } from "./profile-box"
 
-/** The plain facts: your name and account, and the couple's home currency. */
+/** The plain facts: your name and account, and the couple's home country and
+ * currency. */
 export async function BasicsBox({ workspace }: { workspace: CurrentWorkspace }) {
   const supabase = await createClient()
   const { data: userData } = await supabase.auth.getUser()
@@ -58,8 +59,22 @@ export async function BasicsBox({ workspace }: { workspace: CurrentWorkspace }) 
         </div>
       </dl>
 
-      <form action={setWorkspaceCurrency} className="mt-6 border-t border-border pt-5">
+      <form
+        key={`${workspace.homeCountry}|${workspace.currency}`}
+        action={setWorkspaceHome}
+        className="mt-6 border-t border-border pt-5"
+      >
         <label className="block text-xs text-muted-foreground">
+          Home country
+          <Input
+            name="home_country"
+            defaultValue={workspace.homeCountry}
+            maxLength={60}
+            placeholder="e.g. Denmark"
+            className="mt-1"
+          />
+        </label>
+        <label className="mt-4 block text-xs text-muted-foreground">
           Home currency
           <select
             name="currency"
@@ -78,7 +93,7 @@ export async function BasicsBox({ workspace }: { workspace: CurrentWorkspace }) 
           keep theirs.
         </p>
         <Button type="submit" size="lg" className="mt-3">
-          Save currency
+          Save home
         </Button>
       </form>
     </ProfileBox>

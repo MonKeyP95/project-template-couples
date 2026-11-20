@@ -129,17 +129,24 @@ export async function generateInvite(personId?: string): Promise<InviteResult> {
   return { url: `${PUBLIC_SITE_URL}/join/${token}` }
 }
 
+/** Mirrors the workspaces_home_country_length check in the migration. */
+const HOME_COUNTRY_MAX = 60
+
 /**
- * Sets the workspace's home currency. Existing trips keep the currency they
- * were created with -- only the next trip inherits this.
+ * Sets the workspace's home country and home currency. Existing trips keep the
+ * currency they were created with -- only the next trip inherits this.
  *
  * Wired straight to `<form action={...}>`, so it throws rather than returning
  * an error shape.
  */
-export async function setWorkspaceCurrency(formData: FormData): Promise<void> {
+export async function setWorkspaceHome(formData: FormData): Promise<void> {
   const currency = String(formData.get("currency") ?? "")
   if (!currencyOptions().some((o) => o.code === currency)) {
     throw new Error("Unknown currency")
+  }
+  const homeCountry = String(formData.get("home_country") ?? "").trim()
+  if (homeCountry.length > HOME_COUNTRY_MAX) {
+    throw new Error(`Keep it under ${HOME_COUNTRY_MAX} characters`)
   }
 
   const supabase = await createClient()
@@ -151,7 +158,7 @@ export async function setWorkspaceCurrency(formData: FormData): Promise<void> {
 
   const { error } = await supabase
     .from("workspaces")
-    .update({ currency })
+    .update({ currency, home_country: homeCountry })
     .eq("id", membership.workspaceId)
   if (error) throw new Error(error.message)
 

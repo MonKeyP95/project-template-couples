@@ -23,6 +23,8 @@ export interface CurrentWorkspace {
   currency: string
   /** The couple in their own words, written on /profile. "" when unset. */
   description: string
+  /** Where they live, free text. "" when unset. */
+  homeCountry: string
   members: WorkspaceMember[]
   /** Everyone who can hold money on a trip: members plus avatars. */
   people: WorkspacePerson[]
@@ -81,6 +83,7 @@ export async function getCurrentWorkspace(): Promise<CurrentWorkspace | null> {
     role: membership.role,
     currency: membership.workspace.currency,
     description: membership.workspace.description,
+    homeCountry: membership.workspace.home_country,
     members: rawMembers.map((m) => ({
       user_id: m.user_id,
       role: m.role as "owner" | "member",

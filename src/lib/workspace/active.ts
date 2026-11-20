@@ -15,6 +15,7 @@ export interface ActiveMembership {
     created_at: string
     currency: string
     description: string
+    home_country: string
   }
 }
 
@@ -31,7 +32,7 @@ export async function resolveActiveMembership(): Promise<ActiveMembership | null
 
   const { data: memberships } = await supabase
     .from("workspace_members")
-    .select("workspace_id, role, workspaces(name, created_at, currency, description)")
+    .select("workspace_id, role, workspaces(name, created_at, currency, description, home_country)")
     .eq("user_id", userData.user.id)
     .order("joined_at", { ascending: true })
 
