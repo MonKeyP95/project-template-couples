@@ -812,6 +812,8 @@ export interface CreateTripInput {
   what: string
   /** Page 2 answers; null when skipped. */
   prefs: Record<PrefKey, string> | null
+  /** What you pay in there; the workspace currency when not changed. */
+  currency: string
 }
 
 export interface CreateTripResult {
@@ -853,6 +855,9 @@ export async function createTrip(
     return { error: "Budget invalid." }
   }
   if (!isBudgetPeriod(input.budgetPeriod)) return { error: "Budget check invalid." }
+  if (!currencyOptions().some((o) => o.code === input.currency)) {
+    return { error: "Currency invalid." }
+  }
 
   const workspace = await getCurrentWorkspace()
   if (!workspace) return { error: "No workspace." }
@@ -873,9 +878,9 @@ export async function createTrip(
     planned_budget_cents: Math.round(input.budget * 100),
     budget_period: input.budgetPeriod,
     // Both copied, not looked up: changing the workspace currency later must
-    // not rewrite a recorded trip's numbers. `currency` is the spend default
-    // (editable per trip); `home_currency` is where the bank account is.
-    currency: workspace.currency,
+    // not rewrite a recorded trip's numbers. `currency` is what you pay in
+    // there (asked in the walkthrough); `home_currency` is the bank account.
+    currency: input.currency,
     home_currency: workspace.currency,
     trip_profile: cleanTripProfile({
       ...EMPTY_TRIP_PROFILE,

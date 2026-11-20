@@ -1,6 +1,7 @@
 "use client"
 
 import { BudgetPeriodPicker } from "@/components/budget-period-picker"
+import { currencyOptions } from "@/lib/fx/currency-list"
 import type { DraftField, TripDraft } from "./new-trip-form"
 
 const eyebrow =
@@ -132,6 +133,23 @@ export function NotePage({
           </button>
         </div>
       )}
+
+      <label className="block">
+        <span className="block text-[17px] text-foreground">
+          Which currency will you pay in there?
+        </span>
+        <select
+          value={draft.currency}
+          onChange={(e) => onDraft({ currency: e.target.value })}
+          className={`${lineInput} mt-1.5 block w-full text-[16px]`}
+        >
+          {currencyOptions().map((o) => (
+            <option key={o.code} value={o.code}>
+              {o.label}
+            </option>
+          ))}
+        </select>
+      </label>
 
       <button
         type="button"

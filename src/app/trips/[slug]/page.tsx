@@ -11,6 +11,7 @@ import {
 } from "@/components/together"
 import { RefreshOnVisible } from "@/components/refresh-on-visible"
 import { CurrencyProvider } from "@/components/currency-context"
+import { entryCurrency } from "@/lib/fx/entry-currency"
 import { AssistantPill } from "@/components/ai-mode"
 import { getRates } from "@/lib/fx/get-rates"
 import { FlipCountdown } from "@/components/flip-countdown"
@@ -395,6 +396,7 @@ export default async function TripPage({
       <CurrencyProvider
         currency={header.homeCurrency}
         spendCurrency={header.currency}
+        entryCurrency={entryCurrency(header, today)}
         rates={rates}
       >
         <main className="relative mx-auto min-h-screen w-full max-w-[440px] pt-14 pb-32">
@@ -426,6 +428,7 @@ export default async function TripPage({
     <CurrencyProvider
       currency={header.homeCurrency}
       spendCurrency={header.currency}
+      entryCurrency={entryCurrency(header, today)}
       rates={rates}
     >
     <main className="relative mx-auto min-h-screen w-full max-w-[440px] pb-32 lg:flex lg:max-w-none lg:items-stretch lg:pb-0">

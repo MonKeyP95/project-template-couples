@@ -26,11 +26,13 @@ export interface TripDraft {
   unsure: boolean
   what: string
   prefs: Record<PrefKey, string>
+  /** What you pay in there; starts as the home currency. */
+  currency: string
 }
 
 export type DraftField = "start" | "end" | "budget" | "place" | PrefKey
 
-const EMPTY_DRAFT: TripDraft = {
+const EMPTY_DRAFT: Omit<TripDraft, "currency"> = {
   note: "",
   days: 0,
   start: "",
@@ -59,7 +61,10 @@ function autoEnd(d: TripDraft, endTouched: boolean): string {
 export function NewTripForm({ currency }: { currency: string }) {
   const router = useRouter()
   const symbol = currencySymbol(currency)
-  const [draft, setDraft] = React.useState<TripDraft>(EMPTY_DRAFT)
+  const [draft, setDraft] = React.useState<TripDraft>({
+    ...EMPTY_DRAFT,
+    currency,
+  })
   const [touched, setTouched] = React.useState<Set<DraftField>>(new Set())
   const [page, setPage] = React.useState<"note" | "prefs">("note")
   const [error, setError] = React.useState<string | null>(null)
@@ -115,6 +120,7 @@ export function NewTripForm({ currency }: { currency: string }) {
         place: draft.unsure ? null : draft.place,
         what: draft.what,
         prefs: withPrefs ? draft.prefs : null,
+        currency: draft.currency,
       })
       if (result.error) {
         setError(result.error)
