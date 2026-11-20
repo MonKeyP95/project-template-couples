@@ -8,8 +8,7 @@ import { dateOfIndex, toDayIndex } from "@/lib/trips/itinerary-types"
 import { currencyOptions } from "@/lib/fx/currency-list"
 import type { BudgetPeriod } from "@/lib/trips/budget-period"
 import { BudgetPeriodPicker } from "@/components/budget-period-picker"
-import { type LocalCategory } from "../../profile-fields"
-import { ProfileWalkthrough } from "../../profile-walkthrough"
+import { currencySymbol } from "@/lib/money"
 import { type TripProfile } from "@/lib/trips/trip-profile-types"
 import { PREF_TOPICS } from "@/lib/trips/trip-note-parse"
 
@@ -55,6 +54,7 @@ export interface EditTripInitial {
   /** Where the money comes from; what every total is reported in. */
   homeCurrency: string
   budgetPeriod: BudgetPeriod
+  plannedBudgetCents: number
 }
 
 export function EditTripForm({
@@ -63,7 +63,6 @@ export function EditTripForm({
   promoteDays,
   initial,
   initialProfile,
-  initialCategories,
 }: {
   tripId: string
   dreamDayCount: number
@@ -71,7 +70,6 @@ export function EditTripForm({
   promoteDays: number
   initial: EditTripInitial
   initialProfile: TripProfile
-  initialCategories: LocalCategory[]
 }) {
   const router = useRouter()
   const [name, setName] = React.useState(initial.name)
@@ -94,19 +92,15 @@ export function EditTripForm({
     initial.lng === null ? "" : String(initial.lng),
   )
   const [idea, setIdea] = React.useState(initialProfile.idea)
-  const [vibe, setVibe] = React.useState<string[]>(initialProfile.vibe)
-  const [vibeNote, setVibeNote] = React.useState(initialProfile.vibeNote)
-  const [avoid, setAvoid] = React.useState(initialProfile.avoid)
-  const [transport, setTransport] = React.useState<string[]>(
-    initialProfile.transport,
+  const [budget, setBudget] = React.useState(
+    initial.plannedBudgetCents ? String(initial.plannedBudgetCents / 100) : "",
   )
-  const [categories, setCategories] =
-    React.useState<LocalCategory[]>(initialCategories)
   const [prefs, setPrefs] = React.useState({
     stay: initialProfile.stay,
     move: initialProfile.move,
     acts: initialProfile.acts,
     food: initialProfile.food,
+    avoid: initialProfile.avoid,
   })
   const [days, setDays] = React.useState(
     initial.dayCount === null ? "" : String(initial.dayCount),
@@ -168,19 +162,11 @@ export function EditTripForm({
         currency,
         homeCurrency,
         budgetPeriod,
+        plannedBudgetCents: Math.round((Number(budget) || 0) * 100),
         lat: parseFloatOrNull(lat),
         lng: parseFloatOrNull(lng),
         dayCount: isDream ? Number(days) || null : null,
-        profile: {
-          ...initialProfile,
-          ...prefs,
-          idea,
-          transport,
-          vibe,
-          vibeNote,
-          avoid,
-        },
-        categories,
+        profile: { ...initialProfile, ...prefs, idea },
         outside,
         start,
       })
@@ -203,7 +189,22 @@ export function EditTripForm({
   return (
     <>
       <form onSubmit={submit} className="mt-6">
-        <label className="flex items-center gap-2.5">
+        <label className="block">
+          <span className="block text-[17px] text-foreground">
+            Tell me about the trip
+          </span>
+          <textarea
+            value={idea}
+            onChange={(e) => setIdea(e.target.value)}
+            rows={4}
+            placeholder="e.g. 2 weeks surfing"
+            disabled={isPending}
+            className="mt-2 block w-full resize-none rounded-xl border border-border bg-card p-3.5 text-[16px] leading-snug text-foreground placeholder:text-muted-foreground/60 focus:border-clay focus:outline-none disabled:opacity-50"
+          />
+        </label>
+
+        <span className="mt-7 block text-[17px] text-foreground">How long</span>
+        <label className="mt-3 flex items-center gap-2.5">
           <input
             type="checkbox"
             checked={isDream}
@@ -213,36 +214,6 @@ export function EditTripForm({
           />
           <span className="font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
             This is a dream (no dates yet)
-          </span>
-        </label>
-
-        <label className="mt-5 block">
-          <span className="block font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
-            Name
-          </span>
-          <input
-            type="text"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="Where to?"
-            disabled={isPending}
-            className="mt-1 w-full border-0 border-b border-rule bg-transparent py-1.5 text-[16px] text-foreground placeholder:text-muted-foreground/60 focus:border-clay focus:outline-none disabled:opacity-50"
-          />
-        </label>
-
-        <label className="mt-5 block">
-          <span className="block font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
-            Slug
-          </span>
-          <input
-            type="text"
-            value={slug}
-            onChange={(e) => setSlug(e.target.value)}
-            disabled={isPending}
-            className="t-num mt-1 w-full border-0 border-b border-rule bg-transparent py-1.5 text-[14px] text-foreground placeholder:text-muted-foreground/60 focus:border-clay focus:outline-none disabled:opacity-50"
-          />
-          <span className="mt-1 block font-mono text-[10px] text-muted-foreground">
-            URL: /trips/{slug || "—"}
           </span>
         </label>
 
@@ -329,9 +300,91 @@ export function EditTripForm({
           </div>
         )}
 
+        <label className="mt-7 block">
+          <span className="block text-[17px] text-foreground">Budget</span>
+          <span className="mt-1.5 flex items-baseline gap-2 border-b border-rule">
+            <span className="text-[18px] text-muted-foreground">
+              {currencySymbol(homeCurrency)}
+            </span>
+            <input
+              type="text"
+              inputMode="decimal"
+              value={budget}
+              onChange={(e) => setBudget(e.target.value.replace(/[^\d.]/g, ""))}
+              placeholder="2000"
+              disabled={isPending}
+              className="t-num min-w-0 flex-1 border-0 bg-transparent py-1.5 text-[18px] text-foreground placeholder:text-muted-foreground/60 focus:outline-none disabled:opacity-50"
+            />
+            <span className="text-[13px] text-muted-foreground">whole trip</span>
+          </span>
+        </label>
+        <BudgetPeriodPicker
+          value={budgetPeriod}
+          onChange={setBudgetPeriod}
+          disabled={isPending}
+          className="mt-3"
+        />
+
+        <div className="mt-8 border-t border-rule pt-6">
+          <span className="block font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
+            Preferences
+          </span>
+          {PREF_TOPICS.map((t) => (
+            <label key={t.key} className="mt-4 block">
+              <span className="block text-[14px] text-foreground">{t.title}</span>
+              <textarea
+                value={prefs[t.key]}
+                onChange={(e) =>
+                  setPrefs((p) => ({ ...p, [t.key]: e.target.value }))
+                }
+                rows={2}
+                placeholder={t.hint}
+                disabled={isPending}
+                className="mt-1.5 block w-full resize-none rounded-lg border border-border bg-card px-3 py-2 text-[14px] leading-snug text-foreground placeholder:text-muted-foreground/60 focus:border-clay focus:outline-none disabled:opacity-50"
+              />
+            </label>
+          ))}
+        </div>
+
+        <div className="mt-8 border-t border-rule pt-6">
+          <span className="block font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
+            Details
+          </span>
+        </div>
+
+        <label className="mt-4 block">
+          <span className="block font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
+            Name
+          </span>
+          <input
+            type="text"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="Where to?"
+            disabled={isPending}
+            className="mt-1 w-full border-0 border-b border-rule bg-transparent py-1.5 text-[16px] text-foreground placeholder:text-muted-foreground/60 focus:border-clay focus:outline-none disabled:opacity-50"
+          />
+        </label>
+
         <label className="mt-5 block">
           <span className="block font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
-            Country
+            Slug
+          </span>
+          <input
+            type="text"
+            value={slug}
+            onChange={(e) => setSlug(e.target.value)}
+            disabled={isPending}
+            className="t-num mt-1 w-full border-0 border-b border-rule bg-transparent py-1.5 text-[14px] text-foreground placeholder:text-muted-foreground/60 focus:border-clay focus:outline-none disabled:opacity-50"
+          />
+          <span className="mt-1 block font-mono text-[10px] text-muted-foreground">
+            URL: /trips/{slug || "—"}
+          </span>
+        </label>
+
+        <label className="mt-5 block">
+          <span className="block font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
+            Where
           </span>
           <input
             type="text"
@@ -388,13 +441,6 @@ export function EditTripForm({
           </span>
         </label>
 
-        <BudgetPeriodPicker
-          value={budgetPeriod}
-          onChange={setBudgetPeriod}
-          disabled={isPending}
-          className="mt-5"
-        />
-
         <button
           type="button"
           onClick={() => setAdvancedOpen((v) => !v)}
@@ -436,59 +482,6 @@ export function EditTripForm({
             </label>
           </div>
         ) : null}
-
-        <div className="mt-8 border-t border-rule pt-6">
-          <span className="block font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
-            Preferences
-          </span>
-          {PREF_TOPICS.filter(
-            (t): t is typeof t & { key: keyof typeof prefs } => t.key !== "avoid",
-          ).map((t) => (
-            <label key={t.key} className="mt-4 block">
-              <span className="block text-[14px] text-foreground">{t.title}</span>
-              <textarea
-                value={prefs[t.key]}
-                onChange={(e) =>
-                  setPrefs((p) => ({ ...p, [t.key]: e.target.value }))
-                }
-                rows={2}
-                placeholder={t.hint}
-                disabled={isPending}
-                className="mt-1.5 block w-full resize-none rounded-lg border border-border bg-card px-3 py-2 text-[14px] leading-snug text-foreground placeholder:text-muted-foreground/60 focus:border-clay focus:outline-none disabled:opacity-50"
-              />
-            </label>
-          ))}
-        </div>
-
-        <div className="mt-8 border-t border-rule pt-6">
-          <span className="block font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
-            Profile
-          </span>
-          <div className="mt-4">
-            <ProfileWalkthrough
-              value={{ idea, vibe, vibeNote, transport, categories, avoid }}
-              onChange={(patch) => {
-                if (patch.idea !== undefined) setIdea(patch.idea)
-                if (patch.vibe !== undefined) setVibe(patch.vibe)
-                if (patch.vibeNote !== undefined) setVibeNote(patch.vibeNote)
-                if (patch.transport !== undefined) setTransport(patch.transport)
-                if (patch.categories !== undefined)
-                  setCategories(patch.categories)
-                if (patch.avoid !== undefined) setAvoid(patch.avoid)
-              }}
-              disabled={isPending}
-              footerAside={
-                <button
-                  type="submit"
-                  disabled={!canSubmit}
-                  className="rounded-full border border-rule px-3.5 py-1.5 font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground hover:text-foreground disabled:opacity-40"
-                >
-                  {isPending ? "…" : "save"}
-                </button>
-              }
-            />
-          </div>
-        </div>
 
         {error ? (
           <div className="mt-5 font-mono text-[10px] text-clay">{error}</div>

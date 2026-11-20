@@ -42,7 +42,7 @@ export interface DiscoveryQuery {
   /** Couple activities (slice 2), e.g. "surf, hike, museums". */
   activities: string[]
   /** This-trip layer from the trip profile. */
-  trip: { vibe: string[]; brief: string }
+  trip: { brief: string }
   /** In-the-moment "what do you feel like?"; "" when unset. Highest-priority signal. */
   craving: string
   /** Proximity anchor for walkable search; "" when unset. */
