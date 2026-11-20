@@ -390,7 +390,7 @@ export default async function TripPage({
       initialNotes={notes ?? []}
       locations={locations ?? []}
       members={memberTones}
-      assistantBar={isMobile}
+      layout={isMobile ? "phone" : "folder"}
     />
   )
 
