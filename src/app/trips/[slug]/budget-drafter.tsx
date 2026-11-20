@@ -7,6 +7,7 @@ import { planBudgetSteps, type BudgetStep } from "@/lib/ai/budget-planner"
 import {
   draftAndFillBudget,
   type EnteredLine,
+  type FilledBudgetLine,
 } from "@/lib/ai/budget-actions"
 import {
   saveBudgetItems,
@@ -91,6 +92,9 @@ interface Session {
   steps: BudgetStep[]
   /** bucket id (`${stepKey}:${locId|trip}`) -> rows. */
   items: Record<string, ItemRow[]>
+  /** Saved category lines this session loaded (buffer included): the only
+   * lines Apply may delete. */
+  loadedIds: string[]
 }
 
 const CATEGORY_BY_STEP: Record<string, string> = {
@@ -227,7 +231,9 @@ export function BudgetDrafter({
   }
 
   /** Existing budget items -> saved rows per bucket (drops the derived buffer
-   * line; keeps marks). Per-location items on a missing place fall to the first. */
+   * line; keeps marks and ids). Per-location items on a missing place fall to
+   * the first. Lines the steps can't hold are skipped, so Apply leaves them be:
+   * custom categories, and a place-tagged line in a trip-wide step. */
   function savedRows(): Record<string, Partial<ItemRow>[]> {
     const ids = new Set(locations.map((l) => l.id))
     const fallback = locations[0]?.id ?? "trip"
@@ -236,6 +242,7 @@ export function BudgetDrafter({
       if (isBufferSubject(it.subject)) continue
       const catKey = STEP_BY_CATEGORY[it.category]
       if (!catKey) continue
+      if (it.locationId && !PER_LOCATION.has(catKey)) continue
       const locKey = PER_LOCATION.has(catKey)
         ? it.locationId && ids.has(it.locationId)
           ? it.locationId
@@ -263,6 +270,7 @@ export function BudgetDrafter({
       const qty = resolveQty(bucketId, rowLike)
       const per = qty > 1 ? Math.round(it.amountCents / qty) : it.amountCents
       ;(out[bucketId] ??= []).push({
+        serverId: it.id,
         subject: it.subject,
         when: it.whenLabel,
         value: it.priceUnknown ? "" : per ? moneyInput(per) : "",
@@ -353,7 +361,12 @@ export function BudgetDrafter({
     setGenerated(false)
     setBufferPct(pct)
     setStepIndex(startIndex)
-    setSession({ steps, items })
+    const loadedIds = Object.values(seed)
+      .flat()
+      .flatMap((r) => (r.serverId ? [r.serverId] : []))
+    const buffer = initialItems.find((i) => isBufferSubject(i.subject))
+    if (buffer) loadedIds.push(buffer.id)
+    setSession({ steps, items, loadedIds })
   }
 
   /** A saved budget opens on the heading list; a first plan walks from step 1. */
@@ -448,6 +461,7 @@ export function BudgetDrafter({
         const cents = rowTotalCents(bucketId, r)
         const whenLabel = [rangeLabel(r), r.when.trim()].filter(Boolean).join(" · ")
         lines.push({
+          serverId: r.serverId,
           category,
           place,
           subject: r.subject.trim(),
@@ -461,16 +475,7 @@ export function BudgetDrafter({
 
   /** Filled review lines -> bucket-keyed rows, matching by place name. */
   function filledToItems(
-    lines: {
-      category: string
-      place: string
-      subject: string
-      whenLabel: string
-      amountCents: number
-      estimated: boolean
-      sourceUrl: string | null
-      priceUnknown: boolean
-    }[],
+    lines: FilledBudgetLine[],
   ): Record<string, ItemRow[]> {
     const idByName = new Map(locations.map((l) => [l.name.trim().toLowerCase(), l.id]))
     const fallback = locations[0]?.id ?? "trip"
@@ -483,6 +488,7 @@ export function BudgetDrafter({
         : `${catKey}:trip`
       ;(out[bucket] ??= []).push(
         newRow({
+          serverId: line.serverId,
           subject: line.subject,
           when: line.whenLabel,
           value: line.priceUnknown ? "" : moneyInput(line.amountCents),
@@ -565,6 +571,7 @@ export function BudgetDrafter({
         const cents = rowTotalCents(bucketId, r)
         if (r.subject.trim() === "" && cents === 0 && !r.priceUnknown) continue
         items.push({
+          id: r.serverId,
           category,
           subject: r.subject,
           whenLabel: r.when,
@@ -608,16 +615,18 @@ export function BudgetDrafter({
       }
     }
 
+    const keptIds = new Set(items.map((it) => it.id))
+    const removedIds = session.loadedIds.filter((id) => !keptIds.has(id))
+
     startTransition(async () => {
-      // Pre-trip first: it updates in place, so paid links survive. The budget
-      // save runs second because its delete spares Pre-trip and its planned-total
-      // recompute then sees both halves.
+      // Pre-trip first so the estimate seed, which runs on the second save,
+      // sees both halves.
       const pre = await savePreTripItems({ tripId, tripSlug, items: preItems })
       if (pre.error) {
         setError(pre.error)
         return
       }
-      const r = await saveBudgetItems({ tripId, tripSlug, items })
+      const r = await saveBudgetItems({ tripId, tripSlug, items, removedIds })
       if (r.error) {
         setError(r.error)
         return

@@ -2705,6 +2705,9 @@ export interface SaveBudgetItemsInput {
   tripId: string
   tripSlug: string
   items: SaveBudgetItemInput[]
+  /** Ids the drafter loaded and the couple removed. Lines it never loaded are
+   * not listed, so they survive the save. */
+  removedIds: string[]
 }
 
 /**
@@ -2727,30 +2730,14 @@ async function seedEstimateIfUnset(tripId: string): Promise<{ error?: string }> 
 }
 
 /**
- * Replace-all save of a trip's budget line items. Seeds the trip's estimate
- * only when it has none. Any workspace member of the trip may edit (RLS-gated).
+ * The guided drafter's save. Updates its lines in place by id (so paid links
+ * survive), inserts new ones, and deletes only `removedIds`; lines it never
+ * loaded are untouched. Seeds the trip's estimate only when it has none. Any
+ * workspace member of the trip may edit (RLS-gated).
  */
 export async function saveBudgetItems(
   input: SaveBudgetItemsInput,
 ): Promise<{ error?: string }> {
-  const perCategory: Record<string, number> = {}
-  const rows: {
-    trip_id: string
-    category: string
-    subject: string
-    when_label: string
-    amount_cents: number
-    location_id: string | null
-    sort_order: number
-    when_start: string | null
-    when_end: string | null
-    estimated: boolean
-    source_url: string | null
-    price_unknown: boolean
-    freq: string
-    count: number
-  }[] = []
-
   for (const it of input.items) {
     if (it.category.trim() === "" || it.category.length > 40) {
       return { error: "Invalid budget category." }
@@ -2758,9 +2745,27 @@ export async function saveBudgetItems(
     if (!validCents(it.amountCents)) {
       return { error: "Budget amount out of range." }
     }
+  }
+
+  const supabase = await createClient()
+
+  // A partner may have deleted a line since the drafter opened; such an id is
+  // re-inserted rather than updated into nothing.
+  const { data: existing, error: exErr } = await supabase
+    .from("trip_budget_items")
+    .select("id")
+    .eq("trip_id", input.tripId)
+    .neq("category", "Pre-trip")
+  if (exErr) return { error: exErr.message }
+  const existingIds = new Set((existing ?? []).map((r) => r.id as string))
+
+  const perCategory: Record<string, number> = {}
+  for (const it of input.items) {
     const order = perCategory[it.category] ?? 0
     perCategory[it.category] = order + 1
-    rows.push({
+    // An undefined id is left out of the request, so the insert gets a new one.
+    const fields = {
+      id: it.id,
       trip_id: input.tripId,
       category: it.category,
       subject: it.subject.trim(),
@@ -2775,23 +2780,21 @@ export async function saveBudgetItems(
       price_unknown: it.priceUnknown ?? false,
       freq: it.freq ?? "once",
       count: it.count ?? 1,
-    })
+    }
+    const { error } =
+      it.id && existingIds.has(it.id)
+        ? await supabase.from("trip_budget_items").update(fields).eq("id", it.id)
+        : await supabase.from("trip_budget_items").insert(fields)
+    if (error) return { error: error.message }
   }
 
-  const supabase = await createClient()
-
-  const { error: delErr } = await supabase
-    .from("trip_budget_items")
-    .delete()
-    .eq("trip_id", input.tripId)
-    .neq("category", "Pre-trip")
-  if (delErr) return { error: delErr.message }
-
-  if (rows.length > 0) {
-    const { error: insErr } = await supabase
+  const toDelete = input.removedIds.filter((id) => existingIds.has(id))
+  if (toDelete.length > 0) {
+    const { error: delErr } = await supabase
       .from("trip_budget_items")
-      .insert(rows)
-    if (insErr) return { error: insErr.message }
+      .delete()
+      .in("id", toDelete)
+    if (delErr) return { error: delErr.message }
   }
 
   const seeded = await seedEstimateIfUnset(input.tripId)
