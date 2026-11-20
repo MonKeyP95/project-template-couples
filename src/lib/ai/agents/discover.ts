@@ -30,7 +30,7 @@ function discoverySystem(category: DiscoveryCategory): string {
       "search result and include that result's URL as sourceUrl. Never invent a " +
       "place, a URL, or an exact price. Keep each 'why' to one sentence. When " +
       "choosing, weight the requested area and price band first, then this trip's " +
-      "vibe and brief, then the couple's general tastes."
+      "brief, then the couple's general tastes."
     )
   }
   const noun = category === "activity" ? "things to do" : "restaurants"
@@ -44,7 +44,7 @@ function discoverySystem(category: DiscoveryCategory): string {
     "suggestion must come from a real search result and include that result's URL " +
     "as sourceUrl. Never invent a place, a URL, or an exact price. Keep each " +
     "'why' to one sentence. When choosing, weight what they are in the mood for " +
-    "right now first, then this trip's vibe and brief, then the couple's general " +
+    "right now first, then this trip's brief, then the couple's general " +
     "tastes. If told they are on foot, only propose places genuinely within " +
     "walking distance of the given anchor — never somewhere that needs a car or a " +
     "long ride."
@@ -56,7 +56,6 @@ function discoveryPrompt(query: DiscoveryQuery): string {
     items.length ? `${label}: ${items.join(", ")}.` : ""
   const anchor = query.near || query.destination
   const tripLines = [
-    list("This trip's vibe", query.trip.vibe),
     query.trip.brief ? `Trip brief: ${query.trip.brief}.` : "",
   ].filter(Boolean)
   const moment = [

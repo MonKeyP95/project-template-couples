@@ -75,7 +75,7 @@ export async function POST(request: Request) {
       dietary: prefs.dietary,
       cuisines: prefs.cuisines,
       activities: prefs.activities,
-      trip: { vibe: profile.vibe, brief: profile.idea },
+      trip: { brief: profile.idea },
       craving: String(body.craving ?? "").trim(),
       near: String(body.near ?? "").trim(),
       walkable: Boolean(body.walkable),

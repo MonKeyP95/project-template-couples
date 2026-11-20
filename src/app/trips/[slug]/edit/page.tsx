@@ -5,7 +5,6 @@ import { Label } from "@/components/together"
 import { createClient } from "@/lib/supabase/server"
 import { getTripBySlug } from "@/lib/trips/queries"
 import { isPlannedRow } from "@/lib/trips/outside-days"
-import { getTripExpenseCategories } from "@/lib/trips/expense-queries"
 import { getCurrentWorkspace } from "@/lib/workspace/queries"
 
 import { EditTripForm } from "./edit-trip-form"
@@ -38,8 +37,6 @@ export default async function EditTripPage({
   // Mirrors updateTrip's promotion: the plan keeps its day numbers.
   const promoteDays = Math.max(trip.dayCount ?? 0, ...indices)
 
-  const categories = await getTripExpenseCategories(trip.id)
-
   return (
     <main className="mx-auto min-h-screen w-full max-w-[440px] px-5 pt-10 pb-20">
       <Link
@@ -67,14 +64,11 @@ export default async function EditTripPage({
           currency: trip.currency,
           homeCurrency: trip.homeCurrency,
           budgetPeriod: trip.budgetPeriod,
+          plannedBudgetCents: trip.plannedBudgetCents,
           lat: trip.lat,
           lng: trip.lng,
         }}
         initialProfile={trip.tripProfile}
-        initialCategories={categories.map((c) => ({
-          name: c.name,
-          details: c.details,
-        }))}
       />
     </main>
   )

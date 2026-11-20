@@ -89,11 +89,10 @@ function TripCard({ header, dateRange, dayCount, itinerary }: MobileTripProps) {
   const p = header.tripProfile
   const rows = [
     ["Sleeping", p.stay],
-    ["Getting around", p.move || p.transport.join(", ")],
+    ["Getting around", p.move],
     ["Doing", p.acts],
     ["Eating", p.food],
     ["Avoid", p.avoid],
-    ["Vibe", [...p.vibe, p.vibeNote].filter(Boolean).join(", ")],
   ].filter(([, value]) => value)
   const days = header.startDate
     ? `${dayCount} days`

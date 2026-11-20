@@ -947,7 +947,8 @@ export interface UpdateTripInput {
   /** Planned length of a dream; ignored (cleared) for dated trips. */
   dayCount: number | null
   profile?: TripProfile
-  categories?: { name: string; details: string[] }[]
+  /** Whole-trip planned budget, in cents. */
+  plannedBudgetCents: number
   /** What to do with planned days the change leaves outside the trip. */
   outside?: "delete" | "unplace"
   /** A new start date moves the plan with it, or keeps days on their dates. */
@@ -1069,6 +1070,7 @@ export async function updateTrip(
     return { error: "Unknown currency." }
   }
   if (!isBudgetPeriod(input.budgetPeriod)) return { error: "Budget check invalid." }
+  if (!validCents(input.plannedBudgetCents)) return { error: "Budget out of range." }
 
   const hasLat = input.lat !== null
   const hasLng = input.lng !== null
@@ -1146,73 +1148,6 @@ export async function updateTrip(
       ? {}
       : { trip_profile: cleanTripProfile(input.profile) }
 
-  // Category reconcile: run only when categories are supplied. Categories are
-  // independent of the date/slug branches, so this runs once up front; on the
-  // rare slug-collision failure below the category edit persists harmlessly
-  // (expenses reference category by name text, not by row id).
-  if (input.categories) {
-    const seen = new Set<string>()
-    const clean: { name: string; details: string[] }[] = []
-    for (const c of input.categories) {
-      const nm = c.name.trim()
-      if (!nm || seen.has(nm)) continue
-      seen.add(nm)
-      const details = Array.from(
-        new Set(c.details.map((d) => d.trim()).filter(Boolean)),
-      ).slice(0, 20)
-      clean.push({ name: nm, details })
-    }
-
-    const { data: existing } = await supabase
-      .from("expense_categories")
-      .select("id, name")
-      .eq("trip_id", input.tripId)
-    const existingByName = new Map((existing ?? []).map((r) => [r.name, r.id]))
-
-    const keepNames = new Set(clean.map((c) => c.name))
-    const removeIds = (existing ?? [])
-      .filter((r) => !keepNames.has(r.name))
-      .map((r) => r.id)
-    if (removeIds.length) {
-      const { error } = await supabase
-        .from("expense_categories")
-        .delete()
-        .in("id", removeIds)
-      if (error) return { error: error.message }
-    }
-
-    const inserts: {
-      trip_id: string
-      name: string
-      sort_order: number
-      details: string[]
-    }[] = []
-    for (let i = 0; i < clean.length; i++) {
-      const c = clean[i]
-      const id = existingByName.get(c.name)
-      if (id) {
-        const { error } = await supabase
-          .from("expense_categories")
-          .update({ details: c.details, sort_order: i })
-          .eq("id", id)
-        if (error) return { error: error.message }
-      } else {
-        inserts.push({
-          trip_id: input.tripId,
-          name: c.name,
-          sort_order: i,
-          details: c.details,
-        })
-      }
-    }
-    if (inserts.length) {
-      const { error } = await supabase
-        .from("expense_categories")
-        .insert(inserts)
-      if (error) return { error: error.message }
-    }
-  }
-
   // --- Dream branch: null dates, optional fuzzy_when. ---
   if (input.isDream) {
     if (input.startDate || input.endDate) {
@@ -1251,6 +1186,7 @@ export async function updateTrip(
         lng: input.lng,
         currency: input.currency,
         budget_period: input.budgetPeriod,
+        planned_budget_cents: input.plannedBudgetCents,
         ...homePatch,
         ...profilePatch,
       })
@@ -1307,6 +1243,7 @@ export async function updateTrip(
           lng: input.lng,
           currency: input.currency,
           budget_period: input.budgetPeriod,
+          planned_budget_cents: input.plannedBudgetCents,
           ...homePatch,
           ...profilePatch,
         })
@@ -1368,6 +1305,7 @@ export async function updateTrip(
       lng: input.lng,
       currency: input.currency,
       budget_period: input.budgetPeriod,
+      planned_budget_cents: input.plannedBudgetCents,
       ...homePatch,
       ...profilePatch,
     })
