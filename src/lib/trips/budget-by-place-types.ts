@@ -23,12 +23,17 @@ type PlaceExpense = ExpenseSpend & {
 }
 type PlaceItem = PlannedSpend & { locationId: string | null }
 
-function itemKey(it: PlaceItem): string {
+/** Which by-place row a budget item sits in. */
+export function itemPlaceKey(it: PlaceItem): string {
   if (it.category === PRE_TRIP) return "pretrip"
   return it.locationId ?? "trip"
 }
 
-function expenseKey(e: PlaceExpense, dayMap: Record<string, string>): string {
+/** Which by-place row an expense sits in. */
+export function expensePlaceKey(
+  e: PlaceExpense,
+  dayMap: Record<string, string>,
+): string {
   if (e.category === PRE_TRIP) return "pretrip"
   return expenseLocationId(e, dayMap) ?? "trip"
 }
@@ -53,12 +58,12 @@ export function byPlaceLines(
   const planned: Record<string, number> = {}
   const actual: Record<string, number> = {}
   for (const it of items) {
-    const k = itemKey(it)
+    const k = itemPlaceKey(it)
     planned[k] = (planned[k] ?? 0) + it.amountCents
   }
   for (const e of expenses) {
     if (e.isSettlement) continue
-    const k = expenseKey(e, dayMap)
+    const k = expensePlaceKey(e, dayMap)
     actual[k] = (actual[k] ?? 0) + e.amountCents
   }
   return rows.flatMap(({ key, name }) => {

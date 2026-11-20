@@ -16,8 +16,6 @@ import {
 import { type SavingsContribution } from "@/lib/trips/savings-types"
 import { budgetPace } from "@/lib/trips/budget-pace"
 import {
-  dayLocationMap,
-  expenseLocationId,
   type BudgetMove,
   type DayLocation,
 } from "@/lib/trips/location-budget-types"
@@ -27,10 +25,9 @@ import { useCurrency } from "@/components/currency-context"
 import { LocalEquivalent } from "@/components/local-equivalent"
 
 
-import { BudgetByCategory } from "./budget-by-category"
+import { BudgetBreakdown } from "./budget-breakdown"
 import { BudgetDrafter } from "./budget-drafter"
 import { BudgetToolbar, type BudgetPanel } from "./budget-toolbar"
-import { BudgetScopeEditor } from "./budget-scope-editor"
 import { PlanningPlaceDoor } from "./find-a-place-planning"
 import { isBufferSubject, type BudgetItem } from "@/lib/trips/budget-item-types"
 import { PlannedRoom, SavedFigure, SpentFigure } from "./budget-figures"
@@ -38,14 +35,6 @@ import { Ledger } from "./budget-ledger"
 import { LogExpenseRow } from "./log-expense-row"
 import type { MemberToneEntry } from "./packing-tab"
 import { SettleUpButtons } from "./settle-up-card"
-
-/** A key that changes when a scope's item set changes. When the guided
- * drafter's Apply adds or removes lines, this remounts the editor and re-seeds
- * it from the new items; inline amount edits keep ids and don't remount, so
- * they stay smooth. */
-function scopeKey(prefix: string, items: BudgetItem[]): string {
-  return `${prefix}:${items.map((i) => i.id).join(",")}`
-}
 
 export interface BudgetTabProps {
   tripId: string
@@ -261,32 +250,16 @@ export function BudgetTab({
             plannedBudgetCents={plannedBudgetCents}
             className="mt-1"
           />
-          <BudgetByCategory
+          <BudgetBreakdown
             expenses={expenses}
             budgetItems={budgetItems}
             categories={expenseCategories}
             locations={locations}
+            itineraryDays={itineraryDays}
             members={members}
             tripStarted={startDate !== null && today >= startDate}
           />
         </div>
-      </div>
-
-      {/* The plan, by location */}
-      <div className="mx-5 my-4 overflow-hidden rounded-xl border border-border bg-card">
-        <div className="px-5 pt-4 pb-1">
-          <Label>Planned</Label>
-        </div>
-        <PlannedBudget
-          tripId={tripId}
-          tripSlug={tripSlug}
-          tripName={tripName}
-          locations={locations}
-          budgetItems={budgetItems}
-          expenses={expenses}
-          itineraryDays={itineraryDays}
-          categories={expenseCategories}
-        />
       </div>
 
       {/* What you spent */}
@@ -330,124 +303,6 @@ function SideBox({ label, children }: { label: string; children: React.ReactNode
         <Label>{label}</Label>
       </div>
       {children}
-    </div>
-  )
-}
-
-/** Always-visible planned-budget detail: one scope editor per location plus a
- * trip-wide bucket, or a single trip-name editor when no locations exist.
- * Reuses the itinerary's editors, so budget detail is editable with AI off. */
-function PlannedBudget({
-  tripId,
-  tripSlug,
-  tripName,
-  locations,
-  budgetItems,
-  expenses,
-  itineraryDays,
-  categories,
-}: {
-  tripId: string
-  tripSlug: string
-  tripName: string
-  locations: ItineraryLocation[]
-  budgetItems: BudgetItem[]
-  expenses: Expense[]
-  itineraryDays: DayLocation[]
-  categories: ExpenseCategoryRow[]
-}) {
-  const { currency } = useCurrency()
-  const fmt = (cents: number) => money(cents, currency)
-  const byLoc = new Map<string, BudgetItem[]>()
-  for (const it of budgetItems) {
-    if (!it.locationId) continue
-    const arr = byLoc.get(it.locationId)
-    if (arr) arr.push(it)
-    else byLoc.set(it.locationId, [it])
-  }
-  const tripWide = budgetItems.filter(
-    (it) => !it.locationId && it.category !== "Pre-trip",
-  )
-  const preTripItems = budgetItems.filter((it) => it.category === "Pre-trip")
-  const plannedTotalCents = budgetItems.reduce((s, it) => s + it.amountCents, 0)
-
-  // Actual spend grouped by category, for the expenses attributed to one scope
-  // (a location, or the unassigned/trip-wide bucket when locationId is null).
-  const dayMap = dayLocationMap(itineraryDays)
-  function spentForScope(locId: string | null): Record<string, number> {
-    const out: Record<string, number> = {}
-    for (const e of expenses) {
-      if (e.isSettlement) continue
-      if (expenseLocationId(e, dayMap) !== locId) continue
-      out[e.category] = (out[e.category] ?? 0) + homeCents(e)
-    }
-    return out
-  }
-
-  return (
-    <div className="border-t border-border px-5 pt-4 pb-5">
-      {/* No spentByCategory: a paid pre-trip item logs a location-less expense,
-          which spentForScope(null) already shows under Trip-wide. */}
-      <BudgetScopeEditor
-        key={scopeKey("pretrip", preTripItems)}
-        tripId={tripId}
-        tripSlug={tripSlug}
-        locationId={null}
-        items={preTripItems}
-        withDates={false}
-        defaultCategory="Pre-trip"
-        label="Before you go"
-        preTrip
-      />
-      {locations.map((loc) => (
-        <BudgetScopeEditor
-          key={scopeKey(loc.id, byLoc.get(loc.id) ?? [])}
-          tripId={tripId}
-          tripSlug={tripSlug}
-          locationId={loc.id}
-          items={byLoc.get(loc.id) ?? []}
-          withDates={false}
-          defaultCategory="Accommodation"
-          label={loc.name}
-          categories={categories}
-          spentByCategory={spentForScope(loc.id)}
-        />
-      ))}
-      {locations.length === 0 ? (
-        <BudgetScopeEditor
-          key={scopeKey("trip", tripWide)}
-          tripId={tripId}
-          tripSlug={tripSlug}
-          locationId={null}
-          items={tripWide}
-          withDates={false}
-          defaultCategory="Accommodation"
-          label={tripName}
-          categories={categories}
-          spentByCategory={spentForScope(null)}
-        />
-      ) : (
-        <BudgetScopeEditor
-          key={scopeKey("trip", tripWide)}
-          tripId={tripId}
-          tripSlug={tripSlug}
-          locationId={null}
-          items={tripWide}
-          withDates
-          defaultCategory="Other"
-          label="Trip-wide"
-          categories={categories}
-          spentByCategory={spentForScope(null)}
-        />
-      )}
-      <div className="mt-3 flex items-baseline justify-between border-t border-rule pt-3">
-        <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
-          Planned total
-        </span>
-        <span className="t-num font-mono text-[14px] text-foreground">
-          {fmt(plannedTotalCents)}
-        </span>
-      </div>
     </div>
   )
 }

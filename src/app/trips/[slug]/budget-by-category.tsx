@@ -27,7 +27,7 @@ const SHORT_DATE = new Intl.DateTimeFormat("en-GB", {
   timeZone: "UTC",
 })
 
-function displayName(category: string): string {
+export function displayName(category: string): string {
   return category === PRE_TRIP ? "Before you go" : category
 }
 
@@ -45,8 +45,6 @@ interface Props {
 export function BudgetByCategory(props: Props) {
   const { currency } = useCurrency()
   const [open, setOpen] = React.useState<string | null>(null)
-  if (props.budgetItems.length === 0) return null
-
   const fmt = (cents: number) => money(cents, currency)
   const { lines, preTripFootCents } = byCategoryLines(
     props.expenses.map((e) => ({
@@ -60,12 +58,12 @@ export function BudgetByCategory(props: Props) {
   )
 
   return (
-    <div className="mt-4 border-t border-rule pt-3">
-      <Label>By category</Label>
+    <>
       <div className="mt-1">
         {lines.map((line) => (
-          <CategoryRow
+          <BudgetRow
             key={line.category}
+            name={displayName(line.category)}
             line={line}
             isOpen={open === line.category}
             onToggle={() =>
@@ -74,7 +72,7 @@ export function BudgetByCategory(props: Props) {
             fmt={fmt}
           >
             <CategoryDetail category={line.category} fmt={fmt} {...props} />
-          </CategoryRow>
+          </BudgetRow>
         ))}
       </div>
       {preTripFootCents > 0 ? (
@@ -83,9 +81,12 @@ export function BudgetByCategory(props: Props) {
           <span className="t-num">{fmt(preTripFootCents)}</span>
         </div>
       ) : null}
-    </div>
+    </>
   )
 }
+
+/** The figures a row shows: spent against plan, its status and bar fill. */
+type RowLine = Pick<CategoryLine, "status" | "pct" | "actualCents" | "plannedCents">
 
 const NOTE_CLASS = "font-mono text-[9px] uppercase tracking-[0.14em]"
 
@@ -93,7 +94,7 @@ function StatusNote({
   line,
   fmt,
 }: {
-  line: CategoryLine
+  line: RowLine
   fmt: (cents: number) => string
 }) {
   if (line.status === "over") {
@@ -112,14 +113,17 @@ function StatusNote({
   return null
 }
 
-function CategoryRow({
+/** One tappable spent-vs-plan row; `children` is its detail, shown when open. */
+export function BudgetRow({
+  name,
   line,
   isOpen,
   onToggle,
   fmt,
   children,
 }: {
-  line: CategoryLine
+  name: string
+  line: RowLine
   isOpen: boolean
   onToggle: () => void
   fmt: (cents: number) => string
@@ -140,7 +144,7 @@ function CategoryRow({
           {"▶"}
         </span>
         <span className="truncate text-[13px] text-foreground">
-          {displayName(line.category)}
+          {name}
         </span>
         <Bar pct={line.pct} tone={warn ? "clay" : "sea"} />
         <span className="t-num whitespace-nowrap text-right font-mono text-[11px] text-foreground">
@@ -167,9 +171,36 @@ function CategoryDetail({
   members,
 }: Props & { category: string; fmt: (cents: number) => string }) {
   const placeName = new Map(locations.map((l) => [l.id, l.name]))
-  const planned = budgetItems.filter((it) => it.category === category)
-  const spent = expenses
-    .filter((e) => !e.isSettlement && e.category === category)
+  return (
+    <RowDetail
+      planned={budgetItems.filter((it) => it.category === category)}
+      spent={expenses.filter((e) => e.category === category)}
+      plannedWhere={(it) =>
+        it.locationId ? (placeName.get(it.locationId) ?? "") : "Trip-wide"
+      }
+      members={members}
+      fmt={fmt}
+    />
+  )
+}
+
+/** A row's opened detail: its planned lines (paid or not yet) and its latest
+ * spending. `plannedWhere` is the grey note after each planned line. */
+export function RowDetail({
+  planned,
+  spent,
+  plannedWhere,
+  members,
+  fmt,
+}: {
+  planned: BudgetItem[]
+  spent: Expense[]
+  plannedWhere: (item: BudgetItem) => string
+  members: Record<string, MemberToneEntry>
+  fmt: (cents: number) => string
+}) {
+  const latest = spent
+    .filter((e) => !e.isSettlement)
     .sort((a, b) =>
       (b.dayDate ?? b.createdAt).localeCompare(a.dayDate ?? a.createdAt),
     )
@@ -180,10 +211,10 @@ function CategoryDetail({
         <DetailList title="Planned">
           {planned.map((it) => (
             <DetailLine key={it.id} amount={fmt(it.amountCents)}>
-              {it.subject || displayName(category)}
+              {it.subject || displayName(it.category)}
               <span className="text-muted-foreground">
                 {" · "}
-                {it.locationId ? placeName.get(it.locationId) : "Trip-wide"}
+                {plannedWhere(it)}
               </span>
               <span
                 className={`ml-1.5 ${NOTE_CLASS} ${it.paidExpenseId ? "text-moss" : "text-muted-foreground"}`}
@@ -194,9 +225,9 @@ function CategoryDetail({
           ))}
         </DetailList>
       ) : null}
-      {spent.length > 0 ? (
+      {latest.length > 0 ? (
         <DetailList title="Spent">
-          {spent.slice(0, SPENT_SHOWN).map((e) => (
+          {latest.slice(0, SPENT_SHOWN).map((e) => (
             <DetailLine key={e.id} amount={fmt(homeCents(e))}>
               {e.title}
               <span className="text-muted-foreground">
@@ -207,9 +238,9 @@ function CategoryDetail({
               </span>
             </DetailLine>
           ))}
-          {spent.length > SPENT_SHOWN ? (
+          {latest.length > SPENT_SHOWN ? (
             <div className="border-t border-border pt-1.5 text-[12px] text-muted-foreground">
-              + {spent.length - SPENT_SHOWN} more
+              + {latest.length - SPENT_SHOWN} more
             </div>
           ) : null}
         </DetailList>
