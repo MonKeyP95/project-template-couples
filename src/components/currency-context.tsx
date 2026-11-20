@@ -14,6 +14,8 @@ interface CurrencyValue {
    * on a trip you both spend and bank in the same money.
    */
   spendCurrency: string
+  /** What an expense form opens in: home before the trip, spend during it. */
+  entryCurrency: string
   /**
    * Foreign units per one unit of `currency`, or null when the rates call
    * failed. Null means the entry chip offers the home currency only, and no
@@ -25,23 +27,26 @@ interface CurrencyValue {
 const CurrencyContext = React.createContext<CurrencyValue>({
   currency: "EUR",
   spendCurrency: "EUR",
+  entryCurrency: "EUR",
   rates: null,
 })
 
 export function CurrencyProvider({
   currency,
   spendCurrency,
+  entryCurrency,
   rates,
   children,
 }: {
   currency: string
   spendCurrency: string
+  entryCurrency: string
   rates: Record<string, number> | null
   children: React.ReactNode
 }) {
   const value = React.useMemo(
-    () => ({ currency, spendCurrency, rates }),
-    [currency, spendCurrency, rates],
+    () => ({ currency, spendCurrency, entryCurrency, rates }),
+    [currency, spendCurrency, entryCurrency, rates],
   )
   return (
     <CurrencyContext.Provider value={value}>

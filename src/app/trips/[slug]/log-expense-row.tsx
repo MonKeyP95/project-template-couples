@@ -46,7 +46,7 @@ export function LogExpenseRow({
   initialLocationId = null,
   className = "bg-card px-5 py-4",
 }: LogExpenseRowProps) {
-  const { spendCurrency: tripCurrency } = useCurrency()
+  const { entryCurrency: tripCurrency } = useCurrency()
   const initialDay = React.useMemo(() => deviceToday(), [])
   const defaultCategory =
     categories.find((c) => c.name === initialCategory)?.name ??

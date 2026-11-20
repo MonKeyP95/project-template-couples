@@ -42,6 +42,7 @@ import { periodCheck } from "@/lib/trips/budget-period"
 import { CatchUpNudge } from "./catch-up-nudge"
 
 import { CurrencyProvider } from "@/components/currency-context"
+import { entryCurrency } from "@/lib/fx/entry-currency"
 import { getRates } from "@/lib/fx/get-rates"
 
 import { AssistantBlock } from "@/components/assistant-block"
@@ -151,6 +152,7 @@ export default async function OnTheRoadPage() {
     <CurrencyProvider
       currency={trip.homeCurrency}
       spendCurrency={trip.currency}
+      entryCurrency={entryCurrency(trip, today)}
       rates={rates}
     >
     <main className="relative mx-auto min-h-screen w-full max-w-[440px] pb-28 lg:flex lg:max-w-none lg:items-stretch lg:pb-0">
