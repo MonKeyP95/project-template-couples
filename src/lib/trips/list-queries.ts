@@ -14,6 +14,8 @@ export interface TripListItem {
   fuzzyWhen: string | null
   lat: number | null
   lng: number | null
+  /** What `lat`/`lng` are, when picked from geocoder matches. */
+  placeLabel: string | null
   plannedBudgetCents: number
   /** What you spend here; the expense-entry default. */
   currency: string
@@ -47,6 +49,7 @@ interface TripRow {
   fuzzy_when: string | null
   lat: string | number | null
   lng: string | number | null
+  place_label: string | null
   planned_budget_cents: number
   currency: string
   home_currency: string
@@ -85,7 +88,7 @@ export async function listTripsForWorkspace(
   const { data } = await supabase
     .from("trips")
     .select(
-      "id, slug, name, country, start_date, end_date, fuzzy_when, lat, lng, planned_budget_cents, currency, home_currency, budget_period, created_at",
+      "id, slug, name, country, start_date, end_date, fuzzy_when, lat, lng, place_label, planned_budget_cents, currency, home_currency, budget_period, created_at",
     )
     .eq("workspace_id", workspaceId)
     .order("created_at", { ascending: true })
@@ -127,6 +130,7 @@ export async function listTripsForWorkspace(
     fuzzyWhen: row.fuzzy_when,
     lat: asNumber(row.lat),
     lng: asNumber(row.lng),
+    placeLabel: row.place_label,
     plannedBudgetCents: row.planned_budget_cents,
     currency: row.currency,
     homeCurrency: row.home_currency,

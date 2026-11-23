@@ -16,6 +16,7 @@ import { getTodayForTrip, getItineraryDays } from "@/lib/trips/itinerary-queries
 import { getItineraryLocations } from "@/lib/trips/location-queries"
 import { formatShortDate, isDated } from "@/lib/trips/itinerary-types"
 import { getTripWeather } from "@/lib/weather/get-trip-weather"
+import { placeText } from "@/lib/weather/place-for-weather"
 import { getUpcomingConditions } from "@/lib/conditions/day-conditions"
 import { getUsualActivities } from "@/lib/conditions/usual-activities"
 import { DispatchBox } from "@/components/dispatch-box"
@@ -137,12 +138,15 @@ export default async function OnTheRoadPage() {
     : null
 
   const fullDate = `${WEEKDAY_FMT.format(new Date(`${today}T00:00:00Z`))} ${formatShortDate(today)}`
-  const locationName = todayDay?.locationId
-    ? locations.find((l) => l.id === todayDay.locationId)?.name ?? null
+  const todayLocation = todayDay?.locationId
+    ? locations.find((l) => l.id === todayDay.locationId) ?? null
     : null
+  const locationName = todayLocation?.name ?? null
   const place = locationName ?? trip.country
-  const searchDestination = locationName ?? trip.country ?? trip.name
-  const weatherPlace = { ...trip, locationName }
+  const searchDestination = todayLocation
+    ? placeText(todayLocation.name, todayLocation.pin)
+    : trip.placeLabel ?? trip.country ?? trip.name
+  const weatherPlace = { ...trip, locationName, locationPin: todayLocation?.pin ?? null }
   const weather = await getTripWeather(weatherPlace)
   const usual = await getUsualActivities(workspace.id)
   const conditions = await getUpcomingConditions(trip, days, locations, today, usual)

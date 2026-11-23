@@ -4,6 +4,8 @@
 
 **Next up: work on the AI itinerary planner** (`itinerary-planner` agent, `src/lib/ai/agents/`). Noted 2026-11-03.
 
+**Pinned places: implemented 2026-11-23; `tsc` + lint clean; `pnpm build` passes; unverified in app. Migration `20261123000001_pinned_places.sql` must be pasted BEFORE this code runs (the trip and location queries select the new columns).** Spec/plan: `docs/superpowers/{specs,plans}/2026-11-23-pinned-places*`. A trip (new-trip "Where" on Continue, Edit trip "find") and each itinerary place (its edit form, saves on tap) can be pinned to a geocoder match; weather, conditions, news and the on-the-road place search read the pin. In-app checks: the 12 in the spec's "Verified by the user" list.
+
 **Profile in boxes + couple description + home country: implemented 2026-11-20; lint + `tsc` clean; `pnpm build` passes; verified in-app 2026-11-20; merged #146; migration `20261120000001_workspace_about.sql` applied.** /profile is four boxes: About us (names, description, invite), What we like (the 4 categories), History (by trip, then an "Across trips" budget view), Basics (name, email, home country + currency). One column on the phone in that order; two columns on desktop (About + Likes + Basics left, History right). Header markers: About "empty"/"done", Likes "n of 4", Basics "add home country"/"done", in clay while incomplete. New `workspaces.description` (max 300) and `workspaces.home_country` (free text, max 60), editable by any member; `buildProfileBlock` feeds both to chat, suggestion, budget-planner, itinerary-planner and dispatch (not discover). In-app checks:
   1. Phone: four boxes in order About us, What we like, Basics, History; no horizontal scroll.
   2. Desktop: two columns, About us + What we like + Basics left, History right.

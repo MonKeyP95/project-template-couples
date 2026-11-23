@@ -1,4 +1,5 @@
 import { dateOfIndex } from "@/lib/trips/itinerary-types"
+import type { PlaceMatch } from "@/lib/weather/geocode"
 
 export interface ItineraryLocation {
   id: string
@@ -16,6 +17,8 @@ export interface ItineraryLocation {
   /** What you spend here; null = the trip's currency. Pre-fills the expense
    * form only -- it never changes how anything is totalled. */
   currency: string | null
+  /** The exact place picked from geocoder matches; null = not pinned. */
+  pin: PlaceMatch | null
 }
 
 export interface ItineraryLocationRow {
@@ -26,6 +29,10 @@ export interface ItineraryLocationRow {
   end_index?: number | null
   budget_cents?: number | null
   currency?: string | null
+  /** numeric columns; Realtime payloads may carry them as strings. */
+  lat?: string | number | null
+  lng?: string | number | null
+  place_label?: string | null
 }
 
 /** Row -> location; span dates are derived from the indexes and the trip start. */
@@ -46,5 +53,9 @@ export function rowToLocation(
     endIndex,
     budgetCents: row.budget_cents ?? null,
     currency: row.currency ?? null,
+    pin:
+      row.lat != null && row.lng != null && row.place_label
+        ? { lat: Number(row.lat), lng: Number(row.lng), fullName: row.place_label }
+        : null,
   }
 }

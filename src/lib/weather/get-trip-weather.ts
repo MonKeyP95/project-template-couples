@@ -1,4 +1,4 @@
-import { geocodePlace } from "./geocode"
+import { geocodePlace, type PlaceMatch } from "./geocode"
 import {
   getCurrentWeather,
   getSeasonalEstimate,
@@ -12,8 +12,12 @@ export interface TripPlace {
   lng: number | null
   country: string | null
   name: string
+  /** What the trip's `lat`/`lng` are, when picked from geocoder matches. */
+  placeLabel?: string | null
   /** Most specific place for this trip right now. Wins over the trip's own pin. */
   locationName?: string | null
+  /** That place's exact pin; wins over looking its name up. */
+  locationPin?: PlaceMatch | null
 }
 
 interface Resolved {
@@ -33,12 +37,20 @@ interface Resolved {
  * the label that produced the hit so callers can show which place they got.
  */
 export async function resolveCoords(place: TripPlace): Promise<Resolved | null> {
+  if (place.locationPin) {
+    return { ...place.locationPin, label: place.locationName ?? place.locationPin.fullName }
+  }
   if (place.locationName) {
     const geo = await geocodePlace(place.locationName, place.country)
     if (geo) return { ...geo, label: place.locationName }
   }
   if (place.lat != null && place.lng != null) {
-    return { lat: place.lat, lng: place.lng, label: place.name, fullName: place.name }
+    return {
+      lat: place.lat,
+      lng: place.lng,
+      label: place.name,
+      fullName: place.placeLabel ?? place.name,
+    }
   }
   const byName = await geocodePlace(place.name)
   if (byName) return { ...byName, label: place.name }

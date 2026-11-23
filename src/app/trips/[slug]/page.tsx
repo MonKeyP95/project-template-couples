@@ -254,9 +254,11 @@ export default async function TripPage({
       i.category !== CHECKLIST_CATEGORY,
   )
   const today = await localToday()
+  const weatherLocation = pickWeatherLocation(locations ?? [], today)
   const weatherPlace = {
     ...header,
-    locationName: pickWeatherLocation(locations ?? [], today)?.name ?? null,
+    locationName: weatherLocation?.name ?? null,
+    locationPin: weatherLocation?.pin ?? null,
   }
   const [packingWeather, weekForecast] = await Promise.all([
     getTripSeasonalEstimate(weatherPlace, header.startDate ?? today),

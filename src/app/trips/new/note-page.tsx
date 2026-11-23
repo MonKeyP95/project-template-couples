@@ -1,6 +1,8 @@
 "use client"
 
 import { BudgetPeriodPicker } from "@/components/budget-period-picker"
+import { PinChoices } from "@/components/pin-choices"
+import type { PlaceMatch } from "@/lib/weather/geocode"
 import { currencyOptions } from "@/lib/fx/currency-list"
 import type { DraftField, TripDraft } from "./new-trip-form"
 
@@ -16,6 +18,10 @@ export function NotePage({
   draft,
   symbol,
   noteHasPlace,
+  pinMatches,
+  pin,
+  searching,
+  onPin,
   onNote,
   onEdit,
   onDraft,
@@ -24,6 +30,11 @@ export function NotePage({
   draft: TripDraft
   symbol: string
   noteHasPlace: boolean
+  /** Geocoder matches for the current "Where"; null until searched. */
+  pinMatches: PlaceMatch[] | null
+  pin: PlaceMatch | null
+  searching: boolean
+  onPin: (pin: PlaceMatch | null) => void
   onNote: (note: string) => void
   onEdit: (field: DraftField, value: string) => void
   onDraft: (patch: Partial<TripDraft>) => void
@@ -133,6 +144,12 @@ export function NotePage({
           </button>
         </div>
       )}
+      {pinMatches ? (
+        <div className="-mt-4">
+          <span className={eyebrow}>Which one?</span>
+          <PinChoices matches={pinMatches} value={pin} onPick={onPin} />
+        </div>
+      ) : null}
 
       <label className="block">
         <span className="block text-[17px] text-foreground">
@@ -154,7 +171,7 @@ export function NotePage({
       <button
         type="button"
         onClick={onContinue}
-        disabled={!draft.note.trim() || halfDated}
+        disabled={!draft.note.trim() || halfDated || searching}
         className="mt-3 h-[52px] rounded-[10px] border-0 bg-primary text-[16px] font-medium text-primary-foreground disabled:opacity-40"
       >
         Continue

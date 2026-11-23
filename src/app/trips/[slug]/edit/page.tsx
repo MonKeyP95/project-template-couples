@@ -65,8 +65,10 @@ export default async function EditTripPage({
           homeCurrency: trip.homeCurrency,
           budgetPeriod: trip.budgetPeriod,
           plannedBudgetCents: trip.plannedBudgetCents,
-          lat: trip.lat,
-          lng: trip.lng,
+          pin:
+            trip.lat !== null && trip.lng !== null
+              ? { lat: trip.lat, lng: trip.lng, fullName: trip.placeLabel ?? trip.name }
+              : null,
         }}
         initialProfile={trip.tripProfile}
       />

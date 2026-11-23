@@ -4,6 +4,8 @@ import * as React from "react"
 import { useRouter } from "next/navigation"
 
 import { createTrip } from "@/lib/trips/actions"
+import { searchPinCandidates } from "@/lib/places/pin-actions"
+import type { PlaceMatch } from "@/lib/weather/geocode"
 import { currencySymbol } from "@/lib/money"
 import {
   prefillPrefs,
@@ -69,6 +71,28 @@ export function NewTripForm({ currency }: { currency: string }) {
   const [page, setPage] = React.useState<"note" | "prefs">("note")
   const [error, setError] = React.useState<string | null>(null)
   const [isPending, startTransition] = React.useTransition()
+  const [found, setFound] = React.useState<{ query: string; matches: PlaceMatch[] } | null>(
+    null,
+  )
+  const [pin, setPin] = React.useState<PlaceMatch | null>(null)
+  const [isSearching, startSearch] = React.useTransition()
+
+  const where = draft.unsure ? "" : draft.place.trim()
+  const pinMatches = where && found?.query === where ? found.matches : null
+
+  /** The first Continue looks "Where" up and stays to show the matches; the
+   * next one moves on. A changed "Where" is looked up again. */
+  function continueFromNote() {
+    if (!where || found?.query === where) {
+      setPage("prefs")
+      return
+    }
+    startSearch(async () => {
+      const matches = await searchPinCandidates(where, null)
+      setFound({ query: where, matches })
+      setPin(matches.length === 1 ? matches[0] : null)
+    })
+  }
 
   function changeNote(note: string) {
     const r = readNote(note, currency, symbol)
@@ -118,6 +142,7 @@ export function NewTripForm({ currency }: { currency: string }) {
         budget: Number(draft.budget) || 0,
         budgetPeriod: draft.budgetPeriod,
         place: draft.unsure ? null : draft.place,
+        pin: pinMatches ? pin : null,
         what: draft.what,
         prefs: withPrefs ? draft.prefs : null,
         currency: draft.currency,
@@ -136,10 +161,14 @@ export function NewTripForm({ currency }: { currency: string }) {
         draft={draft}
         symbol={symbol}
         noteHasPlace={readNote(draft.note, currency, symbol).place !== ""}
+        pinMatches={pinMatches}
+        pin={pin}
+        searching={isSearching}
+        onPin={setPin}
         onNote={changeNote}
         onEdit={edit}
         onDraft={(patch) => setDraft((d) => ({ ...d, ...patch }))}
-        onContinue={() => setPage("prefs")}
+        onContinue={continueFromNote}
       />
     )
   }

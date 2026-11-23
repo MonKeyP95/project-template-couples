@@ -60,6 +60,7 @@ import {
   repeatItineraryEvent,
   moveItineraryDay,
   rescheduleItineraryDaysTo,
+  setLocationPin,
   setLocationSpanWithShift,
   ungroupItineraryDays,
   updateItineraryDay,
@@ -87,6 +88,8 @@ import {
 } from "@/lib/trips/location-types"
 import { slugToTone } from "@/lib/trips/slug-tone"
 import { DayInput } from "./day-input"
+import { PinFinder } from "@/components/pin-finder"
+import type { PlaceMatch } from "@/lib/weather/geocode"
 import { selectionBlock } from "@/lib/trips/itinerary-blocks"
 import { planDrop, restoreDays, toSegments, type DaySegment } from "@/lib/trips/itinerary-slots"
 import { isPlannedRow } from "@/lib/trips/outside-days"
@@ -832,6 +835,15 @@ export function ItineraryTab({
     })
   }
 
+  /** Saves on tap, apart from the rename, so a rename never touches the pin. */
+  function pinLocation(locationId: string, pin: PlaceMatch | null) {
+    setLocations((prev) => prev.map((l) => (l.id === locationId ? { ...l, pin } : l)))
+    startLoc(async () => {
+      const result = await setLocationPin(locationId, tripSlug, pin)
+      if (result.error) setRenameError(result.error)
+    })
+  }
+
   function submitRename(e: React.FormEvent, locationId: string) {
     e.preventDefault()
     const name = renameVal.trim()
@@ -1085,6 +1097,12 @@ export function ItineraryTab({
                           value={renameVal}
                           onChange={(e) => setRenameVal(e.target.value)}
                           className="t-display w-full border-0 border-b border-rule bg-transparent text-[20px] leading-none text-foreground focus:border-clay focus:outline-none"
+                        />
+                        <PinFinder
+                          query={renameVal}
+                          prefer={destination}
+                          value={locations.find((l) => l.id === group.key)?.pin ?? null}
+                          onChange={(pin) => pinLocation(group.key, pin)}
                         />
                         <div className="flex items-center gap-2">
                           <DayInput
