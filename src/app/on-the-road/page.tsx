@@ -48,8 +48,8 @@ import { getRates } from "@/lib/fx/get-rates"
 import { AssistantBlock } from "@/components/assistant-block"
 import { RealtimeRefresh } from "@/components/realtime-refresh"
 import { QuickExpense } from "./quick-expense"
-import { CategoryBars } from "./category-bars"
-import { byCategoryLines } from "@/lib/trips/budget-by-category-types"
+import { BudgetByCategory } from "@/app/trips/[slug]/budget-by-category"
+import { memberToneMap } from "@/app/trips/[slug]/member-tones"
 import { QuickNote } from "./quick-note"
 import { RoadPlaceDoor } from "./find-a-place"
 import { RoadNudge } from "./road-nudge"
@@ -132,12 +132,6 @@ export default async function OnTheRoadPage() {
     expenses: spends,
     locationDays,
   })
-  const { lines: categoryLines } = byCategoryLines(
-    spends,
-    budgetItems,
-    categories.map((c) => c.name),
-    true,
-  )
   const unloggedNudge = pace
     ? detectUnloggedDays({
         unloggedDays: pace.unloggedDays,
@@ -284,7 +278,20 @@ export default async function OnTheRoadPage() {
             locations.find((l) => l.id === todayDay?.locationId)?.currency ?? null
           }
         />
-        <CategoryBars lines={categoryLines} currency={trip.homeCurrency} />
+        <div className="px-[18px] pt-1 pb-3">
+          <Label>Trip by category</Label>
+          <BudgetByCategory
+            tripId={trip.id}
+            tripSlug={trip.slug}
+            currentPersonId={workspace.myPersonId ?? ""}
+            expenses={expenses}
+            budgetItems={budgetItems}
+            categories={categories}
+            locations={locations}
+            members={memberToneMap(workspace)}
+            tripStarted
+          />
+        </div>
         <div className="px-[18px] pb-3 empty:hidden">
           <ReceiptPile
             tripSlug={trip.slug}

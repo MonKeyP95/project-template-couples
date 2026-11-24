@@ -4,6 +4,13 @@
 
 **Next up: work on the AI itinerary planner** (`itinerary-planner` agent, `src/lib/ai/agents/`). Noted 2026-11-03.
 
+**Edit category rows on the road: implemented 2026-11-24; lint + `tsc` clean; unverified in app; no migration.** The road's "Trip by category" rows are now the Budget tab's own `BudgetByCategory` (tap a row to see, add and edit its planned lines and expenses), replacing the read-only `category-bars.tsx`. `memberToneMap` moved to `trips/[slug]/member-tones.ts` so both pages share it. In-app checks:
+  1. On the road, open "Quick expense": tapping a category row opens its planned lines and spent list, like the Budget tab.
+  2. "+ add expense" in a row logs an expense with that category; the row's amount updates without a reload.
+  3. Tapping a spent line opens the editor; changing its amount updates the row.
+  4. Adding or editing a planned line from the road changes the row's "/ planned" figure.
+  5. Phone width: rows and the opened detail fit, no horizontal scroll.
+
 **Category bar colours + on-the-road category bars: implemented 2026-11-24; lint + `tsc` clean; verified in-app 2026-11-24; no migration.** Budget-tab category bars each take a colour by position (sea, moss, sand, dusk, clay, sea-2); over-budget or unplanned bars and their notes are true red (`destructive`). By-place rows stay sea, with red when over. On the road, the "Spent today" box shows read-only "Trip by category" rows in the same colours, below the quick-expense form. In-app checks:
   1. Budget tab: each category bar has its own colour; light and dark mode both readable.
   2. A category over plan shows a red bar and a red "... over" note; an unplanned one is red with "unplanned".
