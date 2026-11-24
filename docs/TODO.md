@@ -4,6 +4,14 @@
 
 **Next up: work on the AI itinerary planner** (`itinerary-planner` agent, `src/lib/ai/agents/`). Noted 2026-11-03.
 
+**Quick expense: "today" label + close on save: implemented 2026-11-24; lint + `tsc` clean; verified in-app 2026-11-24; no migration.** The road box's big number reads "€250 today". Any successful save inside the box (quick-expense add, a category row's "+ add expense", editing a spent line) closes the box. Done with a small context (`components/close-on-expense-saved.tsx`); outside the road box the forms behave as before. In-app checks:
+  1. On the road, the box shows the amount with a small grey "today" after it.
+  2. Add an expense with the quick-expense form: the box closes and the today amount updates.
+  3. Open a category row, "+ add expense", save: the box closes.
+  4. Edit a spent line in a category row and save: the box closes. Cancel instead: it stays open.
+  5. A save that fails (e.g. offline) keeps the box open with the error.
+  6. Budget tab: adding or editing an expense behaves as before (the add form stays open for the next entry).
+
 **Edit category rows on the road: implemented 2026-11-24; lint + `tsc` clean; verified in-app 2026-11-24; no migration.** The road's "Trip by category" rows are now the Budget tab's own `BudgetByCategory` (tap a row to see, add and edit its planned lines and expenses), replacing the read-only `category-bars.tsx`. `memberToneMap` moved to `trips/[slug]/member-tones.ts` so both pages share it. In-app checks:
   1. On the road, open "Quick expense": tapping a category row opens its planned lines and spent list, like the Budget tab.
   2. "+ add expense" in a row logs an expense with that category; the row's amount updates without a reload.

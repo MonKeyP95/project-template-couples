@@ -17,6 +17,7 @@ import {
 } from "@/lib/trips/expense-types"
 import { currencySymbol, money, moneyInput } from "@/lib/money"
 import { useCurrency } from "@/components/currency-context"
+import { useExpenseSaved } from "@/components/close-on-expense-saved"
 
 import { ReceiptView } from "@/components/receipts/receipt-view"
 import type { Receipt } from "@/lib/trips/receipt-types"
@@ -313,6 +314,7 @@ export function LedgerRowEditor({
   }
   const [error, setError] = React.useState<string | null>(null)
   const [isPending, startTransition] = React.useTransition()
+  const onSaved = useExpenseSaved()
 
   const canSubmit =
     title.trim().length > 0 &&
@@ -342,6 +344,7 @@ export function LedgerRowEditor({
         return
       }
       onDone()
+      onSaved?.()
     })
   }
 

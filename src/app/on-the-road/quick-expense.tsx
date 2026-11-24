@@ -11,6 +11,7 @@ import { Label } from "@/components/together"
 import type { ExpenseCategoryRow } from "@/lib/trips/expense-types"
 import type { ItineraryEvent } from "@/lib/trips/itinerary-types"
 import { useCurrency } from "@/components/currency-context"
+import { useExpenseSaved } from "@/components/close-on-expense-saved"
 import { CurrencyChip } from "@/app/trips/[slug]/currency-chip"
 
 export interface QuickExpenseProps {
@@ -45,6 +46,7 @@ export function QuickExpense({
   const [category, setCategory] = React.useState(categories[0]?.name ?? "")
   const [error, setError] = React.useState<string | null>(null)
   const [isPending, startTransition] = React.useTransition()
+  const onSaved = useExpenseSaved()
   const [receiptId, setReceiptId] = React.useState<string | null>(null)
   const [readingReceipt, setReadingReceipt] = React.useState(false)
 
@@ -97,6 +99,7 @@ export function QuickExpense({
         setReceiptId(null)
         if (attach.error) setError("Expense saved; receipt left in the pile to match.")
       }
+      onSaved?.()
       router.refresh()
     })
   }
