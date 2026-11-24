@@ -11,3 +11,8 @@ export async function localTimeZone(): Promise<string> {
 export async function localToday(): Promise<string> {
   return todayInTimeZone(await localTimeZone())
 }
+
+/** Request time in ms, for render-time checks such as due note reminders. */
+export function requestNowMs(): number {
+  return Date.now()
+}

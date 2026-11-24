@@ -17,6 +17,8 @@ export interface MobileTripProps {
   dayCount: number
   spentCents: number
   notesCount: number
+  /** A note reminder is due: the Notes box turns clay. */
+  notesDue: boolean
   itinerary: ReactNode
   budget: ReactNode
   /** The one PackingTab, rendering Packing, then `between`, then Checklist. */
@@ -55,9 +57,15 @@ export function MobileTrip(props: MobileTripProps) {
               {props.documents}
             </BoxSection>
           </BoxCard>
-          <BoxCard>
+          <BoxCard className={props.notesDue ? "border-clay bg-clay-tint" : undefined}>
             <BoxSection
-              summary={<SummaryRow label="Notes" detail={`${props.notesCount}`} />}
+              summary={
+                props.notesDue ? (
+                  <SummaryRow label="Notes" detail="reminder due" tone="text-clay" />
+                ) : (
+                  <SummaryRow label="Notes" detail={`${props.notesCount}`} />
+                )
+              }
             >
               {props.notes}
             </BoxSection>
@@ -164,11 +172,19 @@ function BudgetCard({ header, dayCount, spentCents, budget }: MobileTripProps) {
   )
 }
 
-function SummaryRow({ label, detail }: { label: string; detail: string }) {
+function SummaryRow({
+  label,
+  detail,
+  tone = "text-muted-foreground",
+}: {
+  label: string
+  detail: string
+  tone?: string
+}) {
   return (
     <div className="flex items-baseline justify-between gap-3">
       <Label>{label}</Label>
-      <span className="font-mono text-[11px] text-muted-foreground">{detail}</span>
+      <span className={`font-mono text-[11px] ${tone}`}>{detail}</span>
     </div>
   )
 }

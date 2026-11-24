@@ -6,6 +6,40 @@
 
 **Pinned places: implemented 2026-11-23; `tsc` + lint clean; `pnpm build` passes; unverified in app; migration `20261123000001_pinned_places.sql` applied 2026-11-23; not merged (branch `feat/pinned-places`).** Spec/plan: `docs/superpowers/{specs,plans}/2026-11-23-pinned-places*`. A trip (new-trip "Where" on Continue, Edit trip "find") and each itinerary place (its edit form, saves on tap) can be pinned to a geocoder match; weather, conditions, news and the on-the-road place search read the pin. In-app checks: the 12 in the spec's "Verified by the user" list.
 
+**Note reminders: implemented 2026-11-24; lint + `tsc` clean; verified in-app 2026-11-24; migration `20261124000001_note_reminders.sql` applied.** Spec/plan: `docs/superpowers/{specs,plans}/2026-11-24-note-reminders*`. A note can carry "Remind me" (date + time, phone's own clock). Once due: clay Notes row on the road (due notes listed even from other days), clay Notes box on the phone trip page, clay "Trip folder" pill on desktop (unless it is the open tab); the note gets a clay edge and "done", which clears it for both. Not-yet-due shows a grey "remind 18:00 · 25 Nov". No phone notification. While a trip or road page is open, a timer refreshes it at the next reminder moment (`components/refresh-at-reminder.tsx`), so the colour appears without a reload. In-app checks:
+  1. Paste the migration in the Supabase SQL editor.
+  2. Edit a note, set "Remind me" to two minutes from now, save: the note shows a grey "remind HH:MM · D Mon".
+  3. After that time, reload: desktop "Trip folder" pill is clay; phone trip page Notes box is clay and reads "reminder due"; the note has a clay edge and a "done" button.
+  4. On the road the Notes row is clay and the due note is listed, even if it was written on another day.
+  5. Tap "done": the colour goes away (for your partner too, after reload).
+  6. Edit a note with a reminder, change only the text, save: the reminder stays. Clear the field, save: it is gone.
+  7. On the road, a quick note saved with a reminder works the same way.
+  8. Leave a trip page (and separately the road page) open past a reminder time: within a second or two after it, the colour appears without touching anything.
+
+**Quick expense: "today" label + close on save: implemented 2026-11-24; lint + `tsc` clean; verified in-app 2026-11-24; no migration.** The road box's big number reads "€250 today". Any successful save inside the box (quick-expense add, a category row's "+ add expense", editing a spent line) closes the box. Done with a small context (`components/close-on-expense-saved.tsx`); outside the road box the forms behave as before. In-app checks:
+  1. On the road, the box shows the amount with a small grey "today" after it.
+  2. Add an expense with the quick-expense form: the box closes and the today amount updates.
+  3. Open a category row, "+ add expense", save: the box closes.
+  4. Edit a spent line in a category row and save: the box closes. Cancel instead: it stays open.
+  5. A save that fails (e.g. offline) keeps the box open with the error.
+  6. Budget tab: adding or editing an expense behaves as before (the add form stays open for the next entry).
+
+**Edit category rows on the road: implemented 2026-11-24; lint + `tsc` clean; verified in-app 2026-11-24; no migration.** The road's "Trip by category" rows are now the Budget tab's own `BudgetByCategory` (tap a row to see, add and edit its planned lines and expenses), replacing the read-only `category-bars.tsx`. `memberToneMap` moved to `trips/[slug]/member-tones.ts` so both pages share it. In-app checks:
+  1. On the road, open "Quick expense": tapping a category row opens its planned lines and spent list, like the Budget tab.
+  2. "+ add expense" in a row logs an expense with that category; the row's amount updates without a reload.
+  3. Tapping a spent line opens the editor; changing its amount updates the row.
+  4. Adding or editing a planned line from the road changes the row's "/ planned" figure.
+  5. Phone width: rows and the opened detail fit, no horizontal scroll.
+
+**Category bar colours + on-the-road category bars: implemented 2026-11-24; lint + `tsc` clean; verified in-app 2026-11-24; no migration.** Budget-tab category bars each take a colour by position (sea, moss, sand, dusk, clay, sea-2); over-budget or unplanned bars and their notes are true red (`destructive`). By-place rows stay sea, with red when over. On the road, the "Spent today" box shows read-only "Trip by category" rows in the same colours, below the quick-expense form. In-app checks:
+  1. Budget tab: each category bar has its own colour; light and dark mode both readable.
+  2. A category over plan shows a red bar and a red "... over" note; an unplanned one is red with "unplanned".
+  3. On the road: open "Spent today"; below the expense form, "Trip by category" lists the same categories, in the same colours and amounts as the Budget tab.
+  4. Log an expense that pushes a category over plan: its road bar turns red.
+  5. Trip with no planned lines: category rows show only the spend (e.g. "€250", no "/ €0"), all in their own colours (no red); the biggest is a full bar, the others relative to it. Same on the road.
+  6. Trip with no budget: the Budget tab total shows a bar filled by days gone ("day 2 of 4" = 50%); before the trip "4 days to go" at 0%; a dream (no dates) shows no bar.
+  7. On the road, the expense box header reads "Quick expense" (was "Spent today").
+
 **Profile in boxes + couple description + home country: implemented 2026-11-20; lint + `tsc` clean; `pnpm build` passes; verified in-app 2026-11-20; merged #146; migration `20261120000001_workspace_about.sql` applied.** /profile is four boxes: About us (names, description, invite), What we like (the 4 categories), History (by trip, then an "Across trips" budget view), Basics (name, email, home country + currency). One column on the phone in that order; two columns on desktop (About + Likes + Basics left, History right). Header markers: About "empty"/"done", Likes "n of 4", Basics "add home country"/"done", in clay while incomplete. New `workspaces.description` (max 300) and `workspaces.home_country` (free text, max 60), editable by any member; `buildProfileBlock` feeds both to chat, suggestion, budget-planner, itinerary-planner and dispatch (not discover). In-app checks:
   1. Phone: four boxes in order About us, What we like, Basics, History; no horizontal scroll.
   2. Desktop: two columns, About us + What we like + Basics left, History right.
