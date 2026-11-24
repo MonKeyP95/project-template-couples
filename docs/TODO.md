@@ -4,7 +4,7 @@
 
 **Next up: work on the AI itinerary planner** (`itinerary-planner` agent, `src/lib/ai/agents/`). Noted 2026-11-03.
 
-**Quick expense: "today" label + close on save: implemented 2026-11-24; lint + `tsc` clean; unverified in app; no migration.** The road box's big number reads "€250 today". Any successful save inside the box (quick-expense add, a category row's "+ add expense", editing a spent line) closes the box. Done with a small context (`components/close-on-expense-saved.tsx`); outside the road box the forms behave as before. In-app checks:
+**Quick expense: "today" label + close on save: implemented 2026-11-24; lint + `tsc` clean; verified in-app 2026-11-24; no migration.** The road box's big number reads "€250 today". Any successful save inside the box (quick-expense add, a category row's "+ add expense", editing a spent line) closes the box. Done with a small context (`components/close-on-expense-saved.tsx`); outside the road box the forms behave as before. In-app checks:
   1. On the road, the box shows the amount with a small grey "today" after it.
   2. Add an expense with the quick-expense form: the box closes and the today amount updates.
   3. Open a category row, "+ add expense", save: the box closes.
