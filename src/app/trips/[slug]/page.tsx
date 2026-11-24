@@ -18,7 +18,7 @@ import { FlipCountdown } from "@/components/flip-countdown"
 import { WeekForecast } from "@/components/week-forecast"
 import { createClient } from "@/lib/supabase/server"
 import { isDarkTheme } from "@/lib/theme"
-import { localToday } from "@/lib/time/local-today"
+import { localTimeZone, localToday, requestNowMs } from "@/lib/time/local-today"
 import {
   getTripExpenses,
   getTripExpenseCategories,
@@ -225,6 +225,8 @@ export default async function TripPage({
       i.category !== CHECKLIST_CATEGORY,
   )
   const today = await localToday()
+  const tz = await localTimeZone()
+  const now = requestNowMs()
   const weatherPlace = {
     ...header,
     locationName: pickWeatherLocation(locations ?? [], today)?.name ?? null,
@@ -358,6 +360,8 @@ export default async function TripPage({
       locations={locations ?? []}
       members={memberTones}
       layout={isMobile ? "phone" : "folder"}
+      tz={tz}
+      now={now}
     />
   )
 

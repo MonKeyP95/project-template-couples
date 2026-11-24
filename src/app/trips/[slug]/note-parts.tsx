@@ -10,12 +10,19 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { addNote, deleteNote, updateNote } from "@/lib/trips/actions"
+import { addNote, clearNoteReminder, deleteNote, updateNote } from "@/lib/trips/actions"
+import {
+  fromLocalInput,
+  isDue,
+  reminderLabel,
+  toLocalInput,
+} from "@/lib/trips/note-reminders"
 import type { TripNote } from "@/lib/trips/note-queries"
 import type { ItineraryLocation } from "@/lib/trips/location-types"
 import { slugToTone, type CardTone } from "@/lib/trips/slug-tone"
 
 import type { MemberToneEntry } from "./packing-tab"
+import { RemindField } from "./remind-field"
 
 const TRIP_WIDE = "Trip-wide"
 
@@ -109,6 +116,7 @@ export function AddNoteForm({
 }) {
   const [body, setBody] = React.useState("")
   const [locationId, setLocationId] = React.useState<string | null>(null)
+  const [remind, setRemind] = React.useState("")
   const [error, setError] = React.useState<string | null>(null)
   const [isPending, startTransition] = React.useTransition()
   const textareaRef = React.useRef<HTMLTextAreaElement>(null)
@@ -118,12 +126,19 @@ export function AddNoteForm({
     if (!body.trim() || isPending) return
     setError(null)
     startTransition(async () => {
-      const result = await addNote({ tripId, tripSlug, body, locationId })
+      const result = await addNote({
+        tripId,
+        tripSlug,
+        body,
+        locationId,
+        remindAt: fromLocalInput(remind),
+      })
       if (result.error) {
         setError(result.error)
         return
       }
       setBody("")
+      setRemind("")
       textareaRef.current?.focus()
     })
   }
@@ -140,6 +155,7 @@ export function AddNoteForm({
         className={`${TEXTAREA} border-rule`}
       />
       <PlacePicker value={locationId} onChange={setLocationId} locations={locations} disabled={isPending} />
+      <RemindField value={remind} onChange={setRemind} disabled={isPending} />
       {error ? <div className="mt-2 font-mono text-[10px] text-clay">{error}</div> : null}
       <div className="mt-2 flex justify-end">
         <button type="submit" disabled={!body.trim() || isPending} className={SAVE}>
@@ -158,17 +174,25 @@ export function NoteCard({
   isEditing,
   onStartEdit,
   onStopEdit,
+  tz,
+  now,
 }: {
   note: TripNote
   tripSlug: string
   locations: ItineraryLocation[]
   member: MemberToneEntry | undefined
   isEditing: boolean
+  /** Device timezone (tz cookie) for showing and editing the reminder. */
+  tz: string
+  /** Render time in ms, from the server, so due-ness matches on both sides. */
+  now: number
   onStartEdit: () => void
   onStopEdit: () => void
 }) {
   if (isEditing) {
-    return <NoteEditor note={note} tripSlug={tripSlug} locations={locations} onDone={onStopEdit} />
+    return (
+      <NoteEditor note={note} tripSlug={tripSlug} locations={locations} tz={tz} onDone={onStopEdit} />
+    )
   }
   return (
     <NoteView
@@ -177,6 +201,8 @@ export function NoteCard({
       locations={locations}
       member={member}
       onStartEdit={onStartEdit}
+      tz={tz}
+      now={now}
     />
   )
 }
@@ -187,15 +213,23 @@ function NoteView({
   locations,
   member,
   onStartEdit,
+  tz,
+  now,
 }: {
   note: TripNote
   tripSlug: string
   locations: ItineraryLocation[]
   member: MemberToneEntry | undefined
   onStartEdit: () => void
+  tz: string
+  now: number
 }) {
+  const due = isDue(note, new Date(now))
   return (
-    <div>
+    <div className={due ? "border-l-2 border-clay pl-3" : undefined}>
+      {due && note.remindAt ? (
+        <ReminderDue noteId={note.id} tripSlug={tripSlug} label={reminderLabel(note.remindAt, tz)} />
+      ) : null}
       <p className="whitespace-pre-wrap text-[14px] leading-snug text-foreground">{note.body}</p>
       <div className="mt-2 flex items-center justify-between">
         <div className="flex items-center gap-2">
@@ -204,6 +238,11 @@ function NoteView({
             {formatNoteDate(note.createdAt)}
           </span>
           <PlaceTag locationId={note.locationId} locations={locations} />
+          {note.remindAt && !due ? (
+            <span className="font-mono text-[10px] tracking-[0.06em] text-muted-foreground">
+              remind {reminderLabel(note.remindAt, tz)}
+            </span>
+          ) : null}
         </div>
         <div className="flex items-center gap-1">
           <button
@@ -241,15 +280,18 @@ function NoteEditor({
   note,
   tripSlug,
   locations,
+  tz,
   onDone,
 }: {
   note: TripNote
   tripSlug: string
   locations: ItineraryLocation[]
+  tz: string
   onDone: () => void
 }) {
   const [body, setBody] = React.useState(note.body)
   const [locationId, setLocationId] = React.useState<string | null>(note.locationId)
+  const [remind, setRemind] = React.useState(() => toLocalInput(note.remindAt, tz))
   const [error, setError] = React.useState<string | null>(null)
   const [isPending, startTransition] = React.useTransition()
 
@@ -258,7 +300,13 @@ function NoteEditor({
     if (!body.trim() || isPending) return
     setError(null)
     startTransition(async () => {
-      const result = await updateNote({ noteId: note.id, tripSlug, body, locationId })
+      const result = await updateNote({
+        noteId: note.id,
+        tripSlug,
+        body,
+        locationId,
+        remindAt: remind === toLocalInput(note.remindAt, tz) ? note.remindAt : fromLocalInput(remind),
+      })
       if (result.error) {
         setError(result.error)
         return
@@ -278,6 +326,7 @@ function NoteEditor({
         className={`${TEXTAREA} border-clay`}
       />
       <PlacePicker value={locationId} onChange={setLocationId} locations={locations} disabled={isPending} />
+      <RemindField value={remind} onChange={setRemind} disabled={isPending} />
       {error ? <div className="mt-2 font-mono text-[10px] text-clay">{error}</div> : null}
       <div className="mt-2 flex justify-end gap-2">
         <button
@@ -293,5 +342,33 @@ function NoteEditor({
         </button>
       </div>
     </form>
+  )
+}
+
+/** A due reminder line: when it was for, and "done" to clear it. */
+export function ReminderDue({
+  noteId,
+  tripSlug,
+  label,
+}: {
+  noteId: string
+  tripSlug: string
+  label: string
+}) {
+  const [isPending, startTransition] = React.useTransition()
+  return (
+    <div className="mb-1 flex items-center justify-between gap-2">
+      <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-clay">
+        reminder · {label}
+      </span>
+      <button
+        type="button"
+        disabled={isPending}
+        onClick={() => startTransition(async () => void (await clearNoteReminder(noteId, tripSlug)))}
+        className="rounded-full border border-clay px-2.5 py-0.5 font-mono text-[10px] uppercase tracking-[0.16em] text-clay hover:bg-clay-tint disabled:opacity-40"
+      >
+        {isPending ? "…" : "done"}
+      </button>
+    </div>
   )
 }

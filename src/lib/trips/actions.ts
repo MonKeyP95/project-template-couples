@@ -1372,6 +1372,8 @@ export interface AddNoteInput {
   locationId?: string | null
   /** Day (yyyy-mm-dd) to tag the note to; null/undefined = un-dated. */
   dayDate?: string | null
+  /** ISO moment to remind at; null/undefined = no reminder. */
+  remindAt?: string | null
 }
 
 export interface AddNoteResult {
@@ -1402,6 +1404,7 @@ export async function addNote(
       body,
       location_id: input.locationId ?? null,
       day_date: input.dayDate ?? null,
+      remind_at: input.remindAt ?? null,
       created_by: userData.user.id,
     })
     .select(
@@ -1458,6 +1461,8 @@ export interface UpdateNoteInput {
    * an explicit value; revisit if a body-only update path is ever added.
    */
   locationId?: string | null
+  /** Always written: the editor sends the current value back, null clears it. */
+  remindAt: string | null
 }
 
 export interface UpdateNoteResult {
@@ -1481,6 +1486,7 @@ export async function updateNote(
     .update({
       body,
       location_id: input.locationId ?? null,
+      remind_at: input.remindAt,
       updated_at: new Date().toISOString(),
     })
     .eq("id", input.noteId)
@@ -1488,6 +1494,22 @@ export async function updateNote(
   if (error) return { error: error.message }
 
   revalidatePath(`/trips/${input.tripSlug}`)
+  return {}
+}
+
+/** "Done" on a due reminder: clears it for everyone. */
+export async function clearNoteReminder(
+  noteId: string,
+  tripSlug: string,
+): Promise<{ error?: string }> {
+  const supabase = await createClient()
+  const { error } = await supabase
+    .from("trip_notes")
+    .update({ remind_at: null })
+    .eq("id", noteId)
+  if (error) return { error: error.message }
+
+  revalidatePath(`/trips/${tripSlug}`)
   return {}
 }
 
