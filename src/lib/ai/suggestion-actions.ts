@@ -1,6 +1,6 @@
 "use server"
 
-import { generateSuggestion } from "@/lib/ai/claude"
+import { generateSuggestion, generateTripIdea } from "@/lib/ai/claude"
 import { isAiEnabled } from "@/lib/ai/ai-mode"
 import { buildAssistantContext } from "@/lib/ai/assistant-context"
 import { getCurrentWorkspace } from "@/lib/workspace/queries"
@@ -11,7 +11,7 @@ import { getItineraryLocations } from "@/lib/trips/location-queries"
 import { getTripNotes } from "@/lib/trips/note-queries"
 import { getItineraryDays } from "@/lib/trips/itinerary-queries"
 import { isDated } from "@/lib/trips/itinerary-types"
-import { listTripsForWorkspace } from "@/lib/trips/list-queries"
+import { buildHomeIdeaPrompt } from "@/lib/ai/home-idea-context"
 import { listChecklists } from "@/lib/checklists/queries"
 import { localToday } from "@/lib/time/local-today"
 import type { SurfaceKey, Suggestion, SuggestScope, SuggestDay } from "@/lib/ai/suggestion-types"
@@ -229,28 +229,6 @@ async function buildScopedPrompt(
   return buildFreePrompt(header, modeLine, scope.text)
 }
 
-/** Home asks for one new trip or dream idea, never work on an existing trip.
- * Known trips are listed so the idea doesn't repeat one. */
-async function buildHomeIdeaPrompt(
-  workspaceId: string,
-  ask: string | null,
-): Promise<string> {
-  const b = await listTripsForWorkspace(workspaceId)
-  const known = [...b.now, ...b.upcoming, ...b.dreams, ...b.past]
-    .map((t) => tripLine(t.name, t.country, t.startDate, t.endDate))
-    .join("; ")
-  return [
-    "Surface: home. The couple wants an idea for a new trip or dream.",
-    known ? `Trips and dreams they already have: ${known}.` : "They have no trips yet.",
-    ask ? `What they asked for: "${ask}".` : null,
-    "Suggest one new destination idea that fits who they are (their profile follows) and is not already on their list.",
-    "Say in one line which part of their profile it fits.",
-    "Do not suggest work on an existing trip.",
-  ]
-    .filter(Boolean)
-    .join(" ")
-}
-
 /** Appends the profile background + taste-dial directive when there is any profile
  * to lean on. With no profile the base prompt is returned unchanged (today's
  * behavior), and no dial directive is added. */
@@ -289,7 +267,10 @@ export async function suggestForSurface(
       ? (await getTripBySlug(workspace.id, tripSlug))?.id
       : undefined
     const enriched = await withProfile(prompt, workspace.id, tripId)
-    const suggestion = await generateSuggestion(enriched)
+    const suggestion =
+      surface === "home"
+        ? await generateTripIdea(enriched)
+        : await generateSuggestion(enriched)
     return { suggestion }
   } catch {
     return { error: "Couldn't reach the assistant." }

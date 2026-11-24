@@ -4,26 +4,52 @@ import * as React from "react"
 
 import { useAiMode } from "@/components/ai-mode"
 import { SuggestionCard } from "@/components/together"
+import { refreshHomeIdea } from "@/lib/ai/home-idea-actions"
 import { suggestForSurface } from "@/lib/ai/suggestion-actions"
 import type { Suggestion } from "@/lib/ai/suggestion-types"
 
-const QUICK = [
-  { label: "Weekend", ask: "a weekend away", tint: "bg-moss-tint" },
-  { label: "Warm", ask: "somewhere warm", tint: "bg-sand-tint" },
-]
+const ACTIVITY_TINTS = ["bg-sand-tint", "bg-dusk-tint"]
 
 const pill =
-  "shrink-0 rounded-full border border-transparent px-3 py-1.5 font-mono text-[10px] uppercase tracking-[0.18em] text-foreground transition-colors hover:border-rule disabled:opacity-50"
+  "max-w-[9rem] shrink-0 truncate rounded-full border border-transparent px-3 py-1.5 font-mono text-[10px] uppercase tracking-[0.18em] text-foreground transition-colors hover:border-rule disabled:opacity-50"
 
-/** One-line assistant for new trip ideas. Using it switches AI mode on, since
- * asking is the consent; the idea shows in a card under the line. */
-export function IdeasLine({ className = "" }: { className?: string }) {
+/** One-line assistant for new trip ideas. `saved` is the couple's saved idea,
+ * shown at once; on load it is checked against the profile and trip learnings
+ * and only remade when they changed. "For us" shows it again, "another" makes
+ * a new one. `activities` (top loved activities) and typed asks are one-off
+ * ideas; those switch AI mode on, since asking is the consent. */
+export function IdeasLine({
+  saved,
+  activities,
+  className = "",
+}: {
+  saved: Suggestion | null
+  activities: string[]
+  className?: string
+}) {
   const { enabled, setEnabled } = useAiMode()
   const [text, setText] = React.useState("")
-  const [lastAsk, setLastAsk] = React.useState("")
-  const [idea, setIdea] = React.useState<Suggestion | null>(null)
+  // null = the saved "for us" idea; a string = a one-off ask.
+  const [lastAsk, setLastAsk] = React.useState<string | null>(null)
+  const [idea, setIdea] = React.useState<Suggestion | null>(saved)
   const [error, setError] = React.useState<string | null>(null)
   const [busy, setBusy] = React.useState(false)
+
+  React.useEffect(() => {
+    refreshHomeIdea(false).then((res) => {
+      if (res.idea) setIdea(res.idea)
+    })
+  }, [])
+
+  async function showSaved(another: boolean) {
+    setBusy(true)
+    setError(null)
+    setLastAsk(null)
+    const res = await refreshHomeIdea(another)
+    setIdea(res.idea ?? null)
+    setError(res.error ?? null)
+    setBusy(false)
+  }
 
   async function ask(what: string) {
     if (!enabled) setEnabled(true)
@@ -53,15 +79,23 @@ export function IdeasLine({ className = "" }: { className?: string }) {
           aria-label="Ask for a new trip idea"
           className="w-0 min-w-0 flex-1 rounded-full border border-border bg-card px-3 py-1.5 text-[13px] text-foreground outline-none placeholder:text-muted-foreground/70 focus:border-foreground sm:max-w-[200px]"
         />
-        {QUICK.map((q) => (
+        <button
+          type="button"
+          disabled={busy}
+          onClick={() => showSaved(false)}
+          className={`${pill} bg-moss-tint`}
+        >
+          For us
+        </button>
+        {activities.map((a, i) => (
           <button
-            key={q.label}
+            key={a}
             type="button"
             disabled={busy}
-            onClick={() => ask(q.ask)}
-            className={`${pill} ${q.tint}`}
+            onClick={() => ask(`a trip for ${a}`)}
+            className={`${pill} ${ACTIVITY_TINTS[i % ACTIVITY_TINTS.length]}`}
           >
-            {q.label}
+            {a}
           </button>
         ))}
       </div>
@@ -71,7 +105,7 @@ export function IdeasLine({ className = "" }: { className?: string }) {
           label={idea.label}
           applyLabel={busy ? "thinking..." : "another"}
           dismissLabel="dismiss"
-          onApply={() => ask(lastAsk)}
+          onApply={() => (lastAsk === null ? showSaved(true) : ask(lastAsk))}
           onDismiss={() => setIdea(null)}
           className="mt-2"
         >
