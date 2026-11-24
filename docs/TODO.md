@@ -9,8 +9,10 @@
   2. Phone: stacks New adventure, AI assistant, hero, trips, dreams, past; the page itself never scrolls sideways.
   3. The hero has no big empty band.
   4. Clicking "Trips" folds and unfolds the list.
-  5. Weekend, Warm and a typed question each give a new trip idea (not Madeira work), even when the assistant was off.
+  5. Weekend, Warm and a typed question each give a new trip idea (not work on an existing trip) that names something from the profile, even when the assistant was off.
   6. Type "2 weeks surfing" in New adventure and press Start (or Enter): the new trip form opens with that note filled in and the length/what read from it; Start with an empty box opens an empty form.
+  7. Dream tiles show three lines: name and when, country (or "no place yet"), and saving/budget matching the dream.
+  8. The light blue boxes and pastel pills (Start clay, Weekend green, Warm sand) read well in light and dark mode.
 
 **Pinned places: implemented 2026-11-23; `tsc` + lint clean; `pnpm build` passes; verified in-app 2026-11-24; migration `20261123000001_pinned_places.sql` applied 2026-11-23; merged #153.** Spec/plan: `docs/superpowers/{specs,plans}/2026-11-23-pinned-places*`. A trip (new-trip "Where" on Continue, Edit trip "find") and each itinerary place (its edit form, saves on tap) can be pinned to a geocoder match; weather, conditions, news and the on-the-road place search read the pin. In-app checks: the 12 in the spec's "Verified by the user" list.
 
