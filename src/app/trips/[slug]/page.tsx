@@ -19,7 +19,8 @@ import { WeekForecast } from "@/components/week-forecast"
 import { createClient } from "@/lib/supabase/server"
 import { isDarkTheme } from "@/lib/theme"
 import { localTimeZone, localToday, requestNowMs } from "@/lib/time/local-today"
-import { hasDue } from "@/lib/trips/note-reminders"
+import { hasDue, nextReminderAt } from "@/lib/trips/note-reminders"
+import { RefreshAtReminder } from "@/components/refresh-at-reminder"
 import {
   getTripExpenses,
   getTripExpenseCategories,
@@ -229,6 +230,7 @@ export default async function TripPage({
   const tz = await localTimeZone()
   const now = requestNowMs()
   const notesDue = hasDue(notes ?? [], new Date(now))
+  const nextReminder = nextReminderAt(notes ?? [], new Date(now))
   const weatherPlace = {
     ...header,
     locationName: pickWeatherLocation(locations ?? [], today)?.name ?? null,
@@ -376,7 +378,9 @@ export default async function TripPage({
         rates={rates}
       >
         <main className="relative mx-auto min-h-screen w-full max-w-[440px] pt-14 pb-32">
+          <RefreshAtReminder at={nextReminder} />
           <RefreshOnVisible />
+      <RefreshAtReminder at={nextReminder} />
           <MobileTrip
             header={header}
             destinations={navDestinations}

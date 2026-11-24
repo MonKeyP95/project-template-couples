@@ -4,7 +4,7 @@
 
 **Next up: work on the AI itinerary planner** (`itinerary-planner` agent, `src/lib/ai/agents/`). Noted 2026-11-03.
 
-**Note reminders: implemented 2026-11-24; lint + `tsc` clean; unverified in app; migration `20261124000001_note_reminders.sql` to paste.** Spec/plan: `docs/superpowers/{specs,plans}/2026-11-24-note-reminders*`. A note can carry "Remind me" (date + time, phone's own clock). Once due: clay Notes row on the road (due notes listed even from other days), clay Notes box on the phone trip page, clay "Trip folder" pill on desktop (unless it is the open tab); the note gets a clay edge and "done", which clears it for both. Not-yet-due shows a grey "remind 18:00 · 25 Nov". No phone notification: the colour appears on the next page load. In-app checks:
+**Note reminders: implemented 2026-11-24; lint + `tsc` clean; unverified in app; migration `20261124000001_note_reminders.sql` to paste.** Spec/plan: `docs/superpowers/{specs,plans}/2026-11-24-note-reminders*`. A note can carry "Remind me" (date + time, phone's own clock). Once due: clay Notes row on the road (due notes listed even from other days), clay Notes box on the phone trip page, clay "Trip folder" pill on desktop (unless it is the open tab); the note gets a clay edge and "done", which clears it for both. Not-yet-due shows a grey "remind 18:00 · 25 Nov". No phone notification. While a trip or road page is open, a timer refreshes it at the next reminder moment (`components/refresh-at-reminder.tsx`), so the colour appears without a reload. In-app checks:
   1. Paste the migration in the Supabase SQL editor.
   2. Edit a note, set "Remind me" to two minutes from now, save: the note shows a grey "remind HH:MM · D Mon".
   3. After that time, reload: desktop "Trip folder" pill is clay; phone trip page Notes box is clay and reads "reminder due"; the note has a clay edge and a "done" button.
@@ -12,6 +12,7 @@
   5. Tap "done": the colour goes away (for your partner too, after reload).
   6. Edit a note with a reminder, change only the text, save: the reminder stays. Clear the field, save: it is gone.
   7. On the road, a quick note saved with a reminder works the same way.
+  8. Leave a trip page (and separately the road page) open past a reminder time: within a second or two after it, the colour appears without touching anything.
 
 **Quick expense: "today" label + close on save: implemented 2026-11-24; lint + `tsc` clean; verified in-app 2026-11-24; no migration.** The road box's big number reads "€250 today". Any successful save inside the box (quick-expense add, a category row's "+ add expense", editing a spent line) closes the box. Done with a small context (`components/close-on-expense-saved.tsx`); outside the road box the forms behave as before. In-app checks:
   1. On the road, the box shows the amount with a small grey "today" after it.

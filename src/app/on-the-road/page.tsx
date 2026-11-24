@@ -29,7 +29,8 @@ import { homeCents } from "@/lib/trips/expense-types"
 import { getTripDocuments, getTripReceipts, receiptClockMs } from "@/lib/trips/receipt-queries"
 import { DocumentsToday } from "./documents-today"
 import { ReceiptPile } from "@/components/receipts/receipt-pile"
-import { getDueNotes, getNotesForDay } from "@/lib/trips/note-queries"
+import { getDueNotes, getNextReminderAt, getNotesForDay } from "@/lib/trips/note-queries"
+import { RefreshAtReminder } from "@/components/refresh-at-reminder"
 import { computeLookingAhead } from "@/lib/trips/looking-ahead"
 import { localTimeZone, requestNowMs } from "@/lib/time/local-today"
 import { todayInTimeZone } from "@/lib/time/today"
@@ -103,6 +104,7 @@ export default async function OnTheRoadPage() {
   })
   const todayNotes = await getNotesForDay(trip.id, today)
   const dueNotes = await getDueNotes(trip.id)
+  const nextReminder = await getNextReminderAt(trip.id)
   const dueIds = new Set(dueNotes.map((n) => n.id))
   const notes = [...dueNotes, ...todayNotes.filter((n) => !dueIds.has(n.id))]
   const days = (await getItineraryDays(trip.id)).filter(isDated)
@@ -166,6 +168,7 @@ export default async function OnTheRoadPage() {
         tripId={trip.id}
         tables={["expenses", "trip_notes", "itinerary_days"]}
       />
+      <RefreshAtReminder at={nextReminder} />
       <LeftRail
         workspace={workspace}
         initialDark={dark}

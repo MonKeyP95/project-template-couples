@@ -11,6 +11,15 @@ export function hasDue(notes: Remindable[], now: Date): boolean {
   return notes.some((n) => isDue(n, now))
 }
 
+/** The soonest reminder still in the future, or null. */
+export function nextReminderAt(notes: Remindable[], now: Date): string | null {
+  const upcoming = notes
+    .map((n) => n.remindAt)
+    .filter((at): at is string => at !== null && new Date(at) > now)
+    .sort()
+  return upcoming[0] ?? null
+}
+
 function parts(iso: string, tz: string): Record<string, string> {
   const fmt = new Intl.DateTimeFormat("en-GB", {
     timeZone: tz,

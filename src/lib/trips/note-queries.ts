@@ -87,4 +87,18 @@ export async function getDueNotes(tripId: string): Promise<TripNote[]> {
   return (data ?? []).map(rowToNote)
 }
 
+/** The soonest reminder on this trip that is not due yet, or null. */
+export async function getNextReminderAt(tripId: string): Promise<string | null> {
+  const supabase = await createClient()
+  const { data, error } = await supabase
+    .from("trip_notes")
+    .select("remind_at")
+    .eq("trip_id", tripId)
+    .gt("remind_at", new Date().toISOString())
+    .order("remind_at", { ascending: true })
+    .limit(1)
+  if (error) throw new Error(error.message)
+  return data?.[0]?.remind_at ?? null
+}
+
 export { rowToNote }
