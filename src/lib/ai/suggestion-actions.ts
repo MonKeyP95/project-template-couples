@@ -42,18 +42,7 @@ async function buildPrompt(
   tripSlug: string | undefined,
 ): Promise<string | null> {
   // Workspace-level surfaces first (no tripSlug needed).
-  if (surface === "home") {
-    const buckets = await listTripsForWorkspace(workspaceId)
-    const hero = buckets.now[0] ?? buckets.upcoming[0]
-    if (!hero) {
-      return "Surface: home. The couple is planning but has no active or upcoming trip yet. Suggest one first planning step (e.g. start a trip or a dream)."
-    }
-    return [
-      "The couple is planning. Surface: home (the landing page).",
-      `Their next trip: ${tripLine(hero.name, hero.country, hero.startDate, hero.endDate)}.`,
-      "Suggest one concrete next planning step for that trip.",
-    ].join(" ")
-  }
+  if (surface === "home") return buildHomeIdeaPrompt(workspaceId, null)
 
   if (surface === "checklists") {
     const lists = await listChecklists(workspaceId)
@@ -211,6 +200,8 @@ async function buildScopedPrompt(
   scope: SuggestScope,
 ): Promise<string | null> {
   if (scope.kind === "page") return buildPrompt(surface, workspaceId, tripSlug)
+  if (surface === "home" && scope.kind === "free")
+    return buildHomeIdeaPrompt(workspaceId, scope.text)
   if (!tripSlug) return null
   const trip = await getTripBySlug(workspaceId, tripSlug)
   if (!trip) return null
@@ -236,6 +227,28 @@ async function buildScopedPrompt(
   if (scope.kind === "day")
     return buildDayPrompt(trip.id, header, modeLine, scope.date)
   return buildFreePrompt(header, modeLine, scope.text)
+}
+
+/** Home asks for one new trip or dream idea, never work on an existing trip.
+ * Known trips are listed so the idea doesn't repeat one. */
+async function buildHomeIdeaPrompt(
+  workspaceId: string,
+  ask: string | null,
+): Promise<string> {
+  const b = await listTripsForWorkspace(workspaceId)
+  const known = [...b.now, ...b.upcoming, ...b.dreams, ...b.past]
+    .map((t) => tripLine(t.name, t.country, t.startDate, t.endDate))
+    .join("; ")
+  return [
+    "Surface: home. The couple wants an idea for a new trip or dream.",
+    known ? `Trips and dreams they already have: ${known}.` : "They have no trips yet.",
+    ask ? `What they asked for: "${ask}".` : null,
+    "Suggest one new destination idea that fits who they are (their profile follows) and is not already on their list.",
+    "Say in one line which part of their profile it fits.",
+    "Do not suggest work on an existing trip.",
+  ]
+    .filter(Boolean)
+    .join(" ")
 }
 
 /** Appends the profile background + taste-dial directive when there is any profile

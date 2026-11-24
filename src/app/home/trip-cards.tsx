@@ -6,7 +6,6 @@ import {
   Bar,
   Chevron,
   Coord,
-  Label,
   MonoBadge,
   TopoBg,
 } from "@/components/together"
@@ -153,10 +152,8 @@ export async function HeroCard({
       className="block overflow-hidden rounded-[14px] border border-border bg-card shadow-md transition-shadow md:hover:shadow-lg"
     >
       <div
-        className={`relative overflow-hidden ${surface[tone]} md:h-auto ${
-          today
-            ? "min-h-[104px] md:aspect-[2/1]"
-            : "min-h-[132px] md:aspect-[16/9]"
+        className={`relative overflow-hidden ${surface[tone]} ${
+          today ? "min-h-[104px] md:min-h-[150px]" : "min-h-[132px] md:min-h-[180px]"
         }`}
       >
         <TopoBg tone={tone} opacity={0.16} />
@@ -298,65 +295,64 @@ export function TripCard({ trip }: { trip: TripListItem }) {
   )
 }
 
-/** Compact row used in Past. */
-export function CompactRow({
-  trip,
-  dimmed = false,
-}: {
-  trip: TripListItem
-  dimmed?: boolean
-}) {
-  const dateRange = formatDateRange(trip.startDate, trip.endDate)
+const MONTH_YEAR = new Intl.DateTimeFormat("en-GB", {
+  month: "short",
+  year: "numeric",
+  timeZone: "UTC",
+})
+
+/** One-line past trip: name and the month it started. */
+export function PastChip({ trip }: { trip: TripListItem }) {
   return (
     <Link
       href={`/trips/${trip.slug}`}
-      className={`flex items-center justify-between rounded-[10px] border border-border bg-card px-4 py-3 transition-shadow md:hover:shadow-md ${dimmed ? "opacity-60" : ""}`}
+      className="flex shrink-0 snap-start items-baseline gap-3.5 rounded-[10px] border border-border bg-card px-3.5 py-2.5 opacity-60 transition-opacity hover:opacity-100"
     >
-      <div>
-        <div className="t-display text-[18px] leading-tight text-foreground">
-          <em>{trip.name}</em>
-        </div>
-        {trip.country ? (
-          <div className="mt-0.5 font-mono text-[9px] uppercase tracking-[0.18em] text-muted-foreground">
-            {trip.country}
-          </div>
-        ) : null}
-      </div>
-      <div className="flex items-center gap-2.5">
-        {dateRange ? (
-          <span className="font-mono text-[10px] tracking-[0.06em] text-muted-foreground">
-            {dateRange}
-          </span>
-        ) : null}
-        <Chevron />
-      </div>
+      <span className="t-display text-[18px] leading-none text-foreground">
+        <em>{trip.name}</em>
+      </span>
+      {trip.startDate ? (
+        <span className="font-mono text-[10px] uppercase tracking-[0.06em] text-muted-foreground">
+          {MONTH_YEAR.format(new Date(trip.startDate))}
+        </span>
+      ) : null}
     </Link>
   )
 }
 
-/** Dream tile — square on mobile (2-col) and tall on desktop (4-col). */
+/** Saving and budget for a dream tile, whichever of the two exists. */
+function dreamMoney(trip: TripListItem): string {
+  const saved = moneyRounded(trip.savedCents, trip.currency)
+  const budget = moneyRounded(trip.plannedBudgetCents, trip.currency)
+  if (trip.plannedBudgetCents > 0) return `${saved} saved of ${budget}`
+  if (trip.savedCents > 0) return `${saved} saved · no budget yet`
+  return "no budget yet"
+}
+
+/** Three-line dream tile on the trip's tint: name and fuzzy "when", the
+ * country, then saving and budget. */
 export function DreamTile({ trip }: { trip: TripListItem }) {
   const tone = slugToTone(trip.slug)
-  const labelText = (trip.fuzzyWhen ?? "someday").toUpperCase()
+  const money = dreamMoney(trip)
   return (
     <Link
       href={`/trips/${trip.slug}`}
-      className={`relative flex aspect-square flex-col justify-between overflow-hidden rounded-[10px] border border-border p-3 transition-shadow md:aspect-[4/5] md:p-4 md:hover:shadow-md ${surface[tone]}`}
+      className={`flex min-w-[150px] shrink-0 snap-start flex-col gap-1.5 rounded-[10px] border border-border px-3.5 py-2.5 transition-shadow md:hover:shadow-md ${surface[tone]}`}
     >
-      <TopoBg tone={tone} opacity={0.1} />
-      <Label className="relative">{`// dream`}</Label>
-      <div className="relative">
-        <div className="t-display text-[20px] text-foreground md:text-[26px]">
+      <span className="flex items-baseline justify-between gap-3">
+        <span className="t-display text-[20px] leading-none text-foreground">
           <em>{trip.name}</em>
-        </div>
-        <Coord>{labelText}</Coord>
-        <BudgetBars
-          spent={trip.spentCents}
-          saved={trip.savedCents}
-          planned={trip.plannedBudgetCents}
-          currency={trip.currency}
-        />
-      </div>
+        </span>
+        <span className="font-mono text-[9px] uppercase tracking-[0.18em] text-muted-foreground">
+          {trip.fuzzyWhen ?? "someday"}
+        </span>
+      </span>
+      <span className="font-mono text-[9px] uppercase tracking-[0.12em] text-muted-foreground">
+        {trip.country ?? "no place yet"}
+      </span>
+      <span className="font-mono text-[9px] uppercase tracking-[0.12em] text-foreground">
+        {money}
+      </span>
     </Link>
   )
 }
