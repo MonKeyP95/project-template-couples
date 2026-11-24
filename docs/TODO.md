@@ -4,7 +4,7 @@
 
 **Next up: work on the AI itinerary planner** (`itinerary-planner` agent, `src/lib/ai/agents/`). Noted 2026-11-03.
 
-**Category bar colours + on-the-road category bars: implemented 2026-11-24; lint + `tsc` clean; unverified in app; no migration.** Budget-tab category bars each take a colour by position (sea, moss, sand, dusk, clay, sea-2); over-budget or unplanned bars and their notes are true red (`destructive`). By-place rows stay sea, with red when over. On the road, the "Spent today" box shows read-only "Trip by category" rows in the same colours, below the quick-expense form. In-app checks:
+**Category bar colours + on-the-road category bars: implemented 2026-11-24; lint + `tsc` clean; verified in-app 2026-11-24; no migration.** Budget-tab category bars each take a colour by position (sea, moss, sand, dusk, clay, sea-2); over-budget or unplanned bars and their notes are true red (`destructive`). By-place rows stay sea, with red when over. On the road, the "Spent today" box shows read-only "Trip by category" rows in the same colours, below the quick-expense form. In-app checks:
   1. Budget tab: each category bar has its own colour; light and dark mode both readable.
   2. A category over plan shows a red bar and a red "... over" note; an unplanned one is red with "unplanned".
   3. On the road: open "Spent today"; below the expense form, "Trip by category" lists the same categories, in the same colours and amounts as the Budget tab.
