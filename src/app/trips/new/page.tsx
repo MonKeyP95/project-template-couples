@@ -9,7 +9,12 @@ import { getCurrentWorkspace } from "@/lib/workspace/queries"
 
 import { NewTripForm } from "./new-trip-form"
 
-export default async function NewTripPage() {
+export default async function NewTripPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ note?: string }>
+}) {
+  const { note = "" } = await searchParams
   const supabase = await createClient()
   const { data: userData } = await supabase.auth.getUser()
   if (!userData.user) redirect("/signin?next=/trips/new")
@@ -36,7 +41,7 @@ export default async function NewTripPage() {
       </Link>
       <Label className="mt-6">Together · New trip</Label>
       <hr className="mt-3 border-rule" />
-      <NewTripForm currency={workspace.currency} />
+      <NewTripForm currency={workspace.currency} initialNote={note} />
     </main>
   )
 }

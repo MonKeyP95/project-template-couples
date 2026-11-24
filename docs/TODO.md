@@ -4,6 +4,16 @@
 
 **Next up: work on the AI itinerary planner** (`itinerary-planner` agent, `src/lib/ai/agents/`). Noted 2026-11-03.
 
+**Home page layout: implemented 2026-11-24 on `feat/home-layout`; lint + `tsc` clean; `pnpm build` passes; unverified in app; no migration.** Mockup: https://claude.ai/artifact/8TCF1t8KwA1A29LZKtpjPY. A line with the New adventure box (`home/new-box.tsx`: free text "Where next?" that opens the new trip form with it as the note) and the AI assistant line (`home/ideas-line.tsx`: new trip ideas only, Weekend / Warm); then the hero (no fixed widescreen shape) with the trips list beside it, foldable via `<details>`; then a one-line dreams row and a one-line past row, both scrolling sideways. The full `AssistantBlock` is gone from home. In-app checks:
+  1. Desktop: New adventure and AI assistant each take half of one line; hero left, trips right; dreams and past span the full width.
+  2. Phone: stacks New adventure, AI assistant, hero, trips, dreams, past; the page itself never scrolls sideways.
+  3. The hero has no big empty band.
+  4. Clicking "Trips" folds and unfolds the list.
+  5. Weekend, Warm and a typed question each give a new trip idea (not work on an existing trip) that names something from the profile, even when the assistant was off.
+  6. Type "2 weeks surfing" in New adventure and press Start (or Enter): the new trip form opens with that note filled in and the length/what read from it; Start with an empty box opens an empty form.
+  7. Dream tiles show three lines: name and when, country (or "no place yet"), and saving/budget matching the dream.
+  8. The light blue boxes and pastel pills (Start clay, Weekend green, Warm sand) read well in light and dark mode.
+
 **Pinned places: implemented 2026-11-23; `tsc` + lint clean; `pnpm build` passes; verified in-app 2026-11-24; migration `20261123000001_pinned_places.sql` applied 2026-11-23; merged #153.** Spec/plan: `docs/superpowers/{specs,plans}/2026-11-23-pinned-places*`. A trip (new-trip "Where" on Continue, Edit trip "find") and each itinerary place (its edit form, saves on tap) can be pinned to a geocoder match; weather, conditions, news and the on-the-road place search read the pin. In-app checks: the 12 in the spec's "Verified by the user" list.
 
 **Note reminders: implemented 2026-11-24; lint + `tsc` clean; verified in-app 2026-11-24; migration `20261124000001_note_reminders.sql` applied.** Spec/plan: `docs/superpowers/{specs,plans}/2026-11-24-note-reminders*`. A note can carry "Remind me" (date + time, phone's own clock). Once due: clay Notes row on the road (due notes listed even from other days), clay Notes box on the phone trip page, clay "Trip folder" pill on desktop (unless it is the open tab); the note gets a clay edge and "done", which clears it for both. Not-yet-due shows a grey "remind 18:00 · 25 Nov". No phone notification. While a trip or road page is open, a timer refreshes it at the next reminder moment (`components/refresh-at-reminder.tsx`), so the colour appears without a reload. In-app checks:
@@ -676,6 +686,8 @@
 **Phase 4 — Dream-Trip Pipeline + Edit Trip: shipped 2026-05-28.** Dreams and trips live in one `trips` table distinguished by whether dates are set. `/home` is a real query (Hero / Trips / Dreams / Past bands). `+ new trip` form has a "this is a dream" toggle with a free-text `When?` field. `/trips/[slug]` renders a dream variant when dates are NULL. `/trips/[slug]/edit` lets a workspace member rename, edit, promote/demote, or delete a trip. Six slices, eight commits.
 
 ## Open — pick up later
+
+**Discuss after the home layout: floating dreams (idea, 2026-11-24).** Use the empty space between the hero card and the dreams row: dreams float there, and hovering one enlarges it and shows more details. Open questions: what details (fuzzy when, length, budget saved), and what replaces hover on a phone (tap?).
 
 **Phone-payment capture, Stage 1 (future build, not started).** Google Wallet tap-pay on our two Samsung phones (A34, A35) becomes a draft expense in a trip review inbox, on active trip days only, via MacroDroid. Design in `docs/IDEAS.md` ("Phone-payment capture into a trip expense inbox"). First step: collect real notification samples from both phones, then a short design pass on the inbox (who paid, dismissed items, confirm UX). Stage 2 (friends and family) after.
 

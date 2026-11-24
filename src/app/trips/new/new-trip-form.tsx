@@ -59,14 +59,50 @@ function autoEnd(d: TripDraft, endTouched: boolean): string {
   return addDays(d.start, d.days - 1)
 }
 
-/** The note-first new trip flow: basic profile, then optional preferences. */
-export function NewTripForm({ currency }: { currency: string }) {
+/** The draft after the note changes: length, budget, place and preferences are
+ * read from it, except fields the user already set by hand. */
+function withNote(
+  d: TripDraft,
+  note: string,
+  touched: Set<DraftField>,
+  currency: string,
+  symbol: string,
+): TripDraft {
+  const r = readNote(note, currency, symbol)
+  const guessed = prefillPrefs(note)
+  const keep = (f: DraftField) => touched.has(f)
+  const next = { ...d, days: r.days }
+  return {
+    ...next,
+    end: autoEnd(next, keep("end")),
+    note,
+    what: r.what,
+    budget: keep("budget") ? d.budget : r.budget ? String(r.budget) : "",
+    place: keep("place") ? d.place : r.place,
+    unsure: r.place ? false : d.unsure,
+    prefs: Object.fromEntries(
+      Object.entries(guessed).map(([k, v]) => [
+        k,
+        keep(k as PrefKey) ? d.prefs[k as PrefKey] : v,
+      ]),
+    ) as Record<PrefKey, string>,
+  }
+}
+
+/** The note-first new trip flow: basic profile, then optional preferences.
+ * `initialNote` is what was typed in the home page's New adventure box. */
+export function NewTripForm({
+  currency,
+  initialNote,
+}: {
+  currency: string
+  initialNote: string
+}) {
   const router = useRouter()
   const symbol = currencySymbol(currency)
-  const [draft, setDraft] = React.useState<TripDraft>({
-    ...EMPTY_DRAFT,
-    currency,
-  })
+  const [draft, setDraft] = React.useState<TripDraft>(() =>
+    withNote({ ...EMPTY_DRAFT, currency }, initialNote, new Set(), currency, symbol),
+  )
   const [touched, setTouched] = React.useState<Set<DraftField>>(new Set())
   const [page, setPage] = React.useState<"note" | "prefs">("note")
   const [error, setError] = React.useState<string | null>(null)
@@ -95,27 +131,7 @@ export function NewTripForm({ currency }: { currency: string }) {
   }
 
   function changeNote(note: string) {
-    const r = readNote(note, currency, symbol)
-    const guessed = prefillPrefs(note)
-    const keep = (f: DraftField) => touched.has(f)
-    setDraft((d) => {
-      const next = { ...d, days: r.days }
-      return {
-        ...next,
-        end: autoEnd(next, keep("end")),
-        note,
-        what: r.what,
-        budget: keep("budget") ? d.budget : r.budget ? String(r.budget) : "",
-        place: keep("place") ? d.place : r.place,
-        unsure: r.place ? false : d.unsure,
-        prefs: Object.fromEntries(
-          Object.entries(guessed).map(([k, v]) => [
-            k,
-            keep(k as PrefKey) ? d.prefs[k as PrefKey] : v,
-          ]),
-        ) as Record<PrefKey, string>,
-      }
-    })
+    setDraft((d) => withNote(d, note, touched, currency, symbol))
   }
 
   function edit(field: DraftField, value: string) {

@@ -1,11 +1,9 @@
-import Link from "next/link"
 import { redirect } from "next/navigation"
 
 import { InviteCard } from "@/components/invite-card"
 import { ThemeToggle } from "@/components/theme-toggle"
 import {
   Avatar,
-  Chevron,
   Coord,
   Label,
   PairAvatar,
@@ -16,7 +14,6 @@ import {
   SignOutButton,
   buildNavDestinations,
 } from "@/components/app-nav"
-import { AssistantBlock } from "@/components/assistant-block"
 import { WorkspaceSwitcher } from "@/components/workspace-switcher"
 import { createClient } from "@/lib/supabase/server"
 import { isDarkTheme } from "@/lib/theme"
@@ -30,7 +27,9 @@ import {
 } from "@/lib/workspace/queries"
 
 import { daysUntil, dayWithinTrip } from "./format-helpers"
-import { CompactRow, DreamTile, HeroCard, TripCard } from "./trip-cards"
+import { DreamTile, HeroCard, PastChip, TripCard } from "./trip-cards"
+import { IdeasLine } from "./ideas-line"
+import { NewBox } from "./new-box"
 
 function formatDateLabel(date: Date) {
   const mm = String(date.getMonth() + 1).padStart(2, "0")
@@ -176,71 +175,73 @@ export default async function HomePage() {
         <Coord>{dateLabel}</Coord>
       </section>
 
+      <div className="mt-5 grid gap-3 md:mt-10 md:grid-cols-2">
+        <NewBox />
+        <IdeasLine />
+      </div>
+
       {youOnly && noTripsYet ? (
-        <section className="mt-5 md:mt-12 md:max-w-[540px]">
+        <section className="mt-7 md:mt-10 md:max-w-[540px]">
           <InviteCard />
         </section>
       ) : (
         <>
           {hero ? (
-            <section className="mt-5 md:mt-12 md:max-w-[540px]">
-              <div className="mb-2.5 flex items-center justify-between md:mb-4">
-                <Label>
-                  {hero.state === "now"
-                    ? `Now · ${buckets.now.length}`
-                    : `Upcoming · ${activeCount}`}
-                </Label>
-                {heroCountdown ? (
-                  <span className="font-mono text-[10px] tracking-[0.06em] text-muted-foreground">
-                    {heroCountdown}
-                  </span>
-                ) : null}
-              </div>
-              <HeroCard trip={hero} today={heroToday} />
-            </section>
-          ) : null}
+            <div className="mt-7 md:mt-10 md:grid md:grid-cols-[minmax(0,1fr)_340px] md:gap-8 lg:grid-cols-[minmax(0,1fr)_400px] lg:gap-10">
+              <section>
+                <div className="mb-2.5 flex items-center justify-between md:mb-4">
+                  <Label>
+                    {hero.state === "now"
+                      ? `Now · ${buckets.now.length}`
+                      : `Upcoming · ${activeCount}`}
+                  </Label>
+                  {heroCountdown ? (
+                    <span className="font-mono text-[10px] tracking-[0.06em] text-muted-foreground">
+                      {heroCountdown}
+                    </span>
+                  ) : null}
+                </div>
+                <HeroCard trip={hero} today={heroToday} />
+              </section>
 
-          {trips.length > 0 ? (
-            <section className="mt-9 md:mt-12">
-              <div className="mb-2.5 flex items-center justify-between md:mb-4">
-                <Label>Trips · {trips.length}</Label>
-              </div>
-              <div className="flex flex-col gap-2.5 md:grid md:grid-cols-2 md:gap-5 lg:grid-cols-3">
-                {trips.map((t) => (
-                  <TripCard key={t.id} trip={t} />
-                ))}
-              </div>
-            </section>
+              {trips.length > 0 ? (
+                <details open className="group mt-9 border-t border-rule pt-6 md:mt-0 md:border-t-0 md:border-l md:pt-0 md:pl-8 lg:pl-10">
+                  <summary className="mb-2.5 flex cursor-pointer list-none items-center gap-2 md:mb-4 [&::-webkit-details-marker]:hidden">
+                    <span
+                      aria-hidden
+                      className="-rotate-90 font-mono text-[11px] text-muted-foreground transition-transform group-open:rotate-0 motion-reduce:transition-none"
+                    >
+                      ▾
+                    </span>
+                    <Label>Trips · {trips.length}</Label>
+                  </summary>
+                  <div className="flex flex-col gap-2.5 md:gap-3">
+                    {trips.map((t) => (
+                      <TripCard key={t.id} trip={t} />
+                    ))}
+                  </div>
+                </details>
+              ) : null}
+            </div>
           ) : null}
 
           {buckets.dreams.length > 0 ? (
-            <section className="mt-9 md:mt-14">
+            <section className="mt-9 md:mt-12">
               <div className="mb-2.5 flex items-center justify-between md:mb-4">
                 <Label>Dreams · {buckets.dreams.length}</Label>
                 <span className="font-mono text-[10px] tracking-[0.06em] text-muted-foreground">
                   someday, together
                 </span>
               </div>
-              <div className="grid grid-cols-2 gap-2.5 md:grid-cols-4 md:gap-4">
+              <div className="flex snap-x gap-2.5 overflow-x-auto pb-1.5 md:gap-3">
                 {buckets.dreams.map((d) => (
                   <DreamTile key={d.id} trip={d} />
                 ))}
               </div>
             </section>
           ) : null}
-
         </>
       )}
-
-      <AssistantBlock surface="home" className="mt-9 block" />
-
-      <Link
-        href="/trips/new"
-        className="mt-7 flex w-full items-center justify-between rounded-[10px] border border-dashed border-rule bg-transparent px-4 py-3.5 font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground transition-colors hover:text-foreground md:mt-9 md:max-w-[280px] md:px-5 md:py-5"
-      >
-        <span>+ new trip or dream</span>
-        <Chevron />
-      </Link>
 
       {!youOnly && buckets.past.length > 0 ? (
         <section className="mt-9 md:mt-12">
@@ -250,9 +251,9 @@ export default async function HomePage() {
               most recent first
             </span>
           </div>
-          <div className="flex flex-col gap-2.5 md:grid md:grid-cols-3 md:gap-4 lg:grid-cols-4">
+          <div className="flex snap-x gap-2.5 overflow-x-auto pb-1.5 md:gap-3">
             {buckets.past.map((p) => (
-              <CompactRow key={p.id} trip={p} dimmed />
+              <PastChip key={p.id} trip={p} />
             ))}
           </div>
         </section>
