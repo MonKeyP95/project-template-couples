@@ -30,6 +30,7 @@ import { BudgetDrafter } from "./budget-drafter"
 import { BudgetToolbar, type BudgetPanel } from "./budget-toolbar"
 import { PlanningPlaceDoor } from "./find-a-place-planning"
 import { isBufferSubject, type BudgetItem } from "@/lib/trips/budget-item-types"
+import { tripDayProgress } from "@/lib/trips/trip-days"
 import { PlannedRoom, SavedFigure, SpentFigure } from "./budget-figures"
 import { Ledger } from "./budget-ledger"
 import { LogExpenseRow } from "./log-expense-row"
@@ -244,6 +245,7 @@ export function BudgetTab({
             plannedBudgetCents={plannedBudgetCents}
             hasUnconfirmed={hasUnconfirmed}
             pace={pace}
+            dayProgress={tripDayProgress(startDate, endDate, today)}
           />
           <PlannedRoom
             plannedCents={plannedLinesCents}

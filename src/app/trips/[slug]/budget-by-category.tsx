@@ -154,7 +154,7 @@ export function BudgetRow({
         <Bar pct={line.pct} tone={warn ? "red" : tone} />
         <span className="t-num whitespace-nowrap text-right font-mono text-[11px] text-foreground">
           {fmt(line.actualCents)}
-          {line.status === "unplanned" ? null : (
+          {line.plannedCents === 0 ? null : (
             <span className="text-muted-foreground"> / {fmt(line.plannedCents)}</span>
           )}
         </span>

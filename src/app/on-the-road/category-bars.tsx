@@ -26,7 +26,7 @@ export function CategoryBars({
               <Bar pct={line.pct} tone={warn ? "red" : categoryTone(i)} />
               <span className="t-num whitespace-nowrap font-mono text-[11px] text-foreground">
                 {moneyRounded(line.actualCents, currency)}
-                {line.status === "unplanned" ? null : (
+                {line.plannedCents === 0 ? null : (
                   <span className="text-muted-foreground">
                     {" / "}
                     {moneyRounded(line.plannedCents, currency)}

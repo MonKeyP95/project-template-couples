@@ -9,6 +9,9 @@
   2. A category over plan shows a red bar and a red "... over" note; an unplanned one is red with "unplanned".
   3. On the road: open "Spent today"; below the expense form, "Trip by category" lists the same categories, in the same colours and amounts as the Budget tab.
   4. Log an expense that pushes a category over plan: its road bar turns red.
+  5. Trip with no planned lines: category rows show only the spend (e.g. "€250", no "/ €0"), all in their own colours (no red); the biggest is a full bar, the others relative to it. Same on the road.
+  6. Trip with no budget: the Budget tab total shows a bar filled by days gone ("day 2 of 4" = 50%); before the trip "4 days to go" at 0%; a dream (no dates) shows no bar.
+  7. On the road, the expense box header reads "Quick expense" (was "Spent today").
 
 **Profile in boxes + couple description + home country: implemented 2026-11-20; lint + `tsc` clean; `pnpm build` passes; verified in-app 2026-11-20; merged #146; migration `20261120000001_workspace_about.sql` applied.** /profile is four boxes: About us (names, description, invite), What we like (the 4 categories), History (by trip, then an "Across trips" budget view), Basics (name, email, home country + currency). One column on the phone in that order; two columns on desktop (About + Likes + Basics left, History right). Header markers: About "empty"/"done", Likes "n of 4", Basics "add home country"/"done", in clay while incomplete. New `workspaces.description` (max 300) and `workspaces.home_country` (free text, max 60), editable by any member; `buildProfileBlock` feeds both to chat, suggestion, budget-planner, itinerary-planner and dispatch (not discover). In-app checks:
   1. Phone: four boxes in order About us, What we like, Basics, History; no horizontal scroll.
