@@ -3,6 +3,7 @@ import { MapPin } from "lucide-react"
 
 import { Bar, Label } from "@/components/together"
 import { BoxCard, BoxSection } from "@/components/collapsible-box"
+import { CloseOnExpenseSaved } from "@/components/close-on-expense-saved"
 import { moneyRounded } from "@/lib/money"
 import { daySummary, type ItineraryDay } from "@/lib/trips/itinerary-types"
 import type { LookingAhead } from "@/lib/trips/looking-ahead"
@@ -69,6 +70,7 @@ export function MoneyCard({
             </div>
             <div className="mt-1 font-serif text-[34px] leading-none text-foreground">
               {moneyRounded(spentTodayCents, currency)}
+              <span className="ml-1.5 font-sans text-[14px] text-muted-foreground">today</span>
             </div>
             {planned > 0 ? (
               <>
@@ -85,7 +87,7 @@ export function MoneyCard({
           </div>
         }
       >
-        {children}
+        <CloseOnExpenseSaved>{children}</CloseOnExpenseSaved>
       </BoxSection>
     </BoxCard>
   )

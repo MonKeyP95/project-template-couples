@@ -13,6 +13,7 @@ import {
 } from "@/lib/trips/expense-types"
 
 import { useCurrency } from "@/components/currency-context"
+import { useExpenseSaved } from "@/components/close-on-expense-saved"
 
 import { ExpenseFields } from "./expense-fields"
 import type { MemberToneEntry } from "./packing-tab"
@@ -77,6 +78,7 @@ export function LogExpenseRow({
   }
   const [error, setError] = React.useState<string | null>(null)
   const [isPending, startTransition] = React.useTransition()
+  const onSaved = useExpenseSaved()
   const [receiptId, setReceiptId] = React.useState<string | null>(null)
   const [readingReceipt, setReadingReceipt] = React.useState(false)
   const titleRef = React.useRef<HTMLInputElement>(null)
@@ -132,6 +134,7 @@ export function LogExpenseRow({
         if (attach.error) setError("Expense saved; receipt left in the pile to match.")
       }
       titleRef.current?.focus()
+      onSaved?.()
     })
   }
 
