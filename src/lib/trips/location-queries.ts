@@ -14,7 +14,7 @@ export async function getItineraryLocations(
     getTripStartDate(tripId),
     supabase
       .from("itinerary_locations")
-      .select("id, name, sort_order, start_index, end_index, budget_cents, currency")
+      .select("id, name, sort_order, start_index, end_index, budget_cents, currency, lat, lng, place_label")
       .eq("trip_id", tripId)
       .order("sort_order", { ascending: true }),
   ])

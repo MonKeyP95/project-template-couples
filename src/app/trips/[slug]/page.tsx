@@ -227,13 +227,15 @@ export default async function TripPage({
       i.category !== CHECKLIST_CATEGORY,
   )
   const today = await localToday()
+  const weatherLocation = pickWeatherLocation(locations ?? [], today)
   const tz = await localTimeZone()
   const now = requestNowMs()
   const notesDue = hasDue(notes ?? [], new Date(now))
   const nextReminder = nextReminderAt(notes ?? [], new Date(now))
   const weatherPlace = {
     ...header,
-    locationName: pickWeatherLocation(locations ?? [], today)?.name ?? null,
+    locationName: weatherLocation?.name ?? null,
+    locationPin: weatherLocation?.pin ?? null,
   }
   const [packingWeather, weekForecast] = await Promise.all([
     getTripSeasonalEstimate(weatherPlace, header.startDate ?? today),

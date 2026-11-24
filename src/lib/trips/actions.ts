@@ -47,6 +47,7 @@ import {
 } from "@/lib/trips/outside-days"
 import { slugToTone } from "@/lib/trips/slug-tone"
 import { slugify } from "@/lib/trips/slugify"
+import type { PlaceMatch } from "@/lib/weather/geocode"
 import { isBudgetPeriod, type BudgetPeriod } from "@/lib/trips/budget-period"
 import { tripHeadline, type PrefKey } from "@/lib/trips/trip-note-parse"
 import {
@@ -809,6 +810,8 @@ export interface CreateTripInput {
   budget: number
   budgetPeriod: BudgetPeriod
   place: string | null
+  /** The exact place picked for `place`; null = not pinned. */
+  pin: PlaceMatch | null
   what: string
   /** Page 2 answers; null when skipped. */
   prefs: Record<PrefKey, string> | null
@@ -824,6 +827,15 @@ export interface CreateTripResult {
 
 const SLUG_RE = /^[a-z0-9-]+$/
 const MAX_TRIP_DAYS = 365
+
+/** A pin as the `lat`, `lng`, `place_label` columns; all null when unpinned. */
+function pinColumns(pin: PlaceMatch | null) {
+  return {
+    lat: pin?.lat ?? null,
+    lng: pin?.lng ?? null,
+    place_label: pin?.fullName ?? null,
+  }
+}
 
 /**
  * Creates a trip from the new-trip flow, plus a trip_members row for every
@@ -875,6 +887,7 @@ export async function createTrip(
     start_date: startDate,
     end_date: endDate,
     day_count: days,
+    ...pinColumns(input.pin),
     planned_budget_cents: Math.round(input.budget * 100),
     budget_period: input.budgetPeriod,
     // Both copied, not looked up: changing the workspace currency later must
@@ -942,8 +955,8 @@ export interface UpdateTripInput {
   endDate: string | null
   fuzzyWhen: string | null
   country: string | null
-  lat: number | null
-  lng: number | null
+  /** The exact place for the trip; null = not pinned. */
+  pin: PlaceMatch | null
   /** What you spend here; the expense-entry default. */
   currency: string
   /** Where the money comes from; every total is reported in it. */
@@ -1077,20 +1090,6 @@ export async function updateTrip(
   if (!isBudgetPeriod(input.budgetPeriod)) return { error: "Budget check invalid." }
   if (!validCents(input.plannedBudgetCents)) return { error: "Budget out of range." }
 
-  const hasLat = input.lat !== null
-  const hasLng = input.lng !== null
-  if (hasLat !== hasLng) {
-    return { error: "Coordinates invalid." }
-  }
-  if (hasLat) {
-    if (!Number.isFinite(input.lat) || input.lat! < -90 || input.lat! > 90) {
-      return { error: "Coordinates invalid." }
-    }
-    if (!Number.isFinite(input.lng) || input.lng! < -180 || input.lng! > 180) {
-      return { error: "Coordinates invalid." }
-    }
-  }
-
   const supabase = await createClient()
   const country = input.country?.trim() || null
 
@@ -1187,8 +1186,7 @@ export async function updateTrip(
         end_date: null,
         fuzzy_when: fuzzyWhen,
         day_count: dayCount,
-        lat: input.lat,
-        lng: input.lng,
+        ...pinColumns(input.pin),
         currency: input.currency,
         budget_period: input.budgetPeriod,
         planned_budget_cents: input.plannedBudgetCents,
@@ -1244,8 +1242,7 @@ export async function updateTrip(
           start_date: input.startDate,
           end_date: dateOfIndex(length, input.startDate),
           fuzzy_when: null,
-          lat: input.lat,
-          lng: input.lng,
+          ...pinColumns(input.pin),
           currency: input.currency,
           budget_period: input.budgetPeriod,
           planned_budget_cents: input.plannedBudgetCents,
@@ -1306,8 +1303,7 @@ export async function updateTrip(
       end_date: input.endDate,
       fuzzy_when: null,
       day_count: null,
-      lat: input.lat,
-      lng: input.lng,
+      ...pinColumns(input.pin),
       currency: input.currency,
       budget_period: input.budgetPeriod,
       planned_budget_cents: input.plannedBudgetCents,
@@ -3163,6 +3159,23 @@ export interface RenameLocationResult {
   error?: string
   /** True when the span overlaps other days/locations — the client may offer to push. */
   needsPush?: boolean
+}
+
+/** Pins a location to the exact place picked from geocoder matches, or
+ * unpins it. Independent of the name, so a rename never touches it. */
+export async function setLocationPin(
+  locationId: string,
+  tripSlug: string,
+  pin: PlaceMatch | null,
+): Promise<{ error?: string }> {
+  const supabase = await createClient()
+  const { error } = await supabase
+    .from("itinerary_locations")
+    .update(pinColumns(pin))
+    .eq("id", locationId)
+  if (error) return { error: error.message }
+  revalidatePath(`/trips/${tripSlug}`)
+  return {}
 }
 
 /** Updates a location's name + optional span. When the span overlaps other

@@ -15,6 +15,9 @@ export interface TripHeader {
   dayCount: number | null
   lat: number | null
   lng: number | null
+  /** What `lat`/`lng` are, when picked from geocoder matches; null for an
+   * unpinned trip or a legacy manual pin. */
+  placeLabel: string | null
   /** Planned budget goal in cents (0 = unset). */
   plannedBudgetCents: number
   /** What you spend here; the expense-entry default. */
@@ -43,6 +46,7 @@ interface TripRow {
   day_count: number | null
   lat: string | number | null
   lng: string | number | null
+  place_label: string | null
   planned_budget_cents: number
   currency: string
   home_currency: string
@@ -63,7 +67,7 @@ export async function getTripBySlug(
   const tripQuery = supabase
     .from("trips")
     .select(
-      "id, workspace_id, slug, name, country, start_date, end_date, fuzzy_when, day_count, lat, lng, planned_budget_cents, currency, home_currency, budget_period, trip_profile",
+      "id, workspace_id, slug, name, country, start_date, end_date, fuzzy_when, day_count, lat, lng, place_label, planned_budget_cents, currency, home_currency, budget_period, trip_profile",
     )
     .eq("workspace_id", workspaceId)
     .eq("slug", slug)
@@ -98,6 +102,7 @@ export async function getTripBySlug(
     dayCount: trip.day_count,
     lat: asNumber(trip.lat),
     lng: asNumber(trip.lng),
+    placeLabel: trip.place_label,
     plannedBudgetCents: trip.planned_budget_cents,
     currency: trip.currency,
     homeCurrency: trip.home_currency,

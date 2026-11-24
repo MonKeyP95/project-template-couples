@@ -1,4 +1,5 @@
 import type { ItineraryLocation } from "@/lib/trips/location-types"
+import type { PlaceMatch } from "./geocode"
 
 /**
  * The location a 7-day forecast should describe: the earliest-by-sort-order
@@ -17,4 +18,10 @@ export function pickWeatherLocation(
   )
   if (current) return current
   return byOrder[0] ?? null
+}
+
+/** A place for text consumers (news, place search): the couple's name plus
+ * what it is pinned to, e.g. "Caleta de Famara (Famara, Canary Islands, ES)". */
+export function placeText(name: string, pin: PlaceMatch | null): string {
+  return pin ? `${name} (${pin.fullName})` : name
 }

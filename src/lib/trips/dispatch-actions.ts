@@ -10,22 +10,25 @@ import { getTripBySlug } from "@/lib/trips/queries"
 import { getTodayForTrip } from "@/lib/trips/itinerary-queries"
 import { getItineraryLocations } from "@/lib/trips/location-queries"
 import { daySummary } from "@/lib/trips/itinerary-types"
+import { placeText } from "@/lib/weather/place-for-weather"
 import type { DispatchDetail } from "@/lib/trips/dispatch-types"
 import { getDispatchForDay } from "./dispatch-queries"
 
 /** Where the couple is that day and what they had planned. Shared by the
  * dispatch and by the detail behind one of its cards, so the two agree. */
 async function dayContext(
-  trip: { id: string; name: string; country: string | null },
+  trip: { id: string; name: string; country: string | null; placeLabel: string | null },
   dayDate: string,
 ): Promise<{ place: string; todayPlan: string }> {
   const day = await getTodayForTrip(trip.id, dayDate)
   const locations = await getItineraryLocations(trip.id)
-  const locationName = day?.locationId
-    ? locations.find((l) => l.id === day.locationId)?.name ?? null
+  const location = day?.locationId
+    ? locations.find((l) => l.id === day.locationId) ?? null
     : null
   return {
-    place: locationName ?? trip.country ?? trip.name,
+    place: location
+      ? placeText(location.name, location.pin)
+      : trip.placeLabel ?? trip.country ?? trip.name,
     todayPlan: day
       ? [day.title, daySummary(day)].filter(Boolean).join(" - ")
       : "",

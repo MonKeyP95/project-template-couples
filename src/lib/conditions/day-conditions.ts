@@ -33,9 +33,12 @@ export async function getUpcomingConditions(
       const planned = day ? detectActivities(planText(day)) : []
       const shown = planned.length > 0 ? planned : always ? usual.slice(0, 1) : []
       if (shown.length === 0) return []
-      const locationName =
-        locations.find((l) => l.id === day?.locationId)?.name ?? null
-      const place = await resolveCoords({ ...trip, locationName })
+      const location = locations.find((l) => l.id === day?.locationId) ?? null
+      const place = await resolveCoords({
+        ...trip,
+        locationName: location?.name ?? null,
+        locationPin: location?.pin ?? null,
+      })
       if (!place) return []
       const cards = await Promise.all(
         shown.map(async (activity) => {

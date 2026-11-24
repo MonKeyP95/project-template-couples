@@ -8,6 +8,8 @@ import { dateOfIndex, toDayIndex } from "@/lib/trips/itinerary-types"
 import { currencyOptions } from "@/lib/fx/currency-list"
 import type { BudgetPeriod } from "@/lib/trips/budget-period"
 import { BudgetPeriodPicker } from "@/components/budget-period-picker"
+import { PinFinder } from "@/components/pin-finder"
+import type { PlaceMatch } from "@/lib/weather/geocode"
 import { currencySymbol } from "@/lib/money"
 import { type TripProfile } from "@/lib/trips/trip-profile-types"
 import { PREF_TOPICS } from "@/lib/trips/trip-note-parse"
@@ -32,13 +34,6 @@ function derivedEnd(start: string, days: number): string {
   return d.toISOString().slice(0, 10)
 }
 
-function parseFloatOrNull(s: string): number | null {
-  const trimmed = s.trim()
-  if (!trimmed) return null
-  const n = Number(trimmed)
-  return Number.isFinite(n) ? n : null
-}
-
 export interface EditTripInitial {
   name: string
   slug: string
@@ -48,8 +43,7 @@ export interface EditTripInitial {
   fuzzyWhen: string | null
   dayCount: number | null
   country: string | null
-  lat: number | null
-  lng: number | null
+  pin: PlaceMatch | null
   currency: string
   /** Where the money comes from; what every total is reported in. */
   homeCurrency: string
@@ -82,15 +76,7 @@ export function EditTripForm({
   const [currency, setCurrency] = React.useState(initial.currency)
   const [homeCurrency, setHomeCurrency] = React.useState(initial.homeCurrency)
   const [budgetPeriod, setBudgetPeriod] = React.useState(initial.budgetPeriod)
-  const [advancedOpen, setAdvancedOpen] = React.useState(
-    initial.lat !== null || initial.lng !== null,
-  )
-  const [lat, setLat] = React.useState(
-    initial.lat === null ? "" : String(initial.lat),
-  )
-  const [lng, setLng] = React.useState(
-    initial.lng === null ? "" : String(initial.lng),
-  )
+  const [pin, setPin] = React.useState(initial.pin)
   const [idea, setIdea] = React.useState(initialProfile.idea)
   const [budget, setBudget] = React.useState(
     initial.plannedBudgetCents ? String(initial.plannedBudgetCents / 100) : "",
@@ -163,8 +149,7 @@ export function EditTripForm({
         homeCurrency,
         budgetPeriod,
         plannedBudgetCents: Math.round((Number(budget) || 0) * 100),
-        lat: parseFloatOrNull(lat),
-        lng: parseFloatOrNull(lng),
+        pin,
         dayCount: isDream ? Number(days) || null : null,
         profile: { ...initialProfile, ...prefs, idea },
         outside,
@@ -395,6 +380,13 @@ export function EditTripForm({
             className="mt-1 w-full border-0 border-b border-rule bg-transparent py-1.5 text-[14px] text-foreground placeholder:text-muted-foreground/60 focus:border-clay focus:outline-none disabled:opacity-50"
           />
         </label>
+        <PinFinder
+          query={country}
+          prefer={null}
+          value={pin}
+          onChange={setPin}
+          disabled={isPending}
+        />
 
         <label className="mt-5 block">
           <span className="block font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
@@ -440,48 +432,6 @@ export function EditTripForm({
             actually been converted into {initial.homeCurrency}.
           </span>
         </label>
-
-        <button
-          type="button"
-          onClick={() => setAdvancedOpen((v) => !v)}
-          disabled={isPending}
-          className="mt-5 inline-flex items-center gap-1 border-0 bg-transparent font-mono text-[11px] uppercase tracking-[0.16em] text-muted-foreground hover:text-foreground"
-          aria-expanded={advancedOpen}
-        >
-          <span>{advancedOpen ? "▾" : "›"}</span>
-          <span>advanced (lat / lng)</span>
-        </button>
-
-        {advancedOpen ? (
-          <div className="mt-3 grid grid-cols-2 gap-4">
-            <label className="block">
-              <span className="block font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
-                Latitude
-              </span>
-              <input
-                type="text"
-                inputMode="decimal"
-                value={lat}
-                onChange={(e) => setLat(e.target.value)}
-                disabled={isPending}
-                className="t-num mt-1 w-full border-0 border-b border-rule bg-transparent py-1.5 text-[14px] text-foreground placeholder:text-muted-foreground/60 focus:border-clay focus:outline-none disabled:opacity-50"
-              />
-            </label>
-            <label className="block">
-              <span className="block font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
-                Longitude
-              </span>
-              <input
-                type="text"
-                inputMode="decimal"
-                value={lng}
-                onChange={(e) => setLng(e.target.value)}
-                disabled={isPending}
-                className="t-num mt-1 w-full border-0 border-b border-rule bg-transparent py-1.5 text-[14px] text-foreground placeholder:text-muted-foreground/60 focus:border-clay focus:outline-none disabled:opacity-50"
-              />
-            </label>
-          </div>
-        ) : null}
 
         {error ? (
           <div className="mt-5 font-mono text-[10px] text-clay">{error}</div>
