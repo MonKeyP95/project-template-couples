@@ -29,9 +29,9 @@ import { homeCents } from "@/lib/trips/expense-types"
 import { getTripDocuments, getTripReceipts, receiptClockMs } from "@/lib/trips/receipt-queries"
 import { DocumentsToday } from "./documents-today"
 import { ReceiptPile } from "@/components/receipts/receipt-pile"
-import { getNotesForDay } from "@/lib/trips/note-queries"
+import { getDueNotes, getNotesForDay } from "@/lib/trips/note-queries"
 import { computeLookingAhead } from "@/lib/trips/looking-ahead"
-import { localTimeZone } from "@/lib/time/local-today"
+import { localTimeZone, requestNowMs } from "@/lib/time/local-today"
 import { todayInTimeZone } from "@/lib/time/today"
 import { detectNearDailyCap } from "@/lib/nudges/near-daily-cap"
 import { computeTripDays } from "@/lib/trips/trip-days"
@@ -101,7 +101,10 @@ export default async function OnTheRoadPage() {
     spentTodayCents,
     currency: trip.homeCurrency,
   })
-  const notes = await getNotesForDay(trip.id, today)
+  const todayNotes = await getNotesForDay(trip.id, today)
+  const dueNotes = await getDueNotes(trip.id)
+  const dueIds = new Set(dueNotes.map((n) => n.id))
+  const notes = [...dueNotes, ...todayNotes.filter((n) => !dueIds.has(n.id))]
   const days = (await getItineraryDays(trip.id)).filter(isDated)
   const ahead = computeLookingAhead(
     today,
@@ -304,12 +307,20 @@ export default async function OnTheRoadPage() {
 
       <KeepCard
         documentsToday={documentsForDay(documents, today).length}
-        notesToday={notes.length}
+        notesToday={todayNotes.length}
+        notesDue={dueNotes.length > 0}
         documents={
           <DocumentsToday documents={documents} today={today} tripId={trip.id} tripSlug={trip.slug} />
         }
         notes={
-          <QuickNote tripId={trip.id} tripSlug={trip.slug} today={today} notes={notes} />
+          <QuickNote
+            tripId={trip.id}
+            tripSlug={trip.slug}
+            today={today}
+            notes={notes}
+            tz={tz}
+            now={requestNowMs()}
+          />
         }
       />
       </div>

@@ -72,4 +72,19 @@ export async function getNotesForDay(
   return (data ?? []).map(rowToNote)
 }
 
+/** Notes whose reminder moment has passed and is not done yet, oldest first. */
+export async function getDueNotes(tripId: string): Promise<TripNote[]> {
+  const supabase = await createClient()
+  const { data, error } = await supabase
+    .from("trip_notes")
+    .select(NOTE_COLS)
+    .eq("trip_id", tripId)
+    .not("remind_at", "is", null)
+    .lte("remind_at", new Date().toISOString())
+    .order("remind_at", { ascending: true })
+    .returns<TripNoteRow[]>()
+  if (error) throw new Error(error.message)
+  return (data ?? []).map(rowToNote)
+}
+
 export { rowToNote }
