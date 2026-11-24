@@ -97,11 +97,14 @@ export function MoneyCard({
 export function KeepCard({
   documentsToday,
   notesToday,
+  notesDue,
   documents,
   notes,
 }: {
   documentsToday: number
   notesToday: number
+  /** A note reminder is due: the Notes row turns clay. */
+  notesDue: boolean
   documents: ReactNode
   notes: ReactNode
 }) {
@@ -110,7 +113,16 @@ export function KeepCard({
       <BoxSection summary={<SummaryRow label="Documents" detail={todayCount(documentsToday)} />}>
         {documents}
       </BoxSection>
-      <BoxSection summary={<SummaryRow label="Notes" detail={todayCount(notesToday)} />}>
+      <BoxSection
+        className={notesDue ? "bg-clay-tint" : undefined}
+        summary={
+          <SummaryRow
+            label="Notes"
+            detail={notesDue ? "reminder due" : todayCount(notesToday)}
+            tone={notesDue ? "text-clay" : "text-muted-foreground"}
+          />
+        }
+      >
         {notes}
       </BoxSection>
     </BoxCard>
@@ -121,11 +133,19 @@ function todayCount(n: number): string {
   return n === 0 ? "nothing today" : `${n} today`
 }
 
-function SummaryRow({ label, detail }: { label: string; detail: string }) {
+function SummaryRow({
+  label,
+  detail,
+  tone = "text-muted-foreground",
+}: {
+  label: string
+  detail: string
+  tone?: string
+}) {
   return (
     <div className="flex items-baseline justify-between gap-3">
       <Label>{label}</Label>
-      <span className="font-mono text-[11px] text-muted-foreground">{detail}</span>
+      <span className={`font-mono text-[11px] ${tone}`}>{detail}</span>
     </div>
   )
 }

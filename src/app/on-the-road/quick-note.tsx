@@ -5,17 +5,24 @@ import { useRouter } from "next/navigation"
 
 import { addNote } from "@/lib/trips/actions"
 import type { TripNote } from "@/lib/trips/note-queries"
+import { fromLocalInput, isDue, reminderLabel } from "@/lib/trips/note-reminders"
+import { ReminderDue } from "@/app/trips/[slug]/note-parts"
+import { RemindField } from "@/app/trips/[slug]/remind-field"
 
 export interface QuickNoteProps {
   tripId: string
   tripSlug: string
   today: string
+  /** Due notes first, then today's. */
   notes: TripNote[]
+  tz: string
+  now: number
 }
 
-export function QuickNote({ tripId, tripSlug, today, notes }: QuickNoteProps) {
+export function QuickNote({ tripId, tripSlug, today, notes, tz, now }: QuickNoteProps) {
   const router = useRouter()
   const [body, setBody] = React.useState("")
+  const [remind, setRemind] = React.useState("")
   const [error, setError] = React.useState<string | null>(null)
   const [isPending, startTransition] = React.useTransition()
 
@@ -28,12 +35,14 @@ export function QuickNote({ tripId, tripSlug, today, notes }: QuickNoteProps) {
         tripSlug,
         body: body.trim(),
         dayDate: today,
+        remindAt: fromLocalInput(remind),
       })
       if (result.error) {
         setError(result.error)
         return
       }
       setBody("")
+      setRemind("")
       setError(null)
       router.refresh()
     })
@@ -57,13 +66,20 @@ export function QuickNote({ tripId, tripSlug, today, notes }: QuickNoteProps) {
           {isPending ? "…" : "save"}
         </button>
       </form>
+      <RemindField value={remind} onChange={setRemind} disabled={isPending} />
       {error ? (
         <div className="mt-2 font-mono text-[10px] text-clay">{error}</div>
       ) : null}
       {notes.length > 0 ? (
         <ul className="mt-3 flex flex-col gap-0.5">
           {notes.map((n) => (
-            <li key={n.id} className="text-[13px] leading-snug text-foreground">
+            <li
+              key={n.id}
+              className={`text-[13px] leading-snug text-foreground ${isDue(n, new Date(now)) ? "border-l-2 border-clay py-1 pl-3" : ""}`}
+            >
+              {isDue(n, new Date(now)) && n.remindAt ? (
+                <ReminderDue noteId={n.id} tripSlug={tripSlug} label={reminderLabel(n.remindAt, tz)} />
+              ) : null}
               {n.body}
             </li>
           ))}

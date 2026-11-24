@@ -24,6 +24,8 @@ export function NotesTab({
   locations,
   members,
   layout,
+  tz,
+  now,
 }: {
   tripId: string
   tripSlug: string
@@ -32,6 +34,8 @@ export function NotesTab({
   locations: ItineraryLocation[]
   members: Record<string, MemberToneEntry>
   layout: "phone" | "folder"
+  tz: string
+  now: number
 }) {
   const [editingId, setEditingId] = React.useState<string | null>(null)
 
@@ -74,6 +78,8 @@ export function NotesTab({
                 isEditing={editingId === note.id}
                 onStartEdit={() => setEditingId(note.id)}
                 onStopEdit={() => setEditingId(null)}
+                tz={tz}
+                now={now}
               />
             </div>
           ))}

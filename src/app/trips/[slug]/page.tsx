@@ -18,7 +18,9 @@ import { FlipCountdown } from "@/components/flip-countdown"
 import { WeekForecast } from "@/components/week-forecast"
 import { createClient } from "@/lib/supabase/server"
 import { isDarkTheme } from "@/lib/theme"
-import { localToday } from "@/lib/time/local-today"
+import { localTimeZone, localToday, requestNowMs } from "@/lib/time/local-today"
+import { hasDue, nextReminderAt } from "@/lib/trips/note-reminders"
+import { RefreshAtReminder } from "@/components/refresh-at-reminder"
 import {
   getTripExpenses,
   getTripExpenseCategories,
@@ -225,6 +227,10 @@ export default async function TripPage({
       i.category !== CHECKLIST_CATEGORY,
   )
   const today = await localToday()
+  const tz = await localTimeZone()
+  const now = requestNowMs()
+  const notesDue = hasDue(notes ?? [], new Date(now))
+  const nextReminder = nextReminderAt(notes ?? [], new Date(now))
   const weatherPlace = {
     ...header,
     locationName: pickWeatherLocation(locations ?? [], today)?.name ?? null,
@@ -358,6 +364,8 @@ export default async function TripPage({
       locations={locations ?? []}
       members={memberTones}
       layout={isMobile ? "phone" : "folder"}
+      tz={tz}
+      now={now}
     />
   )
 
@@ -370,7 +378,9 @@ export default async function TripPage({
         rates={rates}
       >
         <main className="relative mx-auto min-h-screen w-full max-w-[440px] pt-14 pb-32">
+          <RefreshAtReminder at={nextReminder} />
           <RefreshOnVisible />
+      <RefreshAtReminder at={nextReminder} />
           <MobileTrip
             header={header}
             destinations={navDestinations}
@@ -382,6 +392,7 @@ export default async function TripPage({
             }
             spentCents={budgetSummary.expenseTotalCents}
             notesCount={(notes ?? []).length}
+            notesDue={notesDue}
             itinerary={itinerary}
             budget={budget}
             packingAround={(between) => packing("boxes", between)}
@@ -416,7 +427,7 @@ export default async function TripPage({
           header={header}
           destinations={navDestinations}
         />
-        <DesktopTabs slug={header.slug} active={activeTab} />
+        <DesktopTabs slug={header.slug} active={activeTab} notesDue={notesDue} />
         {/* Header and pills span the page; the right rail starts below them. */}
         <div className="lg:flex lg:items-stretch">
         <div className="lg:min-w-0 lg:flex-1">
@@ -603,7 +614,16 @@ function WeatherStrip({ detail }: { detail: TripDetail }) {
 
 /** Tab row for the non-phone layout. Shown at every width so narrow desktop
  * windows and tablets keep a way between tabs; phones use MobileTrip instead. */
-function DesktopTabs({ slug, active }: { slug: string; active: TabId }) {
+function DesktopTabs({
+  slug,
+  active,
+  notesDue,
+}: {
+  slug: string
+  active: TabId
+  /** A note reminder is due: the Trip folder pill turns clay unless it is open. */
+  notesDue: boolean
+}) {
   return (
     <div className="flex flex-wrap gap-2 border-b border-border px-5 py-3.5 lg:px-10">
       <AssistantPill className="order-last ml-auto" />
@@ -614,11 +634,7 @@ function DesktopTabs({ slug, active }: { slug: string; active: TabId }) {
             key={t.id}
             href={tabHref(slug, t.id)}
             aria-current={isActive ? "page" : undefined}
-            className={`rounded-full border px-3.5 py-1.5 font-mono text-[11px] uppercase tracking-[0.18em] transition-colors ${
-              isActive
-                ? "border-foreground bg-foreground text-background"
-                : "border-border text-muted-foreground hover:border-muted-foreground hover:text-foreground"
-            }`}
+            className={`rounded-full border px-3.5 py-1.5 font-mono text-[11px] uppercase tracking-[0.18em] transition-colors ${pillTone(isActive, t.id === "notes" && notesDue)}`}
           >
             {t.label}
           </Link>
@@ -626,6 +642,12 @@ function DesktopTabs({ slug, active }: { slug: string; active: TabId }) {
       })}
     </div>
   )
+}
+
+function pillTone(isActive: boolean, due: boolean): string {
+  if (isActive) return "border-foreground bg-foreground text-background"
+  if (due) return "border-clay bg-clay-tint text-clay hover:text-foreground"
+  return "border-border text-muted-foreground hover:border-muted-foreground hover:text-foreground"
 }
 
 /** Desktop right rail: a small card for every section except the one in the main column. */

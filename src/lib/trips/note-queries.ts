@@ -10,6 +10,8 @@ export interface TripNote {
   /** ISO timestamptz from Postgres. */
   createdAt: string
   updatedAt: string
+  /** ISO timestamptz; null when no reminder is set. */
+  remindAt: string | null
 }
 
 interface TripNoteRow {
@@ -21,6 +23,7 @@ interface TripNoteRow {
   created_by: string
   created_at: string
   updated_at: string
+  remind_at: string | null
 }
 
 function rowToNote(r: TripNoteRow): TripNote {
@@ -33,11 +36,12 @@ function rowToNote(r: TripNoteRow): TripNote {
     createdBy: r.created_by,
     createdAt: r.created_at,
     updatedAt: r.updated_at,
+    remindAt: r.remind_at,
   }
 }
 
 const NOTE_COLS =
-  "id, trip_id, body, location_id, day_date, created_by, created_at, updated_at"
+  "id, trip_id, body, location_id, day_date, created_by, created_at, updated_at, remind_at"
 
 export async function getTripNotes(tripId: string): Promise<TripNote[]> {
   const supabase = await createClient()
@@ -66,6 +70,35 @@ export async function getNotesForDay(
     .returns<TripNoteRow[]>()
   if (error) throw new Error(error.message)
   return (data ?? []).map(rowToNote)
+}
+
+/** Notes whose reminder moment has passed and is not done yet, oldest first. */
+export async function getDueNotes(tripId: string): Promise<TripNote[]> {
+  const supabase = await createClient()
+  const { data, error } = await supabase
+    .from("trip_notes")
+    .select(NOTE_COLS)
+    .eq("trip_id", tripId)
+    .not("remind_at", "is", null)
+    .lte("remind_at", new Date().toISOString())
+    .order("remind_at", { ascending: true })
+    .returns<TripNoteRow[]>()
+  if (error) throw new Error(error.message)
+  return (data ?? []).map(rowToNote)
+}
+
+/** The soonest reminder on this trip that is not due yet, or null. */
+export async function getNextReminderAt(tripId: string): Promise<string | null> {
+  const supabase = await createClient()
+  const { data, error } = await supabase
+    .from("trip_notes")
+    .select("remind_at")
+    .eq("trip_id", tripId)
+    .gt("remind_at", new Date().toISOString())
+    .order("remind_at", { ascending: true })
+    .limit(1)
+  if (error) throw new Error(error.message)
+  return data?.[0]?.remind_at ?? null
 }
 
 export { rowToNote }

@@ -28,15 +28,17 @@ export function BoxSection({
   children,
   defaultOpen = false,
   id,
+  className,
 }: {
   summary: ReactNode
   children: ReactNode
   /** Opens on first render; the reader owns it after that. */
   defaultOpen?: boolean
   id?: string
+  className?: string
 }) {
   return (
-    <details id={id} className="group" open={defaultOpen}>
+    <details id={id} className={cn("group", className)} open={defaultOpen}>
       <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 px-[18px] py-2 [&::-webkit-details-marker]:hidden">
         <div className="min-w-0 flex-1">{summary}</div>
         <span
