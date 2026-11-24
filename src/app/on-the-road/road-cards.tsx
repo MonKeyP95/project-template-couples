@@ -60,7 +60,7 @@ export function MoneyCard({
         summary={
           <div className="py-2">
             <div className="flex items-baseline justify-between gap-3">
-              <Label>Spent today</Label>
+              <Label>Quick expense</Label>
               {planned > 0 ? (
                 <span className="font-mono text-[11px] text-muted-foreground">
                   of about {moneyRounded(planned, currency)}

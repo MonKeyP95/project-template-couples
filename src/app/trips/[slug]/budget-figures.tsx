@@ -135,6 +135,8 @@ export interface SpentFigureProps {
   hasUnconfirmed: boolean
   /** Null outside the trip dates; then the line is just "left". */
   pace: BudgetPace | null
+  /** Day of the trip; with no budget the bar fills by days gone. Null for a dream. */
+  dayProgress: { day: number; days: number } | null
 }
 
 export function SpentFigure({
@@ -144,6 +146,7 @@ export function SpentFigure({
   plannedBudgetCents,
   hasUnconfirmed,
   pace,
+  dayProgress,
 }: SpentFigureProps) {
   const { currency } = useCurrency()
   const fmt = (cents: number) => money(cents, currency)
@@ -206,7 +209,27 @@ export function SpentFigure({
             <PaceDenominator pace={pace} plannedBudgetCents={plannedBudgetCents} />
           ) : null}
         </>
+      ) : dayProgress ? (
+        <DaysGoneBar {...dayProgress} />
       ) : null}
+    </>
+  )
+}
+
+/** With no budget, the bar shows how far through the trip we are. */
+function DaysGoneBar({ day, days }: { day: number; days: number }) {
+  const pct = Math.round((day / days) * 100)
+  return (
+    <>
+      <div className="mt-3 flex items-center gap-2">
+        <Bar pct={pct} tone="sea" className="flex-1" />
+        <span className="t-num font-mono text-[10px] tracking-[0.06em] text-muted-foreground">
+          {pct}%
+        </span>
+      </div>
+      <div className="mt-1.5 font-mono text-[10px] tracking-[0.06em] text-muted-foreground">
+        {day === 0 ? `${days} days to go` : `day ${day} of ${days}`}
+      </div>
     </>
   )
 }
