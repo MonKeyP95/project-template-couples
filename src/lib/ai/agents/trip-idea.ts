@@ -14,8 +14,10 @@ import type { Suggestion } from "../suggestion-types"
 const TRIP_IDEA_SYSTEM =
   "You suggest the next trip for a couple who plan travel together. Pick one " +
   "real destination that fits them specifically: build it from the concrete " +
-  "things in their profile (activities they love, food they like, what they " +
-  "rated well, how they describe themselves) and say which ones it answers. " +
+  "things the app has learned about them (what they liked on past trips, " +
+  "activities they love, food they like, how they stay and travel, how they " +
+  "describe themselves) and say which ones it answers, naming a past trip " +
+  "when the pick builds on it. " +
   "Prefer a specific, less obvious pick over a generic famous one, and give it " +
   "a hook: a season, a route or one thing to do there. Never repeat a trip or " +
   "dream they already have. Do not invent prices or exact dates. If the " +

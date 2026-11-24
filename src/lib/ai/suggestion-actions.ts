@@ -11,7 +11,7 @@ import { getItineraryLocations } from "@/lib/trips/location-queries"
 import { getTripNotes } from "@/lib/trips/note-queries"
 import { getItineraryDays } from "@/lib/trips/itinerary-queries"
 import { isDated } from "@/lib/trips/itinerary-types"
-import { listTripsForWorkspace } from "@/lib/trips/list-queries"
+import { buildHomeIdeaPrompt } from "@/lib/ai/home-idea-context"
 import { listChecklists } from "@/lib/checklists/queries"
 import { localToday } from "@/lib/time/local-today"
 import type { SurfaceKey, Suggestion, SuggestScope, SuggestDay } from "@/lib/ai/suggestion-types"
@@ -227,24 +227,6 @@ async function buildScopedPrompt(
   if (scope.kind === "day")
     return buildDayPrompt(trip.id, header, modeLine, scope.date)
   return buildFreePrompt(header, modeLine, scope.text)
-}
-
-/** Context for the trip-idea agent: today (for seasons), what they asked for,
- * and every trip and dream they have, so the idea doesn't repeat one. How to
- * pick lives in the agent's system prompt. */
-async function buildHomeIdeaPrompt(
-  workspaceId: string,
-  ask: string | null,
-): Promise<string> {
-  const b = await listTripsForWorkspace(workspaceId)
-  const known = (list: typeof b.past) =>
-    list.map((t) => tripLine(t.name, t.country, t.startDate, t.endDate)).join("; ")
-  return [
-    `Today is ${await localToday()}.`,
-    ask ? `What they asked for: "${ask}".` : "They asked for any new trip idea.",
-    b.past.length ? `Past trips: ${known(b.past)}.` : "No past trips in the app yet.",
-    `Planned and dreamed: ${known([...b.now, ...b.upcoming, ...b.dreams]) || "none"}.`,
-  ].join(" ")
 }
 
 /** Appends the profile background + taste-dial directive when there is any profile
