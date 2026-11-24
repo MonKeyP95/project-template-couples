@@ -2,7 +2,7 @@
 
 import * as React from "react"
 
-import { Bar } from "@/components/together"
+import { Bar, categoryTone, type BarTone } from "@/components/together"
 import { useCurrency } from "@/components/currency-context"
 import { money } from "@/lib/money"
 import {
@@ -63,11 +63,12 @@ export function BudgetByCategory(props: Props) {
   return (
     <>
       <div className="mt-1">
-        {lines.map((line) => (
+        {lines.map((line, i) => (
           <BudgetRow
             key={line.category}
             name={displayName(line.category)}
             line={line}
+            tone={categoryTone(i)}
             isOpen={open === line.category}
             onToggle={() =>
               setOpen(open === line.category ? null : line.category)
@@ -100,13 +101,13 @@ function StatusNote({
 }) {
   if (line.status === "over") {
     return (
-      <span className={`${NOTE_CLASS} text-clay`}>
+      <span className={`${NOTE_CLASS} text-destructive`}>
         {fmt(line.actualCents - line.plannedCents)} over
       </span>
     )
   }
   if (line.status === "unplanned") {
-    return <span className={`${NOTE_CLASS} text-clay`}>unplanned</span>
+    return <span className={`${NOTE_CLASS} text-destructive`}>unplanned</span>
   }
   if (line.status === "paidAhead") {
     return <span className={`${NOTE_CLASS} text-moss`}>paid in advance</span>
@@ -118,6 +119,7 @@ function StatusNote({
 export function BudgetRow({
   name,
   line,
+  tone = "sea",
   isOpen,
   onToggle,
   fmt,
@@ -125,6 +127,8 @@ export function BudgetRow({
 }: {
   name: string
   line: RowLine
+  /** Fill while within plan; over or unplanned is always red. */
+  tone?: BarTone
   isOpen: boolean
   onToggle: () => void
   fmt: (cents: number) => string
@@ -147,7 +151,7 @@ export function BudgetRow({
         <span className="truncate text-[13px] text-foreground">
           {name}
         </span>
-        <Bar pct={line.pct} tone={warn ? "clay" : "sea"} />
+        <Bar pct={line.pct} tone={warn ? "red" : tone} />
         <span className="t-num whitespace-nowrap text-right font-mono text-[11px] text-foreground">
           {fmt(line.actualCents)}
           {line.status === "unplanned" ? null : (

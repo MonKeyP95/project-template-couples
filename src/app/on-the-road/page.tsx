@@ -48,6 +48,8 @@ import { getRates } from "@/lib/fx/get-rates"
 import { AssistantBlock } from "@/components/assistant-block"
 import { RealtimeRefresh } from "@/components/realtime-refresh"
 import { QuickExpense } from "./quick-expense"
+import { CategoryBars } from "./category-bars"
+import { byCategoryLines } from "@/lib/trips/budget-by-category-types"
 import { QuickNote } from "./quick-note"
 import { RoadPlaceDoor } from "./find-a-place"
 import { RoadNudge } from "./road-nudge"
@@ -115,20 +117,27 @@ export default async function OnTheRoadPage() {
   }
   for (const dates of Object.values(locationDays)) dates.sort()
 
+  const spends = expenses.map((e) => ({
+    category: e.category,
+    dayDate: e.dayDate,
+    isSettlement: e.isSettlement,
+    amountCents: homeCents(e),
+  }))
   const pace = budgetPace({
     startDate: trip.startDate,
     endDate: trip.endDate,
     today,
     plannedBudgetCents: trip.plannedBudgetCents,
     budgetItems,
-    expenses: expenses.map((e) => ({
-      category: e.category,
-      dayDate: e.dayDate,
-      isSettlement: e.isSettlement,
-      amountCents: homeCents(e),
-    })),
+    expenses: spends,
     locationDays,
   })
+  const { lines: categoryLines } = byCategoryLines(
+    spends,
+    budgetItems,
+    categories.map((c) => c.name),
+    true,
+  )
   const unloggedNudge = pace
     ? detectUnloggedDays({
         unloggedDays: pace.unloggedDays,
@@ -275,6 +284,7 @@ export default async function OnTheRoadPage() {
             locations.find((l) => l.id === todayDay?.locationId)?.currency ?? null
           }
         />
+        <CategoryBars lines={categoryLines} currency={trip.homeCurrency} />
         <div className="px-[18px] pb-3 empty:hidden">
           <ReceiptPile
             tripSlug={trip.slug}

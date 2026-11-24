@@ -1,14 +1,34 @@
 import * as React from "react"
 import { cn } from "@/lib/utils"
 
-export type BarTone = "sea" | "clay" | "moss" | "ink" | "muted"
+export type BarTone =
+  | "sea"
+  | "sea2"
+  | "clay"
+  | "moss"
+  | "sand"
+  | "dusk"
+  | "red"
+  | "ink"
+  | "muted"
 
 const fillClasses: Record<BarTone, string> = {
   sea: "bg-sea",
+  sea2: "bg-sea-2",
   clay: "bg-clay",
   moss: "bg-moss",
+  sand: "bg-sand",
+  dusk: "bg-dusk",
+  red: "bg-destructive",
   ink: "bg-foreground",
   muted: "bg-muted-foreground",
+}
+
+/** One colour per category line, by position; red is kept for over budget. */
+const CATEGORY_TONES: BarTone[] = ["sea", "moss", "sand", "dusk", "clay", "sea2"]
+
+export function categoryTone(index: number): BarTone {
+  return CATEGORY_TONES[index % CATEGORY_TONES.length]
 }
 
 export interface BarProps {

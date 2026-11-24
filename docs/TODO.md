@@ -4,6 +4,12 @@
 
 **Next up: work on the AI itinerary planner** (`itinerary-planner` agent, `src/lib/ai/agents/`). Noted 2026-11-03.
 
+**Category bar colours + on-the-road category bars: implemented 2026-11-24; lint + `tsc` clean; unverified in app; no migration.** Budget-tab category bars each take a colour by position (sea, moss, sand, dusk, clay, sea-2); over-budget or unplanned bars and their notes are true red (`destructive`). By-place rows stay sea, with red when over. On the road, the "Spent today" box shows read-only "Trip by category" rows in the same colours, below the quick-expense form. In-app checks:
+  1. Budget tab: each category bar has its own colour; light and dark mode both readable.
+  2. A category over plan shows a red bar and a red "... over" note; an unplanned one is red with "unplanned".
+  3. On the road: open "Spent today"; below the expense form, "Trip by category" lists the same categories, in the same colours and amounts as the Budget tab.
+  4. Log an expense that pushes a category over plan: its road bar turns red.
+
 **Profile in boxes + couple description + home country: implemented 2026-11-20; lint + `tsc` clean; `pnpm build` passes; verified in-app 2026-11-20; merged #146; migration `20261120000001_workspace_about.sql` applied.** /profile is four boxes: About us (names, description, invite), What we like (the 4 categories), History (by trip, then an "Across trips" budget view), Basics (name, email, home country + currency). One column on the phone in that order; two columns on desktop (About + Likes + Basics left, History right). Header markers: About "empty"/"done", Likes "n of 4", Basics "add home country"/"done", in clay while incomplete. New `workspaces.description` (max 300) and `workspaces.home_country` (free text, max 60), editable by any member; `buildProfileBlock` feeds both to chat, suggestion, budget-planner, itinerary-planner and dispatch (not discover). In-app checks:
   1. Phone: four boxes in order About us, What we like, Basics, History; no horizontal scroll.
   2. Desktop: two columns, About us + What we like + Basics left, History right.
