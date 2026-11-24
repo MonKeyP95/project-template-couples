@@ -206,6 +206,28 @@ export const TOOL_REGISTRY: Record<string, Anthropic.Messages.ToolUnion> = {
     },
   },
 
+  propose_trip_idea: {
+    name: "propose_trip_idea",
+    description: "Return one new trip idea picked for this couple.",
+    strict: true,
+    input_schema: {
+      type: "object",
+      additionalProperties: false,
+      properties: {
+        label: {
+          type: "string",
+          description: "The destination, short, e.g. 'Azores, São Miguel'.",
+        },
+        body: {
+          type: "string",
+          description:
+            "Two or three sentences: what they would do there and when, and which specific things from their profile it answers. No preamble.",
+        },
+      },
+      required: ["label", "body"],
+    },
+  },
+
   propose_dispatch: {
     name: "propose_dispatch",
     description:

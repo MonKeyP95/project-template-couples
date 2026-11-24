@@ -23,6 +23,7 @@ export {
   type ItineraryDraftContext,
 } from "./agents/itinerary-planner"
 export { generateSuggestion } from "./agents/suggestion"
+export { generateTripIdea } from "./agents/trip-idea"
 export {
   findSuggestionOptions,
   type SuggestionOptionsQuery,

@@ -1,6 +1,6 @@
 "use server"
 
-import { generateSuggestion } from "@/lib/ai/claude"
+import { generateSuggestion, generateTripIdea } from "@/lib/ai/claude"
 import { isAiEnabled } from "@/lib/ai/ai-mode"
 import { buildAssistantContext } from "@/lib/ai/assistant-context"
 import { getCurrentWorkspace } from "@/lib/workspace/queries"
@@ -229,26 +229,22 @@ async function buildScopedPrompt(
   return buildFreePrompt(header, modeLine, scope.text)
 }
 
-/** Home asks for one new trip or dream idea, never work on an existing trip.
- * Known trips are listed so the idea doesn't repeat one. */
+/** Context for the trip-idea agent: today (for seasons), what they asked for,
+ * and every trip and dream they have, so the idea doesn't repeat one. How to
+ * pick lives in the agent's system prompt. */
 async function buildHomeIdeaPrompt(
   workspaceId: string,
   ask: string | null,
 ): Promise<string> {
   const b = await listTripsForWorkspace(workspaceId)
-  const known = [...b.now, ...b.upcoming, ...b.dreams, ...b.past]
-    .map((t) => tripLine(t.name, t.country, t.startDate, t.endDate))
-    .join("; ")
+  const known = (list: typeof b.past) =>
+    list.map((t) => tripLine(t.name, t.country, t.startDate, t.endDate)).join("; ")
   return [
-    "Surface: home. The couple wants an idea for a new trip or dream.",
-    known ? `Trips and dreams they already have: ${known}.` : "They have no trips yet.",
-    ask ? `What they asked for: "${ask}".` : null,
-    "Suggest one new destination idea that fits who they are (their profile follows) and is not already on their list.",
-    "Say in one line which part of their profile it fits.",
-    "Do not suggest work on an existing trip.",
-  ]
-    .filter(Boolean)
-    .join(" ")
+    `Today is ${await localToday()}.`,
+    ask ? `What they asked for: "${ask}".` : "They asked for any new trip idea.",
+    b.past.length ? `Past trips: ${known(b.past)}.` : "No past trips in the app yet.",
+    `Planned and dreamed: ${known([...b.now, ...b.upcoming, ...b.dreams]) || "none"}.`,
+  ].join(" ")
 }
 
 /** Appends the profile background + taste-dial directive when there is any profile
@@ -289,7 +285,10 @@ export async function suggestForSurface(
       ? (await getTripBySlug(workspace.id, tripSlug))?.id
       : undefined
     const enriched = await withProfile(prompt, workspace.id, tripId)
-    const suggestion = await generateSuggestion(enriched)
+    const suggestion =
+      surface === "home"
+        ? await generateTripIdea(enriched)
+        : await generateSuggestion(enriched)
     return { suggestion }
   } catch {
     return { error: "Couldn't reach the assistant." }
