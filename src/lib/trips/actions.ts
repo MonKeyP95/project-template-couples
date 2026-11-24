@@ -1405,7 +1405,7 @@ export async function addNote(
       created_by: userData.user.id,
     })
     .select(
-      "id, trip_id, body, location_id, day_date, created_by, created_at, updated_at",
+      "id, trip_id, body, location_id, day_date, created_by, created_at, updated_at, remind_at",
     )
     .single()
 

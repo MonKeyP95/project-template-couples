@@ -10,6 +10,8 @@ export interface TripNote {
   /** ISO timestamptz from Postgres. */
   createdAt: string
   updatedAt: string
+  /** ISO timestamptz; null when no reminder is set. */
+  remindAt: string | null
 }
 
 interface TripNoteRow {
@@ -21,6 +23,7 @@ interface TripNoteRow {
   created_by: string
   created_at: string
   updated_at: string
+  remind_at: string | null
 }
 
 function rowToNote(r: TripNoteRow): TripNote {
@@ -33,11 +36,12 @@ function rowToNote(r: TripNoteRow): TripNote {
     createdBy: r.created_by,
     createdAt: r.created_at,
     updatedAt: r.updated_at,
+    remindAt: r.remind_at,
   }
 }
 
 const NOTE_COLS =
-  "id, trip_id, body, location_id, day_date, created_by, created_at, updated_at"
+  "id, trip_id, body, location_id, day_date, created_by, created_at, updated_at, remind_at"
 
 export async function getTripNotes(tripId: string): Promise<TripNote[]> {
   const supabase = await createClient()
