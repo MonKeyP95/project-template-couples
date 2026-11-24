@@ -4,7 +4,7 @@
 
 **Next up: work on the AI itinerary planner** (`itinerary-planner` agent, `src/lib/ai/agents/`). Noted 2026-11-03.
 
-**Edit category rows on the road: implemented 2026-11-24; lint + `tsc` clean; unverified in app; no migration.** The road's "Trip by category" rows are now the Budget tab's own `BudgetByCategory` (tap a row to see, add and edit its planned lines and expenses), replacing the read-only `category-bars.tsx`. `memberToneMap` moved to `trips/[slug]/member-tones.ts` so both pages share it. In-app checks:
+**Edit category rows on the road: implemented 2026-11-24; lint + `tsc` clean; verified in-app 2026-11-24; no migration.** The road's "Trip by category" rows are now the Budget tab's own `BudgetByCategory` (tap a row to see, add and edit its planned lines and expenses), replacing the read-only `category-bars.tsx`. `memberToneMap` moved to `trips/[slug]/member-tones.ts` so both pages share it. In-app checks:
   1. On the road, open "Quick expense": tapping a category row opens its planned lines and spent list, like the Budget tab.
   2. "+ add expense" in a row logs an expense with that category; the row's amount updates without a reload.
   3. Tapping a spent line opens the editor; changing its amount updates the row.
