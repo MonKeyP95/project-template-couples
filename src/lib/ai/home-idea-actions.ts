@@ -6,7 +6,7 @@ import { generateTripIdea } from "@/lib/ai/claude"
 import { buildAssistantContext } from "@/lib/ai/assistant-context"
 import { buildHomeContext } from "@/lib/ai/home-idea-context"
 import { getHomeIdea, saveHomeIdea } from "@/lib/ai/home-idea-queries"
-import type { Suggestion } from "@/lib/ai/suggestion-types"
+import type { TripIdea } from "@/lib/ai/suggestion-types"
 import { localToday } from "@/lib/time/local-today"
 import { getCurrentWorkspace } from "@/lib/workspace/queries"
 
@@ -15,7 +15,7 @@ import { getCurrentWorkspace } from "@/lib/workspace/queries"
  * mode: it runs on its own, at most once per change. */
 export async function refreshHomeIdea(
   another: boolean,
-): Promise<{ idea?: Suggestion; error?: string }> {
+): Promise<{ idea?: TripIdea; error?: string }> {
   const workspace = await getCurrentWorkspace()
   if (!workspace) return { error: "Not signed in." }
 
@@ -23,7 +23,9 @@ export async function refreshHomeIdea(
   const { profileBlock, tasteDirective } = await buildAssistantContext(workspace.id)
   const fingerprint = createHash("sha256").update(context + profileBlock).digest("hex")
   const saved = await getHomeIdea(workspace.id)
-  if (!another && saved?.fingerprint === fingerprint) return { idea: saved }
+  // A row saved before options existed has none, so it is made again once.
+  if (!another && saved?.fingerprint === fingerprint && saved.options.length)
+    return { idea: saved }
 
   try {
     const idea = await generateTripIdea(

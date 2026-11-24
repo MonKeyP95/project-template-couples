@@ -16,6 +16,11 @@ export interface Suggestion {
   body: string
 }
 
+/** A home trip idea plus three short directions to ask about next. */
+export interface TripIdea extends Suggestion {
+  options: string[]
+}
+
 /** How the user aimed the suggestion. `page` = the per-surface default. */
 export type SuggestScope =
   | { kind: "page" }

@@ -1,9 +1,9 @@
 import "server-only"
 
 import { createClient } from "@/lib/supabase/server"
-import type { Suggestion } from "@/lib/ai/suggestion-types"
+import type { TripIdea } from "@/lib/ai/suggestion-types"
 
-export interface SavedHomeIdea extends Suggestion {
+export interface SavedHomeIdea extends TripIdea {
   fingerprint: string
 }
 
@@ -12,7 +12,7 @@ export async function getHomeIdea(workspaceId: string): Promise<SavedHomeIdea | 
   const supabase = await createClient()
   const { data } = await supabase
     .from("home_ideas")
-    .select("fingerprint, label, body")
+    .select("fingerprint, label, body, options")
     .eq("workspace_id", workspaceId)
     .maybeSingle()
   return data

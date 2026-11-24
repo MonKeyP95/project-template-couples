@@ -223,8 +223,14 @@ export const TOOL_REGISTRY: Record<string, Anthropic.Messages.ToolUnion> = {
           description:
             "Two or three sentences: what they would do there and when, and which specific things from their profile it answers. No preamble.",
         },
+        options: {
+          type: "array",
+          items: { type: "string" },
+          description:
+            "Exactly three more directions they could ask about next, each 2 to 5 words, specific to them and different from this idea and each other, e.g. 'Slow dive week, Red Sea' or 'Surf and seafood north'.",
+        },
       },
-      required: ["label", "body"],
+      required: ["label", "body", "options"],
     },
   },
 

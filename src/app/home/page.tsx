@@ -19,7 +19,6 @@ import { createClient } from "@/lib/supabase/server"
 import { isDarkTheme } from "@/lib/theme"
 import { getTodayForTrip } from "@/lib/trips/itinerary-queries"
 import { listTripsForWorkspace } from "@/lib/trips/list-queries"
-import { getDiningPreferences } from "@/lib/preferences/dining-queries"
 import { getHomeIdea } from "@/lib/ai/home-idea-queries"
 import { localToday } from "@/lib/time/local-today"
 import {
@@ -66,9 +65,6 @@ export default async function HomePage() {
   const dateLabel = formatDateLabel(new Date())
   const members = workspace ? orderMembers(workspace, userData.user.id) : []
 
-  const topActivities = workspace
-    ? (await getDiningPreferences(workspace.id)).activities.slice(0, 2)
-    : []
   const savedIdea = workspace ? await getHomeIdea(workspace.id) : null
   const buckets = workspace
     ? await listTripsForWorkspace(workspace.id)
@@ -181,11 +177,14 @@ export default async function HomePage() {
         <Coord>{dateLabel}</Coord>
       </section>
 
-      <div className="mt-5 grid gap-3 md:mt-10 md:grid-cols-2">
+      <div className="mt-5 grid gap-3 md:mt-10 md:grid-cols-[minmax(0,1fr)_minmax(0,2fr)] md:items-start">
         <NewBox />
         <IdeasLine
-          saved={savedIdea ? { label: savedIdea.label, body: savedIdea.body } : null}
-          activities={topActivities}
+          saved={
+            savedIdea
+              ? { label: savedIdea.label, body: savedIdea.body, options: savedIdea.options }
+              : null
+          }
         />
       </div>
 

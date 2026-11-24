@@ -1,7 +1,7 @@
 import "server-only"
 import type Anthropic from "@anthropic-ai/sdk"
 import { runAgent, type AgentDescriptor } from "../runtime"
-import type { Suggestion } from "../suggestion-types"
+import type { TripIdea } from "../suggestion-types"
 
 /**
  * The trip-idea AI behind the home page's assistant line. Given the couple's
@@ -22,11 +22,13 @@ const TRIP_IDEA_SYSTEM =
   "a hook: a season, a route or one thing to do there. Never repeat a trip or " +
   "dream they already have. Do not invent prices or exact dates. If the " +
   "profile is thin, use what they asked for and their past trips. Never ask " +
-  "questions; you cannot receive a reply. Return only the propose_trip_idea tool."
+  "questions; you cannot receive a reply. Also give three short options for " +
+  "what they could ask next: each its own direction drawn from who they are, " +
+  "a few words, not a single generic word. Return only the propose_trip_idea tool."
 
 // No toolChoice, matching the other suggestion agents; the system prompt asks
 // for the tool. maxTokens leaves room for thinking.
-const tripIdea: AgentDescriptor<string, Suggestion> = {
+const tripIdea: AgentDescriptor<string, TripIdea> = {
   name: "trip-idea",
   model: "claude-haiku-5-5",
   maxTokens: 2048,
@@ -40,13 +42,17 @@ const tripIdea: AgentDescriptor<string, Suggestion> = {
         block.type === "tool_use" && block.name === "propose_trip_idea",
     )
     if (!idea) throw new Error("No trip idea returned")
-    const data = idea.input as { label?: string; body?: string }
-    return { label: data.label ?? "/ idea", body: data.body ?? "" }
+    const data = idea.input as { label?: string; body?: string; options?: string[] }
+    return {
+      label: data.label ?? "/ idea",
+      body: data.body ?? "",
+      options: (data.options ?? []).slice(0, 3),
+    }
   },
 }
 
 /** One new trip idea from a context prompt the caller builds. Throws when the
  * model returns no tool block. */
-export function generateTripIdea(prompt: string): Promise<Suggestion> {
+export function generateTripIdea(prompt: string): Promise<TripIdea> {
   return runAgent(tripIdea, prompt)
 }
