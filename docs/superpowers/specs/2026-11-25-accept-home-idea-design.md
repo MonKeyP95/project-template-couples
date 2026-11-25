@@ -90,8 +90,8 @@ plan: {
   Plan-filled fields count as touched (set by hand), so the note reader never overwrites them; `what` and `days`
   become touchable fields for this (my call). The couple's edits always win.
 - Accepting does not switch AI mode on: no call is made (my call).
-- A saved idea from before the `plan` column has `plan` null: accept still works and fills only the note, like
-  the New adventure box today (my call).
+- A saved idea from before the `plan` column is made again once on the next home load, the same way ideas
+  saved before `options` were (my call; one automatic call per workspace). So every idea shown has a plan.
 
 ### The route on the walk (decided 2026-11-25: option A)
 
