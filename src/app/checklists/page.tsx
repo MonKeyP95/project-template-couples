@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation"
 
 import { Label } from "@/components/together"
-import { isDarkTheme } from "@/lib/theme"
+import { getTheme } from "@/lib/theme"
 import { createClient } from "@/lib/supabase/server"
 import { getCurrentWorkspace } from "@/lib/workspace/queries"
 import { listTripsForWorkspace } from "@/lib/trips/list-queries"
@@ -24,7 +24,7 @@ export default async function ChecklistsPage() {
   const workspace = await getCurrentWorkspace()
   if (!workspace) redirect("/home")
 
-  const dark = await isDarkTheme()
+  const theme = await getTheme()
   const [checklists, buckets] = await Promise.all([
     listChecklists(workspace.id),
     listTripsForWorkspace(workspace.id),
@@ -39,7 +39,7 @@ export default async function ChecklistsPage() {
     <div className="relative mx-auto min-h-screen w-full max-w-[440px] lg:flex lg:max-w-none lg:items-stretch">
       <LeftRail
         workspace={workspace}
-        initialDark={dark}
+        initialTheme={theme}
         destinations={navDestinations}
         current="checklists"
       />

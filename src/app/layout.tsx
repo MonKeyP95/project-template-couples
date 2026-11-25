@@ -9,7 +9,7 @@ import "./globals.css"
 import { WorldMapBg } from "@/components/together"
 import { TimezoneCookie } from "@/components/timezone-cookie"
 import { AiModeProvider } from "@/components/ai-mode"
-import { isDarkTheme } from "@/lib/theme"
+import { getTheme } from "@/lib/theme"
 
 const sans = IBM_Plex_Sans({
   variable: "--font-sans",
@@ -44,11 +44,11 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode
 }>) {
-  const dark = await isDarkTheme()
+  const theme = await getTheme()
   return (
     <html
       lang="en"
-      className={`${sans.variable} ${serif.variable} ${mono.variable} h-full antialiased${dark ? " dark" : ""}`}
+      className={`${sans.variable} ${serif.variable} ${mono.variable} h-full antialiased${theme === "light" ? "" : ` ${theme}`}`}
       suppressHydrationWarning
     >
       <body

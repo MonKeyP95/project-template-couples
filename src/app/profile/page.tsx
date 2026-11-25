@@ -6,7 +6,7 @@ import {
   MobileHeaderNav,
   buildNavDestinations,
 } from "@/components/app-nav"
-import { isDarkTheme } from "@/lib/theme"
+import { getTheme } from "@/lib/theme"
 import { getCurrentWorkspace } from "@/lib/workspace/queries"
 import { listTripsForWorkspace } from "@/lib/trips/list-queries"
 import { AboutBox } from "./about-box"
@@ -24,7 +24,7 @@ export default async function ProfilePage() {
   const workspace = await getCurrentWorkspace()
   if (!workspace) redirect("/home")
 
-  const dark = await isDarkTheme()
+  const theme = await getTheme()
   const buckets = await listTripsForWorkspace(workspace.id)
   const hero = buckets.now[0] ?? buckets.upcoming[0] ?? null
   const navDestinations = buildNavDestinations({
@@ -36,7 +36,7 @@ export default async function ProfilePage() {
     <div className="relative mx-auto min-h-screen w-full max-w-[440px] lg:flex lg:max-w-none lg:items-stretch">
       <LeftRail
         workspace={workspace}
-        initialDark={dark}
+        initialTheme={theme}
         destinations={navDestinations}
         current="profile"
       />
