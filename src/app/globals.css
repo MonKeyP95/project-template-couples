@@ -275,6 +275,17 @@ html.cartoon {
   --font-serif: var(--font-cartoon);
 }
 
+/* Drawn outlines. Unlayered on purpose: the `.border` utility lives in
+   @layer utilities, which beats any lower layer regardless of specificity. */
+.cartoon .border {
+  border-width: 2.5px;
+}
+
+/* Hand-drawn wobble: uneven corners on bordered cards, not on form controls. */
+.cartoon :is(.rounded-lg, .rounded-xl, .rounded-2xl).border:not(input, select, textarea, button) {
+  border-radius: 14px 19px 12px 21px / 17px 12px 19px 14px;
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;
