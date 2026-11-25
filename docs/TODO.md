@@ -4,12 +4,12 @@
 
 **Next up: work on the AI itinerary planner** (`itinerary-planner` agent, `src/lib/ai/agents/`). Noted 2026-11-03.
 
-**Divide an expense over days: implemented 2026-11-25 on `feat/divide-expense`; lint + `tsc` clean; unverified in app.** Spec `docs/superpowers/specs/2026-11-25-divide-expense-over-days-design.md`. The add-expense form (budget panel, breakdown rows, on-the-road category rows) has "÷ divide over days", which opens a calendar of the trip's days; saving writes one expense per picked day (approach A, no migration). In-app checks:
-  1. Add expense on a dated trip shows "÷ divide over days"; on a dream it does not.
+**Divide an expense over days: implemented 2026-11-25 on `feat/divide-expense`; lint + `tsc` clean; `pnpm build` passes; button shows, defaults and submit confirmed in-app 2026-11-25; rest unverified.** Spec `docs/superpowers/specs/2026-11-25-divide-expense-over-days-design.md`. The add-expense form (budget panel, breakdown rows, on-the-road category rows) has a "÷ divide" pill on the title line before the camera, which opens a calendar of the trip's days; saving ("divide") writes one expense per picked day (approach A, no migration). In-app checks:
+  1. Add expense on a dated trip shows "÷ divide"; on a dream it does not.
   2. With a location chosen, it pre-picks that location's days (Accommodation: all but the last).
   3. With "Auto (by date)", it pre-picks every trip day.
   4. Changing the location while the calendar is open re-picks the new location's days.
-  5. 100 over 3 days saves 3 rows: 33.34, 33.33, 33.33 on those dates; the button reads "add over 3 days".
+  5. 100 over 3 days saves 3 rows: 33.34, 33.33, 33.33 on those dates; the button reads "divide".
   6. "none" disables the add button; one picked day saves a single expense on that day.
   7. The on-the-road day card counts only that day's share.
   8. Phone width: the calendar fits, no sideways scroll.
