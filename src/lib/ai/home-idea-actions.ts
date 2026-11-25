@@ -48,3 +48,16 @@ export async function refreshHomeIdeas(
     return { error: "Couldn't reach the assistant." }
   }
 }
+
+/** Removes one idea (by label) from the saved set, with no call. An emptied
+ * set is made again by the next `refreshHomeIdeas`. */
+export async function dismissHomeIdea(label: string): Promise<void> {
+  const workspace = await getCurrentWorkspace()
+  if (!workspace) return
+  const saved = await getHomeIdeas(workspace.id)
+  if (!saved) return
+  await saveHomeIdeas(workspace.id, {
+    fingerprint: saved.fingerprint,
+    ideas: saved.ideas.filter((i) => i.label !== label),
+  })
+}

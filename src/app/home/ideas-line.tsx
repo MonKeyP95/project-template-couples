@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation"
 
 import { useAiMode } from "@/components/ai-mode"
 import { SuggestionCard } from "@/components/together"
-import { refreshHomeIdeas } from "@/lib/ai/home-idea-actions"
+import { dismissHomeIdea, refreshHomeIdeas } from "@/lib/ai/home-idea-actions"
 import { suggestForSurface } from "@/lib/ai/suggestion-actions"
 import type { TripIdea } from "@/lib/ai/suggestion-types"
 
@@ -18,7 +18,8 @@ const pill =
  * full ideas, one per pill; tapping a pill opens its idea with no call and
  * "another" opens the next one. On load the set is checked against the
  * profile and trip learnings and only remade when they changed, or on
- * "new ideas". A typed ask gives a one-off idea; it switches AI mode on, since
+ * "new ideas". "dismiss" removes an idea from the set; when none are left a
+ * new set is made. A typed ask gives a one-off idea; it switches AI mode on, since
  * asking is the consent. "let's do it" opens the new-trip walk with the
  * idea's plan; no call is made. */
 export function IdeasLine({
@@ -76,6 +77,22 @@ export function IdeasLine({
     else {
       const i = ideas.findIndex((idea) => idea.label === open)
       setOpen(ideas[(i + 1) % ideas.length].label)
+    }
+  }
+
+  async function dismiss() {
+    if (oneOff || open === null) {
+      setOneOff(null)
+      return
+    }
+    const left = ideas.filter((idea) => idea.label !== open)
+    setIdeas(left)
+    setOpen(null)
+    await dismissHomeIdea(open)
+    if (!left.length) {
+      setBusy(true)
+      showRefreshed(await refreshHomeIdeas(false))
+      setBusy(false)
     }
   }
 
@@ -142,10 +159,7 @@ export function IdeasLine({
           applyLabel={busy ? "thinking..." : "another"}
           dismissLabel="dismiss"
           onApply={another}
-          onDismiss={() => {
-            setOneOff(null)
-            setOpen(null)
-          }}
+          onDismiss={dismiss}
           className="mt-2"
         >
           {shown.body}
