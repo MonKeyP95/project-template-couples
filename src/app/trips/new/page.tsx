@@ -6,7 +6,7 @@ import { MobileHeaderNav, buildNavDestinations } from "@/components/app-nav"
 import { createClient } from "@/lib/supabase/server"
 import { listTripsForWorkspace } from "@/lib/trips/list-queries"
 import { getCurrentWorkspace } from "@/lib/workspace/queries"
-import type { IdeaPlan } from "@/lib/trips/idea-route"
+import { isIdeaPlan, type IdeaPlan } from "@/lib/trips/idea-route"
 
 import { NewTripForm } from "./new-trip-form"
 
@@ -55,8 +55,8 @@ export default async function NewTripPage({
 function readPlan(raw: string | undefined): IdeaPlan | null {
   if (!raw) return null
   try {
-    const plan = JSON.parse(raw)
-    return plan && Array.isArray(plan.stops) ? plan : null
+    const plan: unknown = JSON.parse(raw)
+    return isIdeaPlan(plan) ? plan : null
   } catch {
     return null
   }

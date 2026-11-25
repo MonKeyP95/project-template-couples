@@ -50,7 +50,7 @@ import { slugify } from "@/lib/trips/slugify"
 import type { PlaceMatch } from "@/lib/weather/geocode"
 import { isBudgetPeriod, type BudgetPeriod } from "@/lib/trips/budget-period"
 import { tripHeadline, type PrefKey } from "@/lib/trips/trip-note-parse"
-import { fitRoute, type RouteStop } from "@/lib/trips/idea-route"
+import { fitRoute, isRouteStop, type RouteStop } from "@/lib/trips/idea-route"
 import { buildRouteItinerary } from "@/lib/trips/route-itinerary"
 import {
   EMPTY_TRIP_PROFILE,
@@ -945,9 +945,7 @@ export async function createTrip(
   if (categoriesError) return { error: categoriesError.message }
 
   if (input.route?.length) {
-    const stops = input.route.filter(
-      (s) => s.name.trim() !== "" && Number.isInteger(s.nights) && s.nights >= 1,
-    )
+    const stops = input.route.filter(isRouteStop)
     const length =
       startDate && endDate
         ? Math.round((Date.parse(endDate) - Date.parse(startDate)) / 86_400_000) + 1

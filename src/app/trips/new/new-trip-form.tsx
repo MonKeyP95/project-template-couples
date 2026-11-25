@@ -104,9 +104,9 @@ function initialState(
   symbol: string,
   note: string,
   plan: IdeaPlan | null,
-): { draft: TripDraft; touched: Set<DraftField> } {
+): { draft: TripDraft; touched: Set<DraftField>; noteDays: number } {
   const draft = withNote({ ...EMPTY_DRAFT, currency }, note, new Set(), currency, symbol)
-  if (!plan) return { draft, touched: new Set() }
+  if (!plan) return { draft, touched: new Set(), noteDays: draft.days }
   const days = routeNights(plan.stops) || plan.days
   const filled: DraftField[] = []
   if (plan.place) filled.push("place")
@@ -128,6 +128,7 @@ function initialState(
       prefs,
     },
     touched: new Set(filled),
+    noteDays: draft.days,
   }
 }
 
@@ -186,8 +187,16 @@ export function NewTripForm({
     })
   }
 
+  /** A plan-filled length holds until the note names a different one; a
+   * dream has no other place to change it. */
   function changeNote(note: string) {
-    setDraft((d) => withNote(d, note, touched, currency, symbol))
+    let t = touched
+    if (t.has("days") && readNote(note, currency, symbol).days !== initial.noteDays) {
+      t = new Set(t)
+      t.delete("days")
+      setTouched(t)
+    }
+    setDraft((d) => withNote(d, note, t, currency, symbol))
   }
 
   function edit(field: DraftField, value: string) {

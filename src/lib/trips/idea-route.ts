@@ -108,3 +108,39 @@ export function routeLine(stops: RouteStop[]): string {
     })
     .join(" · ")
 }
+
+const PREF_KEYS = ["stay", "move", "acts", "food", "avoid"] as const
+
+function isObject(v: unknown): v is Record<string, unknown> {
+  return typeof v === "object" && v !== null
+}
+
+/** A well-formed stop, as read from a URL or a client. */
+export function isRouteStop(v: unknown): v is RouteStop {
+  return (
+    isObject(v) &&
+    typeof v.name === "string" &&
+    v.name.trim() !== "" &&
+    Number.isInteger(v.nights) &&
+    (v.nights as number) >= 1 &&
+    typeof v.travelDay === "boolean" &&
+    Array.isArray(v.activities) &&
+    v.activities.every(
+      (a) => isObject(a) && typeof a.title === "string" && (a.kind === "big" || a.kind === "small"),
+    )
+  )
+}
+
+/** A well-formed plan, as read from the accept link. */
+export function isIdeaPlan(v: unknown): v is IdeaPlan {
+  return (
+    isObject(v) &&
+    typeof v.place === "string" &&
+    typeof v.what === "string" &&
+    typeof v.days === "number" &&
+    isObject(v.prefs) &&
+    PREF_KEYS.every((k) => typeof (v.prefs as Record<string, unknown>)[k] === "string") &&
+    Array.isArray(v.stops) &&
+    v.stops.every(isRouteStop)
+  )
+}
