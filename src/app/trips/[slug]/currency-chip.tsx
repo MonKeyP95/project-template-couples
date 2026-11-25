@@ -41,22 +41,27 @@ export function CurrencyChip({
   className = "flex-col gap-0.5",
 }: CurrencyChipProps) {
   const { currency, spendCurrency, rates } = useCurrency()
+  const [showAll, setShowAll] = React.useState(false)
 
-  // No rates means no honest conversion, so the trip currency is the only
+  // No rates means no honest conversion, so the home currency is the only
   // offer -- and if that is all there is, there is nothing to pick.
-  const codes = React.useMemo(() => {
-    if (!rates) return [currency]
-    // Spend currency first, then home, then anything a location uses.
-    const near = Array.from(
-      new Set([spendCurrency, currency, ...tripCurrencies]),
-    )
-    const rest = currencyOptions()
-      .map((o) => o.code)
-      .filter((c) => !near.includes(c) && rates[c] !== undefined)
-    return [...near, ...rest]
-  }, [rates, currency, spendCurrency, tripCurrencies])
+  // The shortlist: spend (local) first, then home, then any location's.
+  const near = React.useMemo(
+    () => (rates ? Array.from(new Set([spendCurrency, currency, ...tripCurrencies])) : [currency]),
+    [rates, currency, spendCurrency, tripCurrencies],
+  )
+  const rest = React.useMemo(
+    () =>
+      rates
+        ? currencyOptions()
+            .map((o) => o.code)
+            .filter((c) => !near.includes(c) && rates[c] !== undefined)
+        : [],
+    [rates, near],
+  )
+  const pills = near.includes(value) ? near : [...near, value]
 
-  if (value === currency && codes.length === 1) return null
+  if (value === currency && near.length === 1 && rest.length === 0) return null
 
   const foreignPerHome = rates?.[value]
   const amountNum = Number(amount)
@@ -70,19 +75,56 @@ export function CurrencyChip({
 
   return (
     <span className={cn("flex shrink-0", className)}>
-      <select
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        disabled={disabled}
-        aria-label="Currency"
-        className="w-[4.5rem] shrink-0 rounded-full border border-border bg-background px-1.5 py-0.5 font-mono text-[11px] uppercase tracking-[0.1em] text-foreground disabled:opacity-50"
-      >
-        {codes.map((c) => (
-          <option key={c} value={c}>
-            {c}
-          </option>
-        ))}
-      </select>
+      {showAll ? (
+        <select
+          value={value}
+          onChange={(e) => {
+            onChange(e.target.value)
+            setShowAll(false)
+          }}
+          disabled={disabled}
+          aria-label="Currency"
+          autoFocus
+          className="w-[4.5rem] shrink-0 rounded-full border border-border bg-background px-1.5 py-0.5 font-mono text-[11px] uppercase tracking-[0.1em] text-foreground disabled:opacity-50"
+        >
+          {[...near, ...rest].map((c) => (
+            <option key={c} value={c}>
+              {c}
+            </option>
+          ))}
+        </select>
+      ) : (
+        <span role="radiogroup" aria-label="Currency" className="flex shrink-0 items-center gap-1">
+          {pills.map((c) => (
+            <button
+              key={c}
+              type="button"
+              role="radio"
+              aria-checked={c === value}
+              onClick={() => onChange(c)}
+              disabled={disabled}
+              className={`rounded-full border px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-[0.08em] disabled:opacity-50 ${
+                c === value
+                  ? "border-foreground bg-foreground text-background"
+                  : "border-border text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              {c}
+            </button>
+          ))}
+          {rest.length > 0 ? (
+            <button
+              type="button"
+              onClick={() => setShowAll(true)}
+              disabled={disabled}
+              aria-label="Other currency"
+              className="rounded-full border border-border px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground hover:text-foreground disabled:opacity-50"
+            >
+              other
+            </button>
+          ) : null}
+        </span>
+      )}
       {previewCents === null ? null : (
         <span className="font-mono text-[10px] whitespace-nowrap text-muted-foreground">
           ~ {money(previewCents, currency)}

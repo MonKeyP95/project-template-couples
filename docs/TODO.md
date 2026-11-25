@@ -4,6 +4,22 @@
 
 **Next up: work on the AI itinerary planner** (`itinerary-planner` agent, `src/lib/ai/agents/`). Noted 2026-11-03.
 
+**Categories, local currency, no-budget colour: implemented 2026-11-25 on `feat/categories-currency-colours`; lint + `tsc` clean; unverified in app; migration `20261125000007_dining_out_drinks.sql` NOT applied yet.** (1) A category with spend but no budget keeps its colour with a grey "no budget" note; red only when over. (2) "Food" is "Dining out" and "Drinks" is new, on every trip: code (defaults, icons, AI planner enums, discovery door, drafter) plus the migration (category lists, expenses, budget lines, suggestions, itinerary event tags; Drinks inserted after Dining out). (3) Pinning a place fills in its local currency: new-trip pin (unless the currency was picked by hand), Edit trip pin, location pin (fills an empty currency field). Frozen country -> currency table in `src/lib/fx/country-currency.ts`. (4) The expense currency picker is a shortlist -- local, home, any location's -- plus "other" for the full list. In-app checks:
+  1. Paste `supabase/migrations/20261125000007_dining_out_drinks.sql` in the Supabase SQL editor.
+  2. Any trip: categories show "Dining out" (fork icon) and "Drinks" (glass icon) right after it; old Food expenses now read Dining out.
+  3. By category: a category with spend and no budget shows its own colour and "no budget", not red.
+  4. New trip to "Lanzarote": after Continue and the pin, "pay in" switches to EUR; picking DKK by hand first keeps DKK.
+  5. Edit trip: re-pinning the destination switches "pay in" to the place's currency.
+  6. Add expense on the Lanzarote trip (after setting it to EUR): currency shows [EUR] [DKK] [other]; "other" opens the full list.
+  7. Phone width: the currency pills fit beside the amount.
+
+**Backlog from partner feedback (2026-11-25, not started):**
+  - Phone: one assistant button to the right of the trip's location line, instead of one per tab.
+  - Cartoon mode: a third theme beside light/dark, strong basic colours (Moana-like feel, not Disney's look).
+  - Suggestions/assistant think outside the box: profile likes are a start, not a fence; also suggest what people with similar tastes tend to like.
+  - `.` vs `,` in numbers from the profile (display and typing -- decide).
+  - Add an expense with no internet (offline queue; own design).
+
 **Ledger by day + category icons: implemented 2026-11-25 on `feat/ledger-by-day-icons`; lint + `tsc` clean; `pnpm build` passes; verified in-app 2026-11-25.** Spec `docs/superpowers/specs/2026-11-25-ledger-by-day-category-icons-design.md`. The budget ledger is one box per day (`Wed 12 Mar` + day total), then Undated, then Savings & moves; rows show a coloured category icon instead of the date and category name. Category colour is now one rule (position in the trip's category list) for bars and icons. On the road, "Trip by category" rows show icons and the quick-expense category is a row of icon buttons. In-app checks:
   1. Budget ledger: one box per day, `Wed 12 Mar` header, day total on the right (settlements not counted).
   2. Rows: coloured icon, no category name, no date column.
