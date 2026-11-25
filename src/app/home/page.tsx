@@ -181,8 +181,13 @@ export default async function HomePage() {
         <NewBox />
         <IdeasLine
           saved={
-            savedIdea
-              ? { label: savedIdea.label, body: savedIdea.body, options: savedIdea.options }
+            savedIdea?.plan
+              ? {
+                  label: savedIdea.label,
+                  body: savedIdea.body,
+                  options: savedIdea.options,
+                  plan: savedIdea.plan,
+                }
               : null
           }
         />

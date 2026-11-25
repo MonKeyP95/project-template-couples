@@ -23,9 +23,9 @@ export async function refreshHomeIdea(
   const { profileBlock, tasteDirective } = await buildAssistantContext(workspace.id)
   const fingerprint = createHash("sha256").update(context + profileBlock).digest("hex")
   const saved = await getHomeIdea(workspace.id)
-  // A row saved before options existed has none, so it is made again once.
-  if (!another && saved?.fingerprint === fingerprint && saved.options.length)
-    return { idea: saved }
+  // A row saved before options or plan existed lacks them, so it is made again once.
+  if (!another && saved?.fingerprint === fingerprint && saved.options.length && saved.plan)
+    return { idea: { ...saved, plan: saved.plan } }
 
   try {
     const idea = await generateTripIdea(

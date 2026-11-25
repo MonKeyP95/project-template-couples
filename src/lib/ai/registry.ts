@@ -229,8 +229,77 @@ export const TOOL_REGISTRY: Record<string, Anthropic.Messages.ToolUnion> = {
           description:
             "Exactly three more directions they could ask about next, each 2 to 5 words, specific to them and different from this idea and each other, e.g. 'Slow dive week, Red Sea' or 'Surf and seafood north'.",
         },
+        plan: {
+          type: "object",
+          additionalProperties: false,
+          description: "The same trip as the answers to the app's new-trip questions. No dates, no prices.",
+          properties: {
+            place: {
+              type: "string",
+              description: "The destination as the couple would type it in Where, e.g. 'Malta'.",
+            },
+            what: {
+              type: "string",
+              description: "A few words for what the trip is, e.g. 'diving and trekking'.",
+            },
+            days: {
+              type: "integer",
+              description: "Rough total length in days; 0 when there is no natural length. Equals the stops' nights summed.",
+            },
+            prefs: {
+              type: "object",
+              additionalProperties: false,
+              description:
+                "One short line each, as the couple would answer 'Where will you sleep?', 'How will you get around?', 'What will you do?', 'Groceries or eating out?', 'Anything to avoid?'. Empty string when the idea says nothing.",
+              properties: {
+                stay: { type: "string" },
+                move: { type: "string" },
+                acts: { type: "string" },
+                food: { type: "string" },
+                avoid: { type: "string" },
+              },
+              required: ["stay", "move", "acts", "food", "avoid"],
+            },
+            stops: {
+              type: "array",
+              description:
+                "The trip's bases in order, 1 to 4. One stop unless it really has more than one base.",
+              items: {
+                type: "object",
+                additionalProperties: false,
+                properties: {
+                  name: { type: "string", description: "The base, e.g. 'Gozo'." },
+                  nights: { type: "integer", description: "At least 1." },
+                  travelDay: {
+                    type: "boolean",
+                    description: "True when arriving here takes most of a day. Always false for the first stop.",
+                  },
+                  activities: {
+                    type: "array",
+                    description: "0 to 4 things to do at this base.",
+                    items: {
+                      type: "object",
+                      additionalProperties: false,
+                      properties: {
+                        title: { type: "string", description: "Short, e.g. 'Wreck dive'." },
+                        kind: {
+                          type: "string",
+                          enum: ["big", "small"],
+                          description: "big = an activity worth comparing options for; small = a place to eat or drink.",
+                        },
+                      },
+                      required: ["title", "kind"],
+                    },
+                  },
+                },
+                required: ["name", "nights", "travelDay", "activities"],
+              },
+            },
+          },
+          required: ["place", "what", "days", "prefs", "stops"],
+        },
       },
-      required: ["label", "body", "options"],
+      required: ["label", "body", "options", "plan"],
     },
   },
 
