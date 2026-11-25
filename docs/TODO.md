@@ -4,6 +4,12 @@
 
 **Next up: work on the AI itinerary planner** (`itinerary-planner` agent, `src/lib/ai/agents/`). Noted 2026-11-03.
 
+**Phone: one assistant pill: implemented 2026-11-25 on `feat/phone-one-assistant-pill`; lint + `tsc` clean; unverified in app; no migration.** The phone trip page has one `assistant` pill on the location line (location, pill, countdown); it switches AI mode and every section shows its assistant panel while on, as the desktop tab-row pill does. The per-section pills/bars (budget, itinerary, packing, notes) and the `showAssistantPill`/`assistantBar` props are gone. In-app checks:
+  1. Phone: the location line reads location, `assistant` pill, countdown (or "No dates yet"); a long location truncates and the pill stays.
+  2. No assistant pill or bar inside Budget, Itinerary, Packing or Notes while it is off.
+  3. Tap the pill: it turns moss; expanding each of those sections shows its assistant panel. Tap again: all panels go.
+  4. Desktop: tab-row pill unchanged.
+
 **Categories, local currency, no-budget colour: implemented 2026-11-25 on `feat/categories-currency-colours`; lint + `tsc` clean; `pnpm build` passes; migration `20261125000007_dining_out_drinks.sql` applied 2026-11-25; verified in-app 2026-11-25; merged #166.** (1) A category with spend but no budget keeps its colour with a grey "no budget" note; red only when over. (2) "Food" is "Dining out" and "Drinks" is new, on every trip: code (defaults, icons, AI planner enums, discovery door, drafter) plus the migration (category lists, expenses, budget lines, suggestions, itinerary event tags; Drinks inserted after Dining out). (3) Pinning a place fills in its local currency: new-trip pin (unless the currency was picked by hand), Edit trip pin, location pin (fills an empty currency field). Frozen country -> currency table in `src/lib/fx/country-currency.ts`. (4) The expense currency picker is a shortlist -- local, home, any location's -- plus "other" for the full list. In-app checks:
   1. Paste `supabase/migrations/20261125000007_dining_out_drinks.sql` in the Supabase SQL editor.
   2. Any trip: categories show "Dining out" (fork icon) and "Drinks" (glass icon) right after it; old Food expenses now read Dining out.
@@ -14,7 +20,6 @@
   7. Phone width: the currency pills fit beside the amount.
 
 **Backlog from partner feedback (2026-11-25, not started):**
-  - Phone: one assistant button to the right of the trip's location line, instead of one per tab.
   - Cartoon mode: a third theme beside light/dark, strong basic colours (Moana-like feel, not Disney's look).
   - Suggestions/assistant think outside the box: profile likes are a start, not a fence; also suggest what people with similar tastes tend to like.
   - `.` vs `,` in numbers from the profile (display and typing -- decide).

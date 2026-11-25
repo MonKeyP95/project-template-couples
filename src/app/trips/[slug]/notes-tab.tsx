@@ -14,8 +14,8 @@ import type { ItineraryLocation } from "@/lib/trips/location-types"
 import type { MemberToneEntry } from "./packing-tab"
 
 /** The trip's notes as one newest-first list, each tagged with its place.
- * "phone" adds the assistant bar, import and an add box above the list; on
- * "folder" those live in the trip folder's toolbar. */
+ * "phone" adds the assistant panel (switched by the header pill), import and
+ * an add box above the list; on "folder" those live in the trip folder's toolbar. */
 export function NotesTab({
   tripId,
   tripSlug,
@@ -47,7 +47,7 @@ export function NotesTab({
             surface="notes"
             tripSlug={tripSlug}
             className="mb-4 block"
-            bar
+            bar={false}
             door={<PlanningPlaceDoor tripId={tripId} tripSlug={tripSlug} destination={destination} />}
           />
           <Label>Notes</Label>
