@@ -2,11 +2,13 @@
 
 import * as React from "react"
 
-import { Avatar, Label } from "@/components/together"
+import { Avatar, Label, categoryToneOf } from "@/components/together"
 import {
+  homeCents,
   type Expense,
   type ExpenseCategoryRow,
 } from "@/lib/trips/expense-types"
+import { groupByDay } from "@/lib/trips/ledger-days"
 import { type SavingsContribution } from "@/lib/trips/savings-types"
 import type { Receipt } from "@/lib/trips/receipt-types"
 import { deleteSavingsContribution } from "@/lib/trips/actions"
@@ -105,6 +107,38 @@ function SavingsLedgerRow({
   )
 }
 
+const DAY_HEADER = new Intl.DateTimeFormat("en-GB", {
+  weekday: "short",
+  day: "numeric",
+  month: "short",
+  timeZone: "UTC",
+})
+
+/** A framed ledger group with a header line and an optional total. */
+function DayBox({
+  title,
+  total,
+  children,
+}: {
+  title: string
+  total?: string
+  children: React.ReactNode
+}) {
+  return (
+    <div className="overflow-hidden rounded-xl border border-border bg-card">
+      <div className="flex items-baseline justify-between border-b border-border bg-muted/40 px-4 py-2">
+        <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-foreground">
+          {title}
+        </span>
+        {total ? (
+          <span className="t-num font-mono text-[11px] text-muted-foreground">{total}</span>
+        ) : null}
+      </div>
+      <div className="[&>*:first-child]:border-t-0">{children}</div>
+    </div>
+  )
+}
+
 export function Ledger({
   expenses,
   moves,
@@ -136,6 +170,7 @@ export function Ledger({
   bare?: boolean
 }) {
   const [expanded, setExpanded] = React.useState(defaultExpanded)
+  const { currency } = useCurrency()
   const dayMap = dayLocationMap(itineraryDays)
   const locationsById = Object.fromEntries(locations.map((l) => [l.id, l.name]))
   const hasLocations = locations.length > 0
@@ -143,11 +178,14 @@ export function Ledger({
   for (const r of receipts) {
     if (r.expenseId) receiptsByExpense.set(r.expenseId, [...(receiptsByExpense.get(r.expenseId) ?? []), r])
   }
-  const items = [
-    ...expenses.map((e) => ({ kind: "expense" as const, at: e.createdAt, expense: e })),
+  const categoryNames = categories.map((c) => c.name)
+  const days = groupByDay(expenses.map((e) => ({ ...e, cents: homeCents(e) })))
+  // Savings and moves have no trip day, so they get their own box.
+  const others = [
     ...moves.map((m) => ({ kind: "move" as const, at: m.createdAt, move: m })),
     ...contributions.map((c) => ({ kind: "saving" as const, at: c.createdAt, saving: c })),
-  ].sort((a, b) => (a.at < b.at ? 1 : a.at > b.at ? -1 : 0))
+  ].sort((a, b) => b.at.localeCompare(a.at))
+  const count = expenses.length + others.length
 
   return (
     <div className={bare ? "border-t border-rule" : "border-t border-border bg-background"}>
@@ -158,45 +196,59 @@ export function Ledger({
         className="flex w-full items-baseline justify-between border-0 bg-transparent px-5 pt-4 pb-1.5 text-left"
       >
         <Label>
-          {label} · {items.length}
+          {label} · {count}
         </Label>
         <span className="font-mono text-[10px] text-muted-foreground">
           {expanded ? "hide" : "show"}
         </span>
       </button>
       {expanded ? (
-        <div>
-          {items.map((item) =>
-            item.kind === "expense" ? (
-              <LedgerRow
-                key={`e-${item.expense.id}`}
-                expense={item.expense}
-                members={members}
-                tripSlug={tripSlug}
-                locations={locations}
-                categories={categories}
-                locationChip={
-                  hasLocations
-                    ? effectiveLocation(item.expense, dayMap, locationsById)
-                    : undefined
-                }
-                receipts={receiptsByExpense.get(item.expense.id)}
-              />
-            ) : item.kind === "move" ? (
-              <BudgetMoveRow
-                key={`m-${item.move.id}`}
-                move={item.move}
-                locationsById={locationsById}
-              />
-            ) : (
-              <SavingsLedgerRow
-                key={`s-${item.saving.id}`}
-                saving={item.saving}
-                member={members[item.saving.userId]}
-                tripSlug={tripSlug}
-              />
-            ),
-          )}
+        <div className="flex flex-col gap-3 px-4 pt-1.5 pb-4">
+          {days.map((day) => (
+            <DayBox
+              key={day.dayDate ?? "undated"}
+              title={day.dayDate ? DAY_HEADER.format(new Date(`${day.dayDate}T00:00:00Z`)) : "Undated"}
+              total={money(day.totalCents, currency)}
+            >
+              {day.rows.map((expense) => (
+                <LedgerRow
+                  key={expense.id}
+                  expense={expense}
+                  members={members}
+                  tripSlug={tripSlug}
+                  locations={locations}
+                  categories={categories}
+                  tone={categoryToneOf(expense.category, categoryNames)}
+                  locationChip={
+                    hasLocations
+                      ? effectiveLocation(expense, dayMap, locationsById)
+                      : undefined
+                  }
+                  receipts={receiptsByExpense.get(expense.id)}
+                />
+              ))}
+            </DayBox>
+          ))}
+          {others.length > 0 ? (
+            <DayBox title="Savings & moves">
+              {others.map((item) =>
+                item.kind === "move" ? (
+                  <BudgetMoveRow
+                    key={`m-${item.move.id}`}
+                    move={item.move}
+                    locationsById={locationsById}
+                  />
+                ) : (
+                  <SavingsLedgerRow
+                    key={`s-${item.saving.id}`}
+                    saving={item.saving}
+                    member={members[item.saving.userId]}
+                    tripSlug={tripSlug}
+                  />
+                ),
+              )}
+            </DayBox>
+          ) : null}
         </div>
       ) : null}
     </div>
