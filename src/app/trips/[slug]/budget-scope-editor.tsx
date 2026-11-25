@@ -22,7 +22,8 @@ import { PRE_TRIP_CATEGORY } from "./budget-drafter-pretrip"
 const CATEGORIES = [
   "Accommodation",
   "Transportation",
-  "Food",
+  "Dining out",
+  "Drinks",
   "Activities",
   "Other",
 ] as const

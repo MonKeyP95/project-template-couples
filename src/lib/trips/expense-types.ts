@@ -126,7 +126,8 @@ export interface ExpenseCategoryRow {
 
 /** Default set seeded into every new trip. Kept minimal; users add the rest. */
 export const EXPENSE_CATEGORIES = [
-  "Food",
+  "Dining out",
+  "Drinks",
   "Groceries",
   "Transportation",
   "Accommodation",
@@ -136,4 +137,4 @@ export const EXPENSE_CATEGORIES = [
 
 export type ExpenseCategory = (typeof EXPENSE_CATEGORIES)[number]
 
-export const EXPENSE_CATEGORY_DEFAULT: ExpenseCategory = "Food"
+export const EXPENSE_CATEGORY_DEFAULT: ExpenseCategory = "Dining out"
