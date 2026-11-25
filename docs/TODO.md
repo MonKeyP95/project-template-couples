@@ -4,10 +4,11 @@
 
 **Next up: work on the AI itinerary planner** (`itinerary-planner` agent, `src/lib/ai/agents/`). Noted 2026-11-03.
 
-**Ledger rows show their date: implemented 2026-11-25 on `feat/ledger-row-date`; lint + `tsc` clean; unverified in app; no migration.** Each expense row's meta line starts with its date (`12 Mar`); undated rows show none. In-app checks:
+**Ledger rows show their date, today first: implemented 2026-11-25 on `feat/ledger-row-date`; lint + `tsc` clean; unverified in app; no migration.** Each expense row's meta line starts with its date (`12 Mar`); undated rows show none. Day boxes run today and past newest first, then future days soonest first, then Undated (`groupByDay` takes `today`). In-app checks:
   1. Budget ledger: every dated row starts its second line with `{day} {mon}` before "paid by", matching its day box.
   2. Undated box: rows show no date.
-  3. On the road ledger: same.
+  3. A trip with a future-dated expense (e.g. a pre-booked hotel): today's box (or the latest past day) is first; future days come after the past ones, soonest first; Undated last.
+  4. On the road ledger: same.
 
 **Phone budget: icon-only category rows, bar only with a budget: implemented 2026-11-25 on `feat/phone-budget-icons-bar`; lint + `tsc` clean; verified in-app 2026-11-25; merged #168.** (1) Below `lg`, "By category" rows (Budget tab and on the road) show the icon without the name, so the bar is wider; an opened row shows its name. Desktop keeps names. (2) The phone Budget card shows the bar and spent/left line only when there is a budget total or planned lines (measured against the total, else the lines). In-app checks:
   1. Phone, Budget, By category: rows show icon, bar, amount; no names; the bars are visibly wider than before.
