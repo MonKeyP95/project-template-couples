@@ -148,13 +148,19 @@ export function BudgetRow({
   children: React.ReactNode
 }) {
   const warn = line.status === "over"
+  // Phones: an icon stands in for the name (more room for the bar) until opened.
+  const iconOnly = icon != null && !isOpen
   return (
     <div>
       <button
         type="button"
         onClick={onToggle}
         aria-expanded={isOpen}
-        className="grid w-full grid-cols-[10px_minmax(0,7rem)_1fr_auto] items-center gap-x-2.5 py-1.5 text-left"
+        className={`grid w-full items-center gap-x-2.5 py-1.5 text-left ${
+          icon != null
+            ? "grid-cols-[10px_auto_1fr_auto] lg:grid-cols-[10px_minmax(0,7rem)_1fr_auto]"
+            : "grid-cols-[10px_minmax(0,7rem)_1fr_auto]"
+        }`}
       >
         <span
           className={`text-[8px] text-muted-foreground transition-transform ${isOpen ? "rotate-90" : ""}`}
@@ -163,7 +169,11 @@ export function BudgetRow({
         </span>
         <span className="flex min-w-0 items-center gap-1.5">
           {icon}
-          <span className="truncate text-[13px] text-foreground">{name}</span>
+          <span
+            className={`truncate text-[13px] text-foreground ${iconOnly ? "hidden lg:inline" : ""}`}
+          >
+            {name}
+          </span>
         </span>
         <Bar pct={line.pct} tone={warn ? "red" : tone} />
         <span className="t-num whitespace-nowrap text-right font-mono text-[11px] text-foreground">

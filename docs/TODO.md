@@ -4,7 +4,15 @@
 
 **Next up: work on the AI itinerary planner** (`itinerary-planner` agent, `src/lib/ai/agents/`). Noted 2026-11-03.
 
-**Phone: one assistant pill: implemented 2026-11-25 on `feat/phone-one-assistant-pill`; lint + `tsc` clean; unverified in app; no migration.** The phone trip page has one `assistant` pill on the location line (location, pill, countdown); it switches AI mode and every section shows its assistant panel while on, as the desktop tab-row pill does. The per-section pills/bars (budget, itinerary, packing, notes) and the `showAssistantPill`/`assistantBar` props are gone. In-app checks:
+**Phone budget: icon-only category rows, bar only with a budget: implemented 2026-11-25 on `feat/phone-budget-icons-bar`; lint + `tsc` clean; unverified in app; no migration.** (1) Below `lg`, "By category" rows (Budget tab and on the road) show the icon without the name, so the bar is wider; an opened row shows its name. Desktop keeps names. (2) The phone Budget card shows the bar and spent/left line only when there is a budget total or planned lines (measured against the total, else the lines). In-app checks:
+  1. Phone, Budget, By category: rows show icon, bar, amount; no names; the bars are visibly wider than before.
+  2. Tap a row: its name appears beside the icon; close it: the name goes.
+  3. On the road, Trip by category: same as 1-2.
+  4. Desktop: category names still show.
+  5. Phone, a trip with no budget and no planned lines: the Budget card shows "No budget yet" with no bar and no "spent" line.
+  6. A trip with a budget: bar, "spent" and "left" as before.
+
+**Phone: one assistant pill: implemented 2026-11-25 on `feat/phone-one-assistant-pill`; lint + `tsc` clean; verified in-app 2026-11-25; merged #167.** The phone trip page has one `assistant` pill on the location line (location, pill, countdown); it switches AI mode and every section shows its assistant panel while on, as the desktop tab-row pill does. The per-section pills/bars (budget, itinerary, packing, notes) and the `showAssistantPill`/`assistantBar` props are gone. In-app checks:
   1. Phone: the location line reads location, `assistant` pill, countdown (or "No dates yet"); a long location truncates and the pill stays.
   2. No assistant pill or bar inside Budget, Itinerary, Packing or Notes while it is off.
   3. Tap the pill: it turns moss; expanding each of those sections shows its assistant panel. Tap again: all panels go.
