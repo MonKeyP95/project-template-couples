@@ -4,6 +4,16 @@
 
 **Next up: work on the AI itinerary planner** (`itinerary-planner` agent, `src/lib/ai/agents/`). Noted 2026-11-03.
 
+**Divide an expense over days: implemented 2026-11-25 on `feat/divide-expense`; lint + `tsc` clean; unverified in app.** Spec `docs/superpowers/specs/2026-11-25-divide-expense-over-days-design.md`. The add-expense form (budget panel, breakdown rows, on-the-road category rows) has "÷ divide over days", which opens a calendar of the trip's days; saving writes one expense per picked day (approach A, no migration). In-app checks:
+  1. Add expense on a dated trip shows "÷ divide over days"; on a dream it does not.
+  2. With a location chosen, it pre-picks that location's days (Accommodation: all but the last).
+  3. With "Auto (by date)", it pre-picks every trip day.
+  4. Changing the location while the calendar is open re-picks the new location's days.
+  5. 100 over 3 days saves 3 rows: 33.34, 33.33, 33.33 on those dates; the button reads "add over 3 days".
+  6. "none" disables the add button; one picked day saves a single expense on that day.
+  7. The on-the-road day card counts only that day's share.
+  8. Phone width: the calendar fits, no sideways scroll.
+
 **Expense payer RLS fix: implemented 2026-11-25 on `fix/expense-payer-person-ids`; lint + `tsc` clean; `pnpm build` passes; merged #162; checks 1-3 verified in-app 2026-11-25 (both accounts); 4-5 unverified.** Root cause: the "Paid by" picker listed every entry of `memberToneMap`, which keys each signed-in person by both person id and user id, so each name showed twice and the user-id copy wrote an auth uid into `paid_by` (rejected by `expenses_insert`). The picker now keeps only person-id entries. `payBudgetItem` wrote the auth uid too; it now looks up the caller's person id in the trip's workspace. Known separately (not fixed): the trip page takes `myPersonId` from the active workspace, not the trip's. In-app checks:
   1. Add expense on a shared trip: "Paid by" is a two-pill toggle, each name once.
   2. Pick the other person as payer and save: the expense saves, no RLS error, shows the right payer.

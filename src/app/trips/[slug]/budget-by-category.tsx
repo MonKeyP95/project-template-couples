@@ -17,6 +17,7 @@ import {
   type ExpenseCategoryRow,
 } from "@/lib/trips/expense-types"
 import type { ItineraryLocation } from "@/lib/trips/location-types"
+import type { DayLocation } from "@/lib/trips/location-budget-types"
 import { DetailLine, DetailList, NOTE_CLASS, displayName } from "./budget-detail-parts"
 import { PlannedList, type PlanDefaults } from "./budget-planned-list"
 import { LedgerRowEditor } from "./ledger-row"
@@ -39,6 +40,7 @@ interface Props {
   budgetItems: BudgetItem[]
   categories: ExpenseCategoryRow[]
   locations: ItineraryLocation[]
+  itineraryDays: DayLocation[]
   members: Record<string, MemberToneEntry>
   tripStarted: boolean
 }
@@ -176,6 +178,7 @@ function CategoryDetail({
   tripSlug,
   currentPersonId,
   locations,
+  itineraryDays,
   categories,
   members,
 }: Props & { category: string; fmt: (cents: number) => string }) {
@@ -193,6 +196,7 @@ function CategoryDetail({
       currentPersonId={currentPersonId}
       tripSlug={tripSlug}
       locations={locations}
+      itineraryDays={itineraryDays}
       categories={categories}
       members={members}
       fmt={fmt}
@@ -210,6 +214,7 @@ export function RowDetail({
   addDefaults,
   tripId,
   currentPersonId,
+  itineraryDays,
   ...rest
 }: {
   planned: BudgetItem[]
@@ -221,6 +226,8 @@ export function RowDetail({
   addDefaults: { category?: string; locationId?: string | null } | null
   tripId: string
   currentPersonId: string
+  /** Trip days, for dividing a new expense. */
+  itineraryDays: DayLocation[]
 } & SpentListProps) {
   const { fmt, tripSlug, locations, categories, members } = rest
   const [adding, setAdding] = React.useState(false)
@@ -249,6 +256,7 @@ export function RowDetail({
           currentPersonId={currentPersonId}
           members={members}
           locations={locations}
+          itineraryDays={itineraryDays}
           categories={categories}
           initialCategory={addDefaults.category}
           initialLocationId={addDefaults.locationId}

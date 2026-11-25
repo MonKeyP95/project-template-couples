@@ -165,6 +165,7 @@ export function BudgetTab({
             currentPersonId={currentPersonId}
             members={members}
             locations={locations}
+            itineraryDays={itineraryDays}
             categories={expenseCategories}
             onClose={close}
           />
