@@ -12,16 +12,16 @@ export type DiscoveryCategory = "food" | "activity" | "stay"
  * Resolved against the trip's real categories at expense time; falls back to
  * Other when the trip has no category by this name. */
 export function mapDiscoveryCategory(category: DiscoveryCategory): string {
-  if (category === "food") return "Food"
+  if (category === "food") return "Dining out"
   if (category === "activity") return "Activities"
   return "Accommodation"
 }
 
 /** Reverse of mapDiscoveryCategory: an expense-category name back to a learned
- * category. Only Food/Activities are learnable in this slice; everything else
- * (Transport, Accommodation, Other, ...) returns null and is ignored. */
+ * category. Only Dining out/Drinks (both "food") and Activities are learnable;
+ * everything else (Transport, Accommodation, Other, ...) returns null. */
 export function expenseCategoryToLearned(name: string): DiscoveryCategory | null {
-  if (name === "Food") return "food"
+  if (name === "Dining out" || name === "Drinks") return "food"
   if (name === "Activities") return "activity"
   return null
 }

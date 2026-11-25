@@ -7,6 +7,7 @@ import {
   Tag,
   Ticket,
   UtensilsCrossed,
+  Wine,
   type LucideIcon,
 } from "lucide-react"
 
@@ -15,7 +16,8 @@ import { cn } from "@/lib/utils"
 import { categoryTone, type BarTone } from "./bar"
 
 const ICONS: Record<string, LucideIcon> = {
-  Food: UtensilsCrossed,
+  "Dining out": UtensilsCrossed,
+  Drinks: Wine,
   Groceries: ShoppingBasket,
   Transportation: Bus,
   Accommodation: BedDouble,

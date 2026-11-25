@@ -14,6 +14,8 @@ export interface PlaceMatch {
   lng: number
   /** "Ericeira, Lisbon District, PT" -- enough to spot a wrong match. */
   fullName: string
+  /** ISO alpha-2, e.g. "ES"; absent on pins stored before it existed. */
+  countryCode?: string
 }
 
 /**
@@ -41,6 +43,7 @@ export async function searchPlaces(
       lat: r.latitude,
       lng: r.longitude,
       fullName: [r.name, r.admin1, r.country_code].filter(Boolean).join(", "),
+      countryCode: r.country_code,
     }),
   )
 }

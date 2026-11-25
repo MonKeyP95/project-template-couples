@@ -117,7 +117,7 @@ function StatusNote({
     )
   }
   if (line.status === "unplanned") {
-    return <span className={`${NOTE_CLASS} text-destructive`}>unplanned</span>
+    return <span className={`${NOTE_CLASS} text-muted-foreground`}>no budget</span>
   }
   if (line.status === "paidAhead") {
     return <span className={`${NOTE_CLASS} text-moss`}>paid in advance</span>
@@ -138,7 +138,7 @@ export function BudgetRow({
 }: {
   name: string
   line: RowLine
-  /** Fill while within plan; over or unplanned is always red. */
+  /** Fill unless over plan, which is always red. */
   tone?: BarTone
   /** Shown before the name, e.g. the category icon. */
   icon?: React.ReactNode
@@ -147,7 +147,7 @@ export function BudgetRow({
   fmt: (cents: number) => string
   children: React.ReactNode
 }) {
-  const warn = line.status === "over" || line.status === "unplanned"
+  const warn = line.status === "over"
   return (
     <div>
       <button

@@ -89,6 +89,7 @@ import {
 import { slugToTone } from "@/lib/trips/slug-tone"
 import { DayInput } from "./day-input"
 import { PinFinder } from "@/components/pin-finder"
+import { currencyForCountry } from "@/lib/fx/country-currency"
 import type { PlaceMatch } from "@/lib/weather/geocode"
 import { selectionBlock } from "@/lib/trips/itinerary-blocks"
 import { planDrop, restoreDays, toSegments, type DaySegment } from "@/lib/trips/itinerary-slots"
@@ -838,6 +839,9 @@ export function ItineraryTab({
   /** Saves on tap, apart from the rename, so a rename never touches the pin. */
   function pinLocation(locationId: string, pin: PlaceMatch | null) {
     setLocations((prev) => prev.map((l) => (l.id === locationId ? { ...l, pin } : l)))
+    // The place's local currency pre-fills an empty currency field; Save keeps it.
+    const local = pin?.countryCode ? currencyForCountry(pin.countryCode) : null
+    if (local && !renameCurrency) setRenameCurrency(local)
     startLoc(async () => {
       const result = await setLocationPin(locationId, tripSlug, pin)
       if (result.error) setRenameError(result.error)

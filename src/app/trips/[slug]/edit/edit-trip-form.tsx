@@ -11,6 +11,7 @@ import { BudgetPeriodPicker } from "@/components/budget-period-picker"
 import { PinFinder } from "@/components/pin-finder"
 import type { PlaceMatch } from "@/lib/weather/geocode"
 import { currencySymbol } from "@/lib/money"
+import { currencyForCountry } from "@/lib/fx/country-currency"
 import { type TripProfile } from "@/lib/trips/trip-profile-types"
 import { PREF_TOPICS } from "@/lib/trips/trip-note-parse"
 
@@ -384,7 +385,11 @@ export function EditTripForm({
           query={country}
           prefer={null}
           value={pin}
-          onChange={setPin}
+          onChange={(match) => {
+            setPin(match)
+            const local = match?.countryCode ? currencyForCountry(match.countryCode) : null
+            if (local) setCurrency(local)
+          }}
           disabled={isPending}
         />
 

@@ -43,7 +43,7 @@ export interface BudgetStep {
 const STEP_KEY_BY_CATEGORY: Record<string, string> = {
   Accommodation: "accommodation",
   Transportation: "transport",
-  Food: "food",
+  "Dining out": "food",
   Groceries: "groceries",
   Activities: "activities",
   Other: "other",

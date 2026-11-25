@@ -7,6 +7,7 @@ import { createTrip } from "@/lib/trips/actions"
 import { searchPinCandidates } from "@/lib/places/pin-actions"
 import type { PlaceMatch } from "@/lib/weather/geocode"
 import { currencySymbol } from "@/lib/money"
+import { currencyForCountry } from "@/lib/fx/country-currency"
 import {
   prefillPrefs,
   readNote,
@@ -169,6 +170,7 @@ export function NewTripForm({
     null,
   )
   const [pin, setPin] = React.useState<PlaceMatch | null>(null)
+  const [currencyChosen, setCurrencyChosen] = React.useState(false)
   const [isSearching, startSearch] = React.useTransition()
 
   const where = draft.unsure ? "" : draft.place.trim()
@@ -186,8 +188,16 @@ export function NewTripForm({
     startSearch(async () => {
       const matches = await searchPinCandidates(where, null)
       setFound({ query: where, matches })
-      setPin(matches.length === 1 ? matches[0] : null)
+      choosePin(matches.length === 1 ? matches[0] : null)
     })
+  }
+
+  /** Pinning the destination also fills in its local currency, unless the
+   * couple already picked one themselves. */
+  function choosePin(match: PlaceMatch | null) {
+    setPin(match)
+    const local = match?.countryCode ? currencyForCountry(match.countryCode) : null
+    if (local && !currencyChosen) setDraft((d) => ({ ...d, currency: local }))
   }
 
   /** A plan-filled length holds until the note names a different one; a
@@ -252,11 +262,12 @@ export function NewTripForm({
         pinMatches={pinMatches}
         pin={pin}
         searching={isSearching}
-        onPin={setPin}
+        onPin={choosePin}
         onNote={changeNote}
         onEdit={edit}
         onDraft={(patch) => {
           if ("place" in patch) setRoute(null)
+          if ("currency" in patch) setCurrencyChosen(true)
           setDraft((d) => ({ ...d, ...patch }))
         }}
         onContinue={continueFromNote}

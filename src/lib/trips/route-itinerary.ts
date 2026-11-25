@@ -47,7 +47,7 @@ export async function buildRouteItinerary(
   const rows = placeActivities(stops).map((a) => ({
     trip_id: tripId,
     kind: a.kind,
-    category: a.kind === "big" ? "Activities" : "Food",
+    category: a.kind === "big" ? "Activities" : "Dining out",
     title: a.title,
     why: "",
     day_index: a.dayIndex,

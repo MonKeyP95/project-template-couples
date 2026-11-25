@@ -10,7 +10,8 @@ export const ITINERARY_CATEGORIES = [
   "Accommodation",
   "Transportation",
   "Activities",
-  "Food",
+  "Dining out",
+  "Drinks",
   "Other",
 ] as const
 
@@ -124,7 +125,8 @@ const ANSWER_BY_CATEGORY: Record<string, keyof ProfileAnswers> = {
   Accommodation: "stay",
   Transportation: "move",
   Activities: "acts",
-  Food: "food",
+  "Dining out": "food",
+  Drinks: "food",
 }
 
 /** The couple's new-trip answer for a step's category, or "". */
@@ -156,8 +158,8 @@ export function planItinerarySteps(placeNames: string[]): ItineraryPlanStep[] {
     steps.push({
       key: `food:${i}`,
       kind: "entries",
-      category: "Food",
-      title: "Food",
+      category: "Dining out",
+      title: "Dining out",
       question: "Places to eat or drink?",
       hint: "A restaurant, a cafe, a market... add each. Skip if none.",
       addNoun: "food",
@@ -298,7 +300,8 @@ export function entriesToSkeleton(
 /** Categories that live on a per-place step; the value is the step key prefix. */
 const PER_PLACE_STEP: Record<string, string> = {
   Accommodation: "accommodation",
-  Food: "food",
+  "Dining out": "food",
+  Drinks: "food",
   Activities: "activities",
 }
 

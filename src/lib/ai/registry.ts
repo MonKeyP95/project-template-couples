@@ -71,7 +71,7 @@ export const TOOL_REGISTRY: Record<string, Anthropic.Messages.ToolUnion> = {
               },
               category: {
                 type: "string",
-                enum: ["Accommodation", "Transportation", "Activities", "Food", "Other"],
+                enum: ["Accommodation", "Transportation", "Activities", "Dining out", "Drinks", "Other"],
                 description: "Which kind of event this would be.",
               },
               title: {

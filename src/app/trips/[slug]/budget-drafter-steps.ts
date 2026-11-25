@@ -10,7 +10,7 @@ import type { BudgetStep } from "@/lib/ai/budget-planner"
 export const CATEGORY_BY_STEP: Record<string, string> = {
   accommodation: "Accommodation",
   transport: "Transportation",
-  food: "Food",
+  food: "Dining out",
   groceries: "Groceries",
   activities: "Activities",
   other: "Other",
