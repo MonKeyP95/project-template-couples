@@ -18,11 +18,20 @@ export interface Suggestion {
   body: string
 }
 
-/** A home trip idea: the few words on its pill, the card text, and the walk
- * answers + route used when it is accepted. */
+/** A home trip idea: its `trip_ideas` row id ("" before it is saved), the few
+ * words on its pill, the card text, and the walk answers + route used when it
+ * is accepted. */
 export interface TripIdea extends Suggestion {
+  id: string
   pill: string
   plan: IdeaPlan
+}
+
+/** An idea in the "Earlier ideas" list; `tripSlug` is set once a trip was
+ * made from it. */
+export interface EarlierIdea extends TripIdea {
+  createdAt: string
+  tripSlug: string | null
 }
 
 /** How the user aimed the suggestion. `page` = the per-surface default. */

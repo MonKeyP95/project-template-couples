@@ -1,5 +1,7 @@
 "use server"
 
+import { revalidatePath } from "next/cache"
+
 import { generateSuggestion, generateTripIdeas } from "@/lib/ai/claude"
 import { isAiEnabled } from "@/lib/ai/ai-mode"
 import { buildAssistantContext } from "@/lib/ai/assistant-context"
@@ -12,6 +14,7 @@ import { getTripNotes } from "@/lib/trips/note-queries"
 import { getItineraryDays } from "@/lib/trips/itinerary-queries"
 import { isDated } from "@/lib/trips/itinerary-types"
 import { buildHomeIdeaPrompt } from "@/lib/ai/home-idea-context"
+import { insertIdeas } from "@/lib/ai/home-idea-queries"
 import { listChecklists } from "@/lib/checklists/queries"
 import { localToday } from "@/lib/time/local-today"
 import type { SurfaceKey, Suggestion, SuggestScope, SuggestDay, TripIdea } from "@/lib/ai/suggestion-types"
@@ -267,11 +270,15 @@ export async function suggestForSurface(
       ? (await getTripBySlug(workspace.id, tripSlug))?.id
       : undefined
     const enriched = await withProfile(prompt, workspace.id, tripId)
-    const suggestion =
-      surface === "home"
-        ? (await generateTripIdeas(enriched, 1))[0]
-        : await generateSuggestion(enriched)
-    return { suggestion }
+    if (surface !== "home") return { suggestion: await generateSuggestion(enriched) }
+    // A typed home ask is kept off the pills, in the earlier ideas list.
+    const [idea] = await insertIdeas(
+      workspace.id,
+      await generateTripIdeas(enriched, 1),
+      false,
+    )
+    revalidatePath("/home")
+    return { suggestion: idea }
   } catch {
     return { error: "Couldn't reach the assistant." }
   }

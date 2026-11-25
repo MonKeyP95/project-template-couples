@@ -821,6 +821,8 @@ export interface CreateTripInput {
   currency: string
   /** An accepted home idea's route, already fitted to the length; null = none. */
   route: RouteStop[] | null
+  /** The accepted home idea's `trip_ideas` row; null = not from an idea. */
+  ideaId: string | null
 }
 
 export interface CreateTripResult {
@@ -830,6 +832,7 @@ export interface CreateTripResult {
 }
 
 const SLUG_RE = /^[a-z0-9-]+$/
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 const MAX_TRIP_DAYS = 365
 
 /** A pin as the `lat`, `lng`, `place_label` columns; all null when unpinned. */
@@ -952,6 +955,16 @@ export async function createTrip(
         : (days ?? 0)
     // The trip exists already; a partial itinerary is better than a failed create.
     await buildRouteItinerary(tripId, slug, fitRoute(stops, length))
+  }
+
+  // The idea leaves the pills and points at its trip. The trip exists already,
+  // so a stale or foreign id (no row matches) is not an error.
+  if (input.ideaId && UUID_RE.test(input.ideaId)) {
+    await supabase
+      .from("trip_ideas")
+      .update({ trip_id: tripId, on_pills: false })
+      .eq("id", input.ideaId)
+      .eq("workspace_id", workspace.id)
   }
 
   revalidatePath("/home")
