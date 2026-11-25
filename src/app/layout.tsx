@@ -1,5 +1,6 @@
 import type { Metadata } from "next"
 import {
+  Fredoka,
   IBM_Plex_Mono,
   IBM_Plex_Sans,
   Instrument_Serif,
@@ -33,6 +34,13 @@ const mono = IBM_Plex_Mono({
   display: "swap",
 })
 
+const cartoon = Fredoka({
+  variable: "--font-cartoon",
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
+  display: "swap",
+})
+
 export const metadata: Metadata = {
   title: "Together — Plan trips together",
   description:
@@ -48,7 +56,7 @@ export default async function RootLayout({
   return (
     <html
       lang="en"
-      className={`${sans.variable} ${serif.variable} ${mono.variable} h-full antialiased${theme === "light" ? "" : ` ${theme}`}`}
+      className={`${sans.variable} ${serif.variable} ${mono.variable} ${cartoon.variable} h-full antialiased${theme === "light" ? "" : ` ${theme}`}`}
       suppressHydrationWarning
     >
       <body

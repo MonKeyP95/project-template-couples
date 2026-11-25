@@ -3,6 +3,7 @@
 @import "shadcn/tailwind.css";
 
 @custom-variant dark (&:is(.dark *));
+@custom-variant cartoon (&:is(.cartoon *));
 
 @theme inline {
   --color-background: var(--background);
@@ -199,6 +200,79 @@
   --sidebar-accent-foreground: oklch(0.95 0.012 78);
   --sidebar-border: oklch(0.32 0.022 230);
   --sidebar-ring: oklch(0.72 0.08 200);
+}
+
+/* Cartoon ("Storybook island"): light-only, flat bright colours, ink lines,
+   hard offset shadows. Must stay after :root so equal specificity wins. */
+.cartoon {
+  color-scheme: light;
+  --background: #fff4d6;
+  --foreground: #172434;
+  --card: #ffffff;
+  --card-foreground: #172434;
+  --popover: #ffffff;
+  --popover-foreground: #172434;
+
+  --primary: #1590b5;
+  --primary-foreground: #ffffff;
+
+  --secondary: #d6f3f8;
+  --secondary-foreground: #172434;
+
+  --muted: #fbe6b5;
+  --muted-foreground: #3e4c5e;
+
+  --accent: #d6f3f8;
+  --accent-foreground: #172434;
+
+  --destructive: #e8483b;
+  --border: #172434;
+  --input: #172434;
+  --ring: #1590b5;
+
+  --sea: #1590b5;
+  --sea-2: #2bb3d6;
+  --sea-tint: #d6f3f8;
+  --sand: #ffd23f;
+  --sand-tint: #fff0b8;
+  --clay: #ff8a65;
+  --clay-tint: #ffe1d6;
+  --moss: #3fa34d;
+  --moss-tint: #e3f7d3;
+  --dusk: #5b5bd6;
+  --dusk-tint: #e4e4fb;
+
+  --rule: #172434;
+
+  --shadow-sm: 3px 3px 0 #172434;
+  --shadow-md: 4px 4px 0 #172434;
+  --shadow-lg: 5px 5px 0 #172434;
+
+  --glow-peach: transparent;
+  --glow-teal: transparent;
+
+  --chart-1: #1590b5;
+  --chart-2: #ffd23f;
+  --chart-3: #ff8a65;
+  --chart-4: #9be36d;
+  --chart-5: #5b5bd6;
+
+  --radius: 0.875rem;
+
+  --sidebar: #ffffff;
+  --sidebar-foreground: #172434;
+  --sidebar-primary: #1590b5;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #d6f3f8;
+  --sidebar-accent-foreground: #172434;
+  --sidebar-border: #172434;
+  --sidebar-ring: #1590b5;
+}
+
+/* Two-part selector so it beats the next/font class variables on <html>. */
+html.cartoon {
+  --font-sans: var(--font-cartoon);
+  --font-serif: var(--font-cartoon);
 }
 
 @layer base {
