@@ -4,7 +4,7 @@
 
 **Next up: work on the AI itinerary planner** (`itinerary-planner` agent, `src/lib/ai/agents/`). Noted 2026-11-03.
 
-**Ledger by day + category icons: implemented 2026-11-25 on `feat/ledger-by-day-icons`; lint + `tsc` clean; `pnpm build` passes; unverified in app.** Spec `docs/superpowers/specs/2026-11-25-ledger-by-day-category-icons-design.md`. The budget ledger is one box per day (`Wed 12 Mar` + day total), then Undated, then Savings & moves; rows show a coloured category icon instead of the date and category name. Category colour is now one rule (position in the trip's category list) for bars and icons. On the road, "Trip by category" rows show icons and the quick-expense category is a row of icon buttons. In-app checks:
+**Ledger by day + category icons: implemented 2026-11-25 on `feat/ledger-by-day-icons`; lint + `tsc` clean; `pnpm build` passes; verified in-app 2026-11-25.** Spec `docs/superpowers/specs/2026-11-25-ledger-by-day-category-icons-design.md`. The budget ledger is one box per day (`Wed 12 Mar` + day total), then Undated, then Savings & moves; rows show a coloured category icon instead of the date and category name. Category colour is now one rule (position in the trip's category list) for bars and icons. On the road, "Trip by category" rows show icons and the quick-expense category is a row of icon buttons. In-app checks:
   1. Budget ledger: one box per day, `Wed 12 Mar` header, day total on the right (settlements not counted).
   2. Rows: coloured icon, no category name, no date column.
   3. A category's icon colour matches its bar in "by category".
