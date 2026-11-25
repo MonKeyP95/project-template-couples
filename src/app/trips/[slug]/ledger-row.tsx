@@ -26,6 +26,12 @@ import { ExpenseFields } from "./expense-fields"
 import type { MemberToneEntry } from "./packing-tab"
 import type { ItineraryLocation } from "@/lib/trips/location-types"
 
+const ROW_DATE = new Intl.DateTimeFormat("en-GB", {
+  day: "numeric",
+  month: "short",
+  timeZone: "UTC",
+})
+
 export interface LedgerRowProps {
   expense: Expense
   members: Record<string, MemberToneEntry>
@@ -134,6 +140,11 @@ function LedgerRowView({
           {expense.title}
         </div>
         <div className="mt-1 flex flex-wrap items-center gap-2">
+          {expense.dayDate ? (
+            <span className="font-mono text-[10px] text-foreground">
+              {ROW_DATE.format(new Date(`${expense.dayDate}T00:00:00Z`))}
+            </span>
+          ) : null}
           <span className="font-mono text-[10px] text-muted-foreground">
             paid by
           </span>
