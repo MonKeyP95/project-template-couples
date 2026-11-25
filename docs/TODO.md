@@ -4,7 +4,7 @@
 
 **Next up: work on the AI itinerary planner** (`itinerary-planner` agent, `src/lib/ai/agents/`). Noted 2026-11-03.
 
-**Ledger rows show their date, today first: implemented 2026-11-25 on `feat/ledger-row-date`; lint + `tsc` clean; unverified in app; no migration.** Each expense row's meta line starts with its date (`12 Mar`); undated rows show none. Day boxes run today and past newest first, then future days soonest first, then Undated (`groupByDay` takes `today`). In-app checks:
+**Ledger rows show their date, today first: implemented 2026-11-25 on `feat/ledger-row-date`; lint + `tsc` clean; verified in-app 2026-11-25; merged #169; no migration.** Each expense row's meta line starts with its date (`12 Mar`); undated rows show none. Day boxes run today and past newest first, then future days soonest first, then Undated (`groupByDay` takes `today`). In-app checks:
   1. Budget ledger: every dated row starts its second line with `{day} {mon}` before "paid by", matching its day box.
   2. Undated box: rows show no date.
   3. A trip with a future-dated expense (e.g. a pre-booked hotel): today's box (or the latest past day) is first; future days come after the past ones, soonest first; Undated last.
