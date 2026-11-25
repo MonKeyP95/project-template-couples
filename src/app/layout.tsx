@@ -7,7 +7,7 @@ import {
 } from "next/font/google"
 import "./globals.css"
 
-import { WorldMapBg } from "@/components/together"
+import { CartoonSceneBg, WorldMapBg } from "@/components/together"
 import { TimezoneCookie } from "@/components/timezone-cookie"
 import { AiModeProvider } from "@/components/ai-mode"
 import { getTheme } from "@/lib/theme"
@@ -64,7 +64,8 @@ export default async function RootLayout({
         suppressHydrationWarning
       >
         <TimezoneCookie />
-        <WorldMapBg className="fixed inset-0 -z-10 text-foreground/[0.07]" />
+        <WorldMapBg className="fixed inset-0 -z-10 text-foreground/[0.07] cartoon:hidden" />
+        <CartoonSceneBg className="fixed inset-0 -z-10 hidden cartoon:block" />
         <AiModeProvider initialEnabled={false}>
           {children}
         </AiModeProvider>
