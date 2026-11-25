@@ -2,6 +2,8 @@
 // the server action, and the claude.ts seam can all share them (the *-types.ts
 // split convention).
 
+import type { IdeaPlan } from "@/lib/trips/idea-route"
+
 export type SurfaceKey =
   | "budget"
   | "packing"
@@ -16,9 +18,11 @@ export interface Suggestion {
   body: string
 }
 
-/** A home trip idea plus three short directions to ask about next. */
+/** A home trip idea, three short directions to ask about next, and the walk
+ * answers + route used when it is accepted. */
 export interface TripIdea extends Suggestion {
   options: string[]
+  plan: IdeaPlan
 }
 
 /** How the user aimed the suggestion. `page` = the per-surface default. */

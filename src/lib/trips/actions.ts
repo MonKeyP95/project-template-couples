@@ -50,6 +50,8 @@ import { slugify } from "@/lib/trips/slugify"
 import type { PlaceMatch } from "@/lib/weather/geocode"
 import { isBudgetPeriod, type BudgetPeriod } from "@/lib/trips/budget-period"
 import { tripHeadline, type PrefKey } from "@/lib/trips/trip-note-parse"
+import { fitRoute, isRouteStop, type RouteStop } from "@/lib/trips/idea-route"
+import { buildRouteItinerary } from "@/lib/trips/route-itinerary"
 import {
   EMPTY_TRIP_PROFILE,
   cleanTripProfile,
@@ -817,6 +819,8 @@ export interface CreateTripInput {
   prefs: Record<PrefKey, string> | null
   /** What you pay in there; the workspace currency when not changed. */
   currency: string
+  /** An accepted home idea's route, already fitted to the length; null = none. */
+  route: RouteStop[] | null
 }
 
 export interface CreateTripResult {
@@ -939,6 +943,16 @@ export async function createTrip(
       })),
     )
   if (categoriesError) return { error: categoriesError.message }
+
+  if (input.route?.length) {
+    const stops = input.route.filter(isRouteStop)
+    const length =
+      startDate && endDate
+        ? Math.round((Date.parse(endDate) - Date.parse(startDate)) / 86_400_000) + 1
+        : (days ?? 0)
+    // The trip exists already; a partial itinerary is better than a failed create.
+    await buildRouteItinerary(tripId, slug, fitRoute(stops, length))
+  }
 
   revalidatePath("/home")
   return { slug }

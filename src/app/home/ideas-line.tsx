@@ -1,12 +1,13 @@
 "use client"
 
 import * as React from "react"
+import { useRouter } from "next/navigation"
 
 import { useAiMode } from "@/components/ai-mode"
 import { SuggestionCard } from "@/components/together"
 import { refreshHomeIdea } from "@/lib/ai/home-idea-actions"
 import { suggestForSurface } from "@/lib/ai/suggestion-actions"
-import type { Suggestion, TripIdea } from "@/lib/ai/suggestion-types"
+import type { TripIdea } from "@/lib/ai/suggestion-types"
 
 const OPTION_TINTS = ["bg-moss-tint", "bg-sand-tint", "bg-dusk-tint"]
 
@@ -17,7 +18,8 @@ const pill =
  * and its three "ask next" options, shown at once; on load it is checked
  * against the profile and trip learnings and only remade when they changed,
  * or on "another" for the saved idea. An option or a typed ask gives a
- * one-off idea; those switch AI mode on, since asking is the consent. */
+ * one-off idea; those switch AI mode on, since asking is the consent. "let's
+ * do it" opens the new-trip walk with the idea's plan; no call is made. */
 export function IdeasLine({
   saved,
   className = "",
@@ -29,7 +31,8 @@ export function IdeasLine({
   const [text, setText] = React.useState("")
   // null = the saved idea; a string = a one-off ask.
   const [lastAsk, setLastAsk] = React.useState<string | null>(null)
-  const [idea, setIdea] = React.useState<Suggestion | null>(saved)
+  const router = useRouter()
+  const [idea, setIdea] = React.useState<TripIdea | null>(saved)
   const [options, setOptions] = React.useState<string[]>(saved?.options ?? [])
   const [error, setError] = React.useState<string | null>(null)
   const [busy, setBusy] = React.useState(false)
@@ -59,9 +62,18 @@ export function IdeasLine({
     setError(null)
     setLastAsk(what)
     const res = await suggestForSurface("home", undefined, { kind: "free", text: what })
-    setIdea(res.suggestion ?? null)
+    const s = res.suggestion
+    setIdea(s && "plan" in s ? s : null)
     setError(res.error ?? null)
     setBusy(false)
+  }
+
+  function accept(accepted: TripIdea) {
+    const params = new URLSearchParams({
+      note: accepted.body,
+      idea: JSON.stringify(accepted.plan),
+    })
+    router.push(`/trips/new?${params}`)
   }
 
   return (
@@ -103,6 +115,8 @@ export function IdeasLine({
       {idea ? (
         <SuggestionCard
           label={idea.label}
+          acceptLabel="let's do it"
+          onAccept={() => accept(idea)}
           applyLabel={busy ? "thinking..." : "another"}
           dismissLabel="dismiss"
           onApply={() => (lastAsk === null ? another() : ask(lastAsk))}

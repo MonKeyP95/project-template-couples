@@ -9,28 +9,34 @@ export interface SuggestionCardProps {
   label: string
   children: React.ReactNode
   expandable?: boolean
+  /** Optional lead action; when set, apply drops to the outlined style. */
+  acceptLabel?: string
   applyLabel?: string
   dismissLabel?: string
+  onAccept?: () => void
   onApply?: () => void
   onDismiss?: () => void
   className?: string
 }
 
-/**
- * Moss-bordered suggestion card. Phase-3 stub — actions are inert.
- * Phase 5 will replace the static copy with a Claude-backed source.
- */
+const action = "px-3 py-1.5 font-mono text-[9.5px] uppercase tracking-[0.2em]"
+const filled = `${action} rounded-full border-0 bg-sea text-background`
+const outlined = `${action} rounded-md border border-border bg-transparent text-muted-foreground`
+
+/** Moss-bordered suggestion card with up to three actions. */
 export function SuggestionCard({
   label,
   children,
   expandable = false,
+  acceptLabel,
   applyLabel,
   dismissLabel,
+  onAccept,
   onApply,
   onDismiss,
   className,
 }: SuggestionCardProps) {
-  const hasActions = Boolean(applyLabel || dismissLabel)
+  const hasActions = Boolean(acceptLabel || applyLabel || dismissLabel)
   return (
     <div
       className={cn(
@@ -47,21 +53,22 @@ export function SuggestionCard({
       </div>
       {hasActions ? (
         <div className="mt-3 flex gap-1.5">
+          {acceptLabel ? (
+            <button type="button" onClick={onAccept} className={filled}>
+              {acceptLabel}
+            </button>
+          ) : null}
           {applyLabel ? (
             <button
               type="button"
               onClick={onApply}
-              className="rounded-full border-0 bg-sea px-3 py-1.5 font-mono text-[9.5px] uppercase tracking-[0.2em] text-background"
+              className={acceptLabel ? outlined : filled}
             >
               {applyLabel}
             </button>
           ) : null}
           {dismissLabel ? (
-            <button
-              type="button"
-              onClick={onDismiss}
-              className="rounded-md border border-border bg-transparent px-3 py-1.5 font-mono text-[9.5px] uppercase tracking-[0.2em] text-muted-foreground"
-            >
+            <button type="button" onClick={onDismiss} className={outlined}>
               {dismissLabel}
             </button>
           ) : null}

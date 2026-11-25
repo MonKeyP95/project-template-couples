@@ -2,8 +2,11 @@ import "server-only"
 
 import { createClient } from "@/lib/supabase/server"
 import type { TripIdea } from "@/lib/ai/suggestion-types"
+import type { IdeaPlan } from "@/lib/trips/idea-route"
 
-export interface SavedHomeIdea extends TripIdea {
+/** A saved idea; `plan` is null on rows saved before it existed. */
+export type SavedHomeIdea = Omit<TripIdea, "plan"> & {
+  plan: IdeaPlan | null
   fingerprint: string
 }
 
@@ -12,7 +15,7 @@ export async function getHomeIdea(workspaceId: string): Promise<SavedHomeIdea | 
   const supabase = await createClient()
   const { data } = await supabase
     .from("home_ideas")
-    .select("fingerprint, label, body, options")
+    .select("fingerprint, label, body, options, plan")
     .eq("workspace_id", workspaceId)
     .maybeSingle()
   return data
@@ -21,7 +24,7 @@ export async function getHomeIdea(workspaceId: string): Promise<SavedHomeIdea | 
 /** Replaces the workspace's saved home idea. */
 export async function saveHomeIdea(
   workspaceId: string,
-  idea: SavedHomeIdea,
+  idea: TripIdea & { fingerprint: string },
 ): Promise<void> {
   const supabase = await createClient()
   const { error } = await supabase.from("home_ideas").upsert({

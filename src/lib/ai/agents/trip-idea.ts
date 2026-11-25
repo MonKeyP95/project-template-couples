@@ -2,6 +2,7 @@ import "server-only"
 import type Anthropic from "@anthropic-ai/sdk"
 import { runAgent, type AgentDescriptor } from "../runtime"
 import type { TripIdea } from "../suggestion-types"
+import type { IdeaPlan } from "@/lib/trips/idea-route"
 
 /**
  * The trip-idea AI behind the home page's assistant line. Given the couple's
@@ -24,7 +25,9 @@ const TRIP_IDEA_SYSTEM =
   "profile is thin, use what they asked for and their past trips. Never ask " +
   "questions; you cannot receive a reply. Also give three short options for " +
   "what they could ask next: each its own direction drawn from who they are, " +
-  "a few words, not a single generic word. Return only the propose_trip_idea tool."
+  "a few words, not a single generic word. Also fill plan: the same trip as " +
+  "structured answers, with no dates and no prices. Return only the " +
+  "propose_trip_idea tool."
 
 // No toolChoice, matching the other suggestion agents; the system prompt asks
 // for the tool. maxTokens leaves room for thinking.
@@ -42,11 +45,24 @@ const tripIdea: AgentDescriptor<string, TripIdea> = {
         block.type === "tool_use" && block.name === "propose_trip_idea",
     )
     if (!idea) throw new Error("No trip idea returned")
-    const data = idea.input as { label?: string; body?: string; options?: string[] }
+    const data = idea.input as {
+      label?: string
+      body?: string
+      options?: string[]
+      plan?: IdeaPlan
+    }
+    const label = data.label ?? "/ idea"
     return {
-      label: data.label ?? "/ idea",
+      label,
       body: data.body ?? "",
       options: (data.options ?? []).slice(0, 3),
+      plan: data.plan ?? {
+        place: label,
+        what: "",
+        days: 0,
+        prefs: { stay: "", move: "", acts: "", food: "", avoid: "" },
+        stops: [],
+      },
     }
   },
 }

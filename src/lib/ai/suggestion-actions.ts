@@ -14,7 +14,7 @@ import { isDated } from "@/lib/trips/itinerary-types"
 import { buildHomeIdeaPrompt } from "@/lib/ai/home-idea-context"
 import { listChecklists } from "@/lib/checklists/queries"
 import { localToday } from "@/lib/time/local-today"
-import type { SurfaceKey, Suggestion, SuggestScope, SuggestDay } from "@/lib/ai/suggestion-types"
+import type { SurfaceKey, Suggestion, SuggestScope, SuggestDay, TripIdea } from "@/lib/ai/suggestion-types"
 
 /** Money for a prompt: the trip's own currency code, so the model reasons and
  * answers in the right unit. Every figure handed over is a home amount, so one
@@ -255,7 +255,7 @@ export async function suggestForSurface(
   surface: SurfaceKey,
   tripSlug?: string,
   scope: SuggestScope = { kind: "page" },
-): Promise<{ suggestion?: Suggestion; error?: string }> {
+): Promise<{ suggestion?: Suggestion | TripIdea; error?: string }> {
   if (!(await isAiEnabled())) return { error: "AI mode is off." }
   const workspace = await getCurrentWorkspace()
   if (!workspace) return { error: "Not signed in." }

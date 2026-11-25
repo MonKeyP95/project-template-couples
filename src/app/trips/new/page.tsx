@@ -6,15 +6,16 @@ import { MobileHeaderNav, buildNavDestinations } from "@/components/app-nav"
 import { createClient } from "@/lib/supabase/server"
 import { listTripsForWorkspace } from "@/lib/trips/list-queries"
 import { getCurrentWorkspace } from "@/lib/workspace/queries"
+import { isIdeaPlan, type IdeaPlan } from "@/lib/trips/idea-route"
 
 import { NewTripForm } from "./new-trip-form"
 
 export default async function NewTripPage({
   searchParams,
 }: {
-  searchParams: Promise<{ note?: string }>
+  searchParams: Promise<{ note?: string; idea?: string }>
 }) {
-  const { note = "" } = await searchParams
+  const { note = "", idea } = await searchParams
   const supabase = await createClient()
   const { data: userData } = await supabase.auth.getUser()
   if (!userData.user) redirect("/signin?next=/trips/new")
@@ -41,7 +42,22 @@ export default async function NewTripPage({
       </Link>
       <Label className="mt-6">Together · New trip</Label>
       <hr className="mt-3 border-rule" />
-      <NewTripForm currency={workspace.currency} initialNote={note} />
+      <NewTripForm
+        currency={workspace.currency}
+        initialNote={note}
+        initialPlan={readPlan(idea)}
+      />
     </main>
   )
+}
+
+/** The accepted home idea's plan from the URL; null when absent or not a plan. */
+function readPlan(raw: string | undefined): IdeaPlan | null {
+  if (!raw) return null
+  try {
+    const plan: unknown = JSON.parse(raw)
+    return isIdeaPlan(plan) ? plan : null
+  } catch {
+    return null
+  }
 }
