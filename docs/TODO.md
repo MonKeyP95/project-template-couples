@@ -4,6 +4,14 @@
 
 **Next up: work on the AI itinerary planner** (`itinerary-planner` agent, `src/lib/ai/agents/`). Noted 2026-11-03.
 
+**Home idea options: implemented 2026-11-24 on `feat/home-idea-options`; lint + `tsc` clean; `pnpm build` passes; migration `20261125000002_home_idea_options.sql` applied 2026-11-24; check 2 (options show) confirmed in-app, the rest unverified. Options were missing until the migration was pasted.** The trip-idea agent now also returns three short "ask next" options (2 to 5 words each, from the profile and trips), made in the same AI call as the saved idea and stored with it (`home_ideas.options`). They replace "For us" and the activity buttons, on their own row under the AI assistant's text box; tapping one gives a one-off idea for it. A saved row without options is made again once. The top line now splits one third New adventure, two thirds AI assistant. In-app checks:
+  1. Paste `supabase/migrations/20261125000002_home_idea_options.sql` in the Supabase SQL editor.
+  2. Open /home: after a moment the idea is remade once and three options appear under the text box, each a few words and about you (not "For us" or a single activity word).
+  3. Reload: the same idea and options show at once.
+  4. Tap an option: an idea for that option appears; "another" on it gives a different one.
+  5. "another" on the saved idea gives a new idea and three new options; reload keeps them.
+  6. Desktop: New adventure takes about a third of the line and the AI assistant two thirds; phone stacks them, options wrap, no sideways page scroll.
+
 **Home trip ideas agent + saved idea: implemented 2026-11-24 on `feat/home-trip-ideas` (#155); lint + `tsc` clean; `pnpm build` passes; verified in-app 2026-11-24; migration `20261125000001_home_ideas.sql` applied 2026-11-24.** The home AI assistant line runs its own agent, `agents/trip-idea.ts` (Haiku 5.5, tool `propose_trip_idea`), instead of the shared `suggestion` agent, whose "never invent place names" rule kept ideas vague. It picks one real, less obvious destination from what the app learned about the couple: the profile block plus, new, the couple's stay/transport summaries and the stored per-trip summaries of the 5 most recent past trips (`lib/ai/home-idea-context.ts`; stored text only, no extra AI calls). The "For us" idea is saved per workspace (`home_ideas`, `lib/ai/home-idea-{queries,actions}.ts`) with a hash of everything it was built from: home shows it at once, and a new one is made only when that hash changes (profile or trip learnings) or on "another". Activity buttons (top 2 "Activities they love") and typed asks are one-off ideas. In-app checks:
   1. Paste `supabase/migrations/20261125000001_home_ideas.sql` in the Supabase SQL editor.
   2. First visit to /home: after a moment an idea card appears with a named destination and two or three sentences pointing at specific things about you (a past trip, an activity, food).
