@@ -15,6 +15,10 @@ import {
 import { useCurrency } from "@/components/currency-context"
 import { useExpenseSaved } from "@/components/close-on-expense-saved"
 
+import { defaultDivideDays, splitCents } from "@/lib/trips/divide-expense"
+import type { DayLocation } from "@/lib/trips/location-budget-types"
+
+import { DivideDaysPicker } from "./divide-days-picker"
 import { ExpenseFields } from "./expense-fields"
 import type { MemberToneEntry } from "./packing-tab"
 import type { ItineraryLocation } from "@/lib/trips/location-types"
@@ -25,6 +29,8 @@ export interface LogExpenseRowProps {
   currentPersonId: string
   members: Record<string, MemberToneEntry>
   locations: ItineraryLocation[]
+  /** The trip's dated days; empty (a dream) hides Divide. */
+  itineraryDays: DayLocation[]
   categories: ExpenseCategoryRow[]
   /** Cancel and the close button call this; saving keeps the form open for the next one. */
   onClose: () => void
@@ -41,6 +47,7 @@ export function LogExpenseRow({
   currentPersonId,
   members,
   locations,
+  itineraryDays,
   categories,
   onClose,
   initialCategory,
@@ -74,6 +81,21 @@ export function LogExpenseRow({
     setLocationId(value)
     setExpenseCurrency(
       locations.find((l) => l.id === value)?.currency ?? tripCurrency,
+    )
+    if (divideDays !== null) {
+      setDivideDays(defaultDivideDays(itineraryDays, value, category))
+    }
+  }
+
+  /** Days the expense is divided over; null = a single expense on `dayDate`. */
+  const [divideDays, setDivideDays] = React.useState<string[] | null>(null)
+  const tripDates = itineraryDays.map((d) => d.dayDate).sort()
+
+  function toggleDivide() {
+    setDivideDays(
+      divideDays === null
+        ? defaultDivideDays(itineraryDays, locationId, category)
+        : null,
     )
   }
   const [error, setError] = React.useState<string | null>(null)
@@ -109,27 +131,39 @@ export function LogExpenseRow({
     if (!trimmedTitle) return
     if (!Number.isFinite(amountNum) || amountNum <= 0) return
 
+    const shares =
+      divideDays === null
+        ? [{ day: dayDate, amount }]
+        : splitCents(Math.round(amountNum * 100), divideDays.length).map(
+            (cents, i) => ({ day: divideDays[i], amount: (cents / 100).toFixed(2) }),
+          )
+
     startTransition(async () => {
-      const result = await logExpense({
-        tripId,
-        tripSlug,
-        title: trimmedTitle,
-        amount,
-        currency: expenseCurrency,
-        category,
-        paidBy,
-        dayDate,
-        locationId,
-      })
-      if (result.error) {
-        setError(result.error)
-        return
+      let firstExpenseId: string | undefined
+      for (const share of shares) {
+        const result = await logExpense({
+          tripId,
+          tripSlug,
+          title: trimmedTitle,
+          amount: share.amount,
+          currency: expenseCurrency,
+          category,
+          paidBy,
+          dayDate: share.day,
+          locationId,
+        })
+        if (result.error) {
+          setError(result.error)
+          return
+        }
+        firstExpenseId ??= result.expenseId
       }
       setTitle("")
       setAmount("")
+      setDivideDays(null)
       setError(null)
       if (receiptId) {
-        const attach = await attachReceipt(receiptId, result.expenseId!, tripSlug)
+        const attach = await attachReceipt(receiptId, firstExpenseId!, tripSlug)
         setReceiptId(null)
         if (attach.error) setError("Expense saved; receipt left in the pile to match.")
       }
@@ -141,7 +175,8 @@ export function LogExpenseRow({
   const canSubmit =
     title.trim().length > 0 &&
     Number.isFinite(Number(amount)) &&
-    Number(amount) > 0
+    Number(amount) > 0 &&
+    divideDays?.length !== 0
 
   return (
     <form
@@ -189,6 +224,22 @@ export function LogExpenseRow({
         onLocationChange={chooseLocation}
         disabled={isPending}
         titleAction={
+          <>
+          {tripDates.length > 0 ? (
+            <button
+              type="button"
+              onClick={toggleDivide}
+              disabled={isPending}
+              aria-pressed={divideDays !== null}
+              className={`shrink-0 whitespace-nowrap rounded-full border px-2.5 py-1 font-mono text-[10px] uppercase tracking-[0.16em] transition-colors ${
+                divideDays !== null
+                  ? "border-sea bg-sea text-background"
+                  : "border-border text-sea hover:text-foreground"
+              }`}
+            >
+              ÷ divide
+            </button>
+          ) : null}
           <ReceiptCameraButton
             tripId={tripId}
             tripSlug={tripSlug}
@@ -199,8 +250,18 @@ export function LogExpenseRow({
             onError={setError}
             disabled={isPending}
           />
+          </>
         }
       />
+
+      {divideDays !== null ? (
+        <DivideDaysPicker
+          dates={tripDates}
+          selected={divideDays}
+          onChange={setDivideDays}
+          disabled={isPending}
+        />
+      ) : null}
 
       {error ? (
         <div className="mt-3 font-mono text-[10px] text-clay">{error}</div>
@@ -220,7 +281,13 @@ export function LogExpenseRow({
           disabled={isPending || readingReceipt || !canSubmit}
           className="rounded-full border-0 bg-sea px-3.5 py-1.5 font-mono text-[10px] uppercase tracking-[0.2em] text-background disabled:opacity-40"
         >
-          {isPending ? "…" : readingReceipt ? "reading receipt…" : "add expense"}
+          {isPending
+            ? "…"
+            : readingReceipt
+              ? "reading receipt…"
+              : divideDays && divideDays.length > 1
+                ? "divide"
+                : "add expense"}
         </button>
       </div>
     </form>

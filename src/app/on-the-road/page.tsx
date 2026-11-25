@@ -298,6 +298,7 @@ export default async function OnTheRoadPage() {
             budgetItems={budgetItems}
             categories={categories}
             locations={locations}
+            itineraryDays={days}
             members={memberToneMap(workspace)}
             tripStarted
           />

@@ -96,6 +96,7 @@ export function BudgetByPlace(props: Props) {
             currentPersonId={props.currentPersonId}
             tripSlug={props.tripSlug}
             locations={props.locations}
+            itineraryDays={props.itineraryDays}
             categories={props.categories}
             members={props.members}
             fmt={fmt}
