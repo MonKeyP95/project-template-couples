@@ -1,6 +1,6 @@
 "use server"
 
-import { generateSuggestion, generateTripIdea } from "@/lib/ai/claude"
+import { generateSuggestion, generateTripIdeas } from "@/lib/ai/claude"
 import { isAiEnabled } from "@/lib/ai/ai-mode"
 import { buildAssistantContext } from "@/lib/ai/assistant-context"
 import { getCurrentWorkspace } from "@/lib/workspace/queries"
@@ -269,7 +269,7 @@ export async function suggestForSurface(
     const enriched = await withProfile(prompt, workspace.id, tripId)
     const suggestion =
       surface === "home"
-        ? await generateTripIdea(enriched)
+        ? (await generateTripIdeas(enriched, 1))[0]
         : await generateSuggestion(enriched)
     return { suggestion }
   } catch {
