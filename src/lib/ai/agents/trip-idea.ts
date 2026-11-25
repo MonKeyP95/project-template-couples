@@ -43,6 +43,7 @@ type Raw = { pill?: string; label?: string; body?: string; plan?: IdeaPlan }
 function toIdea(raw: Raw): TripIdea {
   const label = raw.label ?? "/ idea"
   return {
+    id: "",
     pill: raw.pill ?? label,
     label,
     body: raw.body ?? "",

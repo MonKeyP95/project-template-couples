@@ -143,11 +143,14 @@ export function NewTripForm({
   currency,
   initialNote,
   initialPlan,
+  ideaId,
 }: {
   currency: string
   initialNote: string
   /** An accepted home idea's answers and route; null otherwise. */
   initialPlan: IdeaPlan | null
+  /** The accepted home idea's row, marked when the trip is created. */
+  ideaId: string | null
 }) {
   const router = useRouter()
   const symbol = currencySymbol(currency)
@@ -230,6 +233,7 @@ export function NewTripForm({
         prefs: withPrefs ? draft.prefs : null,
         currency: draft.currency,
         route: fitted.length ? fitted : null,
+        ideaId,
       })
       if (result.error) {
         setError(result.error)

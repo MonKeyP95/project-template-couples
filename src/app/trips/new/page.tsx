@@ -13,9 +13,9 @@ import { NewTripForm } from "./new-trip-form"
 export default async function NewTripPage({
   searchParams,
 }: {
-  searchParams: Promise<{ note?: string; idea?: string }>
+  searchParams: Promise<{ note?: string; idea?: string; ideaId?: string }>
 }) {
-  const { note = "", idea } = await searchParams
+  const { note = "", idea, ideaId = null } = await searchParams
   const supabase = await createClient()
   const { data: userData } = await supabase.auth.getUser()
   if (!userData.user) redirect("/signin?next=/trips/new")
@@ -46,6 +46,7 @@ export default async function NewTripPage({
         currency={workspace.currency}
         initialNote={note}
         initialPlan={readPlan(idea)}
+        ideaId={ideaId}
       />
     </main>
   )

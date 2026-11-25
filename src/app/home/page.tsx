@@ -19,7 +19,7 @@ import { createClient } from "@/lib/supabase/server"
 import { isDarkTheme } from "@/lib/theme"
 import { getTodayForTrip } from "@/lib/trips/itinerary-queries"
 import { listTripsForWorkspace } from "@/lib/trips/list-queries"
-import { getHomeIdeas } from "@/lib/ai/home-idea-queries"
+import { listEarlier, listPills } from "@/lib/ai/home-idea-queries"
 import { localToday } from "@/lib/time/local-today"
 import {
   getCurrentWorkspace,
@@ -65,7 +65,9 @@ export default async function HomePage() {
   const dateLabel = formatDateLabel(new Date())
   const members = workspace ? orderMembers(workspace, userData.user.id) : []
 
-  const savedIdeas = workspace ? await getHomeIdeas(workspace.id) : null
+  const [pills, earlier] = workspace
+    ? await Promise.all([listPills(workspace.id), listEarlier(workspace.id)])
+    : [[], []]
   const buckets = workspace
     ? await listTripsForWorkspace(workspace.id)
     : { now: [], upcoming: [], past: [], dreams: [] }
@@ -179,7 +181,7 @@ export default async function HomePage() {
 
       <div className="mt-5 grid gap-3 md:mt-10 md:grid-cols-[minmax(0,1fr)_minmax(0,2fr)] md:items-start">
         <NewBox />
-        <IdeasLine saved={savedIdeas?.ideas ?? []} />
+        <IdeasLine pills={pills} earlier={earlier} />
       </div>
 
       {youOnly && noTripsYet ? (
