@@ -13,7 +13,13 @@ import {
   type PrefKey,
 } from "@/lib/trips/trip-note-parse"
 import type { BudgetPeriod } from "@/lib/trips/budget-period"
-import type { IdeaPlan } from "@/lib/trips/idea-route"
+import {
+  fitRoute,
+  routeLine,
+  routeNights,
+  type IdeaPlan,
+  type RouteStop,
+} from "@/lib/trips/idea-route"
 import { NotePage } from "./note-page"
 import { PrefsPage } from "./prefs-page"
 
@@ -33,7 +39,7 @@ export interface TripDraft {
   currency: string
 }
 
-export type DraftField = "start" | "end" | "budget" | "place" | PrefKey
+export type DraftField = "start" | "end" | "budget" | "place" | "days" | "what" | PrefKey
 
 const EMPTY_DRAFT: Omit<TripDraft, "currency"> = {
   note: "",
@@ -72,12 +78,12 @@ function withNote(
   const r = readNote(note, currency, symbol)
   const guessed = prefillPrefs(note)
   const keep = (f: DraftField) => touched.has(f)
-  const next = { ...d, days: r.days }
+  const next = { ...d, days: keep("days") ? d.days : r.days }
   return {
     ...next,
     end: autoEnd(next, keep("end")),
     note,
-    what: r.what,
+    what: keep("what") ? d.what : r.what,
     budget: keep("budget") ? d.budget : r.budget ? String(r.budget) : "",
     place: keep("place") ? d.place : r.place,
     unsure: r.place ? false : d.unsure,
@@ -88,6 +94,46 @@ function withNote(
       ]),
     ) as Record<PrefKey, string>,
   }
+}
+
+/** The opening draft: the note read as usual, then an accepted idea's plan on
+ * top. Plan-filled fields count as set by hand, so typing in the note never
+ * overwrites them. */
+function initialState(
+  currency: string,
+  symbol: string,
+  note: string,
+  plan: IdeaPlan | null,
+): { draft: TripDraft; touched: Set<DraftField> } {
+  const draft = withNote({ ...EMPTY_DRAFT, currency }, note, new Set(), currency, symbol)
+  if (!plan) return { draft, touched: new Set() }
+  const days = routeNights(plan.stops) || plan.days
+  const filled: DraftField[] = []
+  if (plan.place) filled.push("place")
+  if (plan.what) filled.push("what")
+  if (days > 0) filled.push("days")
+  const prefs = { ...draft.prefs }
+  for (const [k, v] of Object.entries(plan.prefs)) {
+    if (!v) continue
+    prefs[k as PrefKey] = v
+    filled.push(k as PrefKey)
+  }
+  return {
+    draft: {
+      ...draft,
+      place: plan.place || draft.place,
+      unsure: plan.place ? false : draft.unsure,
+      what: plan.what || draft.what,
+      days: days || draft.days,
+      prefs,
+    },
+    touched: new Set(filled),
+  }
+}
+
+/** Inclusive day count between two yyyy-mm-dd dates. */
+function daysBetween(start: string, end: string): number {
+  return Math.round((Date.parse(end) - Date.parse(start)) / 86_400_000) + 1
 }
 
 /** The note-first new trip flow: basic profile, then optional preferences.
@@ -104,10 +150,14 @@ export function NewTripForm({
 }) {
   const router = useRouter()
   const symbol = currencySymbol(currency)
-  const [draft, setDraft] = React.useState<TripDraft>(() =>
-    withNote({ ...EMPTY_DRAFT, currency }, initialNote, new Set(), currency, symbol),
+  const [initial] = React.useState(() =>
+    initialState(currency, symbol, initialNote, initialPlan),
   )
-  const [touched, setTouched] = React.useState<Set<DraftField>>(new Set())
+  const [draft, setDraft] = React.useState<TripDraft>(initial.draft)
+  const [touched, setTouched] = React.useState<Set<DraftField>>(initial.touched)
+  const [route, setRoute] = React.useState<RouteStop[] | null>(
+    initialPlan?.stops.length ? initialPlan.stops : null,
+  )
   const [page, setPage] = React.useState<"note" | "prefs">("note")
   const [error, setError] = React.useState<string | null>(null)
   const [isPending, startTransition] = React.useTransition()
@@ -119,6 +169,8 @@ export function NewTripForm({
 
   const where = draft.unsure ? "" : draft.place.trim()
   const pinMatches = where && found?.query === where ? found.matches : null
+  const length = draft.start && draft.end ? daysBetween(draft.start, draft.end) : draft.days
+  const fitted = route ? fitRoute(route, length) : []
 
   /** The first Continue looks "Where" up and stays to show the matches; the
    * next one moves on. A changed "Where" is looked up again. */
@@ -140,6 +192,8 @@ export function NewTripForm({
 
   function edit(field: DraftField, value: string) {
     if (field !== "start") setTouched((t) => new Set(t).add(field))
+    // The route belonged to the old destination.
+    if (field === "place") setRoute(null)
     setDraft((d) => {
       if (field === "start") {
         const next = { ...d, start: value }
@@ -166,6 +220,7 @@ export function NewTripForm({
         what: draft.what,
         prefs: withPrefs ? draft.prefs : null,
         currency: draft.currency,
+        route: fitted.length ? fitted : null,
       })
       if (result.error) {
         setError(result.error)
@@ -187,8 +242,13 @@ export function NewTripForm({
         onPin={setPin}
         onNote={changeNote}
         onEdit={edit}
-        onDraft={(patch) => setDraft((d) => ({ ...d, ...patch }))}
+        onDraft={(patch) => {
+          if ("place" in patch) setRoute(null)
+          setDraft((d) => ({ ...d, ...patch }))
+        }}
         onContinue={continueFromNote}
+        route={fitted.length ? routeLine(fitted) : null}
+        onDropRoute={() => setRoute(null)}
       />
     )
   }

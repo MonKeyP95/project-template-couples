@@ -13,7 +13,8 @@ const lineInput =
 const chip =
   "min-h-10 rounded-full border px-3.5 text-[14px] transition-colors"
 
-/** Page 1: the note, when, budget, and where if the note has no place. */
+/** Page 1: the note, when, budget, where if the note has no place, and an
+ * accepted idea's route. */
 export function NotePage({
   draft,
   symbol,
@@ -26,6 +27,8 @@ export function NotePage({
   onEdit,
   onDraft,
   onContinue,
+  route,
+  onDropRoute,
 }: {
   draft: TripDraft
   symbol: string
@@ -39,6 +42,9 @@ export function NotePage({
   onEdit: (field: DraftField, value: string) => void
   onDraft: (patch: Partial<TripDraft>) => void
   onContinue: () => void
+  /** The accepted idea's route as one line; null = no route. */
+  route: string | null
+  onDropRoute: () => void
 }) {
   const halfDated = !draft.start !== !draft.end
   return (
@@ -148,6 +154,20 @@ export function NotePage({
         <div className="-mt-4">
           <span className={eyebrow}>Which one?</span>
           <PinChoices matches={pinMatches} value={pin} onPick={onPin} />
+        </div>
+      ) : null}
+      {route ? (
+        <div className="-mt-4 flex items-baseline gap-2">
+          <span className={eyebrow}>Route:</span>
+          <span className="min-w-0 flex-1 text-[14px] text-foreground">{route}</span>
+          <button
+            type="button"
+            onClick={onDropRoute}
+            aria-label="Drop route"
+            className="px-1 text-[16px] leading-none text-muted-foreground hover:text-foreground"
+          >
+            ×
+          </button>
         </div>
       ) : null}
 

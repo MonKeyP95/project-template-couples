@@ -50,6 +50,7 @@ import { slugify } from "@/lib/trips/slugify"
 import type { PlaceMatch } from "@/lib/weather/geocode"
 import { isBudgetPeriod, type BudgetPeriod } from "@/lib/trips/budget-period"
 import { tripHeadline, type PrefKey } from "@/lib/trips/trip-note-parse"
+import type { RouteStop } from "@/lib/trips/idea-route"
 import {
   EMPTY_TRIP_PROFILE,
   cleanTripProfile,
@@ -817,6 +818,8 @@ export interface CreateTripInput {
   prefs: Record<PrefKey, string> | null
   /** What you pay in there; the workspace currency when not changed. */
   currency: string
+  /** An accepted home idea's route, already fitted to the length; null = none. */
+  route: RouteStop[] | null
 }
 
 export interface CreateTripResult {
