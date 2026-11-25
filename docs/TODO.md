@@ -4,7 +4,7 @@
 
 **Next up: work on the AI itinerary planner** (`itinerary-planner` agent, `src/lib/ai/agents/`). Noted 2026-11-03.
 
-**Expense payer RLS fix: implemented 2026-11-25 on `fix/expense-payer-person-ids`; lint + `tsc` clean; `pnpm build` passes; unverified in-app.** Root cause: the "Paid by" picker listed every entry of `memberToneMap`, which keys each signed-in person by both person id and user id, so each name showed twice and the user-id copy wrote an auth uid into `paid_by` (rejected by `expenses_insert`). The picker now keeps only person-id entries. `payBudgetItem` wrote the auth uid too; it now looks up the caller's person id in the trip's workspace. Known separately (not fixed): the trip page takes `myPersonId` from the active workspace, not the trip's. In-app checks:
+**Expense payer RLS fix: implemented 2026-11-25 on `fix/expense-payer-person-ids`; lint + `tsc` clean; `pnpm build` passes; merged #162; checks 1-3 verified in-app 2026-11-25 (both accounts); 4-5 unverified.** Root cause: the "Paid by" picker listed every entry of `memberToneMap`, which keys each signed-in person by both person id and user id, so each name showed twice and the user-id copy wrote an auth uid into `paid_by` (rejected by `expenses_insert`). The picker now keeps only person-id entries. `payBudgetItem` wrote the auth uid too; it now looks up the caller's person id in the trip's workspace. Known separately (not fixed): the trip page takes `myPersonId` from the active workspace, not the trip's. In-app checks:
   1. Add expense on a shared trip: "Paid by" is a two-pill toggle, each name once.
   2. Pick the other person as payer and save: the expense saves, no RLS error, shows the right payer.
   3. Partner does the same on their account: saves.
