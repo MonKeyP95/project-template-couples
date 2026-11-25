@@ -2,7 +2,7 @@
 
 import * as React from "react"
 
-import { Bar, categoryTone, type BarTone } from "@/components/together"
+import { Bar, CategoryIcon, categoryToneOf, type BarTone } from "@/components/together"
 import { useCurrency } from "@/components/currency-context"
 import { money } from "@/lib/money"
 import {
@@ -51,6 +51,7 @@ export function BudgetByCategory(props: Props) {
   const { currency } = useCurrency()
   const [open, setOpen] = React.useState<string | null>(null)
   const fmt = (cents: number) => money(cents, currency)
+  const categoryNames = props.categories.map((c) => c.name)
   const { lines, preTripFootCents } = byCategoryLines(
     props.expenses.map((e) => ({
       category: e.category,
@@ -58,19 +59,26 @@ export function BudgetByCategory(props: Props) {
       amountCents: homeCents(e),
     })),
     props.budgetItems,
-    props.categories.map((c) => c.name),
+    categoryNames,
     props.tripStarted,
   )
 
   return (
     <>
       <div className="mt-1">
-        {lines.map((line, i) => (
+        {lines.map((line) => (
           <BudgetRow
             key={line.category}
             name={displayName(line.category)}
             line={line}
-            tone={categoryTone(i)}
+            tone={categoryToneOf(line.category, categoryNames)}
+            icon={
+              <CategoryIcon
+                name={line.category}
+                tone={categoryToneOf(line.category, categoryNames)}
+                size={20}
+              />
+            }
             isOpen={open === line.category}
             onToggle={() =>
               setOpen(open === line.category ? null : line.category)
@@ -122,6 +130,7 @@ export function BudgetRow({
   name,
   line,
   tone = "sea",
+  icon,
   isOpen,
   onToggle,
   fmt,
@@ -131,6 +140,8 @@ export function BudgetRow({
   line: RowLine
   /** Fill while within plan; over or unplanned is always red. */
   tone?: BarTone
+  /** Shown before the name, e.g. the category icon. */
+  icon?: React.ReactNode
   isOpen: boolean
   onToggle: () => void
   fmt: (cents: number) => string
@@ -150,8 +161,9 @@ export function BudgetRow({
         >
           {"▶"}
         </span>
-        <span className="truncate text-[13px] text-foreground">
-          {name}
+        <span className="flex min-w-0 items-center gap-1.5">
+          {icon}
+          <span className="truncate text-[13px] text-foreground">{name}</span>
         </span>
         <Bar pct={line.pct} tone={warn ? "red" : tone} />
         <span className="t-num whitespace-nowrap text-right font-mono text-[11px] text-foreground">
