@@ -4,6 +4,17 @@
 
 **Next up: work on the AI itinerary planner** (`itinerary-planner` agent, `src/lib/ai/agents/`). Noted 2026-11-03.
 
+**Accept a home trip idea: implemented 2026-11-25 on `feat/accept-home-idea` (based on `feat/home-idea-options`); lint + `tsc` clean; unverified in app; migration `20261125000003_home_idea_plan.sql` to apply.** Spec `docs/superpowers/specs/2026-11-25-accept-home-idea-design.md`. The trip-idea call also returns a `plan` (walk answers + route of stops with nights, travel day, activities), saved in `home_ideas.plan`; a saved idea without one is made again once. "let's do it" on the idea opens `/trips/new` pre-filled (place, what, days, prefs; edits win) with a route line you can drop; changing where drops it, changing length adjusts the last stop. Creating the trip builds locations with day spans, a "Travel to X" first day where the route has one, and the activities as suggestions on free days (never a travel day), the rest in the box (`lib/trips/idea-route.ts`, `lib/trips/route-itinerary.ts`). No AI call after the idea. In-app checks:
+  1. Paste `supabase/migrations/20261125000003_home_idea_plan.sql` in the Supabase SQL editor.
+  2. Open /home: the saved idea is remade once (a moment), and its card has "let's do it", "another" and "dismiss".
+  3. "let's do it" opens the new trip walk with Where, what, the length and the preferences filled in, and the idea text as the note.
+  4. Type in the note: Where and the filled preferences do not change.
+  5. A multi-stop idea shows "Route: ..." under Where; the × removes it; changing Where removes it; picking dates shorter than the route shortens the last stop on the line.
+  6. Create the trip: the itinerary has one location per stop over the right days; a later stop with a travel day starts with "Travel to <stop>".
+  7. The idea's activities show as suggestions on their location's days, none on a travel day; extras sit in the suggestion box and drag onto a day.
+  8. Tap an option pill, then "let's do it" on that one-off idea: same flow.
+  9. Nothing in the flow from "let's do it" to the new trip page waits on the assistant.
+
 **Home idea options: implemented 2026-11-24 on `feat/home-idea-options`; lint + `tsc` clean; `pnpm build` passes; migration `20261125000002_home_idea_options.sql` applied 2026-11-24; check 2 (options show) confirmed in-app, the rest unverified. Options were missing until the migration was pasted.** The trip-idea agent now also returns three short "ask next" options (2 to 5 words each, from the profile and trips), made in the same AI call as the saved idea and stored with it (`home_ideas.options`). They replace "For us" and the activity buttons, on their own row under the AI assistant's text box; tapping one gives a one-off idea for it. A saved row without options is made again once. The top line now splits one third New adventure, two thirds AI assistant. In-app checks:
   1. Paste `supabase/migrations/20261125000002_home_idea_options.sql` in the Supabase SQL editor.
   2. Open /home: after a moment the idea is remade once and three options appear under the text box, each a few words and about you (not "For us" or a single activity word).
