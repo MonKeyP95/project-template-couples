@@ -4,6 +4,15 @@
 
 **Next up: work on the AI itinerary planner** (`itinerary-planner` agent, `src/lib/ai/agents/`). Noted 2026-11-03.
 
+**Ledger by day + category icons: implemented 2026-11-25 on `feat/ledger-by-day-icons`; lint + `tsc` clean; `pnpm build` passes; verified in-app 2026-11-25.** Spec `docs/superpowers/specs/2026-11-25-ledger-by-day-category-icons-design.md`. The budget ledger is one box per day (`Wed 12 Mar` + day total), then Undated, then Savings & moves; rows show a coloured category icon instead of the date and category name. Category colour is now one rule (position in the trip's category list) for bars and icons. On the road, "Trip by category" rows show icons and the quick-expense category is a row of icon buttons. In-app checks:
+  1. Budget ledger: one box per day, `Wed 12 Mar` header, day total on the right (settlements not counted).
+  2. Rows: coloured icon, no category name, no date column.
+  3. A category's icon colour matches its bar in "by category".
+  4. Undated expenses in an "Undated" box; savings and moves in "Savings & moves".
+  5. On the road: "Trip by category" rows have icons.
+  6. Quick expense: tap an icon to pick; its name shows; saving uses that category.
+  7. Phone width: no sideways scroll, icon row wraps.
+
 **Divide an expense over days: implemented 2026-11-25 on `feat/divide-expense`; lint + `tsc` clean; `pnpm build` passes; button shows, defaults and submit confirmed in-app 2026-11-25; rest unverified.** Spec `docs/superpowers/specs/2026-11-25-divide-expense-over-days-design.md`. The add-expense form (budget panel, breakdown rows, on-the-road category rows) has a "÷ divide" pill on the title line before the camera, which opens a calendar of the trip's days; saving ("divide") writes one expense per picked day (approach A, no migration). In-app checks:
   1. Add expense on a dated trip shows "÷ divide"; on a dream it does not.
   2. With a location chosen, it pre-picks that location's days (Accommodation: all but the last).

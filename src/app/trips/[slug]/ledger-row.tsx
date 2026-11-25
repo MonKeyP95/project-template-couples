@@ -2,7 +2,7 @@
 
 import * as React from "react"
 
-import { Avatar, MonoBadge, type MonoBadgeTone } from "@/components/together"
+import { Avatar, CategoryIcon, type BarTone } from "@/components/together"
 import {
   deleteExpense,
   setExpenseConfirmed,
@@ -26,40 +26,14 @@ import { ExpenseFields } from "./expense-fields"
 import type { MemberToneEntry } from "./packing-tab"
 import type { ItineraryLocation } from "@/lib/trips/location-types"
 
-const CATEGORY_TONE: Record<string, MonoBadgeTone> = {
-  Food: "clay",
-  Transportation: "sea",
-  Accommodation: "sand",
-  // Kept for trips seeded with the older default set.
-  Surf: "sea",
-  Dive: "sea",
-  Trek: "moss",
-  Transit: "ink",
-  Lodging: "sand",
-  Settlement: "ink",
-  Other: "ink",
-}
-
-const MONTH_SHORT = new Intl.DateTimeFormat("en-US", {
-  month: "short",
-  timeZone: "UTC",
-})
-
-function ledgerDate(date: string | null): { mon: string; day: string } | null {
-  if (!date) return null
-  const d = new Date(`${date}T00:00:00Z`)
-  return {
-    mon: MONTH_SHORT.format(d).toUpperCase(),
-    day: String(d.getUTCDate()),
-  }
-}
-
 export interface LedgerRowProps {
   expense: Expense
   members: Record<string, MemberToneEntry>
   tripSlug: string
   locations: ItineraryLocation[]
   categories: ExpenseCategoryRow[]
+  /** The category's colour (see `categoryToneOf`). */
+  tone: BarTone
   locationChip?: { name: string | null; tagged: boolean }
   /** Receipts attached to this expense. */
   receipts?: Receipt[]
@@ -71,6 +45,7 @@ export function LedgerRow({
   tripSlug,
   locations,
   categories,
+  tone,
   locationChip,
   receipts = [],
 }: LedgerRowProps) {
@@ -94,6 +69,7 @@ export function LedgerRow({
       expense={expense}
       members={members}
       tripSlug={tripSlug}
+      tone={tone}
       locationChip={locationChip}
       receipts={receipts}
       onEdit={() => setEditing(true)}
@@ -105,6 +81,7 @@ function LedgerRowView({
   expense,
   members,
   tripSlug,
+  tone,
   locationChip,
   receipts,
   onEdit,
@@ -112,6 +89,7 @@ function LedgerRowView({
   expense: Expense
   members: Record<string, MemberToneEntry>
   tripSlug: string
+  tone: BarTone
   locationChip?: { name: string | null; tagged: boolean }
   receipts: Receipt[]
   onEdit: () => void
@@ -121,8 +99,6 @@ function LedgerRowView({
   const [error, setError] = React.useState<string | null>(null)
   const [isPending, startTransition] = React.useTransition()
   const payer = members[expense.paidBy]
-  const date = ledgerDate(expense.dayDate)
-  const tone = CATEGORY_TONE[expense.category] ?? "ink"
   const foreign = isForeign(expense, currency)
 
   function toggleConfirmed() {
@@ -148,30 +124,16 @@ function LedgerRowView({
 
   return (
     <div
-      className={`grid grid-cols-[44px_1fr_auto] items-center gap-3 border-t border-border px-5 py-3 ${
+      className={`grid grid-cols-[28px_1fr_auto] items-center gap-3 border-t border-border px-4 py-2.5 first:border-t-0 ${
         isPending ? "opacity-50" : ""
       }`}
     >
-      <div className="text-center">
-        {date ? (
-          <>
-            <div className="font-mono text-[18px] leading-none tracking-[-0.02em] text-foreground">
-              {date.day}
-            </div>
-            <div className="font-mono text-[9px] uppercase tracking-[0.14em] text-muted-foreground">
-              {date.mon}
-            </div>
-          </>
-        ) : (
-          <div className="font-mono text-[11px] text-muted-foreground">—</div>
-        )}
-      </div>
-      <div>
+      <CategoryIcon name={expense.category} tone={tone} size={28} />
+      <div className="min-w-0">
         <div className="text-[14px] tracking-[-0.005em] text-foreground">
           {expense.title}
         </div>
-        <div className="mt-1 flex items-center gap-2">
-          <MonoBadge tone={tone}>{expense.category}</MonoBadge>
+        <div className="mt-1 flex flex-wrap items-center gap-2">
           <span className="font-mono text-[10px] text-muted-foreground">
             paid by
           </span>

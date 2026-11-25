@@ -7,7 +7,7 @@ import { logExpense } from "@/lib/trips/actions"
 import { attachReceipt } from "@/lib/trips/receipt-actions"
 import { prefillFromReading, type ReceiptReading } from "@/lib/trips/receipt-types"
 import { ReceiptCameraButton } from "@/components/receipts/receipt-camera-button"
-import { Label } from "@/components/together"
+import { CategoryIcon, Label, categoryToneOf } from "@/components/together"
 import type { ExpenseCategoryRow } from "@/lib/trips/expense-types"
 import type { ItineraryEvent } from "@/lib/trips/itinerary-types"
 import { useCurrency } from "@/components/currency-context"
@@ -147,19 +147,12 @@ export function QuickExpense({
           />
         </div>
         <div className="flex items-center justify-between gap-2">
-          <select
+          <CategoryPicker
+            names={categories.map((c) => c.name)}
             value={category}
-            onChange={(e) => setCategory(e.target.value)}
+            onChange={setCategory}
             disabled={isPending}
-            aria-label="Category"
-            className="max-w-[60%] truncate rounded-full border border-border bg-background px-2.5 py-1 text-[12px] text-muted-foreground"
-          >
-            {categories.map((c) => (
-              <option key={c.id} value={c.name}>
-                {c.name}
-              </option>
-            ))}
-          </select>
+          />
           <button
             type="submit"
             disabled={isPending || readingReceipt || !canSubmit}
@@ -172,6 +165,40 @@ export function QuickExpense({
           <div className="font-mono text-[10px] text-clay">{error}</div>
         ) : null}
       </form>
+    </div>
+  )
+}
+
+/** The trip's categories as tappable icons; the picked one's name beside them. */
+function CategoryPicker({
+  names,
+  value,
+  onChange,
+  disabled,
+}: {
+  names: string[]
+  value: string
+  onChange: (name: string) => void
+  disabled: boolean
+}) {
+  return (
+    <div role="radiogroup" aria-label="Category" className="flex min-w-0 flex-wrap items-center gap-1.5">
+      {names.map((name) => (
+        <button
+          key={name}
+          type="button"
+          role="radio"
+          aria-checked={name === value}
+          onClick={() => onChange(name)}
+          disabled={disabled}
+          className={`rounded-full p-0.5 ring-offset-1 ring-offset-background transition-opacity ${
+            name === value ? "ring-2 ring-foreground" : "opacity-60 hover:opacity-100"
+          }`}
+        >
+          <CategoryIcon name={name} tone={categoryToneOf(name, names)} size={28} />
+        </button>
+      ))}
+      <span className="truncate text-[12px] text-muted-foreground">{value}</span>
     </div>
   )
 }

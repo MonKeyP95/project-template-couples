@@ -1,5 +1,6 @@
 export { Avatar, type AvatarProps, type AvatarTone } from "./avatar"
 export { Bar, categoryTone, type BarProps, type BarTone } from "./bar"
+export { CategoryIcon, categoryToneOf } from "./category-icon"
 export { CheckRow, type CheckRowProps, type CheckRowTone } from "./check-row"
 export { Chevron, type ChevronProps, type ChevronDir } from "./chevron"
 export { Coord } from "./coord"
