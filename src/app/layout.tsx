@@ -1,15 +1,16 @@
 import type { Metadata } from "next"
 import {
+  Fredoka,
   IBM_Plex_Mono,
   IBM_Plex_Sans,
   Instrument_Serif,
 } from "next/font/google"
 import "./globals.css"
 
-import { WorldMapBg } from "@/components/together"
+import { CartoonSceneBg, WorldMapBg } from "@/components/together"
 import { TimezoneCookie } from "@/components/timezone-cookie"
 import { AiModeProvider } from "@/components/ai-mode"
-import { isDarkTheme } from "@/lib/theme"
+import { getTheme } from "@/lib/theme"
 
 const sans = IBM_Plex_Sans({
   variable: "--font-sans",
@@ -33,6 +34,13 @@ const mono = IBM_Plex_Mono({
   display: "swap",
 })
 
+const cartoon = Fredoka({
+  variable: "--font-cartoon",
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
+  display: "swap",
+})
+
 export const metadata: Metadata = {
   title: "Together — Plan trips together",
   description:
@@ -44,11 +52,11 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode
 }>) {
-  const dark = await isDarkTheme()
+  const theme = await getTheme()
   return (
     <html
       lang="en"
-      className={`${sans.variable} ${serif.variable} ${mono.variable} h-full antialiased${dark ? " dark" : ""}`}
+      className={`${sans.variable} ${serif.variable} ${mono.variable} ${cartoon.variable} h-full antialiased${theme === "light" ? "" : ` ${theme}`}`}
       suppressHydrationWarning
     >
       <body
@@ -56,7 +64,8 @@ export default async function RootLayout({
         suppressHydrationWarning
       >
         <TimezoneCookie />
-        <WorldMapBg className="fixed inset-0 -z-10 text-foreground/[0.07]" />
+        <WorldMapBg className="fixed inset-0 -z-10 text-foreground/[0.07] cartoon:hidden" />
+        <CartoonSceneBg className="fixed inset-0 -z-10 hidden cartoon:block" />
         <AiModeProvider initialEnabled={false}>
           {children}
         </AiModeProvider>

@@ -2,7 +2,7 @@ import { redirect } from "next/navigation"
 
 import { Label } from "@/components/together"
 import { BoxCard } from "@/components/collapsible-box"
-import { isDarkTheme } from "@/lib/theme"
+import { getTheme } from "@/lib/theme"
 import {
   LeftRail,
   MobileNavPill,
@@ -79,7 +79,7 @@ export default async function OnTheRoadPage() {
   const today = todayInTimeZone(tz)
   const todayDay = await getTodayForTrip(trip.id, today)
   const locations = await getItineraryLocations(trip.id)
-  const dark = await isDarkTheme()
+  const theme = await getTheme()
   const navDestinations = buildNavDestinations({
     onTheRoad: true,
     tripSlug: trip.slug,
@@ -175,7 +175,7 @@ export default async function OnTheRoadPage() {
       <RefreshAtReminder at={nextReminder} />
       <LeftRail
         workspace={workspace}
-        initialDark={dark}
+        initialTheme={theme}
         destinations={navDestinations}
         current="on-the-road"
       />

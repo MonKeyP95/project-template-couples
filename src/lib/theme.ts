@@ -1,9 +1,9 @@
 import { cookies } from "next/headers"
 
-export const THEME_COOKIE = "theme"
+import { THEME_COOKIE, parseTheme, type Theme } from "@/lib/theme-types"
 
-/** Reads the persisted theme cookie. Absent or non-"dark" means light. */
-export async function isDarkTheme(): Promise<boolean> {
+/** Reads the persisted theme cookie. */
+export async function getTheme(): Promise<Theme> {
   const store = await cookies()
-  return store.get(THEME_COOKIE)?.value === "dark"
+  return parseTheme(store.get(THEME_COOKIE)?.value)
 }

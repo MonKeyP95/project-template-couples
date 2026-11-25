@@ -17,7 +17,7 @@ import { getRates } from "@/lib/fx/get-rates"
 import { FlipCountdown } from "@/components/flip-countdown"
 import { WeekForecast } from "@/components/week-forecast"
 import { createClient } from "@/lib/supabase/server"
-import { isDarkTheme } from "@/lib/theme"
+import { getTheme } from "@/lib/theme"
 import { localTimeZone, localToday, requestNowMs } from "@/lib/time/local-today"
 import { hasDue, nextReminderAt } from "@/lib/trips/note-reminders"
 import { RefreshAtReminder } from "@/components/refresh-at-reminder"
@@ -247,7 +247,7 @@ export default async function TripPage({
     weather: packingWeather,
     packingLabels: packingItems.map((i) => i.label.toLowerCase()),
   })
-  const dark = await isDarkTheme()
+  const theme = await getTheme()
   const navTrips = await listTripsForWorkspace(workspace.id)
   const navDestinations = buildNavDestinations({
     onTheRoad: navTrips.now.length > 0,
@@ -419,7 +419,7 @@ export default async function TripPage({
       <RefreshOnVisible />
       <LeftRail
         workspace={workspace}
-        initialDark={dark}
+        initialTheme={theme}
         destinations={navDestinations}
         current="trip"
         narrow

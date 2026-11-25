@@ -5,6 +5,7 @@ import { LogOut } from "lucide-react"
 import { Chevron, Coord, Label } from "@/components/together"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { WorkspaceList } from "@/components/workspace-switcher"
+import type { Theme } from "@/lib/theme-types"
 import { cn } from "@/lib/utils"
 import type { CurrentWorkspace } from "@/lib/workspace/queries"
 
@@ -72,13 +73,13 @@ export function buildNavDestinations(opts: {
 
 export async function LeftRail({
   workspace,
-  initialDark,
+  initialTheme,
   destinations,
   current,
   narrow = false,
 }: {
   workspace: CurrentWorkspace
-  initialDark: boolean
+  initialTheme: Theme
   destinations: NavDestination[]
   current: NavKey
   /** Slimmer rail for pages that give the space to a right column. */
@@ -137,9 +138,9 @@ export async function LeftRail({
         <WorkspaceList />
       </div>
 
-      <div className="flex items-center justify-between border-t border-border pt-5">
+      <div className="flex flex-col items-start gap-2 border-t border-border pt-5">
         <Label>Appearance</Label>
-        <ThemeToggle initialDark={initialDark} />
+        <ThemeToggle initialTheme={initialTheme} />
       </div>
 
       <div className="flex items-center justify-between">

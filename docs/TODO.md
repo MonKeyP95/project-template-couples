@@ -4,6 +4,14 @@
 
 **Next up: work on the AI itinerary planner** (`itinerary-planner` agent, `src/lib/ai/agents/`). Noted 2026-11-03.
 
+**Cartoon theme: implemented 2026-11-25 on `feat/cartoon-theme`; lint + `tsc` clean; `pnpm build` passes (step 1); step 1 verified in-app 2026-11-25; step 2 unverified in app; no migration.** Spec `docs/superpowers/specs/2026-11-25-cartoon-theme-design.md`. A third theme, Cartoon ("Storybook island"), beside Light and Dark: the theme cookie is `light | dark | cartoon` (`getTheme()`), the switch is a Light / Dark / Cartoon picker on Home and in the side menu, and `.cartoon` in `globals.css` swaps colours, hard ink shadows, Fredoka font (mono unchanged) and a drawn sky/sun/wave/sand backdrop for the world map. Step 2: every `.border` box is 2.5px ink, bordered cards get uneven wobbly corners. In-app checks (step 2):
+  1. Cartoon: cards, pills and inputs have thick ink outlines and hard shadows; cards have slightly uneven corners, inputs and buttons do not.
+  2. Text sitting directly on the sky is readable.
+  3. Note any spots that look too heavy; they get toned down in a follow-up.
+  4. Light and Dark unchanged.
+
+**Next after cartoon: phone Profile moves from the menu pill to a person icon in the header row, next to sign-out** (pill becomes Home / Trip / Road; Manual is still reached via Profile).
+
 **Ledger rows show their date, today first: implemented 2026-11-25 on `feat/ledger-row-date`; lint + `tsc` clean; verified in-app 2026-11-25; merged #169; no migration.** Each expense row's meta line starts with its date (`12 Mar`); undated rows show none. Day boxes run today and past newest first, then future days soonest first, then Undated (`groupByDay` takes `today`). In-app checks:
   1. Budget ledger: every dated row starts its second line with `{day} {mon}` before "paid by", matching its day box.
   2. Undated box: rows show no date.
@@ -34,7 +42,6 @@
   7. Phone width: the currency pills fit beside the amount.
 
 **Backlog from partner feedback (2026-11-25, not started):**
-  - Cartoon mode: a third theme beside light/dark, strong basic colours (Moana-like feel, not Disney's look).
   - Suggestions/assistant think outside the box: profile likes are a start, not a fence; also suggest what people with similar tastes tend to like.
   - `.` vs `,` in numbers from the profile (display and typing -- decide).
   - Add an expense with no internet (offline queue; own design).

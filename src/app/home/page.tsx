@@ -16,7 +16,7 @@ import {
 } from "@/components/app-nav"
 import { WorkspaceSwitcher } from "@/components/workspace-switcher"
 import { createClient } from "@/lib/supabase/server"
-import { isDarkTheme } from "@/lib/theme"
+import { getTheme } from "@/lib/theme"
 import { getTodayForTrip } from "@/lib/trips/itinerary-queries"
 import { listTripsForWorkspace } from "@/lib/trips/list-queries"
 import { listEarlier, listPills } from "@/lib/ai/home-idea-queries"
@@ -59,7 +59,7 @@ export default async function HomePage() {
     .eq("id", userData.user.id)
     .single()
 
-  const dark = await isDarkTheme()
+  const theme = await getTheme()
   const workspace = await getCurrentWorkspace()
   const youOnly = workspace?.members.length === 1
   const dateLabel = formatDateLabel(new Date())
@@ -111,7 +111,7 @@ export default async function HomePage() {
       {workspace ? (
         <LeftRail
           workspace={workspace}
-          initialDark={dark}
+          initialTheme={theme}
           destinations={navDestinations}
           current="home"
         />
@@ -264,7 +264,7 @@ export default async function HomePage() {
       ) : null}
 
       <footer className="mt-12 flex items-center justify-center gap-5 md:mt-16 lg:hidden">
-        <ThemeToggle initialDark={dark} />
+        <ThemeToggle initialTheme={theme} />
       </footer>
       </main>
     </div>
