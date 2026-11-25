@@ -13,6 +13,7 @@ import {
   type PrefKey,
 } from "@/lib/trips/trip-note-parse"
 import type { BudgetPeriod } from "@/lib/trips/budget-period"
+import type { IdeaPlan } from "@/lib/trips/idea-route"
 import { NotePage } from "./note-page"
 import { PrefsPage } from "./prefs-page"
 
@@ -94,9 +95,12 @@ function withNote(
 export function NewTripForm({
   currency,
   initialNote,
+  initialPlan,
 }: {
   currency: string
   initialNote: string
+  /** An accepted home idea's answers and route; null otherwise. */
+  initialPlan: IdeaPlan | null
 }) {
   const router = useRouter()
   const symbol = currencySymbol(currency)
