@@ -3038,10 +3038,19 @@ export async function payBudgetItem(
   // must stay directly comparable with the spend total, which sums home amounts.
   const { data: itemTrip } = await supabase
     .from("trips")
-    .select("home_currency")
+    .select("home_currency, workspace_id")
     .eq("id", item.trip_id)
     .maybeSingle()
   const itemTripCurrency = itemTrip?.home_currency ?? "EUR"
+
+  // paid_by holds a person id, not the auth uid.
+  const { data: payer } = await supabase
+    .from("workspace_people")
+    .select("id")
+    .eq("workspace_id", itemTrip?.workspace_id)
+    .eq("user_id", userData.user.id)
+    .maybeSingle()
+  if (!payer) return { error: "No traveller found for you on this trip." }
 
   const title = (item.subject as string).trim() || (item.category as string)
   const { data: exp, error: expErr } = await supabase
@@ -3052,7 +3061,7 @@ export async function payBudgetItem(
       amount_cents: item.amount_cents,
       // A planning row, already in the trip's currency.
       currency: itemTripCurrency,
-      paid_by: userData.user.id,
+      paid_by: payer.id,
       category: item.category,
       day_date: dayDate,
       location_id: item.location_id,

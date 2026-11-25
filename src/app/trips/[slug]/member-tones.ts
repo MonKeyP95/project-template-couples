@@ -9,6 +9,7 @@ export function memberToneMap(
   for (const p of workspace.people) {
     const initial = (p.display_name ?? "?").trim().charAt(0).toUpperCase()
     const entry: MemberToneEntry = {
+      personId: p.id,
       initial,
       displayName: p.display_name,
       // The signed-in user reads as "sea"; everyone else, member or avatar, as

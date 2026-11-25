@@ -45,6 +45,8 @@ import {
 } from "@/lib/trips/packing-types"
 
 export interface MemberToneEntry {
+  /** The person id -- the only id a subject column (paid_by) may hold. */
+  personId: string
   initial: string
   displayName: string
   tone: "sea" | "clay"

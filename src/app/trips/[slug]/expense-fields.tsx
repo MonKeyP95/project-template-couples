@@ -79,7 +79,10 @@ export function ExpenseFields({
   const locationCurrencies = Array.from(
     new Set(locations.map((l) => l.currency).filter((c): c is string => !!c)),
   )
-  const memberEntries = Object.entries(members)
+  // `members` answers to user ids too; a payer must be a person id.
+  const memberEntries = Object.entries(members).filter(
+    ([id, m]) => id === m.personId,
+  )
   const usePillToggle = memberEntries.length === 2
 
   return (
@@ -162,13 +165,13 @@ export function ExpenseFields({
           </span>
           {usePillToggle ? (
             <div className="mt-1 inline-flex rounded-full border border-border bg-background p-0.5">
-              {memberEntries.map(([userId, m]) => {
-                const active = userId === paidBy
+              {memberEntries.map(([personId, m]) => {
+                const active = personId === paidBy
                 return (
                   <button
-                    key={userId}
+                    key={personId}
                     type="button"
-                    onClick={() => onPaidByChange(userId)}
+                    onClick={() => onPaidByChange(personId)}
                     disabled={disabled}
                     aria-pressed={active}
                     className={`rounded-full px-2.5 py-1 font-mono text-[11px] uppercase tracking-[0.16em] transition-colors ${
@@ -201,8 +204,8 @@ export function ExpenseFields({
                 </SelectValue>
               </SelectTrigger>
               <SelectContent>
-                {memberEntries.map(([userId, m]) => (
-                  <SelectItem key={userId} value={userId}>
+                {memberEntries.map(([personId, m]) => (
+                  <SelectItem key={personId} value={personId}>
                     {m.displayName}
                   </SelectItem>
                 ))}
