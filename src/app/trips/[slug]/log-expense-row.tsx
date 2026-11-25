@@ -286,7 +286,7 @@ export function LogExpenseRow({
             : readingReceipt
               ? "reading receipt…"
               : divideDays && divideDays.length > 1
-                ? `add over ${divideDays.length} days`
+                ? "divide"
                 : "add expense"}
         </button>
       </div>
