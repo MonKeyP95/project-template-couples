@@ -224,6 +224,22 @@ export function LogExpenseRow({
         onLocationChange={chooseLocation}
         disabled={isPending}
         titleAction={
+          <>
+          {tripDates.length > 0 ? (
+            <button
+              type="button"
+              onClick={toggleDivide}
+              disabled={isPending}
+              aria-pressed={divideDays !== null}
+              className={`shrink-0 whitespace-nowrap rounded-full border px-2.5 py-1 font-mono text-[10px] uppercase tracking-[0.16em] transition-colors ${
+                divideDays !== null
+                  ? "border-sea bg-sea text-background"
+                  : "border-border text-sea hover:text-foreground"
+              }`}
+            >
+              ÷ divide
+            </button>
+          ) : null}
           <ReceiptCameraButton
             tripId={tripId}
             tripSlug={tripSlug}
@@ -234,29 +250,17 @@ export function LogExpenseRow({
             onError={setError}
             disabled={isPending}
           />
+          </>
         }
       />
 
-      {tripDates.length > 0 ? (
-        <div className="mt-3">
-          <button
-            type="button"
-            onClick={toggleDivide}
-            disabled={isPending}
-            aria-pressed={divideDays !== null}
-            className="border-0 bg-transparent p-0 font-mono text-[10px] uppercase tracking-[0.16em] text-sea hover:text-foreground"
-          >
-            {divideDays === null ? "÷ divide over days" : "don't divide"}
-          </button>
-          {divideDays !== null ? (
-            <DivideDaysPicker
-              dates={tripDates}
-              selected={divideDays}
-              onChange={setDivideDays}
-              disabled={isPending}
-            />
-          ) : null}
-        </div>
+      {divideDays !== null ? (
+        <DivideDaysPicker
+          dates={tripDates}
+          selected={divideDays}
+          onChange={setDivideDays}
+          disabled={isPending}
+        />
       ) : null}
 
       {error ? (
