@@ -7,6 +7,7 @@ import { Bar, Label } from "@/components/together"
 import { BoxCard, BoxSection } from "@/components/collapsible-box"
 import { FlipCountdown } from "@/components/flip-countdown"
 import { MobileHeaderNav, type NavDestination } from "@/components/app-nav"
+import { AssistantPill } from "@/components/ai-mode"
 import { moneyRounded } from "@/lib/money"
 import type { TripHeader } from "@/lib/trips/queries"
 
@@ -28,7 +29,8 @@ export interface MobileTripProps {
   notes: ReactNode
 }
 
-/** The phone trip page: a header line, then one collapsible box per section. */
+/** The phone trip page: a header line (with the one assistant switch), then
+ * one collapsible box per section. */
 export function MobileTrip(props: MobileTripProps) {
   const { header } = props
   return (
@@ -83,6 +85,7 @@ function HeaderLine({ header }: { header: TripHeader }) {
         <MapPin className="size-3.5 shrink-0" strokeWidth={1.75} aria-hidden />
         <span className="truncate">{header.country ?? header.name}</span>
       </span>
+      <AssistantPill className="mr-auto shrink-0" />
       {header.startDate ? (
         <FlipCountdown startDate={header.startDate} size="sm" />
       ) : (

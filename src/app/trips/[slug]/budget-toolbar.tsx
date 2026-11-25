@@ -2,7 +2,7 @@
 
 import * as React from "react"
 
-import { AssistantPill, useAiMode } from "@/components/ai-mode"
+import { useAiMode } from "@/components/ai-mode"
 import { AssistantPanel } from "@/components/assistant-block"
 
 import { toolbarPill } from "./toolbar-pill"
@@ -17,18 +17,15 @@ const PILLS: { key: BudgetPanel; label: string; phoneOnly?: boolean }[] = [
 
 /** The budget page's pill row, mirroring the itinerary's: a pill opens its
  * panel on a full line below the pills, one panel at a time. The assistant
- * pill is the AI on/off switch, as on the itinerary, so it opens independently. */
+ * panel opens independently, switched by the page-level assistant pill. */
 export function BudgetToolbar({
   tripSlug,
-  showAssistantPill,
   title,
   door,
   drafter,
   renderPanel,
 }: {
   tripSlug: string
-  /** Phones only; wider screens have the assistant pill in the tab row. */
-  showAssistantPill: boolean
   /** Wide screens only: shown left of the pills. */
   title: React.ReactNode
   door: React.ReactNode
@@ -58,7 +55,6 @@ export function BudgetToolbar({
     <div className="flex flex-wrap items-center gap-2 px-5 pt-4 lg:pt-7">
       <div className="hidden lg:mr-auto lg:block">{title}</div>
       {pill("expense", "+ expense")}
-      {showAssistantPill ? <AssistantPill /> : null}
       {PILLS.map((p) => pill(p.key, p.label, p.phoneOnly))}
       {drafter}
       {aiEnabled ? (

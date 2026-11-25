@@ -40,7 +40,7 @@ import {
 } from "./day-selection"
 import { Label } from "@/components/together"
 import { AssistantPanel } from "@/components/assistant-block"
-import { AssistantPill, useAiMode } from "@/components/ai-mode"
+import { useAiMode } from "@/components/ai-mode"
 import { EventRating } from "@/components/event-rating"
 import { PlanningPlaceDoor } from "./find-a-place-planning"
 import { BudgetScopeEditor } from "./budget-scope-editor"
@@ -311,7 +311,6 @@ export function ItineraryTab({
   initialLocations,
   budgetItems,
   suggestions,
-  showAssistantPill,
 }: {
   tripId: string
   tripSlug: string
@@ -332,8 +331,6 @@ export function ItineraryTab({
   initialLocations: ItineraryLocation[]
   budgetItems: BudgetItem[]
   suggestions: TripSuggestion[]
-  /** Phones only; wider screens have the assistant pill in the tab row. */
-  showAssistantPill: boolean
 }) {
   const { currency } = useCurrency()
   const [days, setDays] = React.useState<ItineraryDay[]>(initialItems)
@@ -916,7 +913,6 @@ export function ItineraryTab({
       <h2 className="hidden min-w-0 flex-1 truncate font-serif text-[40px] leading-none text-foreground lg:block">
         <em className="text-sea">Itinerary</em>
       </h2>
-      {showAssistantPill ? <AssistantPill /> : null}
       <button
         type="button"
         onClick={() => setAddDayFor(addDayOpen ? null : LOOSE_KEY)}

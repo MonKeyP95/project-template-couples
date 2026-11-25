@@ -64,8 +64,6 @@ export interface BudgetTabProps {
   receipts: Receipt[]
   /** Server render time, for the receipt pile. */
   nowMs: number
-  /** Phones only; wider screens have the assistant pill in the tab row. */
-  showAssistantPill: boolean
 }
 
 export function BudgetTab({
@@ -94,7 +92,6 @@ export function BudgetTab({
   currentPersonId,
   receipts,
   nowMs,
-  showAssistantPill,
 }: BudgetTabProps) {
   const { currency } = useCurrency()
   const totalCents = summary.expenseTotalCents
@@ -219,7 +216,6 @@ export function BudgetTab({
 
       <BudgetToolbar
         tripSlug={tripSlug}
-        showAssistantPill={showAssistantPill}
         title={
           <h2 className="font-serif text-[40px] leading-none text-foreground">
             <em className="text-sea">Budget</em>

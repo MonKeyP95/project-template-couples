@@ -298,7 +298,6 @@ export default async function TripPage({
       suggestions={suggestions}
       initialLocations={locations ?? []}
       budgetItems={budgetItems ?? []}
-      showAssistantPill={isMobile}
     />
   )
   const packing = (layout: "tab" | "boxes" | "checklist", between?: ReactNode) => (
@@ -313,7 +312,6 @@ export default async function TripPage({
       members={memberTones}
       daysOut={computeDaysOut(header.startDate)}
       packingNudge={packingNudge}
-      assistantBar={isMobile}
       layout={layout}
       between={between}
     />
@@ -345,7 +343,6 @@ export default async function TripPage({
       currentPersonId={workspace.myPersonId ?? ""}
       receipts={receipts}
       nowMs={receiptClockMs()}
-      showAssistantPill={isMobile}
     />
   )
   const documentsSection = (
