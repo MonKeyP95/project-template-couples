@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation"
 
 import { useAiMode } from "@/components/ai-mode"
 import { SuggestionCard } from "@/components/together"
-import { refreshHomeIdea } from "@/lib/ai/home-idea-actions"
+import { dismissHomeIdea, refreshHomeIdeas } from "@/lib/ai/home-idea-actions"
 import { suggestForSurface } from "@/lib/ai/suggestion-actions"
 import type { TripIdea } from "@/lib/ai/suggestion-types"
 
@@ -14,45 +14,45 @@ const OPTION_TINTS = ["bg-moss-tint", "bg-sand-tint", "bg-dusk-tint"]
 const pill =
   "rounded-full border border-transparent px-3 py-1.5 text-left text-[12.5px] leading-tight text-foreground transition-colors hover:border-rule disabled:opacity-50"
 
-/** One-line assistant for new trip ideas. `saved` is the couple's saved idea
- * and its three "ask next" options, shown at once; on load it is checked
- * against the profile and trip learnings and only remade when they changed,
- * or on "another" for the saved idea. An option or a typed ask gives a
- * one-off idea; those switch AI mode on, since asking is the consent. "let's
- * do it" opens the new-trip walk with the idea's plan; no call is made. */
+/** One-line assistant for new trip ideas. `saved` is the couple's saved set of
+ * full ideas, one per pill; tapping a pill opens its idea with no call and
+ * "another" opens the next one. On load the set is checked against the
+ * profile and trip learnings and only remade when they changed, or on
+ * "new ideas". "dismiss" removes an idea from the set; when none are left a
+ * new set is made. A typed ask gives a one-off idea; it switches AI mode on, since
+ * asking is the consent. "let's do it" opens the new-trip walk with the
+ * idea's plan; no call is made. */
 export function IdeasLine({
   saved,
   className = "",
 }: {
-  saved: TripIdea | null
+  saved: TripIdea[]
   className?: string
 }) {
   const { enabled, setEnabled } = useAiMode()
-  const [text, setText] = React.useState("")
-  // null = the saved idea; a string = a one-off ask.
-  const [lastAsk, setLastAsk] = React.useState<string | null>(null)
   const router = useRouter()
-  const [idea, setIdea] = React.useState<TripIdea | null>(saved)
-  const [options, setOptions] = React.useState<string[]>(saved?.options ?? [])
+  const [text, setText] = React.useState("")
+  const [ideas, setIdeas] = React.useState<TripIdea[]>(saved)
+  // The open idea by label, so a remade set closes the card on its own.
+  const [open, setOpen] = React.useState<string | null>(null)
+  const [oneOff, setOneOff] = React.useState<{ ask: string; idea: TripIdea } | null>(null)
   const [error, setError] = React.useState<string | null>(null)
   const [busy, setBusy] = React.useState(false)
 
-  function showRefreshed(res: { idea?: TripIdea; error?: string }) {
-    if (res.idea) {
-      setIdea(res.idea)
-      setOptions(res.idea.options)
-    }
+  function showRefreshed(res: { ideas?: TripIdea[]; error?: string }) {
+    if (res.ideas) setIdeas(res.ideas)
     setError(res.error ?? null)
   }
 
   React.useEffect(() => {
-    refreshHomeIdea(false).then(showRefreshed)
+    refreshHomeIdeas(false).then(showRefreshed)
   }, [])
 
-  async function another() {
+  async function newIdeas() {
     setBusy(true)
-    setLastAsk(null)
-    showRefreshed(await refreshHomeIdea(true))
+    setOneOff(null)
+    setOpen(null)
+    showRefreshed(await refreshHomeIdeas(true))
     setBusy(false)
   }
 
@@ -60,12 +60,40 @@ export function IdeasLine({
     if (!enabled) setEnabled(true)
     setBusy(true)
     setError(null)
-    setLastAsk(what)
     const res = await suggestForSurface("home", undefined, { kind: "free", text: what })
     const s = res.suggestion
-    setIdea(s && "plan" in s ? s : null)
+    setOneOff(s && "plan" in s ? { ask: what, idea: s } : null)
     setError(res.error ?? null)
     setBusy(false)
+  }
+
+  function openIdea(label: string) {
+    setOneOff(null)
+    setOpen(label)
+  }
+
+  function another() {
+    if (oneOff) ask(oneOff.ask)
+    else {
+      const i = ideas.findIndex((idea) => idea.label === open)
+      setOpen(ideas[(i + 1) % ideas.length].label)
+    }
+  }
+
+  async function dismiss() {
+    if (oneOff || open === null) {
+      setOneOff(null)
+      return
+    }
+    const left = ideas.filter((idea) => idea.label !== open)
+    setIdeas(left)
+    setOpen(null)
+    await dismissHomeIdea(open)
+    if (!left.length) {
+      setBusy(true)
+      showRefreshed(await refreshHomeIdeas(false))
+      setBusy(false)
+    }
   }
 
   function accept(accepted: TripIdea) {
@@ -75,6 +103,8 @@ export function IdeasLine({
     })
     router.push(`/trips/new?${params}`)
   }
+
+  const shown = oneOff?.idea ?? ideas.find((idea) => idea.label === open)
 
   return (
     <div className={className}>
@@ -95,35 +125,44 @@ export function IdeasLine({
             className="w-0 min-w-0 flex-1 rounded-full border border-border bg-card px-3 py-1.5 text-[13px] text-foreground outline-none placeholder:text-muted-foreground/70 focus:border-foreground"
           />
         </div>
-        {options.length ? (
+        {ideas.length ? (
           <div className="flex flex-wrap gap-1.5">
-            {options.map((o, i) => (
+            {ideas.map((idea, i) => (
               <button
-                key={o}
+                key={i}
                 type="button"
                 disabled={busy}
-                onClick={() => ask(o)}
-                className={`${pill} ${OPTION_TINTS[i % OPTION_TINTS.length]}`}
+                onClick={() => openIdea(idea.label)}
+                aria-pressed={!oneOff && open === idea.label}
+                className={`${pill} ${OPTION_TINTS[i % OPTION_TINTS.length]} ${!oneOff && open === idea.label ? "border-foreground" : ""}`}
               >
-                {o}
+                {idea.pill}
               </button>
             ))}
+            <button
+              type="button"
+              disabled={busy}
+              onClick={newIdeas}
+              className={`${pill} text-muted-foreground`}
+            >
+              {busy ? "thinking..." : "↻ new ideas"}
+            </button>
           </div>
         ) : null}
       </div>
       {error ? <p className="mt-2 text-[12.5px] text-clay">{error}</p> : null}
-      {idea ? (
+      {shown ? (
         <SuggestionCard
-          label={idea.label}
+          label={shown.label}
           acceptLabel="let's do it"
-          onAccept={() => accept(idea)}
+          onAccept={() => accept(shown)}
           applyLabel={busy ? "thinking..." : "another"}
           dismissLabel="dismiss"
-          onApply={() => (lastAsk === null ? another() : ask(lastAsk))}
-          onDismiss={() => setIdea(null)}
+          onApply={another}
+          onDismiss={dismiss}
           className="mt-2"
         >
-          {idea.body}
+          {shown.body}
         </SuggestionCard>
       ) : null}
     </div>

@@ -18,10 +18,10 @@ export interface Suggestion {
   body: string
 }
 
-/** A home trip idea, three short directions to ask about next, and the walk
+/** A home trip idea: the few words on its pill, the card text, and the walk
  * answers + route used when it is accepted. */
 export interface TripIdea extends Suggestion {
-  options: string[]
+  pill: string
   plan: IdeaPlan
 }
 
