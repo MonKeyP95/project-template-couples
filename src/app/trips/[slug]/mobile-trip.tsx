@@ -17,6 +17,8 @@ export interface MobileTripProps {
   dateRange: string | null
   dayCount: number
   spentCents: number
+  /** Sum of the planned budget lines (buffer excluded). */
+  plannedLinesCents: number
   notesCount: number
   /** A note reminder is due: the Notes box turns clay. */
   notesDue: boolean
@@ -139,10 +141,19 @@ function TripCard({ header, dateRange, dayCount, itinerary }: MobileTripProps) {
   )
 }
 
-function BudgetCard({ header, dayCount, spentCents, budget }: MobileTripProps) {
+function BudgetCard({
+  header,
+  dayCount,
+  spentCents,
+  plannedLinesCents,
+  budget,
+}: MobileTripProps) {
   const planned = header.plannedBudgetCents
   const currency = header.homeCurrency
-  const pct = planned === 0 ? 0 : Math.round((spentCents / planned) * 100)
+  // The bar measures against the budget, else the planned lines; with neither
+  // there is nothing to measure, so no bar and no spent line.
+  const target = planned > 0 ? planned : plannedLinesCents
+  const pct = target === 0 ? 0 : Math.round((spentCents / target) * 100)
   return (
     <BoxCard>
       <BoxSection
@@ -159,13 +170,15 @@ function BudgetCard({ header, dayCount, spentCents, budget }: MobileTripProps) {
             <div className="mt-1 font-serif text-[34px] leading-none text-foreground">
               {planned > 0 ? moneyRounded(planned, currency) : "No budget yet"}
             </div>
-            <Bar pct={pct} tone="sea" className="mt-3" />
-            <div className="mt-1.5 flex justify-between font-mono text-[11px] text-muted-foreground">
-              <span>{moneyRounded(spentCents, currency)} spent</span>
-              {planned > 0 ? (
-                <span>{moneyRounded(planned - spentCents, currency)} left</span>
-              ) : null}
-            </div>
+            {target > 0 ? (
+              <>
+                <Bar pct={pct} tone="sea" className="mt-3" />
+                <div className="mt-1.5 flex justify-between font-mono text-[11px] text-muted-foreground">
+                  <span>{moneyRounded(spentCents, currency)} spent</span>
+                  <span>{moneyRounded(target - spentCents, currency)} left</span>
+                </div>
+              </>
+            ) : null}
           </div>
         }
       >

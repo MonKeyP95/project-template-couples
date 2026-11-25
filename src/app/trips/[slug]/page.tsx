@@ -30,6 +30,7 @@ import { DocumentsSection } from "@/components/documents/documents-section"
 import { getTripSavings } from "@/lib/trips/savings-queries"
 import { getTripBudgetMoves } from "@/lib/trips/budget-move-queries"
 import { getBudgetItems } from "@/lib/trips/budget-item-queries"
+import { isBufferSubject } from "@/lib/trips/budget-item-types"
 import { getTripSuggestions } from "@/lib/trips/suggestion-queries"
 import { budgetBucketFor } from "@/lib/ai/budget-planner"
 import { getProfileBudgetData } from "@/lib/trips/budget-history-queries"
@@ -390,6 +391,9 @@ export default async function TripPage({
                 : computeTripDays(header.startDate, header.endDate)
             }
             spentCents={budgetSummary.expenseTotalCents}
+            plannedLinesCents={(budgetItems ?? [])
+              .filter((it) => !isBufferSubject(it.subject))
+              .reduce((s, it) => s + it.amountCents, 0)}
             notesCount={(notes ?? []).length}
             notesDue={notesDue}
             itinerary={itinerary}
