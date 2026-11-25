@@ -147,6 +147,7 @@ export function Ledger({
   locations,
   itineraryDays,
   categories,
+  today,
   contributions = [],
   receipts = [],
   label = "Ledger",
@@ -154,6 +155,8 @@ export function Ledger({
   bare = false,
 }: {
   expenses: Expense[]
+  /** The viewer's local today: past days sort before it, future days after. */
+  today: string
   moves: BudgetMove[]
   members: Record<string, MemberToneEntry>
   tripSlug: string
@@ -179,7 +182,10 @@ export function Ledger({
     if (r.expenseId) receiptsByExpense.set(r.expenseId, [...(receiptsByExpense.get(r.expenseId) ?? []), r])
   }
   const categoryNames = categories.map((c) => c.name)
-  const days = groupByDay(expenses.map((e) => ({ ...e, cents: homeCents(e) })))
+  const days = groupByDay(
+    expenses.map((e) => ({ ...e, cents: homeCents(e) })),
+    today,
+  )
   // Savings and moves have no trip day, so they get their own box.
   const others = [
     ...moves.map((m) => ({ kind: "move" as const, at: m.createdAt, move: m })),

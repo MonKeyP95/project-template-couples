@@ -280,6 +280,7 @@ export function BudgetTab({
         <div className="lg:overflow-hidden lg:rounded-xl lg:border lg:border-border lg:[&>div:first-child]:border-t-0">
           <Ledger
             expenses={expenses}
+            today={today}
             moves={moves}
             members={members}
             tripSlug={tripSlug}
