@@ -10,6 +10,8 @@ import "./globals.css"
 import { VoyageSceneBg, WorldMapBg } from "@/components/together"
 import { TimezoneCookie } from "@/components/timezone-cookie"
 import { AiModeProvider } from "@/components/ai-mode"
+import { MoneyProvider } from "@/components/money-context"
+import { getMoney } from "@/lib/money-server"
 import { getTheme } from "@/lib/theme"
 
 const sans = IBM_Plex_Sans({
@@ -53,6 +55,7 @@ export default async function RootLayout({
   children: React.ReactNode
 }>) {
   const theme = await getTheme()
+  const { locale } = await getMoney()
   return (
     <html
       lang="en"
@@ -66,9 +69,11 @@ export default async function RootLayout({
         <TimezoneCookie />
         <WorldMapBg className="fixed inset-0 -z-10 text-foreground/[0.07] voyage:hidden" />
         <VoyageSceneBg className="fixed inset-0 -z-10 hidden voyage:block" />
-        <AiModeProvider initialEnabled={false}>
-          {children}
-        </AiModeProvider>
+        <MoneyProvider locale={locale}>
+          <AiModeProvider initialEnabled={false}>
+            {children}
+          </AiModeProvider>
+        </MoneyProvider>
       </body>
     </html>
   )
