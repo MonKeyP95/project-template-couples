@@ -55,6 +55,7 @@
   - Suggestions/assistant think outside the box: profile likes are a start, not a fence; also suggest what people with similar tastes tend to like.
   - `.` vs `,` in numbers from the profile (display and typing -- decide).
   - Add an expense with no internet (offline queue; own design).
+  - A currency once paid in via "other" joins the quick currency pills, so it isn't picked from the full list again.
 
 **Ledger by day + category icons: implemented 2026-11-25 on `feat/ledger-by-day-icons`; lint + `tsc` clean; `pnpm build` passes; verified in-app 2026-11-25; merged #165.** Spec `docs/superpowers/specs/2026-11-25-ledger-by-day-category-icons-design.md`. The budget ledger is one box per day (`Wed 12 Mar` + day total), then Undated, then Savings & moves; rows show a coloured category icon instead of the date and category name. Category colour is now one rule (position in the trip's category list) for bars and icons. On the road, "Trip by category" rows show icons and the quick-expense category is a row of icon buttons. In-app checks:
   1. Budget ledger: one box per day, `Wed 12 Mar` header, day total on the right (settlements not counted).
