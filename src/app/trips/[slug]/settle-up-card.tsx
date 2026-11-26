@@ -3,7 +3,7 @@
 import * as React from "react"
 
 import { partialSettleUp, settleUp } from "@/lib/trips/actions"
-import { money } from "@/lib/money"
+import { useMoney } from "@/components/money-context"
 import { useCurrency } from "@/components/currency-context"
 
 export interface SettleUpButtonsProps {
@@ -18,6 +18,7 @@ export function SettleUpButtons({
   tripId,
   tripSlug,
 }: SettleUpButtonsProps) {
+  const { money } = useMoney()
   const { currency } = useCurrency()
   const fmt = (cents: number) => money(cents, currency)
   const [showInput, setShowInput] = React.useState(false)

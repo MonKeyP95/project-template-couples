@@ -4,7 +4,7 @@ import * as React from "react"
 
 import { Bar, CategoryIcon, categoryToneOf, type BarTone } from "@/components/together"
 import { useCurrency } from "@/components/currency-context"
-import { money } from "@/lib/money"
+import { useMoney } from "@/components/money-context"
 import {
   byCategoryLines,
   PRE_TRIP,
@@ -48,6 +48,7 @@ interface Props {
 /** Spent-vs-plan per category, under the Spent figure. Tap a line
  * to see, and fix, the planned items and expenses behind it. */
 export function BudgetByCategory(props: Props) {
+  const { money } = useMoney()
   const { currency } = useCurrency()
   const [open, setOpen] = React.useState<string | null>(null)
   const fmt = (cents: number) => money(cents, currency)

@@ -25,7 +25,7 @@ import {
 } from "@/lib/trips/location-budget-types"
 import type { ItineraryLocation } from "@/lib/trips/location-types"
 import type { ExpenseCategoryRow } from "@/lib/trips/expense-types"
-import { moneyInput, moneyRounded, currencySymbol } from "@/lib/money"
+import { useMoney } from "@/components/money-context"
 import { useCurrency } from "@/components/currency-context"
 
 import {
@@ -164,6 +164,7 @@ export function BudgetDrafter({
   expenseCategories,
   header,
 }: BudgetDrafterProps) {
+  const { moneyRounded, moneyInput, currencySymbol } = useMoney()
   const { currency } = useCurrency()
   const fmt = (cents: number) => moneyRounded(cents, currency)
   const [session, setSession] = React.useState<Session | null>(null)

@@ -3,7 +3,7 @@
 import * as React from "react"
 
 import type { ExpenseCategoryRow } from "@/lib/trips/expense-types"
-import { currencySymbol } from "@/lib/money"
+import { useMoney } from "@/components/money-context"
 import { useCurrency } from "@/components/currency-context"
 import { CurrencyChip } from "./currency-chip"
 
@@ -75,6 +75,7 @@ export function ExpenseFields({
   disabled,
   titleAction,
 }: ExpenseFieldsProps) {
+  const { currencySymbol } = useMoney()
   const { currency } = useCurrency()
   const locationCurrencies = Array.from(
     new Set(locations.map((l) => l.currency).filter((c): c is string => !!c)),

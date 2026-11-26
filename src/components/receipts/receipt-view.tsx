@@ -4,7 +4,7 @@ import * as React from "react"
 import { useRouter } from "next/navigation"
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { money } from "@/lib/money"
+import { useMoney } from "@/components/money-context"
 import { dayLabel } from "@/lib/trips/budget-pace"
 import type { Expense } from "@/lib/trips/expense-types"
 import { attachReceipt, deleteReceipt } from "@/lib/trips/receipt-actions"
@@ -102,6 +102,7 @@ export function ReceiptView({
 }
 
 function ReadingText({ reading }: { reading: NonNullable<Receipt["reading"]> }) {
+  const { money } = useMoney()
   const currency = reading.currency ?? ""
   return (
     <div className="flex flex-col gap-1 text-[14px]">
@@ -139,6 +140,7 @@ function MatchPicker({
   disabled: boolean
   onPick: (expenseId: string) => void
 }) {
+  const { money } = useMoney()
   const suggestions = suggestExpenseMatches(receipt.reading, expenses, receiptExpenseIds)
   const others = expenses.filter((e) => !e.isSettlement)
 

@@ -5,7 +5,7 @@ import * as React from "react"
 import { useCurrency } from "@/components/currency-context"
 import { currencyOptions } from "@/lib/fx/currency-list"
 import { inverseRate, toHomeCents } from "@/lib/fx/convert"
-import { money } from "@/lib/money"
+import { useMoney } from "@/components/money-context"
 import { cn } from "@/lib/utils"
 
 export interface CurrencyChipProps {
@@ -40,6 +40,7 @@ export function CurrencyChip({
   disabled,
   className = "flex-col gap-0.5",
 }: CurrencyChipProps) {
+  const { money } = useMoney()
   const { currency, spendCurrency, rates } = useCurrency()
   const [showAll, setShowAll] = React.useState(false)
 

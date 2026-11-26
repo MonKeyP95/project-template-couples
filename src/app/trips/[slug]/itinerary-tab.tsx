@@ -108,7 +108,7 @@ import {
   loadSuggestionOptions,
 } from "@/lib/trips/suggestion-actions"
 import { OptionsDialog, PaidDialog } from "./suggestion-dialogs"
-import { moneyRounded } from "@/lib/money"
+import { useMoney } from "@/components/money-context"
 import { useCurrency } from "@/components/currency-context"
 import { currencyOptions } from "@/lib/fx/currency-list"
 import { stayFor } from "@/lib/trips/stays"
@@ -332,6 +332,7 @@ export function ItineraryTab({
   budgetItems: BudgetItem[]
   suggestions: TripSuggestion[]
 }) {
+  const { moneyRounded } = useMoney()
   const { currency } = useCurrency()
   const [days, setDays] = React.useState<ItineraryDay[]>(initialItems)
   const [lastInitial, setLastInitial] = React.useState(initialItems)

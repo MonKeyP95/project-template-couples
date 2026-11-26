@@ -10,7 +10,7 @@ import type { BudgetPeriod } from "@/lib/trips/budget-period"
 import { BudgetPeriodPicker } from "@/components/budget-period-picker"
 import { PinFinder } from "@/components/pin-finder"
 import type { PlaceMatch } from "@/lib/weather/geocode"
-import { currencySymbol } from "@/lib/money"
+import { useMoney } from "@/components/money-context"
 import { currencyForCountry } from "@/lib/fx/country-currency"
 import { type TripProfile } from "@/lib/trips/trip-profile-types"
 import { PREF_TOPICS } from "@/lib/trips/trip-note-parse"
@@ -66,6 +66,7 @@ export function EditTripForm({
   initial: EditTripInitial
   initialProfile: TripProfile
 }) {
+  const { currencySymbol } = useMoney()
   const router = useRouter()
   const [name, setName] = React.useState(initial.name)
   const [slug, setSlug] = React.useState(initial.slug)

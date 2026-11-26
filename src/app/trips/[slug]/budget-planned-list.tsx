@@ -11,7 +11,7 @@ import {
 } from "@/lib/trips/actions"
 import { isBufferSubject, type BudgetItem } from "@/lib/trips/budget-item-types"
 import type { ExpenseCategoryRow } from "@/lib/trips/expense-types"
-import { moneyInput } from "@/lib/money"
+import { useMoney } from "@/components/money-context"
 import { deviceToday } from "@/lib/time/today"
 
 import { DetailLine, DetailList, NOTE_CLASS, displayName } from "./budget-detail-parts"
@@ -172,6 +172,7 @@ function PlannedLineEditor({
   tripSlug: string
   onDone: () => void
 }) {
+  const { moneyInput } = useMoney()
   const [subject, setSubject] = React.useState(item.subject)
   const [amount, setAmount] = React.useState(moneyInput(item.amountCents))
   const [error, setError] = React.useState<string | null>(null)

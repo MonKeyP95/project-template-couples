@@ -3,7 +3,7 @@
 import * as React from "react"
 
 import { useCurrency } from "@/components/currency-context"
-import { money } from "@/lib/money"
+import { useMoney } from "@/components/money-context"
 import {
   byPlaceLines,
   expensePlaceKey,
@@ -56,6 +56,7 @@ function planDefaults(key: string): PlanDefaults {
 /** Spent-vs-plan per place: Before you go, each place, Trip-wide.
  * Tap a row to fix its planned lines and spending in place. */
 export function BudgetByPlace(props: Props) {
+  const { money } = useMoney()
   const { currency } = useCurrency()
   const [open, setOpen] = React.useState<string | null>(null)
   const fmt = (cents: number) => money(cents, currency)

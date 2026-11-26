@@ -15,7 +15,7 @@ import {
   type Expense,
   type ExpenseCategoryRow,
 } from "@/lib/trips/expense-types"
-import { currencySymbol, money, moneyInput } from "@/lib/money"
+import { useMoney } from "@/components/money-context"
 import { useCurrency } from "@/components/currency-context"
 import { useExpenseSaved } from "@/components/close-on-expense-saved"
 
@@ -100,6 +100,7 @@ function LedgerRowView({
   receipts: Receipt[]
   onEdit: () => void
 }) {
+  const { money } = useMoney()
   const [openReceiptId, setOpenReceiptId] = React.useState<string | null>(null)
   const { currency } = useCurrency()
   const [error, setError] = React.useState<string | null>(null)
@@ -257,6 +258,7 @@ export function LedgerRowEditor({
   onDone: () => void
   className?: string
 }) {
+  const { moneyInput, currencySymbol } = useMoney()
   const { currency } = useCurrency()
   const validCategory = categories.some((c) => c.name === expense.category)
   const defaultCategory =

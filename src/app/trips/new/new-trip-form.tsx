@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation"
 import { createTrip } from "@/lib/trips/actions"
 import { searchPinCandidates } from "@/lib/places/pin-actions"
 import type { PlaceMatch } from "@/lib/weather/geocode"
-import { currencySymbol } from "@/lib/money"
+import { useMoney } from "@/components/money-context"
 import { currencyForCountry } from "@/lib/fx/country-currency"
 import {
   prefillPrefs,
@@ -153,6 +153,7 @@ export function NewTripForm({
   /** The accepted home idea's row, marked when the trip is created. */
   ideaId: string | null
 }) {
+  const { currencySymbol } = useMoney()
   const router = useRouter()
   const symbol = currencySymbol(currency)
   const [initial] = React.useState(() =>

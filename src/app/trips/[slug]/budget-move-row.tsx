@@ -1,7 +1,7 @@
 "use client"
 
 import type { BudgetMove } from "@/lib/trips/location-budget-types"
-import { money } from "@/lib/money"
+import { useMoney } from "@/components/money-context"
 import { useCurrency } from "@/components/currency-context"
 
 const MONTH_SHORT = new Intl.DateTimeFormat("en-US", {
@@ -29,6 +29,7 @@ export function BudgetMoveRow({
   locationsById: Record<string, string>
   perspectiveLocationId?: string
 }) {
+  const { money } = useMoney()
   const { currency } = useCurrency()
   const fmt = (cents: number) => money(cents, currency)
   const nameOf = (id: string | null) =>

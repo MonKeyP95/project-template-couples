@@ -1,6 +1,6 @@
 "use client"
 
-import { currencySymbol } from "@/lib/money"
+import { useMoney } from "@/components/money-context"
 import { useCurrency } from "@/components/currency-context"
 
 import { PaidChip } from "./paid-chip"
@@ -92,6 +92,7 @@ export function PreTripStepBody({
   onRemove: (id: string) => void
   onTogglePaid: (id: string) => void
 }) {
+  const { currencySymbol } = useMoney()
   const { currency } = useCurrency()
   return (
     <>

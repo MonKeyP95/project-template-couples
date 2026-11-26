@@ -9,7 +9,7 @@ import {
 } from "@/lib/trips/actions"
 import { Avatar, Bar } from "@/components/together"
 import { type SavingsContribution } from "@/lib/trips/savings-types"
-import { money, moneyPlain, moneyRounded, currencySymbol } from "@/lib/money"
+import { useMoney } from "@/components/money-context"
 import { useCurrency } from "@/components/currency-context"
 import { LocalEquivalent } from "@/components/local-equivalent"
 import { PaceDenominator, PaceNote } from "@/components/budget-pace-strip"
@@ -36,6 +36,7 @@ function AmountField({
   /** When true, the field reads as a contribution ("+ … add") rather than a replace; the entered amount is passed through as-is. */
   additive?: boolean
 }) {
+  const { currencySymbol } = useMoney()
   const { currency } = useCurrency()
   const [editing, setEditing] = React.useState(false)
   const [value, setValue] = React.useState("")
@@ -148,6 +149,7 @@ export function SpentFigure({
   pace,
   dayProgress,
 }: SpentFigureProps) {
+  const { money, moneyPlain, currencySymbol } = useMoney()
   const { currency } = useCurrency()
   const fmt = (cents: number) => money(cents, currency)
   const hasPlanned = plannedBudgetCents > 0
@@ -246,6 +248,7 @@ export function PlannedRoom({
   plannedBudgetCents: number
   className?: string
 }) {
+  const { money } = useMoney()
   const { currency } = useCurrency()
   if (plannedBudgetCents <= 0 || plannedCents <= 0) return null
   const fmt = (cents: number) => money(cents, currency)
@@ -285,6 +288,7 @@ export function SavedFigure({
   members,
   currentPersonId,
 }: SavedFigureProps) {
+  const { money } = useMoney()
   const { currency } = useCurrency()
   const fmt = (cents: number) => money(cents, currency)
   const hasPlanned = plannedBudgetCents > 0
@@ -429,6 +433,7 @@ function MemberSavedBox({
   /** When false, adding (crediting someone else) asks for a confirm first. */
   isSelf: boolean
 }) {
+  const { money, moneyRounded, currencySymbol } = useMoney()
   const { currency } = useCurrency()
   const fmt = (cents: number) => money(cents, currency)
   const [editing, setEditing] = React.useState(false)
@@ -608,6 +613,7 @@ function SavingsLogRow({
   member: MemberToneEntry | undefined
   tripSlug: string
 }) {
+  const { money } = useMoney()
   const { currency } = useCurrency()
   const fmt = (cents: number) => money(cents, currency)
   const [error, setError] = React.useState<string | null>(null)

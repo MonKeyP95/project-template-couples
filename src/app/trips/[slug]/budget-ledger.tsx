@@ -19,7 +19,7 @@ import {
   type DayLocation,
 } from "@/lib/trips/location-budget-types"
 import { type ItineraryLocation } from "@/lib/trips/location-types"
-import { money } from "@/lib/money"
+import { useMoney } from "@/components/money-context"
 import { useCurrency } from "@/components/currency-context"
 
 import { BudgetMoveRow } from "./budget-move-row"
@@ -46,6 +46,7 @@ function SavingsLedgerRow({
   member: MemberToneEntry | undefined
   tripSlug: string
 }) {
+  const { money } = useMoney()
   const { currency } = useCurrency()
   const date = savingDate(saving.createdAt)
   const [error, setError] = React.useState<string | null>(null)
@@ -172,6 +173,7 @@ export function Ledger({
   /** Card-friendly styling: soft top divider, transparent background. */
   bare?: boolean
 }) {
+  const { money } = useMoney()
   const [expanded, setExpanded] = React.useState(defaultExpanded)
   const { currency } = useCurrency()
   const dayMap = dayLocationMap(itineraryDays)

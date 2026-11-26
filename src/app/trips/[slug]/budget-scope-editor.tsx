@@ -13,7 +13,7 @@ import {
 import type { BudgetItem } from "@/lib/trips/budget-item-types"
 import type { ExpenseCategoryRow } from "@/lib/trips/expense-types"
 import { deviceToday } from "@/lib/time/today"
-import { moneyRounded } from "@/lib/money"
+import { useMoney } from "@/components/money-context"
 import { useCurrency } from "@/components/currency-context"
 
 import { AddCostBox, type CostDraft } from "./add-cost-box"
@@ -82,6 +82,7 @@ export function BudgetScopeEditor({
    * picker is hidden, and saves route to savePreTripItems so paid links live. */
   preTrip?: boolean
 }) {
+  const { moneyRounded } = useMoney()
   const { currency } = useCurrency()
   const fmt = (cents: number) => moneyRounded(cents, currency)
   const [rows, setRows] = React.useState<Row[]>(() =>

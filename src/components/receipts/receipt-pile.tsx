@@ -4,7 +4,7 @@ import * as React from "react"
 import { useRouter } from "next/navigation"
 
 import { Label } from "@/components/together"
-import { money } from "@/lib/money"
+import { useMoney } from "@/components/money-context"
 import { dayLabel } from "@/lib/trips/budget-pace"
 import type { Expense } from "@/lib/trips/expense-types"
 import { readReceipt } from "@/lib/trips/receipt-actions"
@@ -58,6 +58,7 @@ function PileCard({
   receiptExpenseIds: Set<string>
   nowMs: number
 }) {
+  const { money } = useMoney()
   const router = useRouter()
   const [open, setOpen] = React.useState(false)
   const [isPending, startTransition] = React.useTransition()
