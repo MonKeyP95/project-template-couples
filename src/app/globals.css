@@ -3,7 +3,7 @@
 @import "shadcn/tailwind.css";
 
 @custom-variant dark (&:is(.dark *));
-@custom-variant cartoon (&:is(.cartoon *));
+@custom-variant voyage (&:is(.voyage *));
 
 @theme inline {
   --color-background: var(--background);
@@ -202,9 +202,9 @@
   --sidebar-ring: oklch(0.72 0.08 200);
 }
 
-/* Cartoon ("Storybook island"): light-only, flat bright colours, ink lines,
+/* Voyage ("Storybook island"): light-only, flat bright colours, ink lines,
    hard offset shadows. Must stay after :root so equal specificity wins. */
-.cartoon {
+.voyage {
   color-scheme: light;
   --background: #fff4d6;
   --foreground: #172434;
@@ -270,19 +270,19 @@
 }
 
 /* Two-part selector so it beats the next/font class variables on <html>. */
-html.cartoon {
-  --font-sans: var(--font-cartoon);
-  --font-serif: var(--font-cartoon);
+html.voyage {
+  --font-sans: var(--font-voyage);
+  --font-serif: var(--font-voyage);
 }
 
 /* Drawn outlines. Unlayered on purpose: the `.border` utility lives in
    @layer utilities, which beats any lower layer regardless of specificity. */
-.cartoon .border {
+.voyage .border {
   border-width: 2.5px;
 }
 
 /* Hand-drawn wobble: uneven corners on bordered cards, not on form controls. */
-.cartoon :is(.rounded-lg, .rounded-xl, .rounded-2xl).border:not(input, select, textarea, button) {
+.voyage :is(.rounded-lg, .rounded-xl, .rounded-2xl).border:not(input, select, textarea, button) {
   border-radius: 14px 19px 12px 21px / 17px 12px 19px 14px;
 }
 
