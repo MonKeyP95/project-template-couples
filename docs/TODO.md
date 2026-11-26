@@ -16,7 +16,7 @@
   3. Note any spots that look too heavy; they get toned down in a follow-up.
   4. Light and Dark unchanged.
 
-**Phone: Profile off the menu pill, reached from Home: implemented 2026-11-26 on `feat/phone-profile-from-home`; lint + `tsc` clean; unverified in app.** The phone pill is Home / Trip / Road (`MOBILE_NAV_ORDER`); Home has a person icon next to sign-out (phone only) linking to /profile; Manual is still linked from Profile. Desktop rail unchanged. In-app checks:
+**Phone: Profile off the menu pill, reached from Home: implemented 2026-11-26 on `feat/phone-profile-from-home`; lint + `tsc` clean; `pnpm build` passes; verified in-app 2026-11-26; merged #172.** The phone pill is Home / Trip / Road (`MOBILE_NAV_ORDER`); Home has a person icon next to sign-out (phone only) linking to /profile; Manual is still linked from Profile. Desktop rail unchanged. In-app checks:
   1. Phone: the bottom pill shows Home, Trip (and Road during a trip); no Profile.
   2. Phone, Home: a person icon sits left of the sign-out icon at the top right; tapping it opens Profile.
   3. Profile still links to the Manual.
