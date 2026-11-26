@@ -79,15 +79,17 @@ export function BudgetMini({
   plannedCents,
   topCategories,
   currency,
+  locale,
 }: {
   spentCents: number
   savedCents: number
   plannedCents: number
   topCategories: { name: string; cents: number }[]
   currency: string
+  locale: string
 }) {
   const of = (cents: number) =>
-    `${moneyRounded(cents, currency)} / ${moneyRounded(plannedCents, currency)}`
+    `${moneyRounded(cents, currency, locale)} / ${moneyRounded(plannedCents, currency, locale)}`
   return (
     <>
       <MiniRow label="Spent" value={of(spentCents)} />
@@ -98,7 +100,7 @@ export function BudgetMini({
         <p className="text-[12px] text-muted-foreground">
           Biggest:{" "}
           {topCategories
-            .map((c) => `${c.name} ${moneyRounded(c.cents, currency)}`)
+            .map((c) => `${c.name} ${moneyRounded(c.cents, currency, locale)}`)
             .join(" · ")}
         </p>
       ) : null}

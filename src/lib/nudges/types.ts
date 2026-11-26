@@ -26,6 +26,8 @@ export type NearDailyCapContext = {
   spentTodayCents: number
   /** The trip's reporting currency; both figures are home amounts. */
   currency: string
+  /** Number locale for the figures in the text. */
+  locale: string
 }
 
 export type UnloggedDaysContext = {

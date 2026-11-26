@@ -3,14 +3,15 @@ import type {
   JournalLocation,
   JournalRecord,
 } from "@/lib/journal/journal-types"
-import { moneyRounded } from "@/lib/money"
+import { getMoney } from "@/lib/money-server"
 
 function span(loc: JournalLocation): string {
   if (!loc.startDate || !loc.endDate) return ""
   return ` · ${loc.startDate} – ${loc.endDate}`
 }
 
-function ExpenseLine({ e, currency }: { e: JournalExpense; currency: string }) {
+async function ExpenseLine({ e, currency }: { e: JournalExpense; currency: string }) {
+  const { moneyRounded } = await getMoney()
   return (
     <div className="flex items-baseline justify-between gap-2 font-mono text-[11px]">
       <span className="text-muted-foreground">
@@ -24,7 +25,7 @@ function ExpenseLine({ e, currency }: { e: JournalExpense; currency: string }) {
 function settleUpLine(
   record: JournalRecord,
   memberNames: Record<string, string>,
-  currency: string,
+  fmt: (cents: number) => string,
 ): string {
   const s = record.totals.settleUp
   if (!s.creditorUserId || !s.debtorUserId || s.netBalanceCents === 0) {
@@ -32,10 +33,10 @@ function settleUpLine(
   }
   const debtor = memberNames[s.debtorUserId] ?? "Someone"
   const creditor = memberNames[s.creditorUserId] ?? "Someone"
-  return `${debtor} owes ${creditor} ${moneyRounded(Math.abs(s.netBalanceCents), currency)}`
+  return `${debtor} owes ${creditor} ${fmt(Math.abs(s.netBalanceCents))}`
 }
 
-export function TripJournal({
+export async function TripJournal({
   record,
   memberNames,
   currency,
@@ -44,6 +45,7 @@ export function TripJournal({
   memberNames: Record<string, string>
   currency: string
 }) {
+  const { moneyRounded } = await getMoney()
   return (
     <div>
       <p className="mt-4 font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
@@ -136,7 +138,7 @@ export function TripJournal({
         <div className="flex items-baseline justify-between gap-2 font-mono text-[11px]">
           <span className="text-muted-foreground">Settle up</span>
           <span className="text-muted-foreground">
-            {settleUpLine(record, memberNames, currency)}
+            {settleUpLine(record, memberNames, (c) => moneyRounded(c, currency))}
           </span>
         </div>
       </div>

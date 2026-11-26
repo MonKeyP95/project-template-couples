@@ -1,10 +1,10 @@
-import { moneyRounded } from "@/lib/money"
+import { getMoney } from "@/lib/money-server"
 import type { TripBudgetSummary } from "@/lib/trips/budget-history-types"
 
 function variance(
   actualCents: number,
   plannedCents: number,
-  currency: string,
+  fmt: (cents: number) => string,
 ) {
   const v = actualCents - plannedCents
   const over = v > 0
@@ -12,22 +12,24 @@ function variance(
     v === 0
       ? "on plan"
       : over
-        ? `+${moneyRounded(v, currency)} over`
-        : `${moneyRounded(-v, currency)} under`
+        ? `+${fmt(v)} over`
+        : `${fmt(-v)} under`
   return { over, label }
 }
 
-export function TripBudget({
+export async function TripBudget({
   summary,
   currency,
 }: {
   summary: TripBudgetSummary
   currency: string
 }) {
+  const { moneyRounded } = await getMoney()
+  const fmt = (cents: number) => moneyRounded(cents, currency)
   const total = variance(
     summary.totalActualCents,
     summary.totalPlannedCents,
-    currency,
+    fmt,
   )
   return (
     <div>
@@ -36,7 +38,7 @@ export function TripBudget({
       </p>
       <div className="mt-2 flex flex-col gap-1.5">
         {summary.categories.map((c) => {
-          const v = variance(c.actualCents, c.plannedCents, currency)
+          const v = variance(c.actualCents, c.plannedCents, fmt)
           return (
             <div
               key={c.category}

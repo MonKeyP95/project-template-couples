@@ -4,7 +4,7 @@ import { MapPin } from "lucide-react"
 import { Bar, Label } from "@/components/together"
 import { BoxCard, BoxSection } from "@/components/collapsible-box"
 import { CloseOnExpenseSaved } from "@/components/close-on-expense-saved"
-import { moneyRounded } from "@/lib/money"
+import { getMoney } from "@/lib/money-server"
 import { daySummary, type ItineraryDay } from "@/lib/trips/itinerary-types"
 import type { LookingAhead } from "@/lib/trips/looking-ahead"
 import { AddTodayEvent } from "./add-today-event"
@@ -39,7 +39,7 @@ export function RoadHeaderLine({
 }
 
 /** Today's spend against today's share of the budget; opens to the expense form. */
-export function MoneyCard({
+export async function MoneyCard({
   spentTodayCents,
   dayBudgetCents,
   currency,
@@ -51,6 +51,7 @@ export function MoneyCard({
   currency: string
   children: ReactNode
 }) {
+  const { moneyRounded } = await getMoney()
   const planned = dayBudgetCents ?? 0
   const over = planned > 0 && spentTodayCents > planned
   const pct = planned > 0 ? Math.round((spentTodayCents / planned) * 100) : 0

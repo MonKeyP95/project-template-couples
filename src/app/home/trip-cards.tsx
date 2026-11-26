@@ -10,7 +10,7 @@ import {
   TopoBg,
 } from "@/components/together"
 import { FlipCountdown } from "@/components/flip-countdown"
-import { moneyRounded } from "@/lib/money"
+import { getMoney } from "@/lib/money-server"
 import type { TripListItem } from "@/lib/trips/list-queries"
 import { slugToTone, type CardTone } from "@/lib/trips/slug-tone"
 import { type Weather } from "@/lib/weather/get-weather"
@@ -62,7 +62,7 @@ function formatCoord(lat: number | null, lng: number | null): string | null {
 }
 
 /** One thin bar with its amount-of-budget figure and percentage label. */
-function MiniBar({
+async function MiniBar({
   amount,
   planned,
   tone,
@@ -75,6 +75,7 @@ function MiniBar({
   label: string
   currency: string
 }) {
+  const { moneyRounded } = await getMoney()
   const pct = Math.min(100, Math.round((amount / planned) * 100))
   return (
     <div className="flex items-center gap-2">
@@ -321,7 +322,7 @@ export function PastChip({ trip }: { trip: TripListItem }) {
 }
 
 /** Saving and budget for a dream tile, whichever of the two exists. */
-function dreamMoney(trip: TripListItem): string {
+function dreamMoney(trip: TripListItem, moneyRounded: (cents: number, currency: string) => string): string {
   const saved = moneyRounded(trip.savedCents, trip.currency)
   const budget = moneyRounded(trip.plannedBudgetCents, trip.currency)
   if (trip.plannedBudgetCents > 0) return `${saved} saved of ${budget}`
@@ -331,9 +332,10 @@ function dreamMoney(trip: TripListItem): string {
 
 /** Three-line dream tile on the trip's tint: name and fuzzy "when", the
  * country, then saving and budget. */
-export function DreamTile({ trip }: { trip: TripListItem }) {
+export async function DreamTile({ trip }: { trip: TripListItem }) {
+  const { moneyRounded } = await getMoney()
   const tone = slugToTone(trip.slug)
-  const money = dreamMoney(trip)
+  const money = dreamMoney(trip, moneyRounded)
   return (
     <Link
       href={`/trips/${trip.slug}`}
