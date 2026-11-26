@@ -1,4 +1,6 @@
+import Link from "next/link"
 import { redirect } from "next/navigation"
+import { UserRound } from "lucide-react"
 
 import { InviteCard } from "@/components/invite-card"
 import { ThemeToggle } from "@/components/theme-toggle"
@@ -144,6 +146,13 @@ export default async function HomePage() {
               ) : null}
             </div>
           </div>
+          <Link
+            href="/profile"
+            aria-label="Profile"
+            className="flex items-center pt-1 text-muted-foreground hover:text-foreground lg:hidden"
+          >
+            <UserRound className="size-4" strokeWidth={1.75} />
+          </Link>
           <SignOutButton className="flex items-center pt-1 text-muted-foreground hover:text-foreground lg:hidden" />
         </div>
       </section>
