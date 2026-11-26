@@ -15,6 +15,7 @@ import { useMoney } from "@/components/money-context"
 import { deviceToday } from "@/lib/time/today"
 
 import { DetailLine, DetailList, NOTE_CLASS, displayName } from "./budget-detail-parts"
+import { parseAmount } from "@/lib/money"
 
 /** Where a new planned line goes; no category means the form shows a picker. */
 export interface PlanDefaults {
@@ -42,7 +43,7 @@ const SAVE_BUTTON =
 
 /** Cents from an amount field, or null when it isn't a non-negative number. */
 function parseCents(value: string): number | null {
-  const n = Number(value)
+  const n = parseAmount(value)
   return value.trim() !== "" && Number.isFinite(n) && n >= 0 ? Math.round(n * 100) : null
 }
 

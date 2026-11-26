@@ -97,7 +97,7 @@ export function NotePage({
           <span className="text-[20px] text-muted-foreground">{symbol}</span>
           <input
             type="text"
-            inputMode="numeric"
+            inputMode="decimal"
             value={draft.budget}
             onChange={(e) => onEdit("budget", e.target.value.replace(/\D/g, ""))}
             placeholder="2000"

@@ -7,6 +7,7 @@ import { currencyOptions } from "@/lib/fx/currency-list"
 import { inverseRate, toHomeCents } from "@/lib/fx/convert"
 import { useMoney } from "@/components/money-context"
 import { cn } from "@/lib/utils"
+import { parseAmount } from "@/lib/money"
 
 export interface CurrencyChipProps {
   /** The currency the amount is being entered in. */
@@ -65,7 +66,7 @@ export function CurrencyChip({
   if (value === currency && near.length === 1 && rest.length === 0) return null
 
   const foreignPerHome = rates?.[value]
-  const amountNum = Number(amount)
+  const amountNum = parseAmount(amount)
   const previewCents =
     value !== currency &&
     foreignPerHome &&

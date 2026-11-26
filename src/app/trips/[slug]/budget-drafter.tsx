@@ -50,12 +50,13 @@ import {
   type StepPlace,
 } from "./budget-drafter-steps"
 import { toolbarPill } from "./toolbar-pill"
+import { parseAmount } from "@/lib/money"
 
 /** stepIndex value for edit mode's heading list. */
 const LIST = -1
 
 function asCents(value: string): number {
-  const n = Number(value)
+  const n = parseAmount(value)
   return Number.isFinite(n) && n > 0 ? Math.round(n * 100) : 0
 }
 
@@ -951,9 +952,8 @@ export function BudgetDrafter({
           <span className="inline-flex items-baseline gap-1">
             <span className="font-mono text-[12px] text-muted-foreground">{currencySymbol(currency)}</span>
             <input
-              type="number"
-              inputMode="numeric"
-              min={0}
+              type="text"
+              inputMode="decimal"
               placeholder="0"
               value={row.value}
               onChange={(e) => editValue(bucketId, row.id, e.target.value)}
@@ -1246,9 +1246,8 @@ export function BudgetDrafter({
                     <span className="inline-flex items-baseline gap-1">
                       <span className="font-mono text-[12px] text-muted-foreground">{currencySymbol(currency)}</span>
                       <input
-                        type="number"
-                        inputMode="numeric"
-                        min={0}
+                        type="text"
+                        inputMode="decimal"
                         placeholder="0"
                         value={row.value}
                         onChange={(e) => patchItem(key, row.id, { value: e.target.value })}
@@ -1332,9 +1331,8 @@ export function BudgetDrafter({
                     </span>
                     <span className="font-mono text-[12px] text-muted-foreground">{currencySymbol(currency)}</span>
                     <input
-                      type="number"
-                      inputMode="numeric"
-                      min={0}
+                      type="text"
+                      inputMode="decimal"
                       placeholder="add"
                       value={row.value}
                       onChange={(e) => editValue(bucketId, row.id, e.target.value)}
@@ -1346,9 +1344,8 @@ export function BudgetDrafter({
                   <span className="inline-flex items-baseline gap-1">
                     <span className="font-mono text-[12px] text-muted-foreground">{currencySymbol(currency)}</span>
                     <input
-                      type="number"
-                      inputMode="numeric"
-                      min={0}
+                      type="text"
+                      inputMode="decimal"
                       placeholder="0"
                       value={row.value}
                       onChange={(e) => editValue(bucketId, row.id, e.target.value)}

@@ -15,6 +15,7 @@ import { LocalEquivalent } from "@/components/local-equivalent"
 import { PaceDenominator, PaceNote } from "@/components/budget-pace-strip"
 import type { BudgetPace } from "@/lib/trips/budget-pace"
 import type { MemberToneEntry } from "./packing-tab"
+import { parseAmount } from "@/lib/money"
 
 function Cue({ label }: { label: string }) {
   return (
@@ -59,7 +60,7 @@ function AmountField({
   function submit(e: React.FormEvent) {
     e.preventDefault()
     if (isPending) return
-    const num = Number(value)
+    const num = parseAmount(value)
     if (!Number.isFinite(num) || num < 0) {
       setError("Enter a valid amount.")
       return
@@ -104,9 +105,8 @@ function AmountField({
       </span>
       <input
         ref={inputRef}
-        type="number"
-        inputMode="numeric"
-        min={0}
+        type="text"
+        inputMode="decimal"
         value={value}
         onChange={(e) => setValue(e.target.value)}
         disabled={isPending}
@@ -471,7 +471,7 @@ function MemberSavedBox({
   function submit(e: React.FormEvent) {
     e.preventDefault()
     if (isPending) return
-    const num = Number(value)
+    const num = parseAmount(value)
     if (!Number.isFinite(num) || num <= 0) {
       setError("Enter a valid amount.")
       return
@@ -505,13 +505,13 @@ function MemberSavedBox({
       <div className="rounded-lg border border-foreground/30 bg-card px-3.5 py-3">
         {header}
         <div className="mt-1 text-[12px] leading-snug text-foreground">
-          Add {moneyRounded(Number(value) * 100, currency)} to{" "}
+          Add {moneyRounded(parseAmount(value) * 100, currency)} to{" "}
           {member.displayName}?
         </div>
         <div className="mt-2 flex items-center gap-1.5">
           <button
             type="button"
-            onClick={() => commit(Math.round(Number(value) * 100))}
+            onClick={() => commit(Math.round(parseAmount(value) * 100))}
             disabled={isPending}
             className="rounded-full border-0 bg-sea px-2.5 py-1 font-mono text-[9px] uppercase tracking-[0.2em] text-background disabled:opacity-40"
           >
@@ -552,9 +552,8 @@ function MemberSavedBox({
           </span>
           <input
             ref={inputRef}
-            type="number"
-            inputMode="numeric"
-            min={0}
+            type="text"
+            inputMode="decimal"
             value={value}
             onChange={(e) => setValue(e.target.value)}
             disabled={isPending}

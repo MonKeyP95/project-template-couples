@@ -18,6 +18,7 @@ import { useCurrency } from "@/components/currency-context"
 
 import { AddCostBox, type CostDraft } from "./add-cost-box"
 import { PRE_TRIP_CATEGORY } from "./budget-drafter-pretrip"
+import { parseAmount } from "@/lib/money"
 
 const CATEGORIES = [
   "Accommodation",
@@ -48,7 +49,7 @@ interface Row {
 }
 
 function asCents(value: string): number {
-  const n = Number(value)
+  const n = parseAmount(value)
   return Number.isFinite(n) && n > 0 ? Math.round(n * 100) : 0
 }
 
@@ -356,8 +357,8 @@ export function BudgetScopeEditor({
                       </>
                     ) : null}
                     <input
-                      type="number"
-                      inputMode="numeric"
+                      type="text"
+                      inputMode="decimal"
                       value={r.value}
                       onChange={(e) => patchValue(r.id, e.target.value)}
                       onKeyDown={onCostKeyDown}

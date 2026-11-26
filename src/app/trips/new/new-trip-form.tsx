@@ -23,6 +23,7 @@ import {
 } from "@/lib/trips/idea-route"
 import { NotePage } from "./note-page"
 import { PrefsPage } from "./prefs-page"
+import { parseAmount } from "@/lib/money"
 
 export interface TripDraft {
   note: string
@@ -236,7 +237,7 @@ export function NewTripForm({
         startDate: draft.start || null,
         endDate: draft.end || null,
         days: draft.days || null,
-        budget: Number(draft.budget) || 0,
+        budget: parseAmount(draft.budget) || 0,
         budgetPeriod: draft.budgetPeriod,
         place: draft.unsure ? null : draft.place,
         pin: pinMatches ? pin : null,
