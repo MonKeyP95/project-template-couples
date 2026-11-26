@@ -9,19 +9,19 @@ const ONE_YEAR_SECONDS = 60 * 60 * 24 * 365
 const OPTIONS: { value: Theme; label: string }[] = [
   { value: "light", label: "Light" },
   { value: "dark", label: "Dark" },
-  { value: "cartoon", label: "Cartoon" },
+  { value: "voyage", label: "Voyage" },
 ]
 
 /** Swaps the theme class on <html> and persists the choice in the cookie. */
 function applyTheme(next: Theme) {
   const root = document.documentElement.classList
-  root.remove("dark", "cartoon")
+  root.remove("dark", "voyage")
   if (next !== "light") root.add(next)
   document.cookie = `${THEME_COOKIE}=${next}; path=/; max-age=${ONE_YEAR_SECONDS}; samesite=lax`
 }
 
 /**
- * Light / Dark / Cartoon picker. Applies the theme instantly; the cookie makes
+ * Light / Dark / Voyage picker. Applies the theme instantly; the cookie makes
  * the next server render match, so hydration is stable.
  */
 export function ThemeToggle({ initialTheme }: { initialTheme: Theme }) {

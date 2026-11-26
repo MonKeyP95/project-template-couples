@@ -7,7 +7,7 @@ import {
 } from "next/font/google"
 import "./globals.css"
 
-import { CartoonSceneBg, WorldMapBg } from "@/components/together"
+import { VoyageSceneBg, WorldMapBg } from "@/components/together"
 import { TimezoneCookie } from "@/components/timezone-cookie"
 import { AiModeProvider } from "@/components/ai-mode"
 import { getTheme } from "@/lib/theme"
@@ -34,8 +34,8 @@ const mono = IBM_Plex_Mono({
   display: "swap",
 })
 
-const cartoon = Fredoka({
-  variable: "--font-cartoon",
+const voyage = Fredoka({
+  variable: "--font-voyage",
   subsets: ["latin"],
   weight: ["400", "500", "600", "700"],
   display: "swap",
@@ -56,7 +56,7 @@ export default async function RootLayout({
   return (
     <html
       lang="en"
-      className={`${sans.variable} ${serif.variable} ${mono.variable} ${cartoon.variable} h-full antialiased${theme === "light" ? "" : ` ${theme}`}`}
+      className={`${sans.variable} ${serif.variable} ${mono.variable} ${voyage.variable} h-full antialiased${theme === "light" ? "" : ` ${theme}`}`}
       suppressHydrationWarning
     >
       <body
@@ -64,8 +64,8 @@ export default async function RootLayout({
         suppressHydrationWarning
       >
         <TimezoneCookie />
-        <WorldMapBg className="fixed inset-0 -z-10 text-foreground/[0.07] cartoon:hidden" />
-        <CartoonSceneBg className="fixed inset-0 -z-10 hidden cartoon:block" />
+        <WorldMapBg className="fixed inset-0 -z-10 text-foreground/[0.07] voyage:hidden" />
+        <VoyageSceneBg className="fixed inset-0 -z-10 hidden voyage:block" />
         <AiModeProvider initialEnabled={false}>
           {children}
         </AiModeProvider>

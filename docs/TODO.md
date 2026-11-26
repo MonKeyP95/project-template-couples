@@ -4,6 +4,12 @@
 
 **Next up: work on the AI itinerary planner** (`itinerary-planner` agent, `src/lib/ai/agents/`). Noted 2026-11-03.
 
+**Cartoon renamed Voyage, plus a canoe: implemented 2026-11-26 on `feat/voyage-theme`; lint + `tsc` clean; `pnpm build` passes; verified in-app 2026-11-26; merged #173; no migration.** The third theme is "Voyage" everywhere (picker label, cookie value `voyage`, `.voyage` class, `voyage:` variant, `VoyageSceneBg`); a saved `cartoon` cookie now falls back to Light once. A small sailing canoe of our own drawing (coral hull, crab-claw sail with a coral band of dark triangles) rides the bottom wave strip; it lives inside the strip SVG so it scales with the waves, and the strip is as tall as the drawing needs (`max(9rem, 9.6vw)`) so the sail never crops. In-app checks:
+  1. Picker reads Light / Dark / Voyage; picking Voyage looks as Cartoon did, plus the canoe.
+  2. Phone: the canoe sits on the waves at the bottom right of centre, hull visible, waves lapping its bottom; the sail pattern is visible.
+  3. Desktop: the canoe is right of centre on the waves; the strip is not taller than before in a way that crowds content.
+  4. Your saved theme (if it was Cartoon) shows Light once; pick Voyage again.
+
 **Cartoon theme: implemented 2026-11-25 on `feat/cartoon-theme`; lint + `tsc` clean; `pnpm build` passes (step 1); step 1 verified in-app 2026-11-25; step 2 + low-wave fix verified in-app 2026-11-26; merged #170, #171; no migration.** Spec `docs/superpowers/specs/2026-11-25-cartoon-theme-design.md`. A third theme, Cartoon ("Storybook island"), beside Light and Dark: the theme cookie is `light | dark | cartoon` (`getTheme()`), the switch is a Light / Dark / Cartoon picker on Home and in the side menu, and `.cartoon` in `globals.css` swaps colours, hard ink shadows, Fredoka font (mono unchanged) and a drawn sky/sun/wave/sand backdrop for the world map. Step 2: every `.border` box is 2.5px ink, bordered cards get uneven wobbly corners. Follow-up (`fix/cartoon-scene-low-wave`): the scene is sky full-screen, sun in the top-right corner, and the lagoon/sand a thin strip pinned to the bottom, because the old wave line at ~40% height cut through forms and hid blue buttons (seen on /signin screenshots). In-app checks (step 2):
   1. Cartoon: cards, pills and inputs have thick ink outlines and hard shadows; cards have slightly uneven corners, inputs and buttons do not.
   2. Text sitting directly on the sky is readable.
