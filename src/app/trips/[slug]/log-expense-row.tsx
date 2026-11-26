@@ -22,6 +22,7 @@ import { DivideDaysPicker } from "./divide-days-picker"
 import { ExpenseFields } from "./expense-fields"
 import type { MemberToneEntry } from "./packing-tab"
 import type { ItineraryLocation } from "@/lib/trips/location-types"
+import { parseAmount } from "@/lib/money"
 
 export interface LogExpenseRowProps {
   tripId: string
@@ -127,7 +128,7 @@ export function LogExpenseRow({
     e.preventDefault()
     if (isPending || readingReceipt) return
     const trimmedTitle = title.trim()
-    const amountNum = Number(amount)
+    const amountNum = parseAmount(amount)
     if (!trimmedTitle) return
     if (!Number.isFinite(amountNum) || amountNum <= 0) return
 
@@ -174,8 +175,8 @@ export function LogExpenseRow({
 
   const canSubmit =
     title.trim().length > 0 &&
-    Number.isFinite(Number(amount)) &&
-    Number(amount) > 0 &&
+    Number.isFinite(parseAmount(amount)) &&
+    parseAmount(amount) > 0 &&
     divideDays?.length !== 0
 
   return (

@@ -1,7 +1,7 @@
 "use client"
 
 import { inverseRate, toHomeCents } from "@/lib/fx/convert"
-import { money } from "@/lib/money"
+import { useMoney } from "@/components/money-context"
 
 import { useCurrency } from "./currency-context"
 
@@ -24,6 +24,7 @@ export function LocalEquivalent({
   homeCents: number
   className?: string
 }) {
+  const { money } = useMoney()
   const { currency, spendCurrency, rates } = useCurrency()
   if (spendCurrency === currency) return null
   const foreignPerHome = rates?.[spendCurrency]

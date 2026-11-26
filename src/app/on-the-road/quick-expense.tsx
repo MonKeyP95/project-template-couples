@@ -13,6 +13,7 @@ import type { ItineraryEvent } from "@/lib/trips/itinerary-types"
 import { useCurrency } from "@/components/currency-context"
 import { useExpenseSaved } from "@/components/close-on-expense-saved"
 import { CurrencyChip } from "@/app/trips/[slug]/currency-chip"
+import { parseAmount } from "@/lib/money"
 
 export interface QuickExpenseProps {
   tripId: string
@@ -69,8 +70,8 @@ export function QuickExpense({
 
   const canSubmit =
     name.trim().length > 0 &&
-    Number.isFinite(Number(amount)) &&
-    Number(amount) > 0
+    Number.isFinite(parseAmount(amount)) &&
+    parseAmount(amount) > 0
 
   function submit(e: React.FormEvent) {
     e.preventDefault()

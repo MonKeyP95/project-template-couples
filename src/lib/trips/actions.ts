@@ -57,6 +57,7 @@ import {
   cleanTripProfile,
   type TripProfile,
 } from "@/lib/trips/trip-profile-types"
+import { parseAmount } from "@/lib/money"
 
 export interface ToggleResult {
   error?: string
@@ -286,7 +287,7 @@ export async function logExpense(
   const title = input.title.trim()
   if (!title) return { error: "Title required." }
 
-  const amountNum = Number(input.amount)
+  const amountNum = parseAmount(input.amount)
   if (!Number.isFinite(amountNum) || amountNum <= 0) {
     return { error: "Amount must be greater than zero." }
   }
@@ -448,7 +449,7 @@ export async function partialSettleUp(
   tripSlug: string,
   amount: string,
 ): Promise<PartialSettleResult> {
-  const amountNum = Number(amount)
+  const amountNum = parseAmount(amount)
   if (!Number.isFinite(amountNum) || amountNum <= 0) {
     return { error: "Amount must be greater than zero." }
   }
@@ -515,7 +516,7 @@ export async function updateExpense(
   const title = input.title.trim()
   if (!title) return { error: "Title required." }
 
-  const amountNum = Number(input.amount)
+  const amountNum = parseAmount(input.amount)
   if (!Number.isFinite(amountNum) || amountNum <= 0) {
     return { error: "Amount must be greater than zero." }
   }
@@ -552,7 +553,7 @@ export async function updateExpense(
   if (input.homeAmount !== null) {
     // The user typed what it really cost. That figure is the truth and the rate
     // is whatever reconciles the two -- card markup and fees included.
-    const homeNum = Number(input.homeAmount)
+    const homeNum = parseAmount(input.homeAmount)
     if (!Number.isFinite(homeNum) || homeNum <= 0) {
       return { error: "Home amount must be greater than zero." }
     }

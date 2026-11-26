@@ -1,9 +1,10 @@
 "use client"
 
-import { currencySymbol } from "@/lib/money"
+import { useMoney } from "@/components/money-context"
 import { useCurrency } from "@/components/currency-context"
 
 import { PaidChip } from "./paid-chip"
+import { parseAmount } from "@/lib/money"
 
 export const PRE_TRIP_CATEGORY = "Pre-trip"
 
@@ -92,6 +93,7 @@ export function PreTripStepBody({
   onRemove: (id: string) => void
   onTogglePaid: (id: string) => void
 }) {
+  const { currencySymbol } = useMoney()
   const { currency } = useCurrency()
   return (
     <>
@@ -137,9 +139,8 @@ export function PreTripStepBody({
                   {currencySymbol(currency)}
                 </span>
                 <input
-                  type="number"
-                  inputMode="numeric"
-                  min={0}
+                  type="text"
+                  inputMode="decimal"
                   placeholder="0"
                   value={row.value}
                   onChange={(e) => onPatch(row.id, { value: e.target.value })}
@@ -147,7 +148,7 @@ export function PreTripStepBody({
                   className="t-num w-16 border-0 border-b border-border bg-transparent text-right text-[14px] text-foreground outline-none focus:border-foreground"
                 />
               </span>
-              {row.serverId && Number(row.value) > 0 ? (
+              {row.serverId && parseAmount(row.value) > 0 ? (
                 <PaidChip
                   paid={row.paid}
                   disabled={disabled}

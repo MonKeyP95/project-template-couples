@@ -9,12 +9,13 @@ import {
 } from "@/lib/trips/actions"
 import { Avatar, Bar } from "@/components/together"
 import { type SavingsContribution } from "@/lib/trips/savings-types"
-import { money, moneyPlain, moneyRounded, currencySymbol } from "@/lib/money"
+import { useMoney } from "@/components/money-context"
 import { useCurrency } from "@/components/currency-context"
 import { LocalEquivalent } from "@/components/local-equivalent"
 import { PaceDenominator, PaceNote } from "@/components/budget-pace-strip"
 import type { BudgetPace } from "@/lib/trips/budget-pace"
 import type { MemberToneEntry } from "./packing-tab"
+import { parseAmount } from "@/lib/money"
 
 function Cue({ label }: { label: string }) {
   return (
@@ -36,6 +37,7 @@ function AmountField({
   /** When true, the field reads as a contribution ("+ … add") rather than a replace; the entered amount is passed through as-is. */
   additive?: boolean
 }) {
+  const { currencySymbol } = useMoney()
   const { currency } = useCurrency()
   const [editing, setEditing] = React.useState(false)
   const [value, setValue] = React.useState("")
@@ -58,7 +60,7 @@ function AmountField({
   function submit(e: React.FormEvent) {
     e.preventDefault()
     if (isPending) return
-    const num = Number(value)
+    const num = parseAmount(value)
     if (!Number.isFinite(num) || num < 0) {
       setError("Enter a valid amount.")
       return
@@ -103,9 +105,8 @@ function AmountField({
       </span>
       <input
         ref={inputRef}
-        type="number"
-        inputMode="numeric"
-        min={0}
+        type="text"
+        inputMode="decimal"
         value={value}
         onChange={(e) => setValue(e.target.value)}
         disabled={isPending}
@@ -148,6 +149,7 @@ export function SpentFigure({
   pace,
   dayProgress,
 }: SpentFigureProps) {
+  const { money, moneyPlain, currencySymbol } = useMoney()
   const { currency } = useCurrency()
   const fmt = (cents: number) => money(cents, currency)
   const hasPlanned = plannedBudgetCents > 0
@@ -246,6 +248,7 @@ export function PlannedRoom({
   plannedBudgetCents: number
   className?: string
 }) {
+  const { money } = useMoney()
   const { currency } = useCurrency()
   if (plannedBudgetCents <= 0 || plannedCents <= 0) return null
   const fmt = (cents: number) => money(cents, currency)
@@ -285,6 +288,7 @@ export function SavedFigure({
   members,
   currentPersonId,
 }: SavedFigureProps) {
+  const { money } = useMoney()
   const { currency } = useCurrency()
   const fmt = (cents: number) => money(cents, currency)
   const hasPlanned = plannedBudgetCents > 0
@@ -429,6 +433,7 @@ function MemberSavedBox({
   /** When false, adding (crediting someone else) asks for a confirm first. */
   isSelf: boolean
 }) {
+  const { money, moneyRounded, currencySymbol } = useMoney()
   const { currency } = useCurrency()
   const fmt = (cents: number) => money(cents, currency)
   const [editing, setEditing] = React.useState(false)
@@ -466,7 +471,7 @@ function MemberSavedBox({
   function submit(e: React.FormEvent) {
     e.preventDefault()
     if (isPending) return
-    const num = Number(value)
+    const num = parseAmount(value)
     if (!Number.isFinite(num) || num <= 0) {
       setError("Enter a valid amount.")
       return
@@ -500,13 +505,13 @@ function MemberSavedBox({
       <div className="rounded-lg border border-foreground/30 bg-card px-3.5 py-3">
         {header}
         <div className="mt-1 text-[12px] leading-snug text-foreground">
-          Add {moneyRounded(Number(value) * 100, currency)} to{" "}
+          Add {moneyRounded(parseAmount(value) * 100, currency)} to{" "}
           {member.displayName}?
         </div>
         <div className="mt-2 flex items-center gap-1.5">
           <button
             type="button"
-            onClick={() => commit(Math.round(Number(value) * 100))}
+            onClick={() => commit(Math.round(parseAmount(value) * 100))}
             disabled={isPending}
             className="rounded-full border-0 bg-sea px-2.5 py-1 font-mono text-[9px] uppercase tracking-[0.2em] text-background disabled:opacity-40"
           >
@@ -547,9 +552,8 @@ function MemberSavedBox({
           </span>
           <input
             ref={inputRef}
-            type="number"
-            inputMode="numeric"
-            min={0}
+            type="text"
+            inputMode="decimal"
             value={value}
             onChange={(e) => setValue(e.target.value)}
             disabled={isPending}
@@ -608,6 +612,7 @@ function SavingsLogRow({
   member: MemberToneEntry | undefined
   tripSlug: string
 }) {
+  const { money } = useMoney()
   const { currency } = useCurrency()
   const fmt = (cents: number) => money(cents, currency)
   const [error, setError] = React.useState<string | null>(null)

@@ -5,8 +5,9 @@ import * as React from "react"
 import { useCurrency } from "@/components/currency-context"
 import { currencyOptions } from "@/lib/fx/currency-list"
 import { inverseRate, toHomeCents } from "@/lib/fx/convert"
-import { money } from "@/lib/money"
+import { useMoney } from "@/components/money-context"
 import { cn } from "@/lib/utils"
+import { parseAmount } from "@/lib/money"
 
 export interface CurrencyChipProps {
   /** The currency the amount is being entered in. */
@@ -40,6 +41,7 @@ export function CurrencyChip({
   disabled,
   className = "flex-col gap-0.5",
 }: CurrencyChipProps) {
+  const { money } = useMoney()
   const { currency, spendCurrency, rates } = useCurrency()
   const [showAll, setShowAll] = React.useState(false)
 
@@ -64,7 +66,7 @@ export function CurrencyChip({
   if (value === currency && near.length === 1 && rest.length === 0) return null
 
   const foreignPerHome = rates?.[value]
-  const amountNum = Number(amount)
+  const amountNum = parseAmount(amount)
   const previewCents =
     value !== currency &&
     foreignPerHome &&

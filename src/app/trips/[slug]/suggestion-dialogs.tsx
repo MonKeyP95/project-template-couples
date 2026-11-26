@@ -2,7 +2,7 @@
 
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { moneyRounded } from "@/lib/money"
+import { useMoney } from "@/components/money-context"
 import type { SuggestionOption, TripSuggestion } from "@/lib/trips/suggestion-types"
 
 /** A big suggestion's options side by side (stacked on a phone); picking one
@@ -18,6 +18,7 @@ export function OptionsDialog({
   onPick: (o: SuggestionOption) => void
   onCancel: () => void
 }) {
+  const { moneyRounded } = useMoney()
   return (
     <Dialog open onOpenChange={(open) => !open && onCancel()}>
       <DialogContent className="sm:max-w-2xl">

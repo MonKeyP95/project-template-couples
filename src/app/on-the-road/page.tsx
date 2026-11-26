@@ -57,6 +57,7 @@ import { RoadPlaceDoor } from "./find-a-place"
 import { RoadNudge } from "./road-nudge"
 import { KeepCard, MoneyCard, RoadHeaderLine, TodayCard } from "./road-cards"
 import { documentsForDay } from "@/lib/trips/document-types"
+import { getMoney } from "@/lib/money-server"
 
 const WEEKDAY_FMT = new Intl.DateTimeFormat("en-GB", {
   weekday: "short",
@@ -102,6 +103,7 @@ export default async function OnTheRoadPage() {
     tripDays: computeTripDays(trip.startDate, trip.endDate),
     spentTodayCents,
     currency: trip.homeCurrency,
+    locale: (await getMoney()).locale,
   })
   const todayNotes = await getNotesForDay(trip.id, today)
   const dueNotes = await getDueNotes(trip.id)

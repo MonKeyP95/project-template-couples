@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation"
 import { createTrip } from "@/lib/trips/actions"
 import { searchPinCandidates } from "@/lib/places/pin-actions"
 import type { PlaceMatch } from "@/lib/weather/geocode"
-import { currencySymbol } from "@/lib/money"
+import { useMoney } from "@/components/money-context"
 import { currencyForCountry } from "@/lib/fx/country-currency"
 import {
   prefillPrefs,
@@ -23,6 +23,7 @@ import {
 } from "@/lib/trips/idea-route"
 import { NotePage } from "./note-page"
 import { PrefsPage } from "./prefs-page"
+import { parseAmount } from "@/lib/money"
 
 export interface TripDraft {
   note: string
@@ -153,6 +154,7 @@ export function NewTripForm({
   /** The accepted home idea's row, marked when the trip is created. */
   ideaId: string | null
 }) {
+  const { currencySymbol } = useMoney()
   const router = useRouter()
   const symbol = currencySymbol(currency)
   const [initial] = React.useState(() =>
@@ -235,7 +237,7 @@ export function NewTripForm({
         startDate: draft.start || null,
         endDate: draft.end || null,
         days: draft.days || null,
-        budget: Number(draft.budget) || 0,
+        budget: parseAmount(draft.budget) || 0,
         budgetPeriod: draft.budgetPeriod,
         place: draft.unsure ? null : draft.place,
         pin: pinMatches ? pin : null,

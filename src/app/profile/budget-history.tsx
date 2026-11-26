@@ -2,7 +2,7 @@
 
 import * as React from "react"
 
-import { moneyRounded } from "@/lib/money"
+import { useMoney } from "@/components/money-context"
 import type { CategoryHistory } from "@/lib/trips/budget-history-types"
 
 const MON_YEAR = new Intl.DateTimeFormat("en-GB", {
@@ -62,6 +62,7 @@ function CategoryRow({
   category: CategoryHistory
   currency: string
 }) {
+  const { moneyRounded } = useMoney()
   const fmt = (cents: number) => moneyRounded(cents, currency)
   const [open, setOpen] = React.useState(false)
   const phrase = variancePhrase(category.avgVariancePct)

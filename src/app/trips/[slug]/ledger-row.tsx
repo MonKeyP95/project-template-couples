@@ -15,7 +15,7 @@ import {
   type Expense,
   type ExpenseCategoryRow,
 } from "@/lib/trips/expense-types"
-import { currencySymbol, money, moneyInput } from "@/lib/money"
+import { useMoney } from "@/components/money-context"
 import { useCurrency } from "@/components/currency-context"
 import { useExpenseSaved } from "@/components/close-on-expense-saved"
 
@@ -25,6 +25,7 @@ import type { Receipt } from "@/lib/trips/receipt-types"
 import { ExpenseFields } from "./expense-fields"
 import type { MemberToneEntry } from "./packing-tab"
 import type { ItineraryLocation } from "@/lib/trips/location-types"
+import { parseAmount } from "@/lib/money"
 
 const ROW_DATE = new Intl.DateTimeFormat("en-GB", {
   day: "numeric",
@@ -100,6 +101,7 @@ function LedgerRowView({
   receipts: Receipt[]
   onEdit: () => void
 }) {
+  const { money } = useMoney()
   const [openReceiptId, setOpenReceiptId] = React.useState<string | null>(null)
   const { currency } = useCurrency()
   const [error, setError] = React.useState<string | null>(null)
@@ -257,6 +259,7 @@ export function LedgerRowEditor({
   onDone: () => void
   className?: string
 }) {
+  const { moneyInput, currencySymbol } = useMoney()
   const { currency } = useCurrency()
   const validCategory = categories.some((c) => c.name === expense.category)
   const defaultCategory =
@@ -291,8 +294,8 @@ export function LedgerRowEditor({
 
   const canSubmit =
     title.trim().length > 0 &&
-    Number.isFinite(Number(amount)) &&
-    Number(amount) > 0
+    Number.isFinite(parseAmount(amount)) &&
+    parseAmount(amount) > 0
 
   function submit(e: React.FormEvent) {
     e.preventDefault()

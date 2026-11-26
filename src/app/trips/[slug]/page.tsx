@@ -78,6 +78,7 @@ import { PackingMini } from "./packing-mini"
 import { BudgetMini, FolderMini, ItineraryMini, SideCard } from "./trip-side-cards"
 import { PackingTab } from "./packing-tab"
 import { memberToneMap } from "./member-tones"
+import { getMoney } from "@/lib/money-server"
 
 type TabId = "itinerary" | "packing" | "budget" | "notes"
 
@@ -164,6 +165,7 @@ export default async function TripPage({
   if (!workspace) notFound()
 
   const header = await getTripBySlug(workspace.id, slug)
+  const { locale } = await getMoney()
   if (!header) {
     // The slug may belong to another of the caller's workspaces — follow it
     // rather than 404ing on a bookmark saved before the last switch.
@@ -482,6 +484,7 @@ export default async function TripPage({
                 plannedCents={header.plannedBudgetCents}
                 topCategories={topCategories(expenses)}
                 currency={header.homeCurrency}
+                locale={locale}
               />
             </SideCard>
           ),

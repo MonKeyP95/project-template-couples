@@ -8,7 +8,7 @@ import { BoxCard, BoxSection } from "@/components/collapsible-box"
 import { FlipCountdown } from "@/components/flip-countdown"
 import { MobileHeaderNav, type NavDestination } from "@/components/app-nav"
 import { AssistantPill } from "@/components/ai-mode"
-import { moneyRounded } from "@/lib/money"
+import { getMoney } from "@/lib/money-server"
 import type { TripHeader } from "@/lib/trips/queries"
 
 export interface MobileTripProps {
@@ -141,13 +141,14 @@ function TripCard({ header, dateRange, dayCount, itinerary }: MobileTripProps) {
   )
 }
 
-function BudgetCard({
+async function BudgetCard({
   header,
   dayCount,
   spentCents,
   plannedLinesCents,
   budget,
 }: MobileTripProps) {
+  const { moneyRounded } = await getMoney()
   const planned = header.plannedBudgetCents
   const currency = header.homeCurrency
   // The bar measures against the budget, else the planned lines; with neither

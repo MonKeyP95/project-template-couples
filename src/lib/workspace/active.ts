@@ -1,3 +1,4 @@
+import { cache } from "react"
 import { cookies } from "next/headers"
 
 import { createClient } from "@/lib/supabase/server"
@@ -25,7 +26,7 @@ export interface ActiveMembership {
  * workspace-scoped read and write resolves through here, so a page and the
  * form on it can never disagree about which workspace they mean.
  */
-export async function resolveActiveMembership(): Promise<ActiveMembership | null> {
+export const resolveActiveMembership = cache(async (): Promise<ActiveMembership | null> => {
   const supabase = await createClient()
   const { data: userData } = await supabase.auth.getUser()
   if (!userData.user) return null
@@ -47,4 +48,4 @@ export async function resolveActiveMembership(): Promise<ActiveMembership | null
     role: row.role as "owner" | "member",
     workspace: row.workspaces as unknown as ActiveMembership["workspace"],
   }
-}
+})

@@ -20,7 +20,7 @@ import {
   type DayLocation,
 } from "@/lib/trips/location-budget-types"
 import { type ItineraryLocation } from "@/lib/trips/location-types"
-import { money } from "@/lib/money"
+import { useMoney } from "@/components/money-context"
 import { useCurrency } from "@/components/currency-context"
 import { LocalEquivalent } from "@/components/local-equivalent"
 
@@ -321,6 +321,7 @@ function SplitBreakdown({
   paidByUser: Record<string, number>
   settlementsByUser: Record<string, number>
 }) {
+  const { money } = useMoney()
   const { currency } = useCurrency()
   const fmt = (cents: number) => money(cents, currency)
   const entries = Object.entries(members)
@@ -390,6 +391,7 @@ function CompactSettle({
   tripSlug: string
   children?: React.ReactNode
 }) {
+  const { money } = useMoney()
   const { currency } = useCurrency()
   const fmt = (cents: number) => money(cents, currency)
   const owedCents = Math.abs(summary.netBalanceCents)
@@ -441,6 +443,7 @@ function SettlementHistory({
   expenses: Expense[]
   members: Record<string, MemberToneEntry>
 }) {
+  const { money } = useMoney()
   const { currency } = useCurrency()
   const fmt = (cents: number) => money(cents, currency)
   const settlements = expenses

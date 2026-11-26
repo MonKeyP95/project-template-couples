@@ -9,6 +9,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { parseAmount } from "@/lib/money"
 
 const labelClass =
   "block font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground"
@@ -55,7 +56,7 @@ export function AddCostBox({
 
   const typedCat = newCat?.trim() ?? ""
   const canAdd =
-    (subject.trim() !== "" || Number(value) > 0) &&
+    (subject.trim() !== "" || parseAmount(value) > 0) &&
     (newCat === null || typedCat !== "")
 
   async function add() {
@@ -113,8 +114,8 @@ export function AddCostBox({
         <label className="block w-16 shrink-0">
           <span className={labelClass}>Amount</span>
           <input
-            type="number"
-            inputMode="numeric"
+            type="text"
+            inputMode="decimal"
             value={value}
             onChange={(e) => setValue(e.target.value)}
             onKeyDown={onKeyDown}

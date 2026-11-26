@@ -10,10 +10,11 @@ import type { BudgetPeriod } from "@/lib/trips/budget-period"
 import { BudgetPeriodPicker } from "@/components/budget-period-picker"
 import { PinFinder } from "@/components/pin-finder"
 import type { PlaceMatch } from "@/lib/weather/geocode"
-import { currencySymbol } from "@/lib/money"
+import { useMoney } from "@/components/money-context"
 import { currencyForCountry } from "@/lib/fx/country-currency"
 import { type TripProfile } from "@/lib/trips/trip-profile-types"
 import { PREF_TOPICS } from "@/lib/trips/trip-note-parse"
+import { parseAmount } from "@/lib/money"
 
 const SLUG_RE = /^[a-z0-9-]+$/
 
@@ -66,6 +67,7 @@ export function EditTripForm({
   initial: EditTripInitial
   initialProfile: TripProfile
 }) {
+  const { currencySymbol, moneyInput } = useMoney()
   const router = useRouter()
   const [name, setName] = React.useState(initial.name)
   const [slug, setSlug] = React.useState(initial.slug)
@@ -80,7 +82,7 @@ export function EditTripForm({
   const [pin, setPin] = React.useState(initial.pin)
   const [idea, setIdea] = React.useState(initialProfile.idea)
   const [budget, setBudget] = React.useState(
-    initial.plannedBudgetCents ? String(initial.plannedBudgetCents / 100) : "",
+    initial.plannedBudgetCents ? moneyInput(initial.plannedBudgetCents) : "",
   )
   const [prefs, setPrefs] = React.useState({
     stay: initialProfile.stay,
@@ -149,7 +151,7 @@ export function EditTripForm({
         currency,
         homeCurrency,
         budgetPeriod,
-        plannedBudgetCents: Math.round((Number(budget) || 0) * 100),
+        plannedBudgetCents: Math.round((parseAmount(budget) || 0) * 100),
         pin,
         dayCount: isDream ? Number(days) || null : null,
         profile: { ...initialProfile, ...prefs, idea },
