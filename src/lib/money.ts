@@ -66,7 +66,7 @@ function formatter(
 export function money(
   cents: number,
   currency: string,
-  locale: string = DEFAULT_LOCALE,
+  locale: string,
 ): string {
   return formatter(currency, 2, locale).format(cents / 100)
 }
@@ -75,14 +75,14 @@ export function money(
 export function moneyRounded(
   cents: number,
   currency: string,
-  locale: string = DEFAULT_LOCALE,
+  locale: string,
 ): string {
   return formatter(currency, 0, locale).format(cents / 100)
 }
 
 /** Cents for an editable amount field, in the locale's decimal mark but with
  * no grouping: (123456, "da-DK") -> "1234,56". `parseAmount` reads it back. */
-export function moneyInput(cents: number, locale: string = DEFAULT_LOCALE): string {
+export function moneyInput(cents: number, locale: string): string {
   return new Intl.NumberFormat(locale, {
     useGrouping: false,
     maximumFractionDigits: 2,
@@ -106,7 +106,7 @@ export function parseAmount(text: string): number {
 export function moneyPlain(
   cents: number,
   currency: string,
-  locale: string = DEFAULT_LOCALE,
+  locale: string,
 ): string {
   const parts = formatter(currency, 2, locale).formatToParts(cents / 100)
   return parts
@@ -139,7 +139,7 @@ export function bindMoney(locale: string): MoneyFns {
 /** The bare symbol for an input prefix: "DKK" -> "kr", "THB" -> "฿". */
 export function currencySymbol(
   currency: string,
-  locale: string = DEFAULT_LOCALE,
+  locale: string,
 ): string {
   const part = formatter(currency, 2, locale)
     .formatToParts(0)

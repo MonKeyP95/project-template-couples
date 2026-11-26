@@ -53,9 +53,18 @@
 
 **Backlog from partner feedback (2026-11-25, not started):**
   - Suggestions/assistant think outside the box: profile likes are a start, not a fence; also suggest what people with similar tastes tend to like.
-  - `.` vs `,` in numbers from the profile (display and typing -- decide).
+  - ~~`.` vs `,` in numbers from the profile~~ -- implemented, see below.
   - Add an expense with no internet (offline queue; own design).
   - A currency once paid in via "other" joins the quick currency pills, so it isn't picked from the full list again.
+
+**Number format follows home country: implemented 2026-11-26 on `feat/number-format-locale`; lint + `tsc` clean; `pnpm build` passes; unverified in app.** Spec `docs/superpowers/specs/2026-11-26-number-format-home-country-design.md`. Amounts display in the workspace home country's style (Denmark -> `1.234,56 kr.`; blank/unknown -> today's en-GB). Amount fields accept `,` or `.` and open the decimal keyboard. In-app checks:
+  1. With home country "Denmark": trip budget, ledger, home cards, on-the-road cards and profile budget history show `1.234,56 kr.` style.
+  2. Add an expense typing `12,50`: Save is enabled and it saves as 12.50.
+  3. Edit that expense: the field shows `12,50`; saving unchanged keeps 12.50.
+  4. Budget drafter / add-cost / budget figures / edit-trip budget fields accept `12,50`; on a phone they open a keyboard with a decimal key.
+  5. Clear home country, save: numbers return to `kr 1,234.56` style.
+  6. Sign out and back in: numbers are in the Danish style without a manual reload.
+  7. Phone width: no amount wraps or overflows where it didn't before.
 
 **Ledger by day + category icons: implemented 2026-11-25 on `feat/ledger-by-day-icons`; lint + `tsc` clean; `pnpm build` passes; verified in-app 2026-11-25; merged #165.** Spec `docs/superpowers/specs/2026-11-25-ledger-by-day-category-icons-design.md`. The budget ledger is one box per day (`Wed 12 Mar` + day total), then Undated, then Savings & moves; rows show a coloured category icon instead of the date and category name. Category colour is now one rule (position in the trip's category list) for bars and icons. On the road, "Trip by category" rows show icons and the quick-expense category is a row of icon buttons. In-app checks:
   1. Budget ledger: one box per day, `Wed 12 Mar` header, day total on the right (settlements not counted).
