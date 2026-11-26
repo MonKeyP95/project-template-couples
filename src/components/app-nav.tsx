@@ -12,11 +12,11 @@ import type { CurrentWorkspace } from "@/lib/workspace/queries"
 export type NavKey = "home" | "on-the-road" | "checklists" | "trip" | "manual" | "profile"
 
 /**
- * Left-to-right order for the mobile menu pill. Excludes `checklists` (desktop-only:
- * mobile consumes them via packing's Import items) and `manual`, which is linked
- * from Profile so four items fit at phone width.
+ * Left-to-right order for the mobile menu pill: trip things only. Excludes
+ * `checklists` (desktop-only: mobile consumes them via packing's Import items),
+ * `profile` (an icon on Home) and `manual` (linked from Profile).
  */
-const MOBILE_NAV_ORDER: NavKey[] = ["home", "trip", "on-the-road", "profile"]
+const MOBILE_NAV_ORDER: NavKey[] = ["home", "trip", "on-the-road"]
 
 /** Posts to the existing /api/signout route, then redirects to the landing page. */
 export function SignOutButton({ className }: { className?: string }) {
@@ -178,7 +178,7 @@ export function MobileHeaderNav({
   )
 }
 
-/** Shorter labels so four items fit the pill at phone width. */
+/** Shorter labels so the items fit the pill at phone width. */
 const PILL_LABEL: Partial<Record<NavKey, string>> = { "on-the-road": "Road" }
 
 export function MobileNavPill({

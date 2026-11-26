@@ -10,7 +10,11 @@
   3. Note any spots that look too heavy; they get toned down in a follow-up.
   4. Light and Dark unchanged.
 
-**Next after cartoon: phone Profile moves from the menu pill to a person icon in the header row, next to sign-out** (pill becomes Home / Trip / Road; Manual is still reached via Profile).
+**Phone: Profile off the menu pill, reached from Home: implemented 2026-11-26 on `feat/phone-profile-from-home`; lint + `tsc` clean; unverified in app.** The phone pill is Home / Trip / Road (`MOBILE_NAV_ORDER`); Home has a person icon next to sign-out (phone only) linking to /profile; Manual is still linked from Profile. Desktop rail unchanged. In-app checks:
+  1. Phone: the bottom pill shows Home, Trip (and Road during a trip); no Profile.
+  2. Phone, Home: a person icon sits left of the sign-out icon at the top right; tapping it opens Profile.
+  3. Profile still links to the Manual.
+  4. Desktop: the left rail still lists Profile; no person icon on Home.
 
 **Ledger rows show their date, today first: implemented 2026-11-25 on `feat/ledger-row-date`; lint + `tsc` clean; verified in-app 2026-11-25; merged #169; no migration.** Each expense row's meta line starts with its date (`12 Mar`); undated rows show none. Day boxes run today and past newest first, then future days soonest first, then Undated (`groupByDay` takes `today`). In-app checks:
   1. Budget ledger: every dated row starts its second line with `{day} {mon}` before "paid by", matching its day box.
