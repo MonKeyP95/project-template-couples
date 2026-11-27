@@ -3,6 +3,8 @@
 import * as React from "react"
 import { useRouter } from "next/navigation"
 
+import { isOfflineCopy } from "@/lib/offline/offline-copy"
+
 /** setTimeout's ceiling (~24.8 days); a reminder further out waits for a normal reload. */
 const MAX_DELAY_MS = 2 ** 31 - 1
 
@@ -10,7 +12,8 @@ const MAX_DELAY_MS = 2 ** 31 - 1
 export function RefreshAtReminder({ at }: { at: string | null }) {
   const router = useRouter()
   React.useEffect(() => {
-    if (!at) return
+    // A stored offline copy keeps its old `at`; refreshing it would reload forever.
+    if (!at || isOfflineCopy()) return
     const delay = new Date(at).getTime() - Date.now()
     if (delay > MAX_DELAY_MS) return
     const timer = setTimeout(() => router.refresh(), Math.max(0, delay) + 1000)

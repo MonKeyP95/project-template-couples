@@ -4,6 +4,15 @@
 
 **Next up: work on the AI itinerary planner** (`itinerary-planner` agent, `src/lib/ai/agents/`). Noted 2026-11-03.
 
+**Offline on the road, step 1 (installable + opens offline): implemented 2026-11-27 on `feat/offline-installable`; lint + `tsc` clean; `pnpm build` passes; unverified in app.** Spec `docs/superpowers/specs/2026-11-27-offline-on-the-road-design.md`, plan `docs/superpowers/plans/2026-11-27-offline-on-the-road.md`. Manifest (start page on-the-road), icons, `public/sw.js` storing `/on-the-road`, sign-out clears the stored copy (`Clear-Site-Data`). Steps 2 (expense outbox) and 3 (notes/events) follow. In-app checks (Android Chrome):
+  1. Preview link: open on-the-road online, then airplane mode, reload: the screen shows (stale data is fine).
+  2. Offline, open home or a trip page: "No connection" with a link back to on the road.
+  3. After merge, on the live site: Chrome offers "Install app"; the installed icon opens on the on-the-road screen.
+  4. Installed app: online once, then airplane mode, close the app fully, reopen: the screen shows.
+  5. After the next deploy, opening online shows the new version.
+  6. Sign out, go offline, open the app: no stored trip screen.
+  7. `pnpm dev` locally still works as before.
+
 **Cartoon renamed Voyage, plus a canoe: implemented 2026-11-26 on `feat/voyage-theme`; lint + `tsc` clean; `pnpm build` passes; verified in-app 2026-11-26; merged #173; no migration.** The third theme is "Voyage" everywhere (picker label, cookie value `voyage`, `.voyage` class, `voyage:` variant, `VoyageSceneBg`); a saved `cartoon` cookie now falls back to Light once. A small sailing canoe of our own drawing (coral hull, crab-claw sail with a coral band of dark triangles) rides the bottom wave strip; it lives inside the strip SVG so it scales with the waves, and the strip is as tall as the drawing needs (`max(9rem, 9.6vw)`) so the sail never crops. In-app checks:
   1. Picker reads Light / Dark / Voyage; picking Voyage looks as Cartoon did, plus the canoe.
   2. Phone: the canoe sits on the waves at the bottom right of centre, hull visible, waves lapping its bottom; the sail pattern is visible.
