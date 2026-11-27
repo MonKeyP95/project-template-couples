@@ -9,5 +9,8 @@ export async function POST(request: Request) {
   // deployment the user is actually signed in to.
   // 303 See Other: tells the browser to switch to GET when following the redirect
   // after a POST. Default 307 preserves POST, which then 405s against the landing page.
-  return NextResponse.redirect(new URL("/", request.url), 303)
+  const response = NextResponse.redirect(new URL("/", request.url), 303)
+  // Wipes the stored on-the-road copy, the offline outbox and the worker.
+  response.headers.set("Clear-Site-Data", '"cache", "storage"')
+  return response
 }
