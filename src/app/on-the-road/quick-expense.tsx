@@ -3,7 +3,9 @@
 import * as React from "react"
 import { useRouter } from "next/navigation"
 
-import { logExpense } from "@/lib/trips/actions"
+import { submitOrQueue } from "@/lib/offline/send"
+import { PendingList } from "@/components/offline/pending-list"
+import { deviceToday } from "@/lib/time/today"
 import { attachReceipt } from "@/lib/trips/receipt-actions"
 import { prefillFromReading, type ReceiptReading } from "@/lib/trips/receipt-types"
 import { ReceiptCameraButton } from "@/components/receipts/receipt-camera-button"
@@ -76,17 +78,25 @@ export function QuickExpense({
   function submit(e: React.FormEvent) {
     e.preventDefault()
     if (isPending || readingReceipt || !canSubmit) return
+    // The id is fixed before the first send, so a resend is never a second row.
+    const id = crypto.randomUUID()
     startTransition(async () => {
-      const result = await logExpense({
-        tripId,
-        tripSlug,
-        title: name.trim(),
-        amount,
-        currency: expenseCurrency,
-        category,
-        paidBy: currentPersonId,
-        dayDate: today,
-        locationId: null,
+      const result = await submitOrQueue({
+        kind: "expense",
+        id,
+        queuedAt: new Date().toISOString(),
+        input: {
+          id,
+          tripId,
+          tripSlug,
+          title: name.trim(),
+          amount,
+          currency: expenseCurrency,
+          category,
+          paidBy: currentPersonId,
+          dayDate: deviceToday(),
+          locationId: null,
+        },
       })
       if (result.error) {
         setError(result.error)
@@ -95,8 +105,13 @@ export function QuickExpense({
       setName("")
       setAmount("")
       setError(null)
+      if (result.queued) {
+        setReceiptId(null)
+        onSaved?.()
+        return
+      }
       if (receiptId) {
-        const attach = await attachReceipt(receiptId, result.expenseId!, tripSlug)
+        const attach = await attachReceipt(receiptId, id, tripSlug)
         setReceiptId(null)
         if (attach.error) setError("Expense saved; receipt left in the pile to match.")
       }
@@ -166,6 +181,10 @@ export function QuickExpense({
           <div className="font-mono text-[10px] text-clay">{error}</div>
         ) : null}
       </form>
+      <PendingList
+        kind="expense"
+        label={(i) => `${i.input.title} · ${i.input.amount} ${i.input.currency}`}
+      />
     </div>
   )
 }

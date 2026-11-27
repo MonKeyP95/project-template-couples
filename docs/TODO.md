@@ -4,6 +4,16 @@
 
 **Next up: work on the AI itinerary planner** (`itinerary-planner` agent, `src/lib/ai/agents/`). Noted 2026-11-03.
 
+**Offline on the road, steps 2+3 (outbox for quick expense, note, today event): implemented 2026-11-27 on `feat/offline-outbox` (stacked on step 1); lint + `tsc` clean; `pnpm build` passes; unverified in app.** Each add gets its id on the phone before the first send (`logExpense`/`addNote` take `id`, a repeat is success; `addTodayEvent` skips an identical time+text). A send that fails or takes over 10 s goes to a `localStorage` outbox, listed under its form as "waiting to send" with send now / remove. A page fresh from the network sends the outbox on load, on `online` and on return to the foreground; a stored copy reloads instead. Dates are the phone's today at submit. In-app checks (Android, after step 1 is merged):
+  1. Offline, add an expense in EUR: the form clears; it shows under "waiting to send".
+  2. Same for a note and a today event (the event list shows even with the add form closed).
+  3. Turn signal back on with the app open: items send, the waiting list empties, they appear in the cards; the EUR expense has a DKK amount.
+  4. Signal back but the app was in the background: bringing it to the front sends the items.
+  5. Flaky case: add offline, reconnect, immediately lose signal again, reconnect: each item appears exactly once.
+  6. Open the stored copy offline the morning after it was saved: an expense added then lands on today's date.
+  7. A note reminder whose time has passed: opening the stored copy offline does not keep reloading.
+  8. One bar of signal: "add" gives up after about 10 s and the item waits instead of spinning.
+
 **Offline on the road, step 1 (installable + opens offline): implemented 2026-11-27 on `feat/offline-installable`; lint + `tsc` clean; `pnpm build` passes; unverified in app.** Spec `docs/superpowers/specs/2026-11-27-offline-on-the-road-design.md`, plan `docs/superpowers/plans/2026-11-27-offline-on-the-road.md`. Manifest (start page on-the-road), icons, `public/sw.js` storing `/on-the-road`, sign-out clears the stored copy (`Clear-Site-Data`). Steps 2 (expense outbox) and 3 (notes/events) follow. In-app checks (Android Chrome):
   1. Preview link: open on-the-road online, then airplane mode, reload: the screen shows (stale data is fine).
   2. Offline, open home or a trip page: "No connection" with a link back to on the road.

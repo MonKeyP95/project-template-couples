@@ -53,6 +53,7 @@ import { QuickExpense } from "./quick-expense"
 import { BudgetByCategory } from "@/app/trips/[slug]/budget-by-category"
 import { memberToneMap } from "@/app/trips/[slug]/member-tones"
 import { QuickNote } from "./quick-note"
+import { OutboxFlusher } from "@/components/offline/outbox-flusher"
 import { RoadPlaceDoor } from "./find-a-place"
 import { RoadNudge } from "./road-nudge"
 import { KeepCard, MoneyCard, RoadHeaderLine, TodayCard } from "./road-cards"
@@ -175,6 +176,7 @@ export default async function OnTheRoadPage() {
         tables={["expenses", "trip_notes", "itinerary_days"]}
       />
       <RefreshAtReminder at={nextReminder} />
+      <OutboxFlusher />
       <LeftRail
         workspace={workspace}
         initialTheme={theme}
@@ -259,7 +261,6 @@ export default async function OnTheRoadPage() {
         todayDay={todayDay}
         tripId={trip.id}
         tripSlug={trip.slug}
-        today={today}
         ahead={ahead}
       />
 
@@ -326,7 +327,6 @@ export default async function OnTheRoadPage() {
           <QuickNote
             tripId={trip.id}
             tripSlug={trip.slug}
-            today={today}
             notes={notes}
             tz={tz}
             now={requestNowMs()}

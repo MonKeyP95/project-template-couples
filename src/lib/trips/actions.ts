@@ -231,6 +231,8 @@ export interface LogExpenseInput {
   paidBy: string
   dayDate: string | null
   locationId: string | null
+  /** Chosen on the phone before the first send, so a resend is one row. */
+  id?: string
 }
 
 /**
@@ -314,6 +316,7 @@ export async function logExpense(
   const { data, error } = await supabase
     .from("expenses")
     .insert({
+      ...(input.id ? { id: input.id } : {}),
       trip_id: input.tripId,
       title,
       amount_cents: cents,
@@ -329,6 +332,8 @@ export async function logExpense(
     .select("id")
     .single()
 
+  // The same phone id again: the first send landed, its reply was lost.
+  if (error?.code === "23505" && input.id) return { expenseId: input.id }
   if (error) return { error: error.message }
 
   revalidatePath(`/trips/${input.tripSlug}`)
@@ -1398,6 +1403,8 @@ export interface AddNoteInput {
   dayDate?: string | null
   /** ISO moment to remind at; null/undefined = no reminder. */
   remindAt?: string | null
+  /** Chosen on the phone before the first send, so a resend is one row. */
+  id?: string
 }
 
 export interface AddNoteResult {
@@ -1424,6 +1431,7 @@ export async function addNote(
   const { data, error } = await supabase
     .from("trip_notes")
     .insert({
+      ...(input.id ? { id: input.id } : {}),
       trip_id: input.tripId,
       body,
       location_id: input.locationId ?? null,
@@ -1436,6 +1444,7 @@ export async function addNote(
     )
     .single()
 
+  if (error?.code === "23505" && input.id) return {}
   if (error) return { error: error.message }
 
   revalidatePath(`/trips/${input.tripSlug}`)
@@ -1764,6 +1773,16 @@ function normalizeDayEvents(events: ItineraryEvent[]): ItineraryEvent[] {
     .filter((e) => e.text.length > 0)
 }
 
+/** The day's events with `e` appended and sorted, or null when an event with
+ * the same time and text is already there (a resent offline add). */
+function withEventOnce(
+  existing: ItineraryEvent[],
+  e: ItineraryEvent,
+): ItineraryEvent[] | null {
+  if (existing.some((x) => x.time === e.time && x.text === e.text)) return null
+  return normalizeDayEvents([...existing, e]).sort(sortDayEvents)
+}
+
 /**
  * Appends one event to a day's `events`, re-sorted by time. Used by the On the
  * Road page's quick "add event" on today. When the day doesn't exist yet
@@ -1799,7 +1818,8 @@ export async function addTodayEvent(
     const existing = Array.isArray(row.events)
       ? (row.events as ItineraryEvent[])
       : []
-    const events = normalizeDayEvents([...existing, newEvent]).sort(sortDayEvents)
+    const events = withEventOnce(existing, newEvent)
+    if (!events) return {}
 
     const { error } = await supabase
       .from("itinerary_days")
@@ -1836,7 +1856,8 @@ export async function addTodayEvent(
       const prior = Array.isArray(existing.events)
         ? (existing.events as ItineraryEvent[])
         : []
-      const events = normalizeDayEvents([...prior, newEvent]).sort(sortDayEvents)
+      const events = withEventOnce(prior, newEvent)
+      if (!events) return {}
       const { error: updateError } = await supabase
         .from("itinerary_days")
         .update({ events })
