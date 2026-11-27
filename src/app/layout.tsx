@@ -9,6 +9,7 @@ import "./globals.css"
 
 import { VoyageSceneBg, WorldMapBg } from "@/components/together"
 import { TimezoneCookie } from "@/components/timezone-cookie"
+import { ServiceWorker } from "@/components/offline/service-worker"
 import { AiModeProvider } from "@/components/ai-mode"
 import { MoneyProvider } from "@/components/money-context"
 import { getMoney } from "@/lib/money-server"
@@ -67,6 +68,7 @@ export default async function RootLayout({
         suppressHydrationWarning
       >
         <TimezoneCookie />
+        <ServiceWorker />
         <WorldMapBg className="fixed inset-0 -z-10 text-foreground/[0.07] voyage:hidden" />
         <VoyageSceneBg className="fixed inset-0 -z-10 hidden voyage:block" />
         <MoneyProvider locale={locale}>
