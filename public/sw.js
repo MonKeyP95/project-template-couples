@@ -25,7 +25,7 @@ self.addEventListener("fetch", (event) => {
   if (url.origin !== self.location.origin) return
 
   if (request.mode === "navigate" && url.pathname === ROAD) {
-    event.respondWith(roadPage(request))
+    event.respondWith(roadPage(event))
   } else if (request.mode === "navigate") {
     event.respondWith(fetch(request).catch(offlinePage))
   } else if (url.pathname.startsWith("/_next/static/")) {
@@ -37,25 +37,31 @@ self.addEventListener("message", (event) => {
   if (event.data?.type === "warm") event.waitUntil(warm())
 })
 
-/** Stores the on-the-road page and every static file its HTML names. */
+/** Stores the on-the-road page and every static file its HTML names. One
+ * missing file must not stop the rest, so each is added on its own. */
 async function warm() {
   const res = await fetch(ROAD)
   if (!res.ok || res.redirected) return
   const html = await res.clone().text()
-  const urls = [...new Set(html.match(/\/_next\/static\/[^"'\s)\\]+/g) ?? [])]
-  await (await caches.open(STATIC)).addAll(urls)
   await storeRoad(res)
+  const urls = [...new Set(html.match(/\/_next\/static\/[^"'\s)\\]+/g) ?? [])]
+  const cache = await caches.open(STATIC)
+  await Promise.all(urls.map((u) => cache.add(u).catch(() => {})))
 }
 
-async function roadPage(request) {
-  try {
-    const res = await fetch(request)
-    await storeRoad(res.clone())
-    return res
-  } catch {
-    const stored = await (await caches.open(PAGES)).match(ROAD)
-    return stored ? markOffline(stored) : offlinePage()
-  }
+/** On one bar of signal a fetch can hang; after this the stored copy shows. */
+const NETWORK_TIMEOUT_MS = 4000
+
+async function roadPage(event) {
+  const network = fetch(event.request)
+  // Attached first, so the clone is taken before the page reads the body.
+  event.waitUntil(network.then((res) => storeRoad(res.clone()), () => {}))
+  const wait = new Promise((resolve) => setTimeout(resolve, NETWORK_TIMEOUT_MS))
+  const res = await Promise.race([network, wait]).catch(() => undefined)
+  if (res) return res
+  const stored = await (await caches.open(PAGES)).match(ROAD)
+  if (stored) return markOffline(stored)
+  return network.catch(offlinePage)
 }
 
 /** Only a real page is kept: never a redirect to /signin or /home. */

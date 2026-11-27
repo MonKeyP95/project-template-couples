@@ -14,8 +14,15 @@ export function ServiceWorker() {
   const pathname = usePathname()
 
   React.useEffect(() => {
-    if (process.env.NODE_ENV !== "production" || !("serviceWorker" in navigator)) return
-    navigator.serviceWorker.register("/sw.js")
+    if (!("serviceWorker" in navigator)) return
+    if (process.env.NODE_ENV === "production") {
+      navigator.serviceWorker.register("/sw.js")
+      return
+    }
+    // A worker left by `pnpm start` on localhost would serve stale dev chunks.
+    navigator.serviceWorker
+      .getRegistrations()
+      .then((regs) => regs.forEach((r) => r.unregister()))
   }, [])
 
   React.useEffect(() => {
