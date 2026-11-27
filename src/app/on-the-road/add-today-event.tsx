@@ -3,7 +3,9 @@
 import * as React from "react"
 import { useRouter } from "next/navigation"
 
-import { addTodayEvent } from "@/lib/trips/actions"
+import { submitOrQueue } from "@/lib/offline/send"
+import { PendingList } from "@/components/offline/pending-list"
+import { deviceToday } from "@/lib/time/today"
 
 /** "21" -> "21:00", "9:3" -> "09:30". Leaves unparseable input untouched. */
 function normalizeTime(raw: string): string {
@@ -16,17 +18,9 @@ function normalizeTime(raw: string): string {
   return `${h}:${min}`
 }
 
-export function AddTodayEvent({
-  tripId,
-  tripSlug,
-  dayDate,
-  dayId,
-}: {
-  tripId: string
-  tripSlug: string
-  dayDate: string
-  dayId: string | null
-}) {
+/** Adds a timed event to today. Always by date (the phone's), so a copy stored
+ * yesterday still writes today; the action appends to that date's day. */
+export function AddTodayEvent({ tripId, tripSlug }: { tripId: string; tripSlug: string }) {
   const router = useRouter()
   const [open, setOpen] = React.useState(false)
   const [time, setTime] = React.useState("")
@@ -38,13 +32,18 @@ export function AddTodayEvent({
     e.preventDefault()
     if (isPending || !text.trim()) return
     startTransition(async () => {
-      const result = await addTodayEvent({
-        tripId,
-        tripSlug,
-        dayDate,
-        dayId,
-        time: normalizeTime(time),
-        text: text.trim(),
+      const result = await submitOrQueue({
+        kind: "event",
+        id: crypto.randomUUID(),
+        queuedAt: new Date().toISOString(),
+        input: {
+          tripId,
+          tripSlug,
+          dayDate: deviceToday(),
+          dayId: null,
+          time: normalizeTime(time),
+          text: text.trim(),
+        },
       })
       if (result.error) {
         setError(result.error)
@@ -54,23 +53,31 @@ export function AddTodayEvent({
       setText("")
       setError(null)
       setOpen(false)
-      router.refresh()
+      if (!result.queued) router.refresh()
     })
   }
 
+  const pending = (
+    <PendingList kind="event" label={(i) => `${i.input.time} ${i.input.text}`.trim()} />
+  )
+
   if (!open) {
     return (
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        className="mt-3 font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground hover:text-foreground"
-      >
-        add event
-      </button>
+      <>
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          className="mt-3 font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground hover:text-foreground"
+        >
+          add event
+        </button>
+        {pending}
+      </>
     )
   }
 
   return (
+    <>
     <form onSubmit={submit} className="mt-3 flex flex-col gap-2">
       <div className="flex gap-2">
         <input
@@ -115,5 +122,7 @@ export function AddTodayEvent({
         </button>
       </div>
     </form>
+    {pending}
+    </>
   )
 }

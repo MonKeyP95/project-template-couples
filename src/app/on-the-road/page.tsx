@@ -261,7 +261,6 @@ export default async function OnTheRoadPage() {
         todayDay={todayDay}
         tripId={trip.id}
         tripSlug={trip.slug}
-        today={today}
         ahead={ahead}
       />
 
@@ -328,7 +327,6 @@ export default async function OnTheRoadPage() {
           <QuickNote
             tripId={trip.id}
             tripSlug={trip.slug}
-            today={today}
             notes={notes}
             tz={tz}
             now={requestNowMs()}

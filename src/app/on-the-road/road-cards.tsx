@@ -156,13 +156,11 @@ export function TodayCard({
   todayDay,
   tripId,
   tripSlug,
-  today,
   ahead,
 }: {
   todayDay: ItineraryDay | null
   tripId: string
   tripSlug: string
-  today: string
   ahead: LookingAhead
 }) {
   return (
@@ -191,12 +189,7 @@ export function TodayCard({
           ) : (
             <div className="text-[13px] text-muted-foreground">Nothing planned for today.</div>
           )}
-          <AddTodayEvent
-            tripId={tripId}
-            tripSlug={tripSlug}
-            dayDate={today}
-            dayId={todayDay?.id ?? null}
-          />
+          <AddTodayEvent tripId={tripId} tripSlug={tripSlug} />
         </div>
       </BoxSection>
       <LookingAheadSection ahead={ahead} />
