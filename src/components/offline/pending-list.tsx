@@ -49,18 +49,16 @@ export function PendingList<K extends OutboxKind>({
           <li key={item.id} className="flex items-baseline gap-2 text-[13px] text-muted-foreground">
             <span className="min-w-0 flex-1 truncate">{label(item)}</span>
             {item.failed ? (
-              <>
-                <span className="font-mono text-[10px] text-clay">{item.failed}</span>
-                <button
-                  type="button"
-                  onClick={() => retry(item)}
-                  disabled={isPending}
-                  className="font-mono text-[10px] uppercase tracking-[0.16em] hover:text-foreground disabled:opacity-40"
-                >
-                  retry
-                </button>
-              </>
+              <span className="font-mono text-[10px] text-clay">{item.failed}</span>
             ) : null}
+            <button
+              type="button"
+              onClick={() => retry(item)}
+              disabled={isPending}
+              className="font-mono text-[10px] uppercase tracking-[0.16em] hover:text-foreground disabled:opacity-40"
+            >
+              {item.failed ? "retry" : "send now"}
+            </button>
             <button
               type="button"
               onClick={() => removeItem(item.id)}

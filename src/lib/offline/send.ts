@@ -14,12 +14,22 @@ export function sendItem(item: OutboxItem): Promise<{ error?: string }> {
   }
 }
 
-/** Sends now; a network failure (a throw, not an `{ error }`) queues it instead. */
+/** On one bar of signal a send can hang for minutes rather than fail. */
+const SEND_TIMEOUT_MS = 10_000
+
+/**
+ * Sends now; a network failure (a throw, not an `{ error }`) or a send slower
+ * than SEND_TIMEOUT_MS queues it instead. A slow send that lands later is
+ * harmless: the resend carries the same id.
+ */
 export async function submitOrQueue(
   item: OutboxItem,
 ): Promise<{ error?: string; queued?: boolean }> {
+  const timeout = new Promise<never>((_, reject) =>
+    setTimeout(() => reject(new Error("timeout")), SEND_TIMEOUT_MS),
+  )
   try {
-    return await sendItem(item)
+    return await Promise.race([sendItem(item), timeout])
   } catch {
     enqueue(item)
     return { queued: true }
